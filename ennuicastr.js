@@ -683,9 +683,11 @@
                 waveWatcher.style.visibility = "hidden";
                 waveRotate = true;
             }
-        } else if (waveRotate) {
-            waveWatcher.style.visibility = "";
-            waveRotate = false;
+        } else {
+            if (waveRotate) {
+                waveWatcher.style.visibility = "";
+                waveRotate = false;
+            }
             if (h > w/4) h = Math.ceil(w/4);
         }
 
