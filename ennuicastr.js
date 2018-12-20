@@ -131,6 +131,7 @@
     // The display canvas and data
     var waveCanvas = null;
     var waveWatcher = null;
+    var waveRotate = false;
 
     // Our start time is in local ticks, and our offset is updated every so often
     var startTime = 0;
@@ -672,18 +673,38 @@
 
     // Update the wave display
     function updateWave(value) {
-        // Make sure the canvas is right
-        if (+waveCanvas.width !== +window.innerWidth)
-            waveCanvas.width = window.innerWidth;
-        var w = +waveCanvas.width;
+        // Start from the window size
+        var w = window.innerWidth;
         var h = window.innerHeight - log.offsetHeight;
-        if (h > w/4) h = Math.ceil(w/4);
+
+        // Rotate if our view is vertical
+        if (h > w) {
+            if (!waveRotate) {
+                waveWatcher.style.visibility = "hidden";
+                waveRotate = true;
+            }
+        } else if (waveRotate) {
+            waveWatcher.style.visibility = "";
+            waveRotate = false;
+            if (h > w/4) h = Math.ceil(w/4);
+        }
+
+        // Make sure the canvases are correct
+        if (+waveCanvas.width !== w)
+            waveCanvas.width = w;
         if (+waveCanvas.height !== h)
             waveCanvas.height = h;
         if (waveCanvas.style.height !== h+"px")
             waveCanvas.style.height = h+"px";
         if (waveWatcher.style.height !== h+"px")
             waveWatcher.style.height = h+"px";
+
+        if (waveRotate) {
+            var tmp = w;
+            w = h;
+            h = tmp;
+        }
+
         // Half the wave height is a more useful value
         h = Math.floor(h/2);
 
@@ -721,6 +742,11 @@
         // And draw it
         var ctx = waveCanvas.getContext("2d");
         var i, p;
+        ctx.save();
+        if (waveRotate) {
+            ctx.rotate(Math.PI/2);
+            ctx.translate(0, -2*h);
+        }
         ctx.fillStyle = "#033";
         ctx.fillRect(0, 0, w, h*2);
         for (i = 0, p = 0; i < dw; i++, p += sw) {
@@ -729,6 +755,7 @@
             ctx.fillStyle = connected ? waveVADColors[waveVADs[i]] : "#000";
             ctx.fillRect(p, h-d, sw, 2*d);
         }
+        ctx.restore();
     }
 
     // Create a basic VAD, for when we can't combine the FFT and level-based VAD
