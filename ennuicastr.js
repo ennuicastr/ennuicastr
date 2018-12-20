@@ -220,9 +220,9 @@
         pingSock = close(pingSock);
         dataSock = close(dataSock);
 
-        if (vad) {
+        if (fftVad) {
             // FIXME?
-            vad = null;
+            fftVad = null;
         }
 
         if (mediaRecorder) {
@@ -604,11 +604,12 @@
         } else {
             var sample = "data:image/webp;base64,UklGRh4AAABXRUJQVlA4TBEAAAAvAAAAAAfQ//73v/+BiOh/AAA=";
             fetch(sample).then(function(res) {
-                createImageBitmap(res.blob()).then(
-                    function() {
-                        img.src = "images/watcher.webp";
-                        img.style.display = "";
-                    }, usePng);
+                return res.blob();
+            }).then(function(blob) {
+                return createImageBitmap(blob)
+            }).then(function() {
+                img.src = "images/watcher.webp";
+                img.style.display = "";
             }).catch(usePng);
         }
 
@@ -624,8 +625,11 @@
 
         // And set up the audio processor
         var mss = ac.createMediaStreamSource(userMedia);
-        var sp = ac.createScriptProcessor(1024, 1, 0);
-        sp.addEventListener("audioprocess", function(ev) {
+        /* NOTE: We don't actually care about output, but Chrome won't run a
+         * script processor with 0 outputs */
+        var sp = ac.createScriptProcessor(1024, 1, 1);
+        sp.connect(ac.destination);
+        sp.onaudioprocess = function(ev) {
             // Find the max for this range
             var max = 0;
             var ib = ev.inputBuffer.getChannelData(0);
@@ -654,7 +658,7 @@
             else
                 waveVADs.push(0);
             updateWave(max);
-        });
+        };
         mss.connect(sp);
     }
 
