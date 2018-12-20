@@ -33,6 +33,7 @@
     var params = new URLSearchParams(url.search);
     var id = params.get("id");
     var key = params.get("key");
+    var port = params.get("port");
     var username = params.get("nm");
     if (id === null) {
         // Redirect to the homepage
@@ -47,6 +48,9 @@
         return;
     }
     key = +key;
+    if (port === null)
+        port = 36678;
+    port = +port;
     url.search = "?id=" + id;
     window.history.pushState({}, "EnnuiCastr", url.toString());
 
@@ -62,12 +66,14 @@
         form.method = "GET";
         form.innerHTML =
             "<label for=\"nm\">Username: </label><input name=\"nm\" id=\"nm\" type=\"text\" /> " +
-            "<input name=\"id\" type=\"hidden\" value=\"" + id + "\" /><input name=\"key\" type=\"hidden\" value=\"" + key + "\" />" +
+            "<input name=\"id\" type=\"hidden\" value=\"" + id + "\" />" +
+            "<input name=\"key\" type=\"hidden\" value=\"" + key + "\" />" +
+            "<input name=\"port\" type=\"hidden\" value=\"" + port + "\" />" +
             "<input type=\"submit\" value=\"Join\" />";
 
         form.onsubmit = function(ev) {
             // Try to do this in a new window
-            var target = "?id=" + id + "&key=" + key + "&nm=" + encodeURIComponent(gebi("nm").value);
+            var target = "?id=" + id + "&key=" + key + "&port=" + port + "&nm=" + encodeURIComponent(gebi("nm").value);
             if (window.open(target, "", "width=640,height=160,menubar=0,toolbar=0,location=0,personalbar=0,status=0") === null) {
                 // Just use the regular submit
                 return true;
@@ -85,6 +91,9 @@
     }
 
     // The remainder is actual EnnuiCastr
+
+    // Find the websock URL
+    var wsUrl = (url.protocol==="http:"?"ws":"wss") + "://" + url.hostname + ":" + port;
 
     // We have two connections to the server: One for pings, the other to send data
     var pingSock = null;
@@ -145,7 +154,7 @@
         connected = true;
         log.innerText = "Connecting...";
 
-        pingSock = new WebSocket("ws://localhost:36678");
+        pingSock = new WebSocket(wsUrl);
         pingSock.binaryType = "arraybuffer";
 
         pingSock.addEventListener("open", function() {
@@ -172,7 +181,7 @@
             new Uint8Array(out.buffer).set(nickBuf, 16);
             pingSock.send(out.buffer);
 
-            dataSock = new WebSocket("ws://localhost:36678");
+            dataSock = new WebSocket(wsUrl);
             dataSock.binaryType = "arraybuffer";
 
             dataSock.addEventListener("open", function() {

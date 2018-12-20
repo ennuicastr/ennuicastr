@@ -40,13 +40,12 @@ const opusHeader = [
 
 const oggFile = new ogg.OggEncoder(fs.createWriteStream("rec.opus"));
 
-/*
+const home = process.env.HOME;
 const hs = https.createServer({
-    cert: ...,
-    key: ...
+    cert: fs.readFileSync(home+"/cert/fullchain.pem", "utf8"),
+    key: fs.readFileSync(home+"/cert/privkey.pem", "utf8")
 });
-*/
-const hs = http.createServer();
+//const hs = http.createServer();
 hs.listen(36678);
 
 const wss = new ws.Server({
@@ -59,7 +58,6 @@ wss.on("connection", (ws) => {
     var dead = false;
     var packetNo = 0;
     function die() {
-        console.log(new Error().stack);
         ws.close();
         dead = true;
 
