@@ -280,9 +280,9 @@
                     setTimeout(ping, 10000);
 
                     // And figure out our offset
-                    var latency = pongs.reduce(function(a,b){return a+b})/10;
+                    var latency = pongs.reduce(function(a,b){return a+b;})/10;
                     var remoteTime = msg.getFloat64(p.serverTime, true) + latency;
-                    timeOffset = remoteTime - (recvd - startTime);
+                    timeOffset = remoteTime - recvd;
                 }
                 break;
         }
@@ -507,7 +507,7 @@
                     /* Send an empty packet in its stead (FIXME: We should have
                      * these prepared in advance) */
                     var header = packet[0];
-                    var granulePos = Math.round(granulePosOf(header) + timeOffset*48);
+                    var granulePos = Math.round(granulePosOf(header) + timeOffset*48 + startTime*48);
                     if (granulePos < 0) continue;
                     var msg = new DataView(new ArrayBuffer(12 + zeroPacket.length));
                     msg.setUint32(0, prot.ids.data, true);
@@ -530,7 +530,7 @@
                 if (data.getUint32(0, true) === 0x7375704F)
                     return;
 
-                var granulePos = Math.round(granulePosOf(header) + timeOffset*48);
+                var granulePos = Math.round(granulePosOf(header) + timeOffset*48 + startTime*48);
                 if (granulePos < 0)
                     return;
 
