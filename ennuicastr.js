@@ -151,6 +151,7 @@
 
     // Connect to the server (our first step)
     var connected = false;
+    var transmitting = false;
     function connect() {
         connected = true;
         log.innerText = "Connecting...";
@@ -495,6 +496,7 @@
     function handlePackets() {
         if (!packets.length || timeOffset === null) return;
         var curGranulePos = granulePosOf(packets[packets.length-1][0]);
+        transmitting = true;
 
         if (!vadOn) {
             // Drop any sufficiently old packets
@@ -753,7 +755,7 @@
         for (i = 0, p = 0; i < dw; i++, p += sw) {
             var d = Math.max(Math.log((waveData[i] / dh) * 54.598150033) / 4, 0) * h;
             if (d === 0) d = 1;
-            ctx.fillStyle = connected ? waveVADColors[waveVADs[i]] : "#000";
+            ctx.fillStyle = (connected&&transmitting) ? waveVADColors[waveVADs[i]] : "#000";
             ctx.fillRect(p, h-d, sw, 2*d);
         }
         ctx.restore();
