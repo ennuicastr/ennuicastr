@@ -7,6 +7,9 @@ by the same author. A small example server is provided for testing.
 EnnuiCastr is licensed under the ISC license, and so can be used for
 more-or-less any purpose so long as you retain the copyright notices.
 
+EnnuiCastr depends on vad.js ( https://github.com/kdavis-mozilla/vad.js ),
+which is included in this repository.
+
 EnnuiCastr depends on opus-recorder (
 https://github.com/chris-rudmin/opus-recorder ), a minified version of which is
 included in the recorder/ directory.
