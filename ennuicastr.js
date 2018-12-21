@@ -280,8 +280,8 @@
 
                     // And figure out our offset
                     var latency = pongs.reduce(function(a,b){return a+b})/10;
-                    var remoteTime = msg.getFloat64(p.serverTime, true) - latency;
-                    timeOffset = remoteTime - recvd;
+                    var remoteTime = msg.getFloat64(p.serverTime, true) + latency;
+                    timeOffset = remoteTime - (recvd - startTime);
                 }
                 break;
         }
@@ -495,7 +495,6 @@
     function handlePackets() {
         if (!packets.length || timeOffset === null) return;
         var curGranulePos = granulePosOf(packets[packets.length-1][0]);
-        var curTime = curGranulePos / 48 + startTime;
 
         if (!vadOn) {
             // Drop any sufficiently old packets
@@ -688,7 +687,7 @@
                 waveWatcher.style.visibility = "";
                 waveRotate = false;
             }
-            if (h > w/4) h = Math.ceil(w/4);
+            if (h > w/2) h = Math.ceil(w/2);
         }
 
         // Make sure the canvases are correct
