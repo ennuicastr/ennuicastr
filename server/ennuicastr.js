@@ -38,6 +38,28 @@ const opusHeader = [
         0x72])
 ];
 
+// A precompiled FLAC header, modified from one made by flac
+const flacHeader48k =
+    Buffer.from([0x7F, 0x46, 0x4C, 0x41, 0x43, 0x01, 0x00, 0x00, 0x03, 0x66,
+        0x4C, 0x61, 0x43, 0x00, 0x00, 0x00, 0x22, 0x10, 0x00, 0x10, 0x00, 0x00,
+        0x00, 0x0C, 0x00, 0x00, 0x0E, 0x0B, 0xB8, 0x01, 0x70, 0x00, 0x00, 0xBB,
+        0x80, 0x6B, 0x94, 0x58, 0xD4, 0xE1, 0xBB, 0x69, 0x0C, 0xDE, 0x1B, 0x87,
+        0xF2, 0xDB, 0x82, 0x6E, 0x22]);
+
+
+// A precompiled FLAC header for 44.1k
+const flacHeader44k =
+    Buffer.from([0x7F, 0x46, 0x4C, 0x41, 0x43, 0x01, 0x00, 0x00, 0x03, 0x66,
+        0x4C, 0x61, 0x43, 0x00, 0x00, 0x00, 0x22, 0x03, 0x72, 0x03, 0x72, 0x00,
+        0x00, 0x0E, 0x00, 0x00, 0x0E, 0x0A, 0xC4, 0x41, 0x70, 0x00, 0x00, 0xAC,
+        0x44, 0xD7, 0x1E, 0x31, 0x8B, 0x75, 0xD0, 0x4E, 0xEA, 0x13, 0xEF, 0x91,
+        0xC3, 0x23, 0x9B, 0x7E, 0x25]);
+
+// FLAC tags to say we're ennuicastr
+const flacTags =
+    Buffer.from([0x04, 0x00, 0x00, 0x41, 0x0A, 0x00, 0x00, 0x00, 0x65, 0x6E,
+        0x6E, 0x75, 0x69, 0x63, 0x61, 0x73, 0x74, 0x72]);
+
 const oggFile = new ogg.OggEncoder(fs.createWriteStream("rec.opus"));
 
 const home = process.env.HOME;
@@ -83,6 +105,7 @@ wss.on("connection", (ws) => {
             case prot.ids.login:
                 // In this example server, login is always successful
                 var p = prot.parts.login;
+                var f = prot.flags;
                 if (msg.length < p.length)
                     return die();
 
@@ -94,13 +117,29 @@ wss.on("connection", (ws) => {
                 }
                 console.log("Login by " + nick);
 
-                if (msg.readUInt32LE(p.flags) & 1) {
-                    // This is a data connection, so start the actual recording
-                    oggFile.write(0, 1, packetNo++, opusHeader[0], ogg.BOS);
-                    oggFile.write(0, 1, packetNo++, opusHeader[1]);
-                } else {
-                    // This is a ping connection, so reset our start time (just for this demo recorder)
-                    startTime = process.hrtime();
+                var flags = msg.readUInt32LE(p.flags);
+                var ctype = flags & f.connectionTypeMask;
+                var dtype = flags & f.dataTypeMask;
+
+                switch (ctype) {
+                    case f.connectionType.ping:
+                        // This is a ping connection, so reset our start time (just for this demo recorder)
+                        startTime = process.hrtime();
+                        break;
+
+                    case f.connectionType.data:
+                        // This is a data connection, so start the actual recording
+                        if (dtype === f.dataType.flac) {
+                            // We need to wait until an info packet arrives
+                        } else {
+                            oggFile.write(0, 1, packetNo++, opusHeader[0], ogg.BOS);
+                            oggFile.write(0, 1, packetNo++, opusHeader[1]);
+                        }
+                        break;
+
+                    default:
+                        // No other connection types supported!
+                        return die();
                 }
 
                 var op = prot.parts.ack;
@@ -108,6 +147,27 @@ wss.on("connection", (ws) => {
                 ret.writeUInt32LE(prot.ids.ack, 0);
                 ret.writeUInt32LE(prot.ids.login, op.ackd);
                 ws.send(ret);
+                break;
+
+            case prot.ids.info:
+                var p = prot.parts.info;
+                if (msg.length != p.length)
+                    return die();
+
+                var key = msg.readUInt32LE(p.key);
+                var value = msg.readUInt32LE(p.value);
+
+                if (key === prot.info.sampleRate) {
+                    // FLAC's sample rate specification (NOTE: We should really check that we're FLAC here)
+                    switch (value) {
+                        case 44100:
+                            oggFile.write(0, 1, packetNo++, flacHeader44k, ogg.BOS);
+                            break;
+                        default:
+                            oggFile.write(0, 1, packetNo++, flacHeader48k, ogg.BOS);
+                    }
+                    oggFile.write(0, 1, packetNo++, flacTags);
+                }
                 break;
 
             case prot.ids.ping:

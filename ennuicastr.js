@@ -33,6 +33,7 @@
     var params = new URLSearchParams(url.search);
     var id = params.get("id");
     var key = params.get("key");
+    var format = params.get("format");
     var port = params.get("port");
     var username = params.get("nm");
     if (id === null) {
@@ -51,6 +52,9 @@
     if (port === null)
         port = 36678;
     port = +port;
+    if (format === null)
+        format = 0;
+    format = +format;
     url.search = "?id=" + id;
     window.history.pushState({}, "EnnuiCastr", url.toString());
 
@@ -69,11 +73,14 @@
             "<input name=\"id\" type=\"hidden\" value=\"" + id + "\" />" +
             "<input name=\"key\" type=\"hidden\" value=\"" + key + "\" />" +
             "<input name=\"port\" type=\"hidden\" value=\"" + port + "\" />" +
+            "<input name=\"format\" type=\"hidden\" value=\"" + format + "\" />" +
             "<input type=\"submit\" value=\"Join\" />";
 
         form.onsubmit = function(ev) {
             // Try to do this in a new window
-            var target = "?id=" + id + "&key=" + key + "&port=" + port + "&nm=" + encodeURIComponent(gebi("nm").value);
+            var target = "?id=" + id + "&key=" + key + "&port=" + port +
+                "&format=" + format + "&nm=" +
+                encodeURIComponent(gebi("nm").value);
             if (window.open(target, "", "width=640,height=160,menubar=0,toolbar=0,location=0,personalbar=0,status=0") === null) {
                 // Just use the regular submit
                 return true;
@@ -100,10 +107,15 @@
     var dataSock = null;
 
     // There are a lot of intermediate steps to getting audio from point A to point B
-    var userMedia = null;
-    var fileReader = null;
-    var mediaRecorder = null;
-    var ac = null;
+    var userMedia = null; // The microphone input
+    var fileReader = null; // Used to transfer Opus data from the built-in encoder
+    var mediaRecorder = null; // Either the built-in media recorder or opus-recorder
+    var ac = null; // The audio context for our scritps
+    var flacEncoder = null; // If using FLAC
+
+    // Which technology to use. If both false, we'll use built-in Opus.
+    var useOpusRecorder = false;
+    var useFlac = (format === prot.flags.dataType.flac);
 
     // WebRTCVAD's raw output
     var rawVadOn = false;
@@ -168,9 +180,10 @@
             var out = new DataView(new ArrayBuffer(16 + nickBuf.length));
             out.setUint32(0, prot.ids.login, true);
             var p = prot.parts.login;
+            var f = prot.flags;
             out.setUint32(p.id, id, true);
             out.setUint32(p.key, key, true);
-            out.setUint32(p.flags, 0, true);
+            out.setUint32(p.flags, f.connectionType.ping | (useFlac?f.dataType.flac:0), true);
             new Uint8Array(out.buffer).set(nickBuf, 16);
             pingSock.send(out.buffer);
 
@@ -178,7 +191,7 @@
             dataSock.binaryType = "arraybuffer";
 
             dataSock.addEventListener("open", function() {
-                out.setUint32(p.flags, 1, true);
+                out.setUint32(p.flags, f.connectionType.data | (useFlac?f.dataType.flac:0), true);
                 dataSock.send(out.buffer);
                 getMic();
             });
@@ -289,7 +302,7 @@
                 echoCancellation: plzno,
                 noiseSuppression: plzno,
                 sampleRate: {ideal: 48000},
-                sampleSize: {ideal: 24} // Higher bitrates are *like* automatic gain control
+                sampleSize: {ideal: 24}
             }
         }).then(function(userMediaIn) {
             userMedia = userMediaIn;
@@ -302,9 +315,9 @@
 
     // Called once we have mic access
     function userMediaSet() {
-        log.innerText = "Capturing audio";
+        log.innerText = "Initializing encoder";
 
-        ac = new AudioContext();
+        ac = new AudioContext({sampleRate: userMedia.getAudioTracks()[0].getSettings().sampleRate});
 
         // Set up the VAD
         // Intentional global:
@@ -318,13 +331,50 @@
         document.body.appendChild(scr);
 
         // If the browser can't encode to Ogg Opus directly, we need a JS solution
-        var useRecorder = false;
+        useOpusRecorder = false;
         if (typeof MediaRecorder === "undefined" ||
             !MediaRecorder.isTypeSupported("audio/ogg; codec=opus")) {
-            useRecorder = true;
+            useOpusRecorder = true;
         }
 
-        if (!useRecorder) {
+        if (useFlac) {
+            // Check whether we should be using WebAssembly
+            var wa = isWebAssemblySupported();
+
+            // Jump through its asynchronous hoops
+            var scr = dce("script");
+            scr.addEventListener("load", function() {
+                if (!Flac.isReady())
+                    Flac.onready = encoderLoaded;
+                else
+                    encoderLoaded();
+            });
+            scr.src = "libflac/libflac.min" + (wa?".wasm":"") + ".js";
+            scr.async = true;
+            document.body.appendChild(scr);
+
+        } else if (useOpusRecorder) {
+            // We need to load it first
+            var scr = dce("script");
+            scr.addEventListener("load", encoderLoaded);
+            scr.src = "recorder/recorder.min.js";
+            scr.async = true;
+            document.body.appendChild(scr);
+
+        } else {
+            encoderLoaded();
+
+        }
+    }
+
+    // Called once the encoder is loaded
+    function encoderLoaded() {
+        log.innerText = "Capturing audio";
+
+        if (useFlac) {
+            flacStart();
+
+        } else if (!useOpusRecorder) {
             // We're ready to record, but need a file reader to transfer the data
             fileReader = new FileReader();
             fileReader.addEventListener("load", function(chunk) {
@@ -371,6 +421,77 @@
             mediaRecorder.start();
 
         }
+    }
+
+    // FLAC support code
+    function flacStart() {
+        // Opus always resamples, but we need to keep our rate for FLAC
+        var p = prot.parts.info;
+        var info = new DataView(new ArrayBuffer(p.length));
+        info.setUint32(0, prot.ids.info, true);
+        info.setUint32(p.key, prot.info.sampleRate, true);
+        info.setUint32(p.value, ac.sampleRate, true);
+        dataSock.send(info.buffer);
+
+        // Our zero packet is also different, of course
+        switch (ac.sampleRate) {
+            case 44100:
+                zeroPacket = new Uint8Array([0xFF, 0xF8, 0x79, 0x0C, 0x00, 0x03, 0x71, 0x56, 0x00, 0x00, 0x00, 0x00, 0x63, 0xC5]);
+                break;
+            default:
+                zeroPacket = new Uint8Array([0xFF, 0xF8, 0x7A, 0x0C, 0x00, 0x03, 0xBF, 0x94, 0x00, 0x00, 0x00, 0x00, 0xB1, 0xCA]);
+        }
+
+        // Initialize our FLAC encoder
+        flacEncoder = Flac.create_libflac_encoder(ac.sampleRate, 1, 24, 5, 0, false, ac.sampleRate * 20 / 1000);
+        if (flacEncoder === 0) {
+            log.innerText = "Failed to initialize FLAC encoder!";
+            return;
+        }
+
+        startTime = performance.now();
+
+        var encoderStatus = Flac.init_encoder_stream(flacEncoder, flacChunk);
+        if (encoderStatus !== 0) {
+            log.innerText = "Failed to initialize FLAC encode stream! (" + encoderStatus + " " + Flac.FLAC__stream_encoder_get_state() + ")";
+            return;
+        }
+
+        function flacChunk(data, bytes, samples, currentFrame) {
+            if (samples === 0) {
+                // This is metadata. Ignore it.
+                return;
+            }
+
+            // All we need of a "header" is the granule position (FIXME: This is stupid)
+            var header = new DataView(new ArrayBuffer(16));
+            data = new DataView(data.buffer);
+            var granulePos = Math.round((performance.now() - startTime) * 48);
+            granulePosSet(header, granulePos);
+            packets.push([header, data]);
+            handlePackets();
+        }
+
+        // Now start reading the input
+        var mss = ac.createMediaStreamSource(userMedia);
+        /* NOTE: We don't actually care about output, but Chrome won't run a
+         * script processor with 0 outputs */
+        var sp = ac.createScriptProcessor(1024, 1, 1);
+        sp.connect(ac.destination);
+        sp.onaudioprocess = function(ev) {
+            var ib = ev.inputBuffer.getChannelData(0);
+
+            // Convert it to FLAC's format
+            var oba = new Uint32Array(ib.length);
+            var ob = new DataView(oba.buffer);
+            for (var i = 0; i < ib.length; i++)
+                ob.setInt32(i * 4, ib[i]*0x7FFFFF, true);
+
+            var ret = Flac.FLAC__stream_encoder_process_interleaved(flacEncoder, oba, ib.length);
+            if (!ret)
+                log.innerText = "FLAC error " + Flac.FLAC__stream_encoder_get_state(flacEncoder);
+        };
+        mss.connect(sp);
     }
 
     // Shift a chunk of blob
@@ -776,5 +897,19 @@
             ctx.fillRect(p, h-d, sw, 2*d);
         }
         ctx.restore();
+    }
+
+    function isWebAssemblySupported() {
+        try {
+            if (typeof WebAssembly === "object" &&
+                typeof WebAssembly.instantiate === "function") {
+                var module = new WebAssembly.Module(
+                    new Uint8Array([0x0, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]));
+                if (module instanceof WebAssembly.Module)
+                    return new WebAssembly.Instance(module) instanceof WebAssembly.Instance;
+            }
+        } catch (e) {
+        }
+        return false;
     }
 })();
