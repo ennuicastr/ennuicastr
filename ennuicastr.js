@@ -103,20 +103,12 @@
     var userMedia = null;
     var fileReader = null;
     var mediaRecorder = null;
+    var ac = null;
 
-    /* We use a two-level voice activity detector. The first is vad.js, an
-     * FFT-based VAD. The second, here, is a voice-level based VAD with an
-     * adaptive voice level based on the FFT VAD. */
-    var fftVad = null;
-    var fftVadOn = false;
-    var fftVadOnChange = null;
+    // WebRTCVAD's raw output
+    var rawVadOn = false;
 
-    var lvlOnData = [];
-    var lvlOffData = [];
-    var lvlOnLevel = 1;
-    var lvlOffLevel = 0;
-    var lvlVadOn = false;
-
+    // VAD output after our two second cooldown
     var vadOn = false;
 
     // When we're not sending real data, we have to send a few (arbitrarily, 3) empty frames
@@ -124,7 +116,6 @@
 
     // The data used by both the level-based VAD and display
     var waveData = [];
-    var waveFFTVADs = [];
     var waveVADs = [];
     var waveVADColors = ["#aaa", "#073", "#0a3"];
 
@@ -222,11 +213,6 @@
         pingSock = close(pingSock);
         dataSock = close(dataSock);
 
-        if (fftVad) {
-            // FIXME?
-            fftVad = null;
-        }
-
         if (mediaRecorder) {
             mediaRecorder.stop();
             mediaRecorder = null;
@@ -318,18 +304,21 @@
     function userMediaSet() {
         log.innerText = "Capturing audio";
 
-        var ac = new AudioContext();
+        ac = new AudioContext();
 
         // Set up the VAD
-        var mss = ac.createMediaStreamSource(userMedia);
-        var vad = new VAD({
-            source: mss,
-            voice_start: fftVadStart,
-            voice_stop: fftVadStop
-        });
+        // Intentional global:
+        WebRTCVAD_Module = {
+            noInitialRun: true,
+            onRuntimeInitialized: setupWebRTCVAD
+        };
+        var scr = dce("script");
+        scr.async = true;
+        scr.src = "vad/webrtc_vad.js";
+        document.body.appendChild(scr);
 
         // Create our own script processor for display
-        createDisplay(userMedia, ac);
+        createDisplay(userMedia);
 
         // If the browser can't encode to Ogg Opus directly, we need a JS solution
         var useRecorder = false;
@@ -554,6 +543,69 @@
 
     // VAD and display below
 
+    // Set up WebRTC
+    function setupWebRTCVAD() {
+        var m = WebRTCVAD_Module;
+
+        if (!m.cwrap("main")()) {
+            // Major error!
+            return;
+        }
+
+        var setmode = m.cwrap("setmode", "number", ["number"]);
+        var process_data = m.cwrap("process_data", 'number', ['number', 'number', 'number', 'number', 'number', 'number']);
+
+        var bufSz = 480;
+        var dataPtr = m._malloc(4002);
+        var buf = new Int16Array(m.HEAPU8.buffer, dataPtr, 2001);
+        var bi = 0;
+
+        setmode(2);
+
+        var mss = ac.createMediaStreamSource(userMedia);
+        var sp = ac.createScriptProcessor(1024, 1, 1);
+        var timeout = null;
+        sp.connect(ac.destination);
+        sp.onaudioprocess = function(ev) {
+            var vadSet = rawVadOn;
+
+            // Translate to int16
+            var ib = ev.inputBuffer.getChannelData(0);
+            for (var i = 0; i < ib.length; i += 3) {
+                buf[bi++] = ib[i] * 0x7FFF;
+
+                if (bi == bufSz) {
+                    // We have a complete packet
+                    vadSet = !!process_data(buf.byteOffset, bufSz, 16000, buf[0], buf[100], 0);
+                    bi = 0;
+                }
+            }
+
+            if (vadSet) {
+                if (timeout) {
+                    clearTimeout(timeout);
+                    timeout = null;
+                }
+                if (!rawVadOn) {
+                    // We flipped on
+                    if (!vadOn)
+                        updateWaveRetroactive();
+                    rawVadOn = vadOn = true;
+                }
+            } else if (!vadSet && rawVadOn) {
+                // We flipped off
+                rawVadOn = false;
+                if (!timeout) {
+                    timeout = setTimeout(function() {
+                        vadOn = false;
+                    }, 2000);
+                }
+            }
+        };
+        mss.connect(sp);
+
+    }
+
     // When talking starts, switch the FFT VAD on
     function fftVadStart() {
         fftVadOn = true;
@@ -567,7 +619,7 @@
     }
 
     // Create a wave display and VAD
-    function createDisplay(userMedia, ac) {
+    function createDisplay(userMedia) {
         if (!ac.createScriptProcessor)
             createBasicVad();
 
@@ -652,8 +704,7 @@
             }
 
             waveData.push(max);
-            waveFFTVADs.push(fftVadOn);
-            if (fftVadOn || lvlVadOn)
+            if (rawVadOn)
                 waveVADs.push(2);
             else if (vadOn)
                 waveVADs.push(1);
@@ -718,29 +769,15 @@
         // Make sure we have an appropriate amount of data
         while (waveData.length > dw) {
             waveData.shift();
-            waveFFTVADs.shift();
             waveVADs.shift();
         }
         while (waveData.length < dw) {
             waveData.unshift(0);
-            waveFFTVADs.unshift(false);
             waveVADs.unshift(0);
         }
 
         // Figure out the height of the display
         var dh = Math.min(Math.max.apply(Math, waveData) * 1.5, 1);
-
-        // Because of how the rounding works, we add one *before* the current one to our level-based VAD data
-        if (waveFFTVADs[dw-1]) {
-            lvlOnData.push(waveData[dw-1]);
-            if (lvlOnData.length > 50)
-                lvlOnData.shift();
-        } else {
-            lvlOffData.push(waveData[dw-1]);
-            if (lvlOffData.length > 50)
-                lvlOffData.shift();
-        }
-        updateLvlVad(value);
 
         // And draw it
         var ctx = waveCanvas.getContext("2d");
@@ -759,87 +796,5 @@
             ctx.fillRect(p, h-d, sw, 2*d);
         }
         ctx.restore();
-    }
-
-    // Create a basic VAD, for when we can't combine the FFT and level-based VAD
-    function createBasicVad() {
-        var timeout = null;
-        fftVadOnChange = function() {
-            if (fftVadOn) {
-                if (timeout) {
-                    clearTimeout(timeout);
-                    timeout = null;
-                }
-                vadOn = true;
-
-            } else {
-                if (!timeout) {
-                    timeout = setTimeout(function() {
-                        vadOn = false;
-                        timeout = null;
-                    }, 2000);
-                }
-
-            }
-        };
-    }
-
-    function avg(arr) {
-        return arr.reduce(function(a, b) { return a + b; }) / arr.length;
-    }
-
-    function stddev(arr, mean) {
-        var diffs = arr.map(function(a) { return Math.pow(a - mean, 2); });
-        return Math.sqrt(diffs.reduce(function(a, b) { return a + b; }) / diffs.length);
-    }
-
-    var vadTimeout = null;
-
-    // Update the level-based VAD and joined VAD
-    function updateLvlVad(value) {
-        var onSD = 0, offSD = 0, dev;
-        if (lvlOnData.length) {
-            lvlOnLevel = avg(lvlOnData);
-            onSD = stddev(lvlOnData, lvlOnLevel);
-        }
-        if (lvlOffData.length) {
-            lvlOffLevel = avg(lvlOffData);
-            offSD = stddev(lvlOffData, lvlOffLevel);
-        }
-        dev = Math.max(onSD, offSD);
-
-        if (lvlOnLevel - lvlOffLevel <= 3*dev) {
-            // Our level-based VAD cannot be trusted
-            lvlVadOn = fftVadOn;
-
-        } else if (value < lvlOffLevel) {
-            lvlVadOn = false;
-
-        } else if (value > (lvlOnLevel+lvlOffLevel)/2) {
-            lvlVadOn = true;
-
-        }
-
-        if (fftVadOn || lvlVadOn) {
-            // Turn the total VAD on
-            if (!vadOn) {
-                vadOn = true;
-                updateWaveRetroactive();
-                if (vadTimeout) {
-                    clearTimeout(vadTimeout);
-                    vadTimeout = null;
-                }
-            }
-
-        } else {
-            // If they both agree no voice, turn it off after two seconds
-            if (!vadTimeout) {
-                vadTimeout = setTimeout(function() {
-                    vadOn = false;
-                    vadTimeout = null;
-                }, 2000);
-            }
-
-        }
     }
 })();

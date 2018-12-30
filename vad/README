@@ -1,0 +1,10 @@
+This is copied from the webrtc_vad repo as specified in VERSION, with the
+following changes:
+
+* I've added the *correct* license header. The LICENSE file in the webrtc_vad
+  repository is *wrong*. It's Mozilla's standard license info, but as
+  webrtc_vad is just an emscripten-compiled copy of WebRTC's VAD, it is
+  WebRTC's license that applies, not Mozilla's.
+
+* The default version uses a global named "Module". I renamed it to
+  WebRTCVAD_Module to avoid conflicts.
