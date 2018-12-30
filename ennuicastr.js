@@ -310,15 +310,12 @@
         // Intentional global:
         WebRTCVAD_Module = {
             noInitialRun: true,
-            onRuntimeInitialized: setupWebRTCVAD
+            onRuntimeInitialized: localProcessing
         };
         var scr = dce("script");
         scr.async = true;
         scr.src = "vad/webrtc_vad.js";
         document.body.appendChild(scr);
-
-        // Create our own script processor for display
-        createDisplay(userMedia);
 
         // If the browser can't encode to Ogg Opus directly, we need a JS solution
         var useRecorder = false;
@@ -543,8 +540,9 @@
 
     // VAD and display below
 
-    // Set up WebRTC
-    function setupWebRTCVAD() {
+    // Create a VAD and wave display
+    function localProcessing() {
+        // First the WebRTC VAD steps
         var m = WebRTCVAD_Module;
 
         if (!m.cwrap("main")()) {
@@ -558,70 +556,14 @@
         var bufSz = 480;
         var dataPtr = m._malloc(4002);
         var buf = new Int16Array(m.HEAPU8.buffer, dataPtr, 2001);
+        buf[2000] = 0; // Yay interface bugs
         var bi = 0;
+        var timeout = null;
 
         setmode(2);
 
-        var mss = ac.createMediaStreamSource(userMedia);
-        var sp = ac.createScriptProcessor(1024, 1, 1);
-        var timeout = null;
-        sp.connect(ac.destination);
-        sp.onaudioprocess = function(ev) {
-            var vadSet = rawVadOn;
 
-            // Translate to int16
-            var ib = ev.inputBuffer.getChannelData(0);
-            for (var i = 0; i < ib.length; i += 3) {
-                buf[bi++] = ib[i] * 0x7FFF;
-
-                if (bi == bufSz) {
-                    // We have a complete packet
-                    vadSet = !!process_data(buf.byteOffset, bufSz, 16000, buf[0], buf[100], 0);
-                    bi = 0;
-                }
-            }
-
-            if (vadSet) {
-                if (timeout) {
-                    clearTimeout(timeout);
-                    timeout = null;
-                }
-                if (!rawVadOn) {
-                    // We flipped on
-                    if (!vadOn)
-                        updateWaveRetroactive();
-                    rawVadOn = vadOn = true;
-                }
-            } else if (!vadSet && rawVadOn) {
-                // We flipped off
-                rawVadOn = false;
-                if (!timeout) {
-                    timeout = setTimeout(function() {
-                        vadOn = false;
-                    }, 2000);
-                }
-            }
-        };
-        mss.connect(sp);
-
-    }
-
-    // When talking starts, switch the FFT VAD on
-    function fftVadStart() {
-        fftVadOn = true;
-        if (fftVadOnChange) fftVadOnChange();
-    }
-
-    // When talking stops, switch the FFT VAD off
-    function fftVadStop() {
-        fftVadOn = false;
-        if (fftVadOnChange) fftVadOnChange();
-    }
-
-    // Create a wave display and VAD
-    function createDisplay(userMedia) {
-        if (!ac.createScriptProcessor)
-            createBasicVad();
+        // Now the display steps
 
         // Create a canvas for it
         var wc = dce("canvas");
@@ -677,13 +619,51 @@
         log.style.textAlign = "center";
         log.style.padding = "0.25em";
 
-        // And set up the audio processor
+        // Set up the audio processor for both VAD and display
         var mss = ac.createMediaStreamSource(userMedia);
         /* NOTE: We don't actually care about output, but Chrome won't run a
          * script processor with 0 outputs */
         var sp = ac.createScriptProcessor(1024, 1, 1);
         sp.connect(ac.destination);
         sp.onaudioprocess = function(ev) {
+            var ib = ev.inputBuffer.getChannelData(0);
+
+            // VAD
+            var vadSet = rawVadOn;
+            for (var i = 0; i < ib.length; i += 3) {
+                buf[bi++] = ib[i] * 0x7FFF;
+
+                if (bi == bufSz) {
+                    // We have a complete packet
+                    vadSet = !!process_data(buf.byteOffset, bufSz, 16000, buf[0], buf[100], 0);
+                    bi = 0;
+                }
+            }
+
+            if (vadSet) {
+                if (timeout) {
+                    clearTimeout(timeout);
+                    timeout = null;
+                }
+                if (!rawVadOn) {
+                    // We flipped on
+                    if (!vadOn)
+                        updateWaveRetroactive();
+                    rawVadOn = vadOn = true;
+                }
+            } else if (!vadSet && rawVadOn) {
+                // We flipped off
+                rawVadOn = false;
+                if (!timeout) {
+                    timeout = setTimeout(function() {
+                        vadOn = false;
+                    }, 2000);
+                }
+            }
+
+
+            // And display
+
             // Find the max for this range
             var max = 0;
             var ib = ev.inputBuffer.getChannelData(0);
@@ -693,7 +673,7 @@
                 if (v > max) max = v;
             }
 
-            // Bump up surrounding ones to make the wave look nicer and to help the voice-based VAD not have weird transients
+            // Bump up surrounding ones to make the wave look nicer
             if (waveData.length > 0) {
                 var last = waveData.pop();
                 if (last < max)
