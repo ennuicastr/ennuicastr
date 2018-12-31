@@ -1,18 +1,15 @@
 EnnuiCastr is a system for recording multiple users distributed across the
 world in a well-synchronized way, without significant loss, over the web. Note
-that this includes only client-side software; the server side is expected to be
-built into something else, such as Craig, another piece of recording software
-by the same author. A small example server is provided for testing.
+that this includes only client-side software; the server side is currently only
+built into Craig, another piece of recording software by the same author. A
+small example server is provided for testing.
 
-EnnuiCastr is licensed under the ISC license, and so can be used for
-more-or-less any purpose so long as you retain the copyright notices.
+EnnuiCastr is licensed under the ISC license, and can be used for more-or-less
+any purpose so long as you retain the copyright notices.
 
-EnnuiCastr depends on vad.js ( https://github.com/kdavis-mozilla/vad.js ),
-which is included in this repository.
-
-EnnuiCastr depends on opus-recorder (
-https://github.com/chris-rudmin/opus-recorder ), a minified version of which is
-included in the recorder/ directory.
+EnnuiCastr has a number of dependencies each under their own compatible
+license. See the directories vad, recorder and libflac for more information on
+them.
 
 No documentation is provided for running your own instances of EnnuiCastr or
 for its protocol.
