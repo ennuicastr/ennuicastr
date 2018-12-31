@@ -177,9 +177,9 @@
                 }
             }
 
-            var out = new DataView(new ArrayBuffer(16 + nickBuf.length));
-            out.setUint32(0, prot.ids.login, true);
             var p = prot.parts.login;
+            var out = new DataView(new ArrayBuffer(p.length + nickBuf.length));
+            out.setUint32(0, prot.ids.login, true);
             var f = prot.flags;
             out.setUint32(p.id, id, true);
             out.setUint32(p.key, key, true);
@@ -243,9 +243,10 @@
 
     // Ping the ping socket
     function ping() {
-        var msg = new DataView(new ArrayBuffer(12));
+        var p = prot.parts.ping;
+        var msg = new DataView(new ArrayBuffer(p.length));
         msg.setUint32(0, prot.ids.ping, 4);
-        msg.setFloat64(prot.parts.ping.clientTime, performance.now(), true);
+        msg.setFloat64(p.clientTime, performance.now(), true);
         pingSock.send(msg);
     }
 
@@ -616,13 +617,7 @@
                     var header = packet[0];
                     var granulePos = Math.round(granulePosOf(header) + timeOffset*48 + startTime*48);
                     if (granulePos < 0) continue;
-                    var msg = new DataView(new ArrayBuffer(12 + zeroPacket.length));
-                    msg.setUint32(0, prot.ids.data, true);
-                    var p = prot.parts.data;
-                    msg.setUint32(p.granulePos, granulePos & 0xFFFFFFFF, true);
-                    msg.setUint16(p.granulePos + 4, (granulePos / 0x100000000) & 0xFFFF, true);
-                    new Uint8Array(msg.buffer).set(zeroPacket, p.packet);
-                    dataSock.send(msg.buffer);
+                    sendPacket(granulePos, zeroPacket);
                     sentZeroes++;
                 }
             }
@@ -641,16 +636,7 @@
                 if (granulePos < 0)
                     return;
 
-                // Build the message
-                var msg = new DataView(new ArrayBuffer(12 + data.buffer.byteLength));
-                msg.setUint32(0, prot.ids.data, true);
-                var p = prot.parts.data;
-                msg.setUint32(p.granulePos, granulePos & 0xFFFFFFFF, true);
-                msg.setUint16(p.granulePos + 4, (granulePos / 0x100000000) & 0xFFFF, true);
-                msg = new Uint8Array(msg.buffer);
-                data = new Uint8Array(data.buffer);
-                msg.set(data, p.packet);
-                dataSock.send(msg.buffer);
+                sendPacket(granulePos, data);
             });
 
             sentZeroes = 0;
@@ -658,6 +644,20 @@
 
         }
     }
+
+    // Send an audio packet
+    function sendPacket(granulePos, data) {
+        var p = prot.parts.data;
+        var msg = new DataView(new ArrayBuffer(p.length + data.buffer.byteLength));
+        msg.setUint32(0, prot.ids.data, true);
+        msg.setUint32(p.granulePos, granulePos & 0xFFFFFFFF, true);
+        msg.setUint16(p.granulePos + 4, (granulePos / 0x100000000) & 0xFFFF, true);
+        msg = new Uint8Array(msg.buffer);
+        data = new Uint8Array(data.buffer);
+        msg.set(data, p.packet);
+        dataSock.send(msg.buffer);
+    }
+
 
     // VAD and display below
 
