@@ -28,34 +28,36 @@
     var prot = EnnuiCastrProtocol;
     var zeroPacket = new Uint8Array([0xF8, 0xFF, 0xFE]);
 
-    // First check whether we're doing anything interesting at all
+    // Read in our configuration
     var url = new URL(window.location);
     var params = new URLSearchParams(url.search);
-    var id = params.get("id");
-    var key = params.get("key");
-    var format = params.get("format");
-    var port = params.get("port");
+    var config = {
+        id: params.get("id"),
+        key: params.get("key"),
+        format: params.get("format"),
+        port: params.get("port")
+    };
     var username = params.get("nm");
-    if (id === null) {
+    if (config.id === null) {
         // Redirect to the homepage
         window.location = "/home/";
         return;
     }
-    id = +id;
-    if (key === null) {
+    config.id = +config.id;
+    if (config.key === null) {
         var div = dce("div");
         div.innerHTML = "Invalid key!";
         document.body.appendChild(div);
         return;
     }
-    key = +key;
-    if (port === null)
-        port = 36678;
-    port = +port;
-    if (format === null)
-        format = 0;
-    format = +format;
-    url.search = "?id=" + id;
+    config.key = +config.key;
+    if (config.port === null)
+        config.port = 36678;
+    config.port = +config.port;
+    if (config.format === null)
+        config.format = 0;
+    config.format = +config.format;
+    url.search = "?id=" + config.id;
     window.history.pushState({}, "EnnuiCastr", url.toString());
 
     // Next, check if we have a username
@@ -68,19 +70,19 @@
         var form = dce("form");
         form.action = "?";
         form.method = "GET";
-        form.innerHTML =
-            "<label for=\"nm\">Username: </label><input name=\"nm\" id=\"nm\" type=\"text\" /> " +
-            "<input name=\"id\" type=\"hidden\" value=\"" + id + "\" />" +
-            "<input name=\"key\" type=\"hidden\" value=\"" + key + "\" />" +
-            "<input name=\"port\" type=\"hidden\" value=\"" + port + "\" />" +
-            "<input name=\"format\" type=\"hidden\" value=\"" + format + "\" />" +
-            "<input type=\"submit\" value=\"Join\" />";
+        var html =
+            "<label for=\"nm\">Username: </label><input name=\"nm\" id=\"nm\" type=\"text\" /> ";
+        for (var key in config)
+            html += "<input name=\"" + key + "\" type=\"hidden\" value=\"" + config[key] + "\" />";
+        html += "<input type=\"submit\" value=\"Join\" />";
+        form.innerHTML = html;
 
         form.onsubmit = function(ev) {
             // Try to do this in a new window
-            var target = "?id=" + id + "&key=" + key + "&port=" + port +
-                "&format=" + format + "&nm=" +
-                encodeURIComponent(gebi("nm").value);
+            var target = "?";
+            for (var key in config)
+                target += key + "=" + config[key] + "&";
+            target += "nm=" + encodeURIComponent(gebi("nm").value);
             if (window.open(target, "", "width=640,height=160,menubar=0,toolbar=0,location=0,personalbar=0,status=0") === null) {
                 // Just use the regular submit
                 return true;
@@ -100,7 +102,7 @@
     // The remainder is actual EnnuiCastr
 
     // Find the websock URL
-    var wsUrl = (url.protocol==="http:"?"ws":"wss") + "://" + url.hostname + ":" + port;
+    var wsUrl = (url.protocol==="http:"?"ws":"wss") + "://" + url.hostname + ":" + config.port;
 
     // We have two connections to the server: One for pings, the other to send data
     var pingSock = null;
@@ -115,7 +117,7 @@
 
     // Which technology to use. If both false, we'll use built-in Opus.
     var useOpusRecorder = false;
-    var useFlac = (format === prot.flags.dataType.flac);
+    var useFlac = (config.format === prot.flags.dataType.flac);
 
     // WebRTCVAD's raw output
     var rawVadOn = false;
@@ -129,7 +131,7 @@
     // The data used by both the level-based VAD and display
     var waveData = [];
     var waveVADs = [];
-    var waveVADColors = ["#aaa", "#073", "#0a3"];
+    var waveVADColors = ["#000", "#aaa", "#073", "#0a3"];
 
     // The display canvas and data
     var waveCanvas = null;
@@ -168,9 +170,9 @@
                 nickBuf = new TextEncoder().encode(username);
             } else {
                 // I don't care to do this right, ASCII only
-                nickBuf = new Uint8Array(nick.length);
-                for (var ni = 0; ni < nick.length; ni++) {
-                    var cc = nick.charCodeAt(ni);
+                nickBuf = new Uint8Array(username.length);
+                for (var ni = 0; ni < username.length; ni++) {
+                    var cc = username.charCodeAt(ni);
                     if (cc > 127)
                         cc = 95;
                     nickBuf[ni] = cc;
@@ -181,8 +183,8 @@
             var out = new DataView(new ArrayBuffer(p.length + nickBuf.length));
             out.setUint32(0, prot.ids.login, true);
             var f = prot.flags;
-            out.setUint32(p.id, id, true);
-            out.setUint32(p.key, key, true);
+            out.setUint32(p.id, config.id, true);
+            out.setUint32(p.key, config.key, true);
             out.setUint32(p.flags, f.connectionType.ping | (useFlac?f.dataType.flac:0), true);
             new Uint8Array(out.buffer).set(nickBuf, 16);
             pingSock.send(out.buffer);
@@ -212,7 +214,19 @@
         if (!connected)
             return;
         connected = false;
-        log.innerText = "Disconnected!";
+
+        log.innerHTML = "";
+        var sp = dce("span");
+        sp.innerText = "Disconnected! ";
+        log.appendChild(sp);
+        var a = dce("a");
+        var href = "?";
+        for (var key in config)
+            href += key + "=" + config[key] + "&";
+        href += "nm=" + encodeURIComponent(username);
+        a.href = href;
+        a.innerText = "Attempt reconnection";
+        log.appendChild(a);
 
         var target = null;
         if (ev && ev.target)
@@ -227,6 +241,9 @@
         dataSock = close(dataSock);
 
         if (ac) {
+            try {
+                ac.dispatchEvent(new CustomEvent("disconnected", {}));
+            } catch (ex) {}
             ac.close();
             ac = null;
         }
@@ -499,7 +516,7 @@
         };
         mss.connect(sp);
 
-        ac.addEventListener("ended", function() {
+        ac.addEventListener("disconnected", function() {
             Flac.FLAC__stream_encoder_finish(flacEncoder);
             Flac.FLAC__stream_encoder_delete(flacEncoder);
             mss.disconnect(sp);
@@ -742,15 +759,8 @@
             }).catch(usePng);
         }
 
-        // And make the log display appropriate
-        log.style.backgroundColor = "#ccc";
-        log.style.color = "#333";
-        log.style.position = "fixed";
-        log.style.left = "0px";
-        log.style.bottom = "0px";
-        log.style.width = "100%";
-        log.style.textAlign = "center";
-        log.style.padding = "0.25em";
+        // Make the log display appropriate
+        log.classList.add("status");
 
         // Set up the audio processor for both VAD and display
         var mss = ac.createMediaStreamSource(userMedia);
@@ -817,18 +827,20 @@
             }
 
             waveData.push(max);
-            if (rawVadOn)
-                waveVADs.push(2);
-            else if (vadOn)
-                waveVADs.push(1);
-            else
+            if (!transmitting)
                 waveVADs.push(0);
+            else if (rawVadOn)
+                waveVADs.push(3);
+            else if (vadOn)
+                waveVADs.push(2);
+            else
+                waveVADs.push(1);
             updateWave(max);
         };
         mss.connect(sp);
 
-        ac.addEventListener("ended", function() {
-            updateWave(max);
+        ac.addEventListener("disconnected", function() {
+            updateWave(1);
             mss.disconnect(sp);
             sp.disconnect(ac.destination);
         });
@@ -839,7 +851,7 @@
         // Magic number 93 is 2 seconds given our rates
         var i = Math.max(waveVADs.length - 93, 0);
         for (; i < waveVADs.length; i++)
-            waveVADs[i] = waveVADs[i] ? waveVADs[i] : 1;
+            waveVADs[i] = (waveVADs[i] === 1) ? 2 : waveVADs[i];
     }
 
     // Update the wave display
