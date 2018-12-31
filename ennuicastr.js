@@ -337,7 +337,7 @@
         document.body.appendChild(scr);
 
         // If the browser can't encode to Ogg Opus directly, we need a JS solution
-        useOpusRecorder = true;
+        useOpusRecorder = false;
         if (typeof MediaRecorder === "undefined" ||
             !MediaRecorder.isTypeSupported("audio/ogg; codec=opus")) {
             useOpusRecorder = true;
