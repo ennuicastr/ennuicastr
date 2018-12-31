@@ -226,6 +226,11 @@
         pingSock = close(pingSock);
         dataSock = close(dataSock);
 
+        if (ac) {
+            ac.close();
+            ac = null;
+        }
+
         if (mediaRecorder) {
             mediaRecorder.stop();
             mediaRecorder = null;
@@ -332,7 +337,7 @@
         document.body.appendChild(scr);
 
         // If the browser can't encode to Ogg Opus directly, we need a JS solution
-        useOpusRecorder = false;
+        useOpusRecorder = true;
         if (typeof MediaRecorder === "undefined" ||
             !MediaRecorder.isTypeSupported("audio/ogg; codec=opus")) {
             useOpusRecorder = true;
@@ -419,7 +424,7 @@
                 handleData();
             };
             startTime = performance.now();
-            mediaRecorder.start();
+            mediaRecorder.start(ac.createMediaStreamSource(userMedia));
 
         }
     }
@@ -493,6 +498,13 @@
                 log.innerText = "FLAC error " + Flac.FLAC__stream_encoder_get_state(flacEncoder);
         };
         mss.connect(sp);
+
+        ac.addEventListener("ended", function() {
+            Flac.FLAC__stream_encoder_finish(flacEncoder);
+            Flac.FLAC__stream_encoder_delete(flacEncoder);
+            mss.disconnect(sp);
+            sp.disconnect(ac.destination);
+        });
     }
 
     // Shift a chunk of blob
@@ -814,6 +826,12 @@
             updateWave(max);
         };
         mss.connect(sp);
+
+        ac.addEventListener("ended", function() {
+            updateWave(max);
+            mss.disconnect(sp);
+            sp.disconnect(ac.destination);
+        });
     }
 
     // Update the wave display when we retroactively promote VAD data
