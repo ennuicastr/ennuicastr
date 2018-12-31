@@ -63,11 +63,16 @@ const flacTags =
 const oggFile = new ogg.OggEncoder(fs.createWriteStream("rec.opus"));
 
 const home = process.env.HOME;
-const hs = https.createServer({
-    cert: fs.readFileSync(home+"/cert/fullchain.pem", "utf8"),
-    key: fs.readFileSync(home+"/cert/privkey.pem", "utf8")
-});
-//const hs = http.createServer();
+var hss;
+try {
+    hss = https.createServer({
+        cert: fs.readFileSync(home+"/cert/fullchain.pem", "utf8"),
+        key: fs.readFileSync(home+"/cert/privkey.pem", "utf8")
+    });
+} catch (ex) {
+    hss = http.createServer();
+}
+const hs = hss;
 hs.listen(36678);
 
 const wss = new ws.Server({
