@@ -125,6 +125,9 @@
     // VAD output after our two second cooldown
     var vadOn = false;
 
+    // Number of milliseconds to run the VAD for before/after talking
+    var vadExtension = 2000;
+
     // When we're not sending real data, we have to send a few (arbitrarily, 3) empty frames
     var sentZeroes = 999;
 
@@ -636,7 +639,7 @@
 
         if (!vadOn) {
             // Drop any sufficiently old packets
-            var old = curGranulePos - 2*48000;
+            var old = curGranulePos - vadExtension*48;
             while (granulePosOf(packets[0][0]) < old) {
                 var packet = packets.shift();
                 if (sentZeroes < 3) {
@@ -800,7 +803,8 @@
                 if (!timeout) {
                     timeout = setTimeout(function() {
                         vadOn = false;
-                    }, 2000);
+                        timeout = null;
+                    }, vadExtension);
                 }
             }
 
@@ -848,8 +852,8 @@
 
     // Update the wave display when we retroactively promote VAD data
     function updateWaveRetroactive() {
-        // Magic number 93 is 2 seconds given our rates
-        var i = Math.max(waveVADs.length - 93, 0);
+        var timeout = Math.ceil(ac.sampleRate*vadExtension/1024000);
+        var i = Math.max(waveVADs.length - timeout, 0);
         for (; i < waveVADs.length; i++)
             waveVADs[i] = (waveVADs[i] === 1) ? 2 : waveVADs[i];
     }
