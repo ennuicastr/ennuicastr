@@ -1,10 +1,5 @@
-This is copied from the webrtc_vad repo as specified in VERSION, with the
-following changes:
+There is an existing port of WebRTCVAD to JavaScript, in a "webrtcvad_js" repo.
+It... it is bad. Do not use it. This is a fresh port.
 
-* I've added the *correct* license header. The LICENSE file in the webrtc_vad
-  repository is *wrong*. It's Mozilla's standard license info, but as
-  webrtc_vad is just an emscripten-compiled copy of WebRTC's VAD, it is
-  WebRTC's license that applies, not Mozilla's.
-
-* The default version uses a global named "Module". I renamed it to
-  WebRTCVAD_Module to avoid conflicts.
+This is copied from the webrtc repo as specified in VERSION, only including the
+VAD and its dependencies, plus a simple Makefile to build it with emscripten.

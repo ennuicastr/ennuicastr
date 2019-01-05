@@ -340,17 +340,18 @@
     function userMediaSet() {
         log.innerText = "Initializing encoder";
 
+        // Check whether we should be using WebAssembly
+        var wa = isWebAssemblySupported();
+
         ac = new AudioContext({sampleRate: userMedia.getAudioTracks()[0].getSettings().sampleRate});
 
         // Set up the VAD
-        // Intentional global:
-        WebRTCVAD_Module = {
-            noInitialRun: true,
+        WebRtcVad = {
             onRuntimeInitialized: localProcessing
         };
         var scr = dce("script");
         scr.async = true;
-        scr.src = "vad/webrtc_vad.js";
+        scr.src = "vad/vad" + (wa?".wasm":"") + ".js";
         document.body.appendChild(scr);
 
         // If the browser can't encode to Ogg Opus directly, we need a JS solution
@@ -361,8 +362,6 @@
         }
 
         if (useFlac) {
-            // Check whether we should be using WebAssembly
-            var wa = isWebAssemblySupported();
 
             // Jump through its asynchronous hoops
             var scr = dce("script");
@@ -693,24 +692,25 @@
     // Create a VAD and wave display
     function localProcessing() {
         // First the WebRTC VAD steps
-        var m = WebRTCVAD_Module;
+        var m = WebRtcVad;
 
-        if (!m.cwrap("main")()) {
-            // Major error!
-            return;
+        var handle = m.Create();
+        if (handle === 0) {
+            log.innerText = "Failed to create VAD.";
+            throw new Error();
+        }
+        if (m.Init(handle) < 0) {
+            log.innerText = "Failed to initialize VAD.";
+            throw new Error();
         }
 
-        var setmode = m.cwrap("setmode", "number", ["number"]);
-        var process_data = m.cwrap("process_data", 'number', ['number', 'number', 'number', 'number', 'number', 'number']);
-
         var bufSz = 480;
-        var dataPtr = m._malloc(4002);
-        var buf = new Int16Array(m.HEAPU8.buffer, dataPtr, 2001);
-        buf[2000] = 0; // Yay interface bugs
+        var dataPtr = m.malloc(bufSz * 2);
+        var buf = new Int16Array(m.heap.buffer, dataPtr, bufSz * 2);
         var bi = 0;
         var timeout = null;
 
-        setmode(2);
+        m.set_mode(2);
 
 
         // Now the display steps
@@ -778,7 +778,7 @@
 
                 if (bi == bufSz) {
                     // We have a complete packet
-                    vadSet = !!process_data(buf.byteOffset, bufSz, 16000, buf[0], buf[100], 0);
+                    vadSet = !!m.Process(handle, 16000, dataPtr, bufSz);
                     bi = 0;
                 }
             }
