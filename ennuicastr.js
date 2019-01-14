@@ -154,7 +154,7 @@
     // The current ArrayBuffers of data to be handled
     var data = [];
 
-    // The Opus packets to be handled
+    // The Opus or FLAC packets to be handled. Format: [granulePos, data]
     var packets = [];
 
     // Connect to the server (our first step)
@@ -407,7 +407,7 @@
                 blobs.shift();
                 if (blobs.length)
                     fileReader.readAsArrayBuffer(blobs[0]);
-                handleData();
+                handleData(performance.now());
             });
 
             // MediaRecorder will do what we need
@@ -440,7 +440,7 @@
             });
             mediaRecorder.ondataavailable = function(chunk) {
                 data.push(chunk.buffer);
-                handleData();
+                handleData(performance.now());
             };
             startTime = performance.now();
             mediaRecorder.start(ac.createMediaStreamSource(userMedia));
@@ -488,12 +488,8 @@
                 return;
             }
 
-            // All we need of a "header" is the granule position (FIXME: This is stupid)
-            var header = new DataView(new ArrayBuffer(16));
-            data = new DataView(data.buffer);
-            var granulePos = Math.round((performance.now() - startTime) * 48);
-            granulePosSet(header, granulePos);
-            packets.push([header, data]);
+            // Just make a packet directly
+            packets.push([(performance.now() - startTime) * 48, data]);
             handlePackets();
         }
 
@@ -560,7 +556,10 @@
     }
 
     // Handle input data, splitting Ogg packets so we can fine-tune the granule position
-    function handleData() {
+    function handleData(endTime) {
+        var splitPackets = [];
+
+        // First split the data into separate packets
         while (true) {
             // An Ogg header is 26 bytes
             var header = shift(26);
@@ -618,14 +617,23 @@
 
             // Then create an Ogg packet for each
             for (var pi = 0; pi < packetEnds.length - 1; pi++) {
-                var subHeader = new DataView(header.buffer.slice(0));
                 var subGranulePos = granulePos -
                     (960 * packetEnds.length) +
                     (960 * (pi+1));
-                granulePosSet(subHeader, subGranulePos);
-                packets.push([subHeader, datas[pi]]);
+                splitPackets.push([subGranulePos, datas[pi]]);
             }
-            packets.push([header, datas[packetEnds.length - 1]]);
+            splitPackets.push([granulePos, datas[packetEnds.length - 1]]);
+        }
+
+        if (splitPackets.length === 0) return;
+
+        // Now adjust the time
+        var outEndGranule = (endTime - startTime) * 48;
+        var inEndGranule = splitPackets[splitPackets.length-1][0];
+        while (splitPackets.length) {
+            var packet = splitPackets.shift();
+            packet[0] = packet[0] - inEndGranule + outEndGranule;
+            packets.push(packet);
         }
 
         handlePackets();
@@ -634,19 +642,19 @@
     // Once we've parsed new packets, we can do something with them
     function handlePackets() {
         if (!packets.length || timeOffset === null) return;
-        var curGranulePos = granulePosOf(packets[packets.length-1][0]);
+        var curGranulePos = packets[packets.length-1][0];
         transmitting = true;
 
         if (!vadOn) {
             // Drop any sufficiently old packets
             var old = curGranulePos - vadExtension*48;
-            while (granulePosOf(packets[0][0]) < old) {
+            while (packets[0][0] < old) {
                 var packet = packets.shift();
                 if (sentZeroes < 3) {
                     /* Send an empty packet in its stead (FIXME: We should have
                      * these prepared in advance) */
-                    var header = packet[0];
-                    var granulePos = Math.round(granulePosOf(header) + timeOffset*48 + startTime*48);
+                    var inGranulePos = packet[0];
+                    var granulePos = Math.round(inGranulePos + timeOffset*48 + startTime*48);
                     if (granulePos < 0) continue;
                     sendPacket(granulePos, zeroPacket);
                     sentZeroes++;
@@ -656,14 +664,14 @@
         } else {
             // VAD is on, so send packets
             packets.forEach(function (packet) {
-                var header = packet[0];
+                var inGranulePos = packet[0];
                 var data = packet[1];
 
                 // Ignore header packets (start with "Opus")
                 if (data.getUint32(0, true) === 0x7375704F)
                     return;
 
-                var granulePos = Math.round(granulePosOf(header) + timeOffset*48 + startTime*48);
+                var granulePos = Math.round(inGranulePos + timeOffset*48 + startTime*48);
                 if (granulePos < 0)
                     return;
 
