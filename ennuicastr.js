@@ -35,9 +35,9 @@
         id: params.get("i"),
         key: params.get("k"),
         format: params.get("f"),
-        port: params.get("p"),
-        selector: params.get("s")
+        port: params.get("p")
     };
+    var selector = params.get("s");
     var username = params.get("nm");
     if (config.id === null) {
         // Redirect to the homepage
@@ -54,7 +54,8 @@
     config.key = Number.parseInt(config.key, 36);
     if (config.port === null)
         config.port = 36678;
-    config.port = Number.parseInt(config.port, 36);
+    else
+        config.port = Number.parseInt(config.port, 36);
     if (config.format === null)
         config.format = 0;
     config.format = Number.parseInt(config.format, 36);
@@ -62,7 +63,7 @@
     window.history.pushState({}, "EnnuiCastr", url.toString());
 
     // If we're using the selector, just do that
-    if (config.selector) {
+    if (selector) {
         var div = dce("div");
         div.innerText = "Client links:";
         document.body.appendChild(div);
@@ -166,6 +167,7 @@
     var waveData = [];
     var waveVADs = [];
     var waveVADColors = ["#000", "#aaa", "#073", "#0a3"];
+    if (useContinuous) waveVADColors[1] = waveVADColors[2];
 
     // The display canvas and data
     var waveCanvas = null;
@@ -257,7 +259,7 @@
         var a = dce("a");
         var href = "?";
         for (var key in config)
-            href += key + "=" + config[key] + "&";
+            href += key[0] + "=" + config[key].toString(36) + "&";
         href += "nm=" + encodeURIComponent(username);
         a.href = href;
         a.innerText = "Attempt reconnection";
@@ -521,7 +523,7 @@
             }
 
             // Just make a packet directly
-            packets.push([(performance.now() - startTime) * 48, data]);
+            packets.push([(performance.now() - startTime) * 48, new DataView(data.buffer)]);
             handlePackets();
         }
 
