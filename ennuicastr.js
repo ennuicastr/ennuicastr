@@ -68,7 +68,7 @@
         div.innerText = "Client links:";
         document.body.appendChild(div);
 
-        var sb = "?i=" + config.id.toString(36) + "&k=" + config.key.toString(36);
+        var sb = "?i=" + config.id.toString(36) + "&k=" + config.key.toString(36) + "&p=" + config.port.toString(36);
 
         for (var opt = 0; opt <= config.format; opt++) {
             if ((opt&config.format)!==opt) continue;
