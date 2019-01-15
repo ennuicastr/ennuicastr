@@ -117,12 +117,13 @@
 
     // Which technology to use. If both false, we'll use built-in Opus.
     var useOpusRecorder = false;
-    var useFlac = (config.format === prot.flags.dataType.flac);
+    var useFlac = ((config.format&prot.flags.dataTypeMask) === prot.flags.dataType.flac);
+    var useContinuous = !!(config.format&1);
 
     // WebRTCVAD's raw output
     var rawVadOn = false;
 
-    // VAD output after our two second cooldown
+    // VAD output after our cooldown
     var vadOn = false;
 
     // Number of milliseconds to run the VAD for before/after talking
@@ -186,9 +187,10 @@
             var out = new DataView(new ArrayBuffer(p.length + nickBuf.length));
             out.setUint32(0, prot.ids.login, true);
             var f = prot.flags;
+            var flags = (useFlac?f.dataType.flac:0) | (useContinuous?f.features.continuous:0);
             out.setUint32(p.id, config.id, true);
             out.setUint32(p.key, config.key, true);
-            out.setUint32(p.flags, f.connectionType.ping | (useFlac?f.dataType.flac:0), true);
+            out.setUint32(p.flags, f.connectionType.ping | flags, true);
             new Uint8Array(out.buffer).set(nickBuf, 16);
             pingSock.send(out.buffer);
 
@@ -196,7 +198,7 @@
             dataSock.binaryType = "arraybuffer";
 
             dataSock.addEventListener("open", function() {
-                out.setUint32(p.flags, f.connectionType.data | (useFlac?f.dataType.flac:0), true);
+                out.setUint32(p.flags, f.connectionType.data | flags, true);
                 dataSock.send(out.buffer);
                 getMic();
             });
@@ -646,22 +648,29 @@
         transmitting = true;
 
         if (!vadOn) {
-            // Drop any sufficiently old packets
+            // Drop any sufficiently old packets, or send them marked as silence in continuous mode
             var old = curGranulePos - vadExtension*48;
             while (packets[0][0] < old) {
                 var packet = packets.shift();
-                if (sentZeroes < 3) {
+                var inGranulePos = packet[0];
+                var granulePos = Math.round(inGranulePos + timeOffset*48 + startTime*48);
+                if (granulePos < 0)
+                    continue;
+                if (useContinuous) {
+                    /* Send it in VAD-off mode */
+                    sendPacket(granulePos, packet[1], 0);
+                } else if (sentZeroes < 3) {
                     /* Send an empty packet in its stead (FIXME: We should have
                      * these prepared in advance) */
-                    var inGranulePos = packet[0];
-                    var granulePos = Math.round(inGranulePos + timeOffset*48 + startTime*48);
                     if (granulePos < 0) continue;
-                    sendPacket(granulePos, zeroPacket);
+                    sendPacket(granulePos, zeroPacket, 0);
                     sentZeroes++;
                 }
             }
 
         } else {
+            var vadVal = (rawVadOn?2:1);
+
             // VAD is on, so send packets
             packets.forEach(function (packet) {
                 var inGranulePos = packet[0];
@@ -675,7 +684,7 @@
                 if (granulePos < 0)
                     return;
 
-                sendPacket(granulePos, data);
+                sendPacket(granulePos, data, vadVal);
             });
 
             sentZeroes = 0;
@@ -685,15 +694,17 @@
     }
 
     // Send an audio packet
-    function sendPacket(granulePos, data) {
+    function sendPacket(granulePos, data, vadVal) {
         var p = prot.parts.data;
-        var msg = new DataView(new ArrayBuffer(p.length + data.buffer.byteLength));
+        var msg = new DataView(new ArrayBuffer(p.length + (useContinuous?1:0) + data.buffer.byteLength));
         msg.setUint32(0, prot.ids.data, true);
         msg.setUint32(p.granulePos, granulePos & 0xFFFFFFFF, true);
         msg.setUint16(p.granulePos + 4, (granulePos / 0x100000000) & 0xFFFF, true);
+        if (useContinuous)
+            msg.setUint8(p.packet, vadVal);
         msg = new Uint8Array(msg.buffer);
         data = new Uint8Array(data.buffer);
-        msg.set(data, p.packet);
+        msg.set(data, p.packet + (useContinuous?1:0));
         dataSock.send(msg.buffer);
     }
 
