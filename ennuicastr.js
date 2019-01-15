@@ -32,10 +32,10 @@
     var url = new URL(window.location);
     var params = new URLSearchParams(url.search);
     var config = {
-        id: params.get("id"),
-        key: params.get("key"),
-        format: params.get("format"),
-        port: params.get("port")
+        id: params.get("i"),
+        key: params.get("k"),
+        format: params.get("f"),
+        port: params.get("p")
     };
     var username = params.get("nm");
     if (config.id === null) {
@@ -43,21 +43,21 @@
         window.location = "/home/";
         return;
     }
-    config.id = +config.id;
+    config.id = Number.parseInt(config.id, 36);
     if (config.key === null) {
         var div = dce("div");
         div.innerHTML = "Invalid key!";
         document.body.appendChild(div);
         return;
     }
-    config.key = +config.key;
+    config.key = Number.parseInt(config.key, 36);
     if (config.port === null)
         config.port = 36678;
-    config.port = +config.port;
+    config.port = Number.parseInt(config.port, 36);
     if (config.format === null)
         config.format = 0;
-    config.format = +config.format;
-    url.search = "?id=" + config.id;
+    config.format = Number.parseInt(config.format, 36);
+    url.search = "?i=" + config.id.toString(36);
     window.history.pushState({}, "EnnuiCastr", url.toString());
 
     // Next, check if we have a username
@@ -73,7 +73,7 @@
         var html =
             "<label for=\"nm\">Username: </label><input name=\"nm\" id=\"nm\" type=\"text\" /> ";
         for (var key in config)
-            html += "<input name=\"" + key + "\" type=\"hidden\" value=\"" + config[key] + "\" />";
+            html += "<input name=\"" + key[0] + "\" type=\"hidden\" value=\"" + config[key].toString(36) + "\" />";
         html += "<input type=\"submit\" value=\"Join\" />";
         form.innerHTML = html;
 
@@ -81,7 +81,7 @@
             // Try to do this in a new window
             var target = "?";
             for (var key in config)
-                target += key + "=" + config[key] + "&";
+                target += key[0] + "=" + config[key].toString(36) + "&";
             target += "nm=" + encodeURIComponent(gebi("nm").value);
             if (window.open(target, "", "width=640,height=160,menubar=0,toolbar=0,location=0,personalbar=0,status=0") === null) {
                 // Just use the regular submit
