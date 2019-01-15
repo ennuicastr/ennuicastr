@@ -35,7 +35,8 @@
         id: params.get("i"),
         key: params.get("k"),
         format: params.get("f"),
-        port: params.get("p")
+        port: params.get("p"),
+        selector: params.get("s")
     };
     var username = params.get("nm");
     if (config.id === null) {
@@ -59,6 +60,35 @@
     config.format = Number.parseInt(config.format, 36);
     url.search = "?i=" + config.id.toString(36);
     window.history.pushState({}, "EnnuiCastr", url.toString());
+
+    // If we're using the selector, just do that
+    if (config.selector) {
+        var div = dce("div");
+        div.innerText = "Client links:";
+        document.body.appendChild(div);
+
+        var sb = "?i=" + config.id.toString(36) + "&k=" + config.key.toString(36);
+
+        for (var opt = 0; opt <= config.format; opt++) {
+            if ((opt&config.format)!==opt) continue;
+
+            div = dce("div");
+            var a = dce("a");
+            if (opt === 0)
+                url.search = sb;
+            else
+                url.search = sb + "&f=" + opt.toString(36);
+            a.href = url.toString();
+
+            a.innerText = (((opt&prot.flags.dataTypeMask)===prot.flags.dataType.flac) ? "FLAC" : "Opus") +
+                ((opt&1)?" continuous":"");
+
+            div.appendChild(a);
+            document.body.appendChild(div);
+        }
+
+        return;
+    }
 
     // Next, check if we have a username
     if (username === null || username === "") {
