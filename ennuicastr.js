@@ -146,6 +146,9 @@
     var ac = null; // The audio context for our scritps
     var flacEncoder = null; // If using FLAC
 
+    // Our input sample rate
+    var sampleRate = 48000;
+
     // Which technology to use. If both false, we'll use built-in Opus.
     var useOpusRecorder = false;
     var useFlac = ((config.format&prot.flags.dataTypeMask) === prot.flags.dataType.flac);
@@ -380,7 +383,8 @@
         // Check whether we should be using WebAssembly
         var wa = isWebAssemblySupported();
 
-        ac = new AudioContext({sampleRate: userMedia.getAudioTracks()[0].getSettings().sampleRate});
+        sampleRate = userMedia.getAudioTracks()[0].getSettings().sampleRate;
+        ac = new AudioContext({sampleRate: sampleRate});
 
         // Set up the VAD
         WebRtcVad = {
@@ -489,11 +493,11 @@
         var info = new DataView(new ArrayBuffer(p.length));
         info.setUint32(0, prot.ids.info, true);
         info.setUint32(p.key, prot.info.sampleRate, true);
-        info.setUint32(p.value, ac.sampleRate, true);
+        info.setUint32(p.value, sampleRate, true);
         dataSock.send(info.buffer);
 
         // Our zero packet is also different, of course
-        switch (ac.sampleRate) {
+        switch (sampleRate) {
             case 44100:
                 zeroPacket = new Uint8Array([0xFF, 0xF8, 0x79, 0x0C, 0x00, 0x03, 0x71, 0x56, 0x00, 0x00, 0x00, 0x00, 0x63, 0xC5]);
                 break;
@@ -502,7 +506,7 @@
         }
 
         // Initialize our FLAC encoder
-        flacEncoder = Flac.create_libflac_encoder(ac.sampleRate, 1, 24, 5, 0, false, ac.sampleRate * 20 / 1000);
+        flacEncoder = Flac.create_libflac_encoder(sampleRate, 1, 24, 5, 0, false, sampleRate * 20 / 1000);
         if (flacEncoder === 0) {
             log.innerText = "Failed to initialize FLAC encoder!";
             return;
@@ -903,7 +907,7 @@
 
     // Update the wave display when we retroactively promote VAD data
     function updateWaveRetroactive() {
-        var timeout = Math.ceil(ac.sampleRate*vadExtension/1024000);
+        var timeout = Math.ceil(sampleRate*vadExtension/1024000);
         var i = Math.max(waveVADs.length - timeout, 0);
         for (; i < waveVADs.length; i++)
             waveVADs[i] = (waveVADs[i] === 1) ? 2 : waveVADs[i];
