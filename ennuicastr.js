@@ -982,7 +982,7 @@
         for (i = 0, p = 0; i < dw; i++, p += sw) {
             var d = Math.max(Math.log((waveData[i] / dh) * 54.598150033) / 4, 0) * h;
             if (d === 0) d = 1;
-            ctx.fillStyle = (connected&&transmitting) ? waveVADColors[waveVADs[i]] : "#000";
+            ctx.fillStyle = (connected&&transmitting&&timeOffset) ? waveVADColors[waveVADs[i]] : "#000";
             ctx.fillRect(p, h-d, sw, 2*d);
         }
         ctx.restore();
