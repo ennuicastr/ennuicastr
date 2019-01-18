@@ -383,8 +383,7 @@
         // Check whether we should be using WebAssembly
         var wa = isWebAssemblySupported();
 
-        sampleRate = userMedia.getAudioTracks()[0].getSettings().sampleRate;
-        ac = new AudioContext({sampleRate: sampleRate});
+        ac = new AudioContext();
 
         // Set up the VAD
         WebRtcVad = {
@@ -489,6 +488,7 @@
     // FLAC support code
     function flacStart() {
         // Opus always resamples, but we need to keep our rate for FLAC
+        sampleRate = ac.sampleRate;
         var p = prot.parts.info;
         var info = new DataView(new ArrayBuffer(p.length));
         info.setUint32(0, prot.ids.info, true);
