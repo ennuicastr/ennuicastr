@@ -166,6 +166,10 @@
     // When we're not sending real data, we have to send a few (arbitrarily, 3) empty frames
     var sentZeroes = 999;
 
+    /* To help with editing by sending a clean silence sample, we send the
+     * first few (arbitrarily, 8) seconds of VAD-off silence */
+    var sendSilence = 400;
+
     // The data used by both the level-based VAD and display
     var waveData = [];
     var waveVADs = [];
@@ -692,9 +696,11 @@
                 var granulePos = Math.round(inGranulePos + timeOffset*48 + startTime*48);
                 if (granulePos < 0)
                     continue;
-                if (useContinuous) {
+                if (useContinuous || sendSilence > 0) {
                     /* Send it in VAD-off mode */
                     sendPacket(granulePos, packet[1], 0);
+                    sendSilence--;
+
                 } else if (sentZeroes < 3) {
                     /* Send an empty packet in its stead (FIXME: We should have
                      * these prepared in advance) */
