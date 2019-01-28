@@ -129,7 +129,6 @@
     function monSockMsg(msg) {
         msg = new DataView(msg.data);
         var cmd = msg.getUint32(0, true);
-        log.innerText = cmd.toString(16);
 
         switch (cmd) {
             case prot.ids.ack:

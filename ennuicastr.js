@@ -60,8 +60,6 @@
     if (config.format === null)
         config.format = 0;
     config.format = Number.parseInt(config.format, 36);
-    url.search = "?i=" + config.id.toString(36);
-    window.history.pushState({}, "EnnuiCastr", url.toString());
 
     // If we're using the selector, just do that
     if (selector) {
@@ -100,6 +98,9 @@
         document.body.appendChild(scr);
         return;
     }
+
+    url.search = "?i=" + config.id.toString(36);
+    window.history.pushState({}, "EnnuiCastr", url.toString());
 
     // Next, check if we have a username
     if (username === null || username === "") {
