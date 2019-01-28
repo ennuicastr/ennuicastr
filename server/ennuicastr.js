@@ -80,6 +80,26 @@ const wss = new ws.Server({
 });
 
 var startTime = process.hrtime();
+var nick = null;
+var monWs = null;
+var dataTimeout = null;
+
+function sendMon(stat) {
+    if (!monWs) return;
+    var p = prot.parts.speech;
+    var buf = Buffer.alloc(p.length);
+    buf.writeUInt32LE(prot.ids.speech, 0);
+    buf.writeUInt32LE(stat, p.indexStatus);
+    monWs.send(buf);
+}
+
+function sendMonStart() {
+    sendMon(1);
+}
+
+function sendMonStop() {
+    sendMon(0);
+}
 
 wss.on("connection", (ws) => {
     var dead = false;
@@ -114,17 +134,35 @@ wss.on("connection", (ws) => {
                 if (msg.length < p.length)
                     return die();
 
-                var nick;
-                try {
-                    nick = msg.toString("utf8", 16);
-                } catch (ex) {
-                    nick = "_";
-                }
-                console.log("Login by " + nick);
-
                 var flags = msg.readUInt32LE(p.flags);
                 var ctype = flags & f.connectionTypeMask;
                 var dtype = flags & f.dataTypeMask;
+
+                if (ctype !== f.connectionType.monitor) {
+                    try {
+                        nick = msg.toString("utf8", p.nick);
+                    } catch (ex) {
+                        nick = "_";
+                    }
+                    console.log("Login by " + nick);
+                }
+
+                var op = prot.parts.ack;
+                ret = Buffer.alloc(op.length);
+                ret.writeUInt32LE(prot.ids.ack, 0);
+                ret.writeUInt32LE(prot.ids.login, op.ackd);
+                ws.send(ret);
+
+                if (nick) {
+                    // Make the monitor command for the current user
+                    var op = prot.parts.user;
+                    var nickBuf = Buffer.from(nick, "utf8");
+                    ret = Buffer.alloc(op.length + nickBuf.length);
+                    ret.writeUInt32LE(prot.ids.user, 0);
+                    ret.writeUInt32LE(0, op.index);
+                    ret.writeUInt32LE(1, op.status);
+                    nickBuf.copy(ret, op.name);
+                }
 
                 switch (ctype) {
                     case f.connectionType.ping:
@@ -140,18 +178,22 @@ wss.on("connection", (ws) => {
                             oggFile.write(0, 1, packetNo++, opusHeader[0], ogg.BOS);
                             oggFile.write(0, 1, packetNo++, opusHeader[1]);
                         }
+
+                        // Tell the monitor if appilcable
+                        if (monWs)
+                            monWs.send(ret);
+                        break;
+
+                    case f.connectionType.monitor:
+                        if (nick)
+                            ws.send(ret);
+                        monWs = ws;
                         break;
 
                     default:
                         // No other connection types supported!
                         return die();
                 }
-
-                var op = prot.parts.ack;
-                ret = Buffer.alloc(op.length);
-                ret.writeUInt32LE(prot.ids.ack, 0);
-                ret.writeUInt32LE(prot.ids.login, op.ackd);
-                ws.send(ret);
                 break;
 
             case prot.ids.info:
@@ -193,6 +235,15 @@ wss.on("connection", (ws) => {
                 var p = prot.parts.data;
                 if (msg.length < p.length)
                     return die();
+
+                if (!dataTimeout)
+                    sendMonStart();
+                else
+                    clearTimeout(dataTimeout);
+                dataTimeout = setTimeout(function() {
+                    sendMonStop();
+                    dataTimeout = null;
+                }, 2000);
 
                 if (packetNo > 0) {
                     // We've written the header, so accept this data

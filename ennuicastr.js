@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Yahweasel
+ * Copyright (c) 2018-2019 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -38,6 +38,7 @@
         port: params.get("p")
     };
     var selector = params.get("s");
+    var monitor = params.get("mon");
     var username = params.get("nm");
     if (config.id === null) {
         // Redirect to the homepage
@@ -88,6 +89,15 @@
             document.body.appendChild(div);
         }
 
+        return;
+    }
+
+    // If we're looking for the monitor, just do that
+    if (monitor) {
+        var scr = dce("script");
+        scr.src = "ennuicastr-monitor.js?v=1";
+        scr.async = true;
+        document.body.appendChild(scr);
         return;
     }
 
