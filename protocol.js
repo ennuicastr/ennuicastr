@@ -79,7 +79,7 @@
                 "length": 12,
                 "index": 4,
                 "status": 8,
-                "name": 12
+                "nick": 12
             },
 
             "speech": {

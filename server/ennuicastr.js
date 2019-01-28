@@ -161,7 +161,7 @@ wss.on("connection", (ws) => {
                     ret.writeUInt32LE(prot.ids.user, 0);
                     ret.writeUInt32LE(0, op.index);
                     ret.writeUInt32LE(1, op.status);
-                    nickBuf.copy(ret, op.name);
+                    nickBuf.copy(ret, op.nick);
                 }
 
                 switch (ctype) {

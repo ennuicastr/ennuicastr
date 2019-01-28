@@ -141,13 +141,13 @@
                 var idx = msg.getUint32(p.index, true);
                 var stat = msg.getUint32(p.status, true);
                 if (stat) {
-                    var name;
+                    var nick;
                     if (window.TextDecoder) {
-                        name = new TextDecoder("utf8").decode(msg.buffer.slice(p.name));
+                        nick = new TextDecoder("utf8").decode(msg.buffer.slice(p.nick));
                     } else {
-                        name = "";
-                        for (var i = p.name; i < msg.length; i++)
-                            name += String.fromCharCode(msg[i]);
+                        nick = "";
+                        for (var i = p.nick; i < msg.length; i++)
+                            nick += String.fromCharCode(msg[i]);
                     }
 
                     // They're online
@@ -155,7 +155,7 @@
                         // They were already online!
                         break;
                     }
-                    clients[idx] = {idx: idx, name: name, speaking: false};
+                    clients[idx] = {idx: idx, nick: nick, speaking: false};
                     updateClients();
 
                 } else {
@@ -192,9 +192,9 @@
         var cidxs = Object.keys(clients).sort(function(a, b) {
             a = clients[a];
             b = clients[b];
-            if (a.name < b.name)
+            if (a.nick < b.nick)
                 return -1;
-            else if (a.name === b.name)
+            else if (a.nick === b.nick)
                 return (a.idx < b.idx)?-1:1;
             else
                 return 1;
@@ -211,7 +211,7 @@
             el.style.backgroundColor = client.speaking?"#073":"#000";
             el.style.padding = "0.5em";
             el.style.color = "#fff";
-            el.innerText = client.name;
+            el.innerText = client.nick;
             client.el = el;
             li.appendChild(el);
             ul.appendChild(li);
