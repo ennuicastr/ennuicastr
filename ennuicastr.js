@@ -196,6 +196,10 @@
     var startTime = 0;
     var timeOffset = null;
 
+    /* We keep track of the last time we successfully encoded data for
+     * transfer, to determine if anything's gone wrong */
+    var lastSentTime = 0;
+
     // The delays on the pongs we've received back
     var pongs = [];
 
@@ -208,12 +212,37 @@
     // The Opus or FLAC packets to be handled. Format: [granulePos, data]
     var packets = [];
 
+    // "Log" is really status (whoops), and in order to control that we keep a status index
+    var curStatus = {};
+    function pushStatus(id, text) {
+        if (id in curStatus) return;
+        curStatus[id] = text;
+        updateStatus();
+    }
+
+    function popStatus(id) {
+        if (!(id in curStatus)) return;
+        delete curStatus[id];
+        updateStatus();
+    }
+
+    function updateStatus() {
+        var txt = "";
+        for (var id in curStatus) {
+            txt += curStatus[id] + "\n";
+        }
+        txt = txt.trim();
+        if (txt === "")
+            txt = "Capturing audio";
+        log.innerText = txt;
+    }
+
     // Connect to the server (our first step)
     var connected = false;
     var transmitting = false;
     function connect() {
         connected = true;
-        log.innerText = "Connecting...";
+        pushStatus("conn", "Connecting...");
 
         pingSock = new WebSocket(wsUrl);
         pingSock.binaryType = "arraybuffer";
@@ -372,7 +401,8 @@
 
     // Get our microphone input
     function getMic() {
-        log.innerText = "Asking for microphone permission...";
+        pushStatus("getmic", "Asking for microphone permission...");
+        popStatus("conn");
 
         navigator.mediaDevices.getUserMedia({
             audio: {
@@ -387,13 +417,15 @@
             userMediaSet();
         }).catch(function(err) {
             disconnect();
-            log.innerText = "Cannot get microphone: " + err;
+            pushStatus("fail", "Cannot get microphone: " + err);
+            popStatus("getmic");
         });
     }
 
     // Called once we have mic access
     function userMediaSet() {
-        log.innerText = "Initializing encoder";
+        pushStatus("initenc", "Initializing encoder");
+        popStatus("getmic");
 
         // Check whether we should be using WebAssembly
         var wa = isWebAssemblySupported();
@@ -446,7 +478,8 @@
 
     // Called once the encoder is loaded
     function encoderLoaded() {
-        log.innerText = "Capturing audio";
+        pushStatus("startenc", "Starting encoder...");
+        popStatus("initenc");
 
         if (useFlac) {
             flacStart();
@@ -478,7 +511,8 @@
         } else if (!Recorder.isRecordingSupported()) {
             // We're screwed!
             disconnect();
-            log.innerText = "Sorry, but your browser doesn't support recording :(";
+            pushStatus("unsupported", "Sorry, but your browser doesn't support recording :(");
+            popStatus("startenc");
 
         } else {
             // We need a JS recorder to get it in the format we want
@@ -523,7 +557,8 @@
         // Initialize our FLAC encoder
         flacEncoder = Flac.create_libflac_encoder(sampleRate, 1, 24, 5, 0, false, sampleRate * 20 / 1000);
         if (flacEncoder === 0) {
-            log.innerText = "Failed to initialize FLAC encoder!";
+            pushStatus("flacfail", "Failed to initialize FLAC encoder!");
+            popStatus("startenc");
             return;
         }
 
@@ -531,7 +566,8 @@
 
         var encoderStatus = Flac.init_encoder_stream(flacEncoder, flacChunk);
         if (encoderStatus !== 0) {
-            log.innerText = "Failed to initialize FLAC encode stream! (" + encoderStatus + " " + Flac.FLAC__stream_encoder_get_state() + ")";
+            pushStatus("flacfail", "Failed to initialize FLAC encode stream! (" + encoderStatus + " " + Flac.FLAC__stream_encoder_get_state() + ")");
+            popStatus("startenc");
             return;
         }
 
@@ -563,7 +599,7 @@
 
             var ret = Flac.FLAC__stream_encoder_process_interleaved(flacEncoder, oba, ib.length);
             if (!ret)
-                log.innerText = "FLAC error " + Flac.FLAC__stream_encoder_get_state(flacEncoder);
+                pushStatus("flacerr", "FLAC error " + Flac.FLAC__stream_encoder_get_state(flacEncoder));
         };
         mss.connect(sp);
 
@@ -698,6 +734,10 @@
         var curGranulePos = packets[packets.length-1][0];
         transmitting = true;
 
+        // We have *something* to handle
+        lastSentTime = performance.now();
+        popStatus("startenc");
+
         if (!vadOn) {
             // Drop any sufficiently old packets, or send them marked as silence in continuous mode
             var old = curGranulePos - vadExtension*48;
@@ -766,16 +806,20 @@
 
     // Create a VAD and wave display
     function localProcessing() {
+        // Set our lastSentTime now so that we don't immediately report a problem
+        lastSentTime = performance.now();
+
+
         // First the WebRTC VAD steps
         var m = WebRtcVad;
 
         var handle = m.Create();
         if (handle === 0) {
-            log.innerText = "Failed to create VAD.";
+            pushStatus("failvad", "Failed to create VAD.");
             throw new Error();
         }
         if (m.Init(handle) < 0) {
-            log.innerText = "Failed to initialize VAD.";
+            pushStatus("failvad", "Failed to initialize VAD.");
             throw new Error();
         }
 
@@ -932,6 +976,13 @@
 
     // Update the wave display
     function updateWave(value) {
+        // Display an issue if we haven't sent recently
+        var sentRecently = (lastSentTime > performance.now()-1000);
+        if (sentRecently)
+            popStatus("notencoding");
+        else
+            pushStatus("notencoding", "Audio encoding is not functioning!");
+
         // Start from the window size
         var w = window.innerWidth;
         var h = window.innerHeight - log.offsetHeight;
@@ -986,6 +1037,9 @@
         // Figure out the height of the display
         var dh = Math.min(Math.max.apply(Math, waveData) * 1.5, 1);
 
+        // Figure out whether it should be colored at all
+        var good = connected && transmitting && timeOffset && sentRecently;
+
         // And draw it
         var ctx = waveCanvas.getContext("2d");
         var i, p;
@@ -999,7 +1053,7 @@
         for (i = 0, p = 0; i < dw; i++, p += sw) {
             var d = Math.max(Math.log((waveData[i] / dh) * 54.598150033) / 4, 0) * h;
             if (d === 0) d = 1;
-            ctx.fillStyle = (connected&&transmitting&&timeOffset) ? waveVADColors[waveVADs[i]] : "#000";
+            ctx.fillStyle = good ? waveVADColors[waveVADs[i]] : "#000";
             ctx.fillRect(p, h-d, sw, 2*d);
         }
         ctx.restore();
