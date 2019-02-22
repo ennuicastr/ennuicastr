@@ -770,7 +770,7 @@
                 var data = packet[1];
 
                 // Ignore header packets (start with "Opus")
-                if (data.getUint32(0, true) === 0x7375704F)
+                if (data.byteLength >= 4 && data.getUint32(0, true) === 0x7375704F)
                     return;
 
                 var granulePos = Math.round(inGranulePos + timeOffset*48 + startTime*48);
