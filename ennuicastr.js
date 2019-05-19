@@ -196,6 +196,13 @@
     var startTime = 0;
     var timeOffset = null;
 
+    /* So that the time offset doesn't jump all over the place, we adjust it
+     * *slowly*. This is the target time offset */
+    var targetTimeOffset = null;
+
+    // And this is the amount to adjust it per frame (1%)
+    var timeOffsetAdjPerFrame = 0.0002;
+
     /* We keep track of the last time we successfully encoded data for
      * transfer, to determine if anything's gone wrong */
     var lastSentTime = 0;
@@ -388,7 +395,8 @@
                     // And figure out our offset
                     var latency = pongs.reduce(function(a,b){return a+b;})/10;
                     var remoteTime = msg.getFloat64(p.serverTime, true) + latency;
-                    timeOffset = remoteTime - recvd;
+                    targetTimeOffset = remoteTime - recvd;
+                    if (timeOffset === null) timeOffset = targetTimeOffset;
                 }
                 break;
         }
@@ -743,8 +751,7 @@
             var old = curGranulePos - vadExtension*48;
             while (packets[0][0] < old) {
                 var packet = packets.shift();
-                var inGranulePos = packet[0];
-                var granulePos = Math.round(inGranulePos + timeOffset*48 + startTime*48);
+                var granulePos = adjustTime(packet);
                 if (granulePos < 0)
                     continue;
                 if (useContinuous || sendSilence > 0) {
@@ -766,14 +773,13 @@
 
             // VAD is on, so send packets
             packets.forEach(function (packet) {
-                var inGranulePos = packet[0];
                 var data = packet[1];
 
                 // Ignore header packets (start with "Opus")
                 if (data.byteLength >= 4 && data.getUint32(0, true) === 0x7375704F)
                     return;
 
-                var granulePos = Math.round(inGranulePos + timeOffset*48 + startTime*48);
+                var granulePos = adjustTime(packet);
                 if (granulePos < 0)
                     return;
 
@@ -799,6 +805,25 @@
         data = new Uint8Array(data.buffer);
         msg.set(data, p.packet + (useContinuous?1:0));
         dataSock.send(msg.buffer);
+    }
+
+    // Adjust the time for a packet, and adjust the time-adjustment parameters
+    function adjustTime(packet) {
+        // Adjust our offsets
+        if (targetTimeOffset > timeOffset) {
+            if (targetTimeOffset > timeOffset + timeOffsetAdjPerFrame)
+                timeOffset += timeOffsetAdjPerFrame;
+            else
+                timeOffset = targetTimeOffset;
+        } else if (targetTimeOffset < timeOffset) {
+            if (targetTimeOffset < timeOffset - timeOffsetAdjPerFrame)
+                timeOffset -= timeOffsetAdjPerFrame;
+            else
+                timeOffset = targetTimeOffset;
+        }
+
+        // And adjust the time
+        return Math.round(packet[0] + timeOffset*48 + startTime*48);
     }
 
 
