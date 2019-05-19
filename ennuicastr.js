@@ -244,6 +244,22 @@
         log.innerText = txt;
     }
 
+    function encodeText(text) {
+        if (window.TextEncoder) {
+            return new TextEncoder().encode(text);
+        } else {
+            // I don't care to do this right, ASCII only
+            var ret = new Uint8Array(text.length);
+            for (var ni = 0; ni < text.length; ni++) {
+                var cc = text.charCodeAt(ni);
+                if (cc > 127)
+                    cc = 95;
+                ret[ni] = cc;
+            }
+            return ret;
+        }
+    }
+
     // Connect to the server (our first step)
     var connected = false;
     var transmitting = false;
@@ -255,19 +271,7 @@
         pingSock.binaryType = "arraybuffer";
 
         pingSock.addEventListener("open", function() {
-            var nickBuf;
-            if (window.TextEncoder) {
-                nickBuf = new TextEncoder().encode(username);
-            } else {
-                // I don't care to do this right, ASCII only
-                nickBuf = new Uint8Array(username.length);
-                for (var ni = 0; ni < username.length; ni++) {
-                    var cc = username.charCodeAt(ni);
-                    if (cc > 127)
-                        cc = 95;
-                    nickBuf[ni] = cc;
-                }
-            }
+            var nickBuf = encodeText(username);
 
             var p = prot.parts.login;
             var out = new DataView(new ArrayBuffer(p.length + nickBuf.length));
@@ -455,6 +459,15 @@
             !MediaRecorder.isTypeSupported("audio/ogg; codec=opus")) {
             useOpusRecorder = true;
         }
+
+        // At this point, we want to start catching errors
+        window.addEventListener("error", function(error) {
+            var errBuf = encodeText(error.error + "\n\n" + error.error.stack);
+            var out = new DataView(new ArrayBuffer(4 + errBuf.length));
+            out.setUint32(0, prot.ids.error, true);
+            new Uint8Array(out.buffer).set(errBuf, 4);
+            dataSock.send(out.buffer);
+        });
 
         if (useFlac) {
 
