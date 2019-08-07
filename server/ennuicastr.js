@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * Copyright (c) 2018 Yahweasel
+ * Copyright (c) 2018-2019 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -62,6 +62,7 @@ const flacTags =
 
 const oggFile = new ogg.OggEncoder(fs.createWriteStream("rec.opus"));
 
+// Set up the EnnuiCastr server
 const home = process.env.HOME;
 var hss;
 try {
@@ -79,10 +80,12 @@ const wss = new ws.Server({
     server: hs
 });
 
+// Metadata
 var startTime = process.hrtime();
 var nick = null;
 var monWs = null;
 var dataTimeout = null;
+var connections = [null];
 
 function sendMon(stat) {
     if (!monWs) return;
@@ -103,13 +106,16 @@ function sendMonStop() {
 
 wss.on("connection", (ws) => {
     var dead = false;
+    var id = 0;
     var packetNo = 0;
     function die() {
         ws.close();
         dead = true;
+        if (id)
+            connections[id] = null;
 
         if (packetNo > 0) {
-            // We got a successful connection, so we're now done
+            // We got a successful connection, so we're now done with this demo server
             wss.close();
             hs.close();
             oggFile.end();
@@ -167,16 +173,46 @@ wss.on("connection", (ws) => {
                 switch (ctype) {
                     case f.connectionType.ping:
                         // This is a ping connection, so reset our start time (just for this demo recorder)
-                        startTime = process.hrtime();
+                        if (id === 1)
+                            startTime = process.hrtime();
                         break;
 
                     case f.connectionType.data:
-                        // This is a data connection, so start the actual recording
+                        // This is a data connection. First inform all parties of connections.
+                        id = connections.length;
+                        connections.push(ws);
+
+                        op = prot.parts.info;
+                        ret = Buffer.alloc(op.length);
+                        ret.writeUInt32LE(prot.ids.info, 0);
+                        ret.writeUInt32LE(prot.info.id, op.key);
+                        ret.writeUInt32LE(id, op.value);
+                        ws.send(ret);
+
+                        for (var ci = 1; ci < connections.length; ci++) {
+                            if (ci === id) continue;
+                            var target = connections[ci];
+                            if (!target) continue;
+
+                            ret = Buffer.alloc(op.length);
+                            ret.writeUInt32LE(prot.ids.info, 0);
+                            ret.writeUInt32LE(prot.info.peerInitial, op.key);
+                            ret.writeUInt32LE(id, op.value);
+                            connections[ci].send(ret);
+
+                            ret = Buffer.alloc(op.length);
+                            ret.writeUInt32LE(prot.ids.info, 0);
+                            ret.writeUInt32LE(prot.info.peerContinuing, op.key);
+                            ret.writeUInt32LE(ci, op.value);
+                            ws.send(ret);
+                        }
+
+                        // Write the header for this track
                         if (dtype === f.dataType.flac) {
                             // We need to wait until an info packet arrives
                         } else {
-                            oggFile.write(0, 1, packetNo++, opusHeader[0], ogg.BOS);
-                            oggFile.write(0, 1, packetNo++, opusHeader[1]);
+                            oggFile.write(0, id, packetNo++, opusHeader[0], ogg.BOS);
+                            oggFile.write(0, id, packetNo++, opusHeader[1]);
                         }
 
                         // Tell the monitor if appilcable
@@ -249,8 +285,22 @@ wss.on("connection", (ws) => {
                     // We've written the header, so accept this data
                     var granulePos = msg.readUIntLE(p.granulePos, 6);
                     var chunk = msg.slice(p.length);
-                    oggFile.write(granulePos, 1, packetNo++, chunk);
+                    oggFile.write(granulePos, id, packetNo++, chunk);
                 }
+                break;
+
+            case prot.ids.rtc:
+                var p = prot.parts.rtc;
+                if (msg.length < p.length)
+                    return die();
+
+                var target = msg.readUInt32LE(p.peer);
+                if (!connections[target])
+                    break; // Just drop it
+
+                // Relay it to the target, with the source
+                msg.writeUInt32LE(id, p.peer);
+                connections[target].send(msg);
                 break;
 
             default:

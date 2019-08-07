@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Yahweasel
+ * Copyright (c) 2018-2019 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -37,6 +37,9 @@
             // Monitoring
             "user": 0x40,
             "speech": 0x41,
+
+            // WebRTC signaling info
+            "rtc": 0x50,
         },
 
         "parts": {
@@ -86,6 +89,13 @@
             "speech": {
                 "length": 8,
                 "indexStatus": 4
+            },
+
+            "rtc": {
+                "length": 12,
+                "peer": 4,
+                "type": 8,
+                "value": 12
             }
         },
 
@@ -103,12 +113,42 @@
             },
             "featuresMask": 0xFF00,
             "features": {
-                "continuous": 0x100
+                "continuous": 0x100,
+                "rtc": 0x200
             }
         },
 
         "info": {
-            "sampleRate": 0
+            // C->S: For FLAC, inform of the sample rate
+            "sampleRate": 0,
+
+            // S->C: Give the client its ID number
+            "id": 0x10,
+
+            // S->C: Inform the client that a peer exists or has connected
+            /* It is the role of an initially-connecting peer to start RTC
+             * connections, so a client with RTC enabled should respond to
+             * peerContinuing by starting the RTC procedure with that peer.
+             * peerInitial is purely informative. */
+            "peerInitial": 0x11,
+            "peerContinuing": 0x12,
+
+            // S->C: Inform the client of a peer disconnecting
+            "peerLost": 0x13
+        },
+
+        "rtc": {
+            // C->S: Give ICE candidate to another peer {id, candidate JSON}
+            // S->C: Relay, id replaced by source
+            "candidate": 0x20,
+
+            // C->S: Give RTC offer to another peer {id, offer JSON}
+            // S->C: Relay, id replaced by source
+            "offer": 0x21,
+
+            // C->S: Give RTC answer to another peer {id, answer JSON}
+            // S->C: Relay, id replaced by source
+            "answer": 0x22
         }
     };
 

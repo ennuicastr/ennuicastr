@@ -28,6 +28,12 @@
     var prot = EnnuiCastrProtocol;
     var zeroPacket = new Uint8Array([0xF8, 0xFF, 0xFE]);
 
+    var featuresMask = 0xF;
+    var features = {
+        "continuous": 0x1,
+        "rtc": 0x2
+    };
+
     // Read in our configuration
     var url = new URL(window.location);
     var params = new URLSearchParams(url.search);
@@ -71,6 +77,8 @@
 
         for (var opt = 0; opt <= config.format; opt++) {
             if ((opt&config.format)!==opt) continue;
+            // We don't let the menu decide to just not use WebRTC communication
+            if ((opt&features.rtc)!==(config.format&features.rtc)) continue;
 
             div = dce("div");
             var a = dce("a");
@@ -81,7 +89,7 @@
             a.href = url.toString();
 
             a.innerText = (((opt&prot.flags.dataTypeMask)===prot.flags.dataType.flac) ? "FLAC" : "Opus") +
-                ((opt&1)?" continuous":"");
+                ((opt&features.continuous)?" continuous":"");
 
             div.appendChild(a);
             document.body.appendChild(div);
@@ -152,9 +160,10 @@
 
     // There are a lot of intermediate steps to getting audio from point A to point B
     var userMedia = null; // The microphone input
+    var userMediaAvailableEvent = new EventTarget(); // "ready" fires when userMedia is ready
     var fileReader = null; // Used to transfer Opus data from the built-in encoder
     var mediaRecorder = null; // Either the built-in media recorder or opus-recorder
-    var ac = null; // The audio context for our scritps
+    var ac = null; // The audio context for our scripts
     var flacEncoder = null; // If using FLAC
 
     // Our input sample rate
@@ -163,7 +172,11 @@
     // Which technology to use. If both false, we'll use built-in Opus.
     var useOpusRecorder = false;
     var useFlac = ((config.format&prot.flags.dataTypeMask) === prot.flags.dataType.flac);
-    var useContinuous = !!(config.format&1);
+    var useContinuous = !!(config.format&features.continuous);
+    var useRTC = !!(config.format&features.rtc);
+
+    // Our RTC peer connections
+    var rtcConnections = {};
 
     // WebRTCVAD's raw output
     var rawVadOn = false;
@@ -255,6 +268,19 @@
                 if (cc > 127)
                     cc = 95;
                 ret[ni] = cc;
+            }
+            return ret;
+        }
+    }
+
+    function decodeText(text) {
+        if (window.TextDecoder) {
+            return new TextDecoder("utf-8").decode(text);
+        } else {
+            var ret = "";
+            text = new Uint8Array(text);
+            for (var ni = 0; ni < text.length; ni++) {
+                ret += String.fromCharCode(text[ni]);
             }
             return ret;
         }
@@ -408,7 +434,63 @@
 
     // Message from the data socket
     function dataSockMsg(msg) {
-        console.log(msg.data.toString());
+        msg = new DataView(msg.data);
+        var cmd = msg.getUint32(0, true);
+
+        switch (cmd) {
+            case prot.ids.info:
+                var p = prot.parts.info;
+                var key = msg.getUint32(p.key, true);
+                var id = msg.getUint32(p.value, true);
+                switch (key) {
+                    case prot.info.peerInitial:
+                    case prot.info.peerContinuing:
+                        // We may need to start an RTC connection
+                        if (useRTC)
+                            initRTC(id, (key === prot.info.peerContinuing));
+                        break;
+                }
+                break;
+
+            case prot.ids.rtc:
+                var p = prot.parts.rtc;
+                var peer = msg.getUint32(p.peer, true);
+                var conn = rtcConnections[peer];
+                if (!conn)
+                    break;
+
+                var type = msg.getUint32(p.type, true);
+                var value = JSON.parse(decodeText(msg.buffer.slice(p.value)));
+
+                switch (type) {
+                    case prot.info.candidate:
+                        conn.addIceCandidate(value);
+                        break;
+
+                    case prot.info.offer:
+                        conn.setRemoteDescription(value).then(function() {
+                            return conn.createAnswer();
+
+                        }).then(function(answer) {
+                            return conn.setLocalDescription(answer);
+
+                        }).then(function() {
+                            rtcSignal(peer, prot.rtc.answer, conn.localDescription);
+
+                        }).catch(function(ex) {
+                            pushStatus("rtc", "RTC connection failed!");
+
+                        });
+                        break;
+
+                    case prot.info.answer:
+                        conn.setRemoteDescription(value).catch(function(ex) {
+                            pushStatus("rtc", "RTC connection failed!");
+                        });
+                        break;
+                }
+                break;
+        }
     }
 
     // Get our microphone input
@@ -438,6 +520,8 @@
     function userMediaSet() {
         pushStatus("initenc", "Initializing encoder");
         popStatus("getmic");
+
+        userMediaAvailableEvent.dispatchEvent(new CustomEvent("ready", {}));
 
         // Check whether we should be using WebAssembly
         var wa = isWebAssemblySupported();
@@ -1095,6 +1179,71 @@
             ctx.fillRect(p, h-d, sw, 2*d);
         }
         ctx.restore();
+    }
+
+    // Send an RTC signaling message
+    function rtcSignal(peer, type, value) {
+        var buf = encodeText(JSON.stringify(value));
+        var p = prot.parts.rtc;
+        var out = new DataView(new ArrayBuffer(p.length + buf.length));
+        out.setUint32(0, prot.ids.rtc, true);
+        out.setUint32(p.peer, peer, true);
+        out.setUint32(p.type, type, true);
+        new Uint8Array(out.buffer).set(buf, p.value);
+        dataSock.send(out.buffer);
+    }
+
+    // Initialize a connection to an RTC peer
+    function initRTC(peer) {
+        if (!userMedia) {
+            // We need userMedia to even start this process
+            userMediaAvailableEvent.addEventListener("ready", function() {
+                initRTC(peer);
+            });
+            return;
+        }
+
+        if (rtcConnections[peer])
+            rtcConnections[peer].close();
+
+        var conn = rtcConnections[peer] = new RTCPeerConnection({
+            iceServers: [
+                {
+                    urls: "stun:stun.l.google.com"
+                }
+            ]
+        });
+        var audioEl = null;
+
+        conn.onicecandidate = function(c) {
+            rtcSignal(peer, prot.rtc.candidate, c);
+        };
+
+        conn.onnegotiationneeded = function() {
+            conn.createOffer().then(function(offer) {
+                return conn.setLocalDescription(offer);
+
+            }).then(function() {
+                rtcSignal(peer, prot.rtc.offer, conn.localDescription);
+
+            }).catch(function(ex) {
+                pushStatus("rtc", "RTC connection failed!");
+
+            });
+        };
+
+        conn.ontrack = function(ev) {
+            if (audioEl)
+                return;
+
+            audioEl = document.createElement("audio");
+            document.body.appendChild(audioEl);
+            audioEl.srcObject = ev.streams[0];
+        };
+
+        userMedia.getTracks().forEach(function(track) {
+            conn.addTrack(track, userMedia);
+        });
     }
 
     function isWebAssemblySupported() {
