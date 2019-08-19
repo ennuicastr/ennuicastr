@@ -24,6 +24,7 @@
     var dce = document.createElement.bind(document);
     var gebi = document.getElementById.bind(document);
     var log = gebi("log");
+    var plzyes = {ideal: true};
     var plzno = {ideal: false};
     var prot = EnnuiCastrProtocol;
     var zeroPacket = new Uint8Array([0xF8, 0xFF, 0xFE]);
@@ -159,7 +160,8 @@
     var dataSock = null;
 
     // There are a lot of intermediate steps to getting audio from point A to point B
-    var userMedia = null; // The microphone input
+    var userMedia = null; // The microphone input for recording
+    var userMediaRTC = null; // The microphone input for RTC
     var userMediaAvailableEvent = new EventTarget(); // "ready" fires when userMedia is ready
     var fileReader = null; // Used to transfer Opus data from the built-in encoder
     var mediaRecorder = null; // Either the built-in media recorder or opus-recorder
@@ -463,11 +465,11 @@
                 var value = JSON.parse(decodeText(msg.buffer.slice(p.value)));
 
                 switch (type) {
-                    case prot.info.candidate:
+                    case prot.rtc.candidate:
                         conn.addIceCandidate(value);
                         break;
 
-                    case prot.info.offer:
+                    case prot.rtc.offer:
                         conn.setRemoteDescription(value).then(function() {
                             return conn.createAnswer();
 
@@ -483,7 +485,7 @@
                         });
                         break;
 
-                    case prot.info.answer:
+                    case prot.rtc.answer:
                         conn.setRemoteDescription(value).catch(function(ex) {
                             pushStatus("rtc", "RTC connection failed!");
                         });
@@ -508,6 +510,18 @@
             }
         }).then(function(userMediaIn) {
             userMedia = userMediaIn;
+            if (useRTC) {
+                return navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        autoGainControl: plzyes,
+                        echoCancellation: plzyes,
+                        noiseSuppression: plzyes
+                    }
+                });
+            }
+        }).then(function(userMediaIn) {
+            if (useRTC)
+                userMediaRTC = userMediaIn;
             userMediaSet();
         }).catch(function(err) {
             disconnect();
@@ -1194,11 +1208,11 @@
     }
 
     // Initialize a connection to an RTC peer
-    function initRTC(peer) {
+    function initRTC(peer, start) {
         if (!userMedia) {
             // We need userMedia to even start this process
             userMediaAvailableEvent.addEventListener("ready", function() {
-                initRTC(peer);
+                initRTC(peer, start);
             });
             return;
         }
@@ -1209,17 +1223,37 @@
         var conn = rtcConnections[peer] = new RTCPeerConnection({
             iceServers: [
                 {
-                    urls: "stun:stun.l.google.com"
+                    urls: "stun:stun.l.google.com:19302"
                 }
-            ]
+            ],
+            iceTransportPolicy: "all"
         });
         var audioEl = null;
 
         conn.onicecandidate = function(c) {
-            rtcSignal(peer, prot.rtc.candidate, c);
+            rtcSignal(peer, prot.rtc.candidate, c.candidate);
         };
 
-        conn.onnegotiationneeded = function() {
+        conn.ontrack = function(ev) {
+            if (audioEl)
+                return;
+
+            audioEl = document.createElement("audio");
+            document.body.appendChild(audioEl);
+            audioEl.style.position = "absolute";
+            audioEl.style.left = audioEl.style.top = "0px";
+            audioEl.srcObject = ev.streams[0];
+            audioEl.play().then(function() {
+            }).catch(function(ex) {
+                pushStatus("rtc", "Failed to play remote audio!");
+            });
+        };
+
+        userMedia.getTracks().forEach(function(track) {
+            conn.addTrack(track, userMediaRTC);
+        });
+
+        if (start) {
             conn.createOffer().then(function(offer) {
                 return conn.setLocalDescription(offer);
 
@@ -1230,20 +1264,7 @@
                 pushStatus("rtc", "RTC connection failed!");
 
             });
-        };
-
-        conn.ontrack = function(ev) {
-            if (audioEl)
-                return;
-
-            audioEl = document.createElement("audio");
-            document.body.appendChild(audioEl);
-            audioEl.srcObject = ev.streams[0];
-        };
-
-        userMedia.getTracks().forEach(function(track) {
-            conn.addTrack(track, userMedia);
-        });
+        }
     }
 
     function isWebAssemblySupported() {

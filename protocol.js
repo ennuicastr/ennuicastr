@@ -140,15 +140,15 @@
         "rtc": {
             // C->S: Give ICE candidate to another peer {id, candidate JSON}
             // S->C: Relay, id replaced by source
-            "candidate": 0x20,
+            "candidate": 0x0,
 
             // C->S: Give RTC offer to another peer {id, offer JSON}
             // S->C: Relay, id replaced by source
-            "offer": 0x21,
+            "offer": 0x1,
 
             // C->S: Give RTC answer to another peer {id, answer JSON}
             // S->C: Relay, id replaced by source
-            "answer": 0x22
+            "answer": 0x2
         }
     };
 
