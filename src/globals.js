@@ -52,14 +52,6 @@ var flacEncoder = null; // If using FLAC
 // Our input sample rate
 var sampleRate = 48000;
 
-// Which technology to use. If both false, we'll use built-in Opus.
-var useOpusRecorder = false;
-var useFlac = ((config.format&prot.flags.dataTypeMask) === prot.flags.dataType.flac);
-
-// Which features to use
-var useContinuous = !!(config.format&features.continuous);
-var useRTC = !!(config.format&features.rtc);
-
 // Our RTC peer connections
 var rtcConnections = {};
 

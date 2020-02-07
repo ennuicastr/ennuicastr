@@ -18,43 +18,76 @@
 var connected = false;
 var transmitting = false;
 function connect() {
-    connected = true;
-    pushStatus("conn", "Connecting...");
+    // Our connection message, which is largely the same for all three
+    var p, f, out, flags;
 
-    pingSock = new WebSocket(wsUrl);
-    pingSock.binaryType = "arraybuffer";
+    // (1) The ping socket
+    function connectPingSock() {
+        connected = true;
+        pushStatus("conn", "Connecting...");
 
-    pingSock.addEventListener("open", function() {
-        var nickBuf = encodeText(username);
+        pingSock = new WebSocket(wsUrl);
+        pingSock.binaryType = "arraybuffer";
 
-        var p = prot.parts.login;
-        var out = new DataView(new ArrayBuffer(p.length + nickBuf.length));
-        out.setUint32(0, prot.ids.login, true);
-        var f = prot.flags;
-        var flags = (useFlac?f.dataType.flac:0) | (useContinuous?f.features.continuous:0);
-        out.setUint32(p.id, config.id, true);
-        out.setUint32(p.key, config.key, true);
-        out.setUint32(p.flags, f.connectionType.ping | flags, true);
-        new Uint8Array(out.buffer).set(nickBuf, 16);
-        pingSock.send(out.buffer);
+        pingSock.addEventListener("open", function() {
+            var nickBuf = encodeText(username);
 
+            p = prot.parts.login;
+            out = new DataView(new ArrayBuffer(p.length + nickBuf.length));
+            out.setUint32(0, prot.ids.login, true);
+            f = prot.flags;
+            flags = (useFlac?f.dataType.flac:0) | (useContinuous?f.features.continuous:0);
+            out.setUint32(p.id, config.id, true);
+            out.setUint32(p.key, config.key, true);
+            out.setUint32(p.flags, f.connectionType.ping | flags, true);
+            new Uint8Array(out.buffer).set(nickBuf, 16);
+            pingSock.send(out.buffer);
+
+            connectDataSock();
+        });
+
+        pingSock.addEventListener("message", pingSockMsg);
+        pingSock.addEventListener("error", disconnect);
+        pingSock.addEventListener("close", disconnect);
+    }
+    connectPingSock();
+
+    // (2) The data socket
+    function connectDataSock() {
         dataSock = new WebSocket(wsUrl);
         dataSock.binaryType = "arraybuffer";
 
         dataSock.addEventListener("open", function() {
             out.setUint32(p.flags, f.connectionType.data | flags, true);
             dataSock.send(out.buffer);
-            getMic();
+
+            if ("master" in config)
+                connectMasterSock();
+            else
+                getMic();
         });
 
         dataSock.addEventListener("message", dataSockMsg);
         dataSock.addEventListener("error", disconnect);
         dataSock.addEventListener("close", disconnect);
-    });
+    }
 
-    pingSock.addEventListener("message", pingSockMsg);
-    pingSock.addEventListener("error", disconnect);
-    pingSock.addEventListener("close", disconnect);
+    // (3) The master socket
+    function connectMasterSock() {
+        masterSock = new WebSocket(wsUrl);
+        masterSock.binaryType = "arraybuffer";
+
+        masterSock.addEventListener("open", function() {
+            out.setUint32(p.key, config.master, true);
+            out.setUint32(p.flags, f.connectionType.master | flags, true);
+            masterSock.send(out.buffer);
+            getMic();
+        });
+
+        masterSock.addEventListener("message", masterSockMsg);
+        masterSock.addEventListener("error", disconnect);
+        masterSock.addEventListener("close", disconnect);
+    }
 }
 connect();
 
@@ -88,6 +121,7 @@ function disconnect(ev) {
     }
     pingSock = close(pingSock);
     dataSock = close(dataSock);
+    masterSock = close(masterSock);
 
     if (ac) {
         try {
@@ -258,7 +292,7 @@ function getMic() {
 
 // Called once we have mic access
 function userMediaSet() {
-    pushStatus("initenc", "Initializing encoder");
+    pushStatus("initenc", "Initializing encoder...");
     popStatus("getmic");
 
     userMediaAvailableEvent.dispatchEvent(new CustomEvent("ready", {}));
@@ -662,4 +696,3 @@ function adjustTime(packet) {
     // And adjust the time
     return Math.round(packet[0] + timeOffset*48 + startTime*48);
 }
-

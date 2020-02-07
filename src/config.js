@@ -125,7 +125,8 @@ if (username === null || username === "") {
         for (var key in config)
             target += key[0] + "=" + config[key].toString(36) + "&";
         target += "nm=" + encodeURIComponent(gebi("nm").value);
-        if (window.open(target, "", "width=640,height=160,menubar=0,toolbar=0,location=0,personalbar=0,status=0") === null) {
+        var height = ("master" in config)?480:160;
+        if (window.open(target, "", "width=640,height=" + height + ",menubar=0,toolbar=0,location=0,personalbar=0,status=0") === null) {
             // Just use the regular submit
             return true;
         }
@@ -143,6 +144,14 @@ if (username === null || username === "") {
 
 // Find the websock URL
 var wsUrl = (url.protocol==="http:"?"ws":"wss") + "://" + url.hostname + ":" + config.port;
+
+// Which technology to use. If both false, we'll use built-in Opus.
+var useOpusRecorder = false;
+var useFlac = ((config.format&prot.flags.dataTypeMask) === prot.flags.dataType.flac);
+
+// Which features to use
+var useContinuous = !!(config.format&features.continuous);
+var useRTC = !!(config.format&features.rtc);
 
 // If we're in continuous mode, we don't distinguish the degrees of VAD
 if (useContinuous) waveVADColors[1] = waveVADColors[2];

@@ -44,17 +44,33 @@ function localProcessing() {
 
     // Now the display steps
 
+    // Create a box for it
+    var dispBox = dce("div");
+    dispBox.style.position = "fixed";
+    dispBox.style.left = "0px";
+    dispBox.style.top = "0px";
+    dispBox.style.width = "100%";
+
     // Create a canvas for it
     var wc = dce("canvas");
     wc.width = window.innerWidth;
-    wc.height = window.innerHeight;
     wc.style.position = "fixed";
     wc.style.left = "0px";
     wc.style.top = "0px";
     wc.style.width = "100%";
     wc.style.height = "100%";
     waveCanvas = wc;
-    document.body.appendChild(wc);
+
+    // Put them together
+    if ("master" in config) {
+        dispBox.style.height = "160px";
+        wc.height = 160;
+    } else {
+        dispBox.style.height = "100%";
+        wc.height = window.innerHeight;
+    }
+    document.body.appendChild(dispBox);
+    dispBox.appendChild(wc);
 
     // Now the background is nothing, so should just be grey
     document.body.style.backgroundColor = "#111";
@@ -196,6 +212,8 @@ function updateWave(value) {
     // Start from the window size
     var w = window.innerWidth;
     var h = window.innerHeight - log.offsetHeight;
+    if ("master" in config)
+        h = 160;
 
     // Rotate if our view is vertical
     if (h > w) {
