@@ -57,6 +57,7 @@
             },
 
             "info": {
+                /* Note: Longer for some info */
                 "length": 12,
                 "key": 4,
                 "value": 8
@@ -102,8 +103,25 @@
         "flags": {
             "connectionTypeMask": 0xF,
             "connectionType": {
+                /* Ping-pong time synchronization is kept on its own connection
+                 * to try to avoid interference */
                 "ping": 0x0,
+
+                /* The data connection is used for all regular client data
+                 * interchange: The client sending voice activity to the
+                 * server, the server sending information updates back to the
+                 * client, and both sending RTC exchanges to each other. */
                 "data": 0x1,
+
+                /* The master connection is used by privileged peers to get
+                 * both monitoring information and updates such as credit
+                 * costs. It is distinct from the data connection, and
+                 * privileged peers should not send voice data over the master
+                 * connection. */
+                "master": 0x2,
+
+                /* A monitoring connection gets only monitoring info, i.e., who
+                 * is speaking at any given time. */
                 "monitor": 0x8
             },
             "dataTypeMask": 0xF0,
@@ -119,13 +137,13 @@
         },
 
         "info": {
-            // C->S: For FLAC, inform of the sample rate
+            // C->S, uint32: For FLAC, inform of the sample rate
             "sampleRate": 0,
 
-            // S->C: Give the client its ID number
+            // S->C, uint32: Give the client its ID number
             "id": 0x10,
 
-            // S->C: Inform the client that a peer exists or has connected
+            // S->C, uint32: Inform the client that a peer exists or has connected
             /* It is the role of an initially-connecting peer to start RTC
              * connections, so a client with RTC enabled should respond to
              * peerContinuing by starting the RTC procedure with that peer.
@@ -133,8 +151,13 @@
             "peerInitial": 0x11,
             "peerContinuing": 0x12,
 
-            // S->C: Inform the client of a peer disconnecting
-            "peerLost": 0x13
+            // S->C, uint32: Inform the client of a peer disconnecting
+            "peerLost": 0x13,
+
+            /* S->C, 2xuint32: Inform the user of their current rate of credit
+             * consumption, and how many credits remain, so that the client may
+             * warn if the end is nigh */
+            "creditRate": 0x20
         },
 
         "rtc": {

@@ -1,0 +1,148 @@
+/*
+ * Copyright (c) 2018-2020 Yahweasel
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
+ * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+ * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/* These are the features selectable in the URL, not (necessarily) the
+ * protocol */
+var featuresMask = 0xF;
+var features = {
+    "continuous": 0x1,
+    "rtc": 0x2
+};
+
+// Read in our configuration
+var url = new URL(window.location);
+var params = new URLSearchParams(url.search);
+config = {
+    id: params.get("i"),
+    key: params.get("k"),
+    format: params.get("f"),
+    port: params.get("p")
+};
+var master = params.get("m");
+var selector = params.get("s");
+var monitor = params.get("mon");
+var username = params.get("nm");
+if (config.id === null) {
+    // Redirect to the homepage
+    window.location = "/home/";
+    return;
+}
+config.id = Number.parseInt(config.id, 36);
+if (config.key === null) {
+    var div = dce("div");
+    div.innerHTML = "Invalid key!";
+    document.body.appendChild(div);
+    return;
+}
+config.key = Number.parseInt(config.key, 36);
+if (master !== null)
+    config.master = Number.parseInt(master, 36);
+if (config.port === null)
+    config.port = 36678;
+else
+    config.port = Number.parseInt(config.port, 36);
+if (config.format === null)
+    config.format = 0;
+config.format = Number.parseInt(config.format, 36);
+
+// If we're using the selector, just do that
+if (selector) {
+    var div = dce("div");
+    div.innerText = "Client links:";
+    document.body.appendChild(div);
+
+    var sb = "?i=" + config.id.toString(36) + "&k=" + config.key.toString(36) + "&p=" + config.port.toString(36);
+
+    for (var opt = 0; opt <= config.format; opt++) {
+        if ((opt&config.format)!==opt) continue;
+        // We don't let the menu decide to just not use WebRTC communication
+        if ((opt&features.rtc)!==(config.format&features.rtc)) continue;
+
+        div = dce("div");
+        var a = dce("a");
+        if (opt === 0)
+            url.search = sb;
+        else
+            url.search = sb + "&f=" + opt.toString(36);
+        a.href = url.toString();
+
+        a.innerText = (((opt&prot.flags.dataTypeMask)===prot.flags.dataType.flac) ? "FLAC" : "Opus") +
+            ((opt&features.continuous)?" continuous":"");
+
+        div.appendChild(a);
+        document.body.appendChild(div);
+    }
+
+    return;
+}
+
+// If we're looking for the monitor, just do that
+if (monitor) {
+    var scr = dce("script");
+    scr.src = "ennuicastr-monitor.js?v=1";
+    scr.async = true;
+    document.body.appendChild(scr);
+    return;
+}
+
+// Hide the extraneous details
+url.search = "?i=" + config.id.toString(36);
+window.history.pushState({}, "EnnuiCastr", url.toString());
+
+// Next, check if we have a username
+if (username === null || username === "") {
+    // Just ask for a username
+    var div = dce("div");
+    var span = dce("span");
+    span.innerHTML = "You have been invited to join a recording on EnnuiCastr. Please enter a username.<br/><br/>";
+    div.appendChild(span);
+    var form = dce("form");
+    form.action = "?";
+    form.method = "GET";
+    var html =
+        "<label for=\"nm\">Username: </label><input name=\"nm\" id=\"nm\" type=\"text\" /> ";
+    for (var key in config)
+        html += "<input name=\"" + key[0] + "\" type=\"hidden\" value=\"" + config[key].toString(36) + "\" />";
+    html += "<input type=\"submit\" value=\"Join\" />";
+    form.innerHTML = html;
+
+    form.onsubmit = function(ev) {
+        // Try to do this in a new window
+        var target = "?";
+        for (var key in config)
+            target += key[0] + "=" + config[key].toString(36) + "&";
+        target += "nm=" + encodeURIComponent(gebi("nm").value);
+        if (window.open(target, "", "width=640,height=160,menubar=0,toolbar=0,location=0,personalbar=0,status=0") === null) {
+            // Just use the regular submit
+            return true;
+        }
+
+        div.innerHTML = "Connecting in a new window. You may now close this tab.";
+
+        ev.preventDefault();
+        return false;
+    };
+
+    div.appendChild(form);
+    document.body.appendChild(div);
+    return;
+}
+
+// Find the websock URL
+var wsUrl = (url.protocol==="http:"?"ws":"wss") + "://" + url.hostname + ":" + config.port;
+
+// If we're in continuous mode, we don't distinguish the degrees of VAD
+if (useContinuous) waveVADColors[1] = waveVADColors[2];
