@@ -10,6 +10,7 @@ a {
 .halfspan {
     display: inline-block;
     width: 50%;
+    vertical-align: top;
 }
 
 @media screen and (max-width: 480px) {

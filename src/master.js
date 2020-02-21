@@ -154,6 +154,7 @@ function createMasterInterface() {
     masterUI.userStatusB = right;
 
     configureMasterInterface();
+    updateMasterSpeech();
 }
 
 // (Re)configure the master interface
@@ -271,4 +272,39 @@ function masterUpdateTimeLeft() {
     var m = (mleft%60) + "";
     if (m.length<2) m = "0" + m;
     tl.value = h + ":" + m;
+}
+
+// Update the speech interface for the master
+function updateMasterSpeech() {
+    if (!masterUI.speech || !masterUI.userStatusB) return;
+
+    // First make sure we have a div for each user
+    masterUI.speechB = masterUI.speechB || [];
+    while (masterUI.speechB.length < masterUI.speech.length)
+        masterUI.speechB.push(null);
+
+    for (var i = 0; i < masterUI.speech.length; i++) {
+        if (masterUI.speech[i] && !masterUI.speechB[i]) {
+            var div = masterUI.speechB[i] = dce("div");
+            div.innerText = masterUI.speech[i].nick;
+            masterUI.userStatusB.appendChild(div);
+        }
+    }
+
+    // Then update them all based on status
+    for (var i = 0; i < masterUI.speech.length; i++) {
+        var status = masterUI.speech[i];
+        if (!status) continue;
+        var div = masterUI.speechB[i];
+        console.log(JSON.stringify(status));
+
+        var color;
+        if (!status.online)
+            color = "#333";
+        else if (status.speaking)
+            color = "#050";
+        else
+            color = "#000";
+        div.style.backgroundColor = color;
+    }
 }

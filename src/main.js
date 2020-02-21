@@ -281,10 +281,11 @@ function dataSockMsg(msg) {
 function masterSockMsg(msg) {
     msg = new DataView(msg.data);
     var cmd = msg.getUint32(0, true);
+    var p;
 
     switch (cmd) {
         case prot.ids.info:
-            var p = prot.parts.info;
+            p = prot.parts.info;
             var key = msg.getUint32(p.key, true);
             var val = msg.getUint32(p.value, true);
             switch (key) {
@@ -295,6 +296,37 @@ function masterSockMsg(msg) {
                     masterUpdateTimeLeft();
                     break;
             }
+            break;
+
+        case prot.ids.user:
+            p = prot.parts.user;
+            var index = msg.getUint32(p.index, true);
+            var status = msg.getUint32(p.status, true);
+            var nick = decodeText(msg.buffer.slice(p.nick));
+
+            // Add it to the UI
+            masterUI.speech = masterUI.speech || [];
+            while (masterUI.speech.length <= index)
+                masterUI.speech.push(null);
+            masterUI.speech[index] = {
+                nick: nick,
+                online: !!status,
+                speaking: false
+            };
+
+            updateMasterSpeech();
+            break;
+
+        case prot.ids.speech:
+            p = prot.parts.speech;
+            var indexStatus = msg.getUint32(p.indexStatus, true);
+            var index = indexStatus>>>1;
+            var status = (indexStatus&1);
+            console.log("A");
+            if (!masterUI.speech[index]) return;
+            console.log("B");
+            masterUI.speech[index].speaking = !!status;
+            updateMasterSpeech();
             break;
     }
 }
