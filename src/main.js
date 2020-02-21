@@ -203,13 +203,35 @@ function dataSockMsg(msg) {
         case prot.ids.info:
             var p = prot.parts.info;
             var key = msg.getUint32(p.key, true);
-            var id = msg.getUint32(p.value, true);
+            var val = msg.getUint32(p.value, true);
             switch (key) {
                 case prot.info.peerInitial:
                 case prot.info.peerContinuing:
                     // We may need to start an RTC connection
                     if (useRTC)
-                        initRTC(id, (key === prot.info.peerContinuing));
+                        initRTC(val, (key === prot.info.peerContinuing));
+                    break;
+
+                case prot.info.mode:
+                    // Set the mode
+                    mode = val;
+
+                    // Make it visible in the waveform
+                    var wvms = ((val === prot.mode.rec) ? "r" : "s") +
+                               (useContinuous ? "c" : "v");
+                    waveVADColors = waveVADColorSets[wvms];
+
+                    // Update the status
+                    popStatus("mode");
+                    if (mode === prot.mode.init)
+                        pushStatus("mode", "Not yet recording");
+                    else if (mode === prot.mode.finished)
+                        pushStatus("mode", "Not recording");
+
+                    // Update the master interface
+                    if ("master" in config)
+                        configureMasterInterface();
+
                     break;
             }
             break;
@@ -255,8 +277,33 @@ function dataSockMsg(msg) {
     }
 }
 
+// Message from the master socket
+function masterSockMsg(msg) {
+    msg = new DataView(msg.data);
+    var cmd = msg.getUint32(0, true);
+
+    switch (cmd) {
+        case prot.ids.info:
+            var p = prot.parts.info;
+            var key = msg.getUint32(p.key, true);
+            var val = msg.getUint32(p.value, true);
+            switch (key) {
+                case prot.info.creditRate:
+                    // Informing is of the credit rate
+                    var v2 = msg.getUint32(p.value + 4, true);
+                    masterUI.creditRate = [val, v2];
+                    masterUpdateTimeLeft();
+                    break;
+            }
+            break;
+    }
+}
+
 // Get our microphone input
 function getMic() {
+    if (!connected)
+        return;
+
     pushStatus("getmic", "Asking for microphone permission...");
     popStatus("conn");
 
@@ -292,6 +339,9 @@ function getMic() {
 
 // Called once we have mic access
 function userMediaSet() {
+    if (!connected)
+        return;
+
     pushStatus("initenc", "Initializing encoder...");
     popStatus("getmic");
 
@@ -310,6 +360,10 @@ function userMediaSet() {
     scr.async = true;
     scr.src = "vad/vad" + (wa?".wasm":"") + ".js";
     document.body.appendChild(scr);
+
+    // Set up the master interface
+    if ("master" in config)
+        createMasterInterface();
 
     // If the browser can't encode to Ogg Opus directly, we need a JS solution
     useOpusRecorder = false;
@@ -357,6 +411,9 @@ function userMediaSet() {
 
 // Called once the encoder is loaded
 function encoderLoaded() {
+    if (!connected)
+        return;
+
     pushStatus("startenc", "Starting encoder...");
     popStatus("initenc");
 
@@ -610,12 +667,21 @@ function handleData(endTime) {
 // Once we've parsed new packets, we can do something with them
 function handlePackets() {
     if (!packets.length || timeOffset === null) return;
+
     var curGranulePos = packets[packets.length-1][0];
     transmitting = true;
 
     // We have *something* to handle
     lastSentTime = performance.now();
     popStatus("startenc");
+
+    // Don't actually *send* anything if we're not recording
+    if (mode !== prot.mode.rec) {
+        // Don't send data unless we're recording
+        while (packets.length)
+            packets.pop();
+        return;
+    }
 
     if (!vadOn) {
         // Drop any sufficiently old packets, or send them marked as silence in continuous mode

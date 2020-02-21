@@ -40,6 +40,9 @@ var pingSock = null;
 var dataSock = null;
 var masterSock = null;
 
+// We connect assuming our mode is not-yet-recording
+var mode = prot.mode.init;
+
 // There are a lot of intermediate steps to getting audio from point A to point B
 var userMedia = null; // The microphone input for recording
 var userMediaRTC = null; // The microphone input for RTC
@@ -74,12 +77,23 @@ var sendSilence = 400;
 // The data used by both the level-based VAD and display
 var waveData = [];
 var waveVADs = [];
-var waveVADColors = ["#000", "#aaa", "#073", "#0a3"];
+
+var waveVADColorSets = {
+    "sv": ["#000", "#730", "#730", "#a30"],
+    "sc": ["#000", "#730", "#730", "#a30"],
+    "rv": ["#000", "#aaa", "#073", "#0a3"],
+    "rc": ["#000", "#073", "#073", "#0a3"]
+};
+
+var waveVADColors = waveVADColorSets.sv;
 
 // The display canvas and data
 var waveCanvas = null;
 var waveWatcher = null;
 var waveRotate = false;
+
+// If we're in master mode, master UI elements
+var masterUI = {};
 
 // Our start time is in local ticks, and our offset is updated every so often
 var startTime = 0;

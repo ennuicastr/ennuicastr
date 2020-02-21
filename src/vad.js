@@ -46,7 +46,7 @@ function localProcessing() {
 
     // Create a box for it
     var dispBox = dce("div");
-    dispBox.style.position = "fixed";
+    dispBox.style.position = "absolute";
     dispBox.style.left = "0px";
     dispBox.style.top = "0px";
     dispBox.style.width = "100%";
@@ -54,7 +54,7 @@ function localProcessing() {
     // Create a canvas for it
     var wc = dce("canvas");
     wc.width = window.innerWidth;
-    wc.style.position = "fixed";
+    wc.style.position = "absolute";
     wc.style.left = "0px";
     wc.style.top = "0px";
     wc.style.width = "100%";
@@ -64,6 +64,7 @@ function localProcessing() {
     // Put them together
     if ("master" in config) {
         dispBox.style.height = "160px";
+        document.body.style.minHeight = "320px";
         wc.height = 160;
     } else {
         dispBox.style.height = "100%";
@@ -78,7 +79,7 @@ function localProcessing() {
     // Create our watcher image
     var img = dce("img");
     img.style.display = "none";
-    img.style.position = "fixed";
+    img.style.position = "absolute";
     img.style.left = "0px";
     img.style.top = "0px";
     img.style.height = "0px"; // Changed automatically when data arrives

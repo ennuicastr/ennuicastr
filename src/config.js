@@ -100,14 +100,14 @@ if (monitor) {
 
 // Hide the extraneous details
 url.search = "?i=" + config.id.toString(36);
-window.history.pushState({}, "EnnuiCastr", url.toString());
+window.history.pushState({}, "Ennuicastr", url.toString());
 
 // Next, check if we have a username
 if (username === null || username === "") {
     // Just ask for a username
     var div = dce("div");
     var span = dce("span");
-    span.innerHTML = "You have been invited to join a recording on EnnuiCastr. Please enter a username.<br/><br/>";
+    span.innerHTML = "You have been invited to join a recording on Ennuicastr. Please enter a username.<br/><br/>";
     div.appendChild(span);
     var form = dce("form");
     form.action = "?";
@@ -154,4 +154,4 @@ var useContinuous = !!(config.format&features.continuous);
 var useRTC = !!(config.format&features.rtc);
 
 // If we're in continuous mode, we don't distinguish the degrees of VAD
-if (useContinuous) waveVADColors[1] = waveVADColors[2];
+if (useContinuous) waveVADColors = waveVADColors.sc;

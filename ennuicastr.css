@@ -1,0 +1,85 @@
+body {
+    background: #033;
+    color: #cff;
+}
+
+a {
+    color: #fcc;
+}
+
+.halfspan {
+    display: inline-block;
+    width: 50%;
+}
+
+@media screen and (max-width: 480px) {
+    .halfspan {
+        width: 100%;
+    }
+}
+
+.row {
+    width: 100%;
+    margin-bottom: 0.5em;
+}
+
+.invite {
+    background-color: #055;
+}
+
+.status {
+    background: #ccc;
+    color: #333;
+    position: fixed;
+    left: 0px;
+    bottom: 0px;
+    width: 100%;
+    text-align: center;
+    padding: 0.25em;
+}
+
+.status > a {
+    color: #00A;
+}
+
+button, .button {
+    -moz-transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+    -webkit-transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+    -ms-transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+    background-color: #033;
+    color: #fff;
+    border-radius: 0;
+    border: 0;
+    cursor: pointer;
+    display: inline-block;
+    height: 2.85em;
+    line-height: 2.95em;
+    text-align: center;
+    text-decoration: none;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+button:hover, .button:hover {
+    background-color: #055;
+}
+
+button.off, button.off:hover {
+    background-color: #500;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="email"],
+select,
+textarea {
+    background-color: #033;
+    color: #fff;
+    border-radius: 0;
+    border: none;
+    border: solid 1px;
+    outline: 0;
+    padding: 0.5em;
+    text-decoration: none;
+}

@@ -25,13 +25,16 @@
         "ids": {
             "ack": 0x00,
 
+            // Basic
             "login": 0x10,
             "info": 0x11,
             "error": 0x12,
 
+            // Ping socket
             "ping": 0x20,
             "pong": 0x21,
 
+            // Main data message
             "data": 0x30,
 
             // Monitoring
@@ -40,6 +43,9 @@
 
             // WebRTC signaling info
             "rtc": 0x50,
+
+            // Master
+            "mode": 0x60,
         },
 
         "parts": {
@@ -97,6 +103,11 @@
                 "peer": 4,
                 "type": 8,
                 "value": 12
+            },
+
+            "mode": {
+                "length": 8,
+                "mode": 4
             }
         },
 
@@ -154,6 +165,9 @@
             // S->C, uint32: Inform the client of a peer disconnecting
             "peerLost": 0x13,
 
+            // S->C, uint32: Inform the user of the current mode
+            "mode": 0x14,
+
             /* S->C, 2xuint32: Inform the user of their current rate of credit
              * consumption, and how many credits remain, so that the client may
              * warn if the end is nigh */
@@ -172,6 +186,20 @@
             // C->S: Give RTC answer to another peer {id, answer JSON}
             // S->C: Relay, id replaced by source
             "answer": 0x2
+        },
+
+        "mode": {
+            // Not yet recording
+            "init": 0x00,
+
+            // Recording
+            "rec": 0x10,
+
+            // Paused (not presently used)
+            "paused": 0x20,
+
+            // Finished recording
+            "finished": 0x30
         }
     };
 
