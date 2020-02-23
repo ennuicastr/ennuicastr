@@ -145,8 +145,11 @@ if (username === null || username === "") {
 // Find the websock URL
 var wsUrl = (url.protocol==="http:"?"ws":"wss") + "://" + url.hostname + ":" + config.port;
 
-// Which technology to use. If both false, we'll use built-in Opus.
-var useOpusRecorder = false;
+// Do we need to use libav.js?
+var useLibAV = false;
+var libavVersion = "1.3.4.2.2";
+
+// Should we be creating FLAC?
 var useFlac = ((config.format&prot.flags.dataTypeMask) === prot.flags.dataType.flac);
 
 // Which features to use

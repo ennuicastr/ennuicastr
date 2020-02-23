@@ -296,7 +296,6 @@ function updateMasterSpeech() {
         var status = masterUI.speech[i];
         if (!status) continue;
         var div = masterUI.speechB[i];
-        console.log(JSON.stringify(status));
 
         var color;
         if (!status.online)

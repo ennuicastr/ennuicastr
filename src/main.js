@@ -322,9 +322,7 @@ function masterSockMsg(msg) {
             var indexStatus = msg.getUint32(p.indexStatus, true);
             var index = indexStatus>>>1;
             var status = (indexStatus&1);
-            console.log("A");
             if (!masterUI.speech[index]) return;
-            console.log("B");
             masterUI.speech[index].speaking = !!status;
             updateMasterSpeech();
             break;
@@ -398,10 +396,11 @@ function userMediaSet() {
         createMasterInterface();
 
     // If the browser can't encode to Ogg Opus directly, we need a JS solution
-    useOpusRecorder = false;
-    if (typeof MediaRecorder === "undefined" ||
+    useLibAV = false;
+    if (useFlac ||
+        typeof MediaRecorder === "undefined" ||
         !MediaRecorder.isTypeSupported("audio/ogg; codec=opus")) {
-        useOpusRecorder = true;
+        useLibAV = true;
     }
 
     // At this point, we want to start catching errors
@@ -413,25 +412,20 @@ function userMediaSet() {
         dataSock.send(out.buffer);
     });
 
-    if (useFlac) {
-
-        // Jump through its asynchronous hoops
+    if (useLibAV) {
+        // Load it
+        if (typeof LibAV === "undefined")
+            LibAV = {};
+        LibAV.base = "libav";
+        LibAV.noworker = true;
         var scr = dce("script");
         scr.addEventListener("load", function() {
-            if (!Flac.isReady())
-                Flac.onready = encoderLoaded;
-            else
+            if (LibAV.ready)
                 encoderLoaded();
+            else
+                LibAV.onready = encoderLoaded;
         });
-        scr.src = "libflac/libflac.min" + (wa?".wasm":"") + ".js";
-        scr.async = true;
-        document.body.appendChild(scr);
-
-    } else if (useOpusRecorder) {
-        // We need to load it first
-        var scr = dce("script");
-        scr.addEventListener("load", encoderLoaded);
-        scr.src = "recorder/recorder.min.js";
+        scr.src = "libav/libav-" + libavVersion + "-opus-flac.js";
         scr.async = true;
         document.body.appendChild(scr);
 
@@ -449,10 +443,10 @@ function encoderLoaded() {
     pushStatus("startenc", "Starting encoder...");
     popStatus("initenc");
 
-    if (useFlac) {
-        flacStart();
+    if (useLibAV) {
+        libavStart();
 
-    } else if (!useOpusRecorder) {
+    } else {
         // We're ready to record, but need a file reader to transfer the data
         fileReader = new FileReader();
         fileReader.addEventListener("load", function(chunk) {
@@ -476,104 +470,158 @@ function encoderLoaded() {
         startTime = performance.now();
         mediaRecorder.start(200);
 
-    } else if (!Recorder.isRecordingSupported()) {
-        // We're screwed!
-        disconnect();
-        pushStatus("unsupported", "Sorry, but your browser doesn't support recording :(");
-        popStatus("startenc");
-
-    } else {
-        // We need a JS recorder to get it in the format we want
-        mediaRecorder = new Recorder({
-            encoderPath: "recorder/encoderWorker.min.js",
-            numberOfChannels: 1,
-            encoderBitRate: 128000,
-            encoderSampleRate: 48000,
-            maxBuffersPerPage: 1,
-            streamPages: true
-        });
-        mediaRecorder.ondataavailable = function(chunk) {
-            data.push(chunk.buffer);
-            handleData(performance.now());
-        };
-        startTime = performance.now();
-        mediaRecorder.start(ac.createMediaStreamSource(userMedia));
-
     }
 }
 
-// FLAC support code
-function flacStart() {
-    // Opus always resamples, but we need to keep our rate for FLAC
-    sampleRate = ac.sampleRate;
-    var p = prot.parts.info;
-    var info = new DataView(new ArrayBuffer(p.length));
-    info.setUint32(0, prot.ids.info, true);
-    info.setUint32(p.key, prot.info.sampleRate, true);
-    info.setUint32(p.value, sampleRate, true);
-    dataSock.send(info.buffer);
+// Start the libav encoder
+function libavStart() {
+    var libav = LibAV;
+    var mss;
 
-    // Our zero packet is also different, of course
-    switch (sampleRate) {
-        case 44100:
-            zeroPacket = new Uint8Array([0xFF, 0xF8, 0x79, 0x0C, 0x00, 0x03, 0x71, 0x56, 0x00, 0x00, 0x00, 0x00, 0x63, 0xC5]);
-            break;
-        default:
-            zeroPacket = new Uint8Array([0xFF, 0xF8, 0x7A, 0x0C, 0x00, 0x03, 0xBF, 0x94, 0x00, 0x00, 0x00, 0x00, 0xB1, 0xCA]);
+    // We need to choose our target sample rate based on the input sample rate and format
+    sampleRate = 48000;
+    if (useFlac && ac.sampleRate === 44100)
+        sampleRate = 44100;
+
+    // The server needs to be informed of FLAC's sample rate
+    if (useFlac) {
+        var p = prot.parts.info;
+        var info = new DataView(new ArrayBuffer(p.length));
+        info.setUint32(0, prot.ids.info, true);
+        info.setUint32(p.key, prot.info.sampleRate, true);
+        info.setUint32(p.value, sampleRate, true);
+        dataSock.send(info.buffer);
     }
 
-    // Initialize our FLAC encoder
-    flacEncoder = Flac.create_libflac_encoder(sampleRate, 1, 24, 5, 0, false, sampleRate * 20 / 1000);
-    if (flacEncoder === 0) {
-        pushStatus("flacfail", "Failed to initialize FLAC encoder!");
-        popStatus("startenc");
-        return;
-    }
-
-    startTime = performance.now();
-
-    var encoderStatus = Flac.init_encoder_stream(flacEncoder, flacChunk);
-    if (encoderStatus !== 0) {
-        pushStatus("flacfail", "Failed to initialize FLAC encode stream! (" + encoderStatus + " " + Flac.FLAC__stream_encoder_get_state() + ")");
-        popStatus("startenc");
-        return;
-    }
-
-    function flacChunk(data, bytes, samples, currentFrame) {
-        if (samples === 0) {
-            // This is metadata. Ignore it.
-            return;
+    // Set our zero packet as appropriate
+    if (useFlac) {
+        switch (sampleRate) {
+            case 44100:
+                zeroPacket = new Uint8Array([0xFF, 0xF8, 0x79, 0x0C, 0x00, 0x03, 0x71, 0x56, 0x00, 0x00, 0x00, 0x00, 0x63, 0xC5]);
+                break;
+            default:
+                zeroPacket = new Uint8Array([0xFF, 0xF8, 0x7A, 0x0C, 0x00, 0x03, 0xBF, 0x94, 0x00, 0x00, 0x00, 0x00, 0xB1, 0xCA]);
         }
-
-        // Just make a packet directly
-        packets.push([(performance.now() - startTime) * 48, new DataView(data.buffer)]);
-        handlePackets();
     }
 
-    // Now start reading the input
+    // Determine our encoder options
+    var encOptions = {
+        sample_rate: sampleRate,
+        frame_size: sampleRate * 20 / 1000,
+        channel_layout: 4,
+        channels: 1
+    };
+    if (useFlac) {
+        encOptions.sample_fmt = libav.AV_SAMPLE_FMT_S32;
+    } else {
+        encOptions.sample_fmt = libav.AV_SAMPLE_FMT_FLT;
+        encOptions.bit_rate = 128000;
+    }
+
+    // Begin initializing the encoder
+    libavEncoder = {};
+    libav.ff_init_encoder("libopus", encOptions, 1, 48000).then(function(ret) {
+
+        libavEncoder.codec = ret[0];
+        libavEncoder.c = ret[1];
+        libavEncoder.frame = ret[2];
+        libavEncoder.pkt = ret[3];
+        libavEncoder.frame_size = ret[4];
+
+        // Now make the filter
+        return libav.ff_init_filter_graph("aresample", {
+            sample_rate: ac.sampleRate,
+            sample_fmt: libav.AV_SAMPLE_FMT_FLT,
+            channel_layout: 4
+        }, {
+            sample_rate: encOptions.sample_rate,
+            sample_fmt: encOptions.sample_fmt,
+            channel_layout: 4,
+            frame_size: libavEncoder.frame_size
+        });
+
+    }).then(function(ret) {
+        libavEncoder.filter_graph = ret[0];
+        libavEncoder.buffersrc_ctx = ret[1];
+        libavEncoder.buffersink_ctx = ret[2];
+
+        // We're ready to go!
+        startTime = performance.now();
+        libavEncoder.p = Promise.all([]);
+        libavProcess();
+
+    }).catch(function(ex) {
+        pushStatus("libaverr", "Encoding error: " + ex);
+
+    });
+}
+
+// libav's actual per-chunk processing
+function libavProcess() {
+    var libav = LibAV;
+    var enc = libavEncoder;
+    var pts = 0;
+    var inSampleRate = ac.sampleRate;
+
+    // Start reading the input
     var mss = ac.createMediaStreamSource(userMedia);
-    /* NOTE: We don't actually care about output, but Chrome won't run a
-     * script processor with 0 outputs */
+    /* NOTE: We don't actually care about output, but Chrome won't run a script
+     * processor with 0 outputs */
     var sp = ac.createScriptProcessor(1024, 1, 1);
     sp.connect(ac.destination);
+
     sp.onaudioprocess = function(ev) {
         var ib = ev.inputBuffer.getChannelData(0);
+        var pktTime = Math.round(
+            (performance.now() - startTime) * 48 -
+            (ib.length * 48000 / inSampleRate)
+        );
 
-        // Convert it to FLAC's format
-        var oba = new Uint32Array(ib.length);
-        var ob = new DataView(oba.buffer);
-        for (var i = 0; i < ib.length; i++)
-            ob.setInt32(i * 4, ib[i]*0x7FFFFF, true);
+        // Put it in libav's format
+        var frames = [{
+            data: ib,
+            channel_layout: 4,
+            format: libav.AV_SAMPLE_FMT_FLT,
+            pts: pts,
+            sample_rate: inSampleRate
+        }];
+        pts += ib.length;
 
-        var ret = Flac.FLAC__stream_encoder_process_interleaved(flacEncoder, oba, ib.length);
-        if (!ret)
-            pushStatus("flacerr", "FLAC error " + Flac.FLAC__stream_encoder_get_state(flacEncoder));
-    };
+        // Wait for any previous filtering
+        enc.p = enc.p.then(function() {
+
+            // Filter
+            return libav.ff_filter_multi(enc.buffersrc_ctx, enc.buffersink_ctx, enc.frame, frames);
+
+        }).then(function(frames) {
+            // Encode
+            return libav.ff_encode_multi(enc.c, enc.frame, enc.pkt, frames);
+
+        }).then(function(encPackets) {
+            // Now write these packets out
+            for (var pi = 0; pi < encPackets.length; pi++) {
+                packets.push([pktTime, new DataView(encPackets[pi].data.buffer)])
+                pktTime += 960; // 20ms
+            }
+            handlePackets();
+
+        }).catch(function(ex) {
+            pushStatus("libaverr", "Encoding error: " + ex);
+
+        });
+    }
+
     mss.connect(sp);
 
     ac.addEventListener("disconnected", function() {
-        Flac.FLAC__stream_encoder_finish(flacEncoder);
-        Flac.FLAC__stream_encoder_delete(flacEncoder);
+        // Close the encoder
+        enc.p = enc.p.then(function() {
+            return libav.avfilter_graph_free_js(enc.filter_graph);
+
+        }).then(function() {
+            return libav.ff_free_encoder(enc.c, enc.frame, enc.pkt);
+
+        });
         mss.disconnect(sp);
         sp.disconnect(ac.destination);
     });

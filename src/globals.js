@@ -47,10 +47,10 @@ var mode = prot.mode.init;
 var userMedia = null; // The microphone input for recording
 var userMediaRTC = null; // The microphone input for RTC
 var userMediaAvailableEvent = new EventTarget(); // "ready" fires when userMedia is ready
-var fileReader = null; // Used to transfer Opus data from the built-in encoder
-var mediaRecorder = null; // Either the built-in media recorder or opus-recorder
 var ac = null; // The audio context for our scripts
-var flacEncoder = null; // If using FLAC
+var fileReader = null; // Used to transfer Opus data from the built-in encoder
+var mediaRecorder = null; // The built-in media recorder, on browsers which support encoding to Ogg Opus
+var libavEncoder = null; // If using libav.js to encode
 
 // Our input sample rate
 var sampleRate = 48000;

@@ -13,10 +13,18 @@ SRC=src/head.js \
 
 all: ennuicastr.js ennuicastr.min.js protocol.min.js
 
+test: ennuicastr-test.js ennuicastr-test.min.js
+
 ennuicastr.js: $(SRC)
 	cat $(SRC) | cat src/license.js - > $@
 
 ennuicastr.min.js: $(SRC)
+	cat $(SRC) | $(MINIFIER) | cat src/license.js - > $@
+
+ennuicastr-test.js: $(SRC)
+	cat $(SRC) | cat src/license.js - > $@
+
+ennuicastr-test.min.js: $(SRC)
 	cat $(SRC) | $(MINIFIER) | cat src/license.js - > $@
 
 protocol.min.js: protocol.js
