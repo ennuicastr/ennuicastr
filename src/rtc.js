@@ -28,8 +28,8 @@ function rtcSignal(peer, type, value) {
 
 // Initialize a connection to an RTC peer
 function initRTC(peer, start) {
-    if (!userMedia) {
-        // We need userMedia to even start this process
+    if (!userMediaRTC) {
+        // We need userMediaRTC to even start this process
         userMediaAvailableEvent.addEventListener("ready", function() {
             initRTC(peer, start);
         });
@@ -68,7 +68,7 @@ function initRTC(peer, start) {
         });
     };
 
-    userMedia.getTracks().forEach(function(track) {
+    userMediaRTC.getTracks().forEach(function(track) {
         conn.addTrack(track, userMediaRTC);
     });
 

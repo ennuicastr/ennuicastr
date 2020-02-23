@@ -144,6 +144,13 @@ function disconnect(ev) {
         });
         userMedia = null;
     }
+
+    if (userMediaRTC) {
+        userMediaRTC.getTracks().forEach(function (track) {
+            track.stop();
+        });
+        userMediaRTC = null;
+    }
 }
 
 // Ping the ping socket
