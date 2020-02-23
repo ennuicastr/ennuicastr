@@ -232,9 +232,9 @@ function masterGenInvite() {
         ((config.format&features.rtc)?features.rtc:0) +
         (masterUI.inviteFlac.checked?prot.flags.dataType.flac:0)
     );
-    var sb = "?i=" + config.id.toString(36) + "&k=" + config.key.toString(36) + "&p=" + config.port.toString(36);
+    var sb = "?" + config.id.toString(36) + "-" + config.key.toString(36) + "-p" + config.port.toString(36);
     if (f !== 0)
-        sb += "&f=" + f.toString(36);
+        sb += "-f" + f.toString(36);
 
     // Make the URL
     url.search = sb;
