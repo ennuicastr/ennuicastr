@@ -22,9 +22,29 @@ var features = {
     "rtc": 0x2
 };
 
-// Read in our configuration
+// Configuration parameters come out of the URL search query
 var url = new URL(window.location);
 var params = new URLSearchParams(url.search);
+
+// Convert short-form configuration into long-form
+var shortForm = null;
+Array.from(params.entries()).forEach(function(key) {
+    key = key[0];
+    if (/-/.test(key))
+        shortForm = key;
+});
+
+if (shortForm) {
+    var sfParts = shortForm.split("-");
+    params.set("i", sfParts[0]);
+    params.set("k", sfParts[1]);
+    sfParts.slice(2).forEach(function(part) {
+        params.set(part[0], part.slice(1));
+    });
+    params.delete(shortForm);
+}
+
+// Read in our configuration
 config = {
     id: params.get("i"),
     key: params.get("k"),
