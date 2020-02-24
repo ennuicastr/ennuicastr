@@ -176,7 +176,10 @@ function configureMasterInterface() {
         startStop.onclick = masterStopRecording;
 
     } else {
-        startStop.innerText = "Recording stopped";
+        if (mode === prot.mode.buffering)
+            startStop.innerText = "Waiting for audio from clients...";
+        else
+            startStop.innerText = "Recording stopped";
         startStop.onclick = function() {};
         startStop.disabled = true;
 

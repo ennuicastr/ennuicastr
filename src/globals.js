@@ -52,6 +52,9 @@ var fileReader = null; // Used to transfer Opus data from the built-in encoder
 var mediaRecorder = null; // The built-in media recorder, on browsers which support encoding to Ogg Opus
 var libavEncoder = null; // If using libav.js to encode
 
+// If we're flushing our buffers, this will be a timeout to re-check
+var flushTimeout = null;
+
 // Our input sample rate
 var sampleRate = 48000;
 

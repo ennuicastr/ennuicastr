@@ -43,6 +43,15 @@ function decodeText(text) {
     }
 }
 
+function bytesToRepr(x) {
+    var suffixes = ["B", "KiB", "MiB", "GiB"];
+    while (suffixes.length > 1 && x >= 1024) {
+        x /= 1024;
+        suffixes.shift();
+    }
+    return Math.round(x) + suffixes[0];
+}
+
 function isWebAssemblySupported() {
     try {
         if (typeof WebAssembly === "object" &&

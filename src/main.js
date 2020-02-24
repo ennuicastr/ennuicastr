@@ -235,6 +235,14 @@ function dataSockMsg(msg) {
                     else if (mode === prot.mode.finished)
                         pushStatus("mode", "Not recording");
 
+                    // Mention flushing buffers if we are
+                    if (mode === prot.mode.buffering) {
+                        flushBuffers();
+                    } else if (flushTimeout) {
+                        clearTimeout(flushTimeout);
+                        flushTimeout = null;
+                    }
+
                     // Update the master interface
                     if ("master" in config)
                         configureMasterInterface();
@@ -764,11 +772,16 @@ function handlePackets() {
 
     // Don't actually *send* anything if we're not recording
     if (mode !== prot.mode.rec) {
-        // Don't send data unless we're recording
         while (packets.length)
             packets.pop();
         return;
     }
+
+    // Warn if we're buffering
+    if (dataSock.bufferedAmount > 1024*1024)
+        pushStatus("buffering", bytesToRepr(dataSock.bufferedAmount) + " audio data buffered");
+    else
+        popStatus("buffering");
 
     if (!vadOn) {
         // Drop any sufficiently old packets, or send them marked as silence in continuous mode
@@ -848,4 +861,24 @@ function adjustTime(packet) {
 
     // And adjust the time
     return Math.round(packet[0] + timeOffset*48 + startTime*48);
+}
+
+// Flush our buffers
+function flushBuffers() {
+    if (flushTimeout) {
+        clearTimeout(flushTimeout);
+        flushTimeout = null;
+    }
+
+    if (!dataSock) return;
+
+    if (dataSock.bufferedAmount)
+        pushStatus("buffering", "Sending audio to server (" + bytesToRepr(dataSock.bufferedAmount) + ")...");
+    else
+        popStatus("buffering");
+
+    flushTimeout = setTimeout(function() {
+        flushTimeout = null;
+        flushBuffers();
+    }, 1000);
 }

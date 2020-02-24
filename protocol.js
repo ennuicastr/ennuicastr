@@ -195,6 +195,11 @@
             // Recording
             "rec": 0x10,
 
+            /* The recording is finished or paused, but buffers are being
+             * emptied. That is, the server is accepting data, but the clients
+             * should not be sending *new* data. */
+            "buffering": 0x18,
+
             // Paused (not presently used)
             "paused": 0x20,
 
