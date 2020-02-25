@@ -130,25 +130,49 @@ function createMasterInterface() {
 
     masterGenInvite();
 
-    // The credit rate (time left)
+    // The total cost
     var cbox = dce("div");
     cbox.classList.add("row");
     cbox.style.display = "flex";
     cbox.style.alignItems = "center";
 
     var cl = dce("span");
-    cl.innerHTML = "Recording time left:&nbsp;";
+    cl.innerHTML = "Recording cost:&nbsp;";
+    cl.style.minWidth = "10em";
+    cl.style.textAlign = "right";
     cbox.appendChild(cl);
 
-    var timeLeft = masterUI.timeLeft = dce("input");
-    timeLeft.style.flex = "auto";
-    timeLeft.style.minWidth = "1em";
-    timeLeft.type = "text";
-    timeLeft.readOnly = true;
-    cbox.appendChild(timeLeft);
-    masterUpdateTimeLeft();
+    var recCost = masterUI.recCost = dce("input");
+    recCost.style.flex = "auto";
+    recCost.style.minWidth = "1em";
+    recCost.type = "text";
+    recCost.readOnly = true;
+    cbox.appendChild(recCost);
 
     left.appendChild(cbox);
+
+    // And current rate
+    var rbox = dce("div");
+    rbox.classList.add("row");
+    rbox.style.display = "flex";
+    rbox.style.alignItems = "center";
+
+    var rl = dce("span");
+    rl.innerHTML = "Current rate:&nbsp;";
+    rl.style.minWidth = "10em";
+    rl.style.textAlign = "right";
+    rbox.appendChild(rl);
+
+    var recRate = masterUI.recRate = dce("input");
+    recRate.style.flex = "auto";
+    recRate.style.minWidth = "1em";
+    recRate.type = "text";
+    recRate.readOnly = true;
+    rbox.appendChild(recRate);
+
+    left.appendChild(rbox);
+
+    masterUpdateCreditCost();
 
     // The right side is for user status
     masterUI.userStatusB = right;
@@ -185,7 +209,7 @@ function configureMasterInterface() {
 
     }
 
-    masterUpdateTimeLeft();
+    masterUpdateCreditCost();
 }
 
 // Start the recording (start button clicked)
@@ -235,7 +259,9 @@ function masterGenInvite() {
         ((config.format&features.rtc)?features.rtc:0) +
         (masterUI.inviteFlac.checked?prot.flags.dataType.flac:0)
     );
-    var sb = "?" + config.id.toString(36) + "-" + config.key.toString(36) + "-p" + config.port.toString(36);
+    var sb = "?" + config.id.toString(36) + "-" + config.key.toString(36);
+    if (config.port !== 36678)
+        sb += "-p" + config.port.toString(36);
     if (f !== 0)
         sb += "-f" + f.toString(36);
 
@@ -255,26 +281,30 @@ function masterCopyInvite() {
     }, 3000);
 }
 
-// Update the time left indicator
-function masterUpdateTimeLeft() {
-    if (!masterUI.timeLeft)
+// Update the credit cost/rate meter
+function masterUpdateCreditCost() {
+    if (!masterUI.recRate || !masterUI.creditCost || !masterUI.creditRate)
         return;
-    var tl = masterUI.timeLeft;
+    var cc = masterUI.creditCost;
     var cr = masterUI.creditRate;
+    masterUI.recCost.value = masterCreditsToDollars(cr[0], cc);
+    masterUI.recRate.value = masterCreditsToDollars(cr[1], cc);
+}
 
-    // If it's free, it's free!
-    if (!cr || cr[0] === 0) {
-        tl.value = "-";
-        return;
-    }
+// Convert a number of credits to dollars and cents
+function masterCreditsToDollars(c, creditCost) {
+    c = Math.ceil(c * creditCost.currency / creditCost.credits);
 
-    // Otherwise, calculate the time left
-    var mleft = Math.floor(cr[1] / cr[0]);
-    if (mleft < 0) mleft = 0;
-    var h = Math.floor(mleft / 60) + "";
-    var m = (mleft%60) + "";
-    if (m.length<2) m = "0" + m;
-    tl.value = h + ":" + m;
+    // Trivial cases
+    if (c === 0)
+        return "-";
+    else if (c < 100)
+        return c + "¢";
+
+    var d = Math.floor(c / 100);
+    c = (c % 100)+"";
+    if (c.length === 1) c = "0" + c;
+    return "$" + d + "." + c;
 }
 
 // Update the speech interface for the master

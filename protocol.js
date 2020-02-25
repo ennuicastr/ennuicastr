@@ -168,10 +168,15 @@
             // S->C, uint32: Inform the user of the current mode
             "mode": 0x14,
 
-            /* S->C, 2xuint32: Inform the user of their current rate of credit
-             * consumption, and how many credits remain, so that the client may
-             * warn if the end is nigh */
-            "creditRate": 0x20
+            /* S->C, 2xuint32: Inform the client of the current cost of the
+             * recording in credits, and their rate of credit consumption per
+             * minute. */
+            "creditRate": 0x20,
+
+            /* S->C, 2xuint32: Inform the client of how much credits cost.
+             * First int is units of currency (typically cents), second int is
+             * units of credits, so they form a ratio. */
+            "creditCost": 0x21
         },
 
         "rtc": {

@@ -304,11 +304,20 @@ function masterSockMsg(msg) {
             var key = msg.getUint32(p.key, true);
             var val = msg.getUint32(p.value, true);
             switch (key) {
+                case prot.info.creditCost:
+                    // Informing us of the cost of credits
+                    var v2 = msg.getUint32(p.value + 4, true);
+                    masterUI.creditCost = {
+                        currency: val,
+                        credits: v2
+                    };
+                    break;
+
                 case prot.info.creditRate:
-                    // Informing is of the credit rate
+                    // Informing us of the total cost and rate in credits
                     var v2 = msg.getUint32(p.value + 4, true);
                     masterUI.creditRate = [val, v2];
-                    masterUpdateTimeLeft();
+                    masterUpdateCreditCost();
                     break;
             }
             break;
