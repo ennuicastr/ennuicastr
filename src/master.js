@@ -287,8 +287,8 @@ function masterUpdateCreditCost() {
         return;
     var cc = masterUI.creditCost;
     var cr = masterUI.creditRate;
-    masterUI.recCost.value = masterCreditsToDollars(cr[0], cc);
-    masterUI.recRate.value = masterCreditsToDollars(cr[1], cc);
+    masterUI.recCost.value = masterCreditsToDollars(cr[0] + cr[1], cc);
+    masterUI.recRate.value = masterCreditsToDollars(cr[1]*60, cc) + "/hour";
 }
 
 // Convert a number of credits to dollars and cents
@@ -303,8 +303,12 @@ function masterCreditsToDollars(c, creditCost) {
 
     var d = Math.floor(c / 100);
     c = (c % 100)+"";
-    if (c.length === 1) c = "0" + c;
-    return "$" + d + "." + c;
+    if (c === "0") {
+        return "$" + d;
+    } else {
+        if (c.length === 1) c = "0" + c;
+        return "$" + d + "." + c;
+    }
 }
 
 // Update the speech interface for the master
