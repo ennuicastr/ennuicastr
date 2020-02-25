@@ -544,7 +544,7 @@ function libavStart() {
 
     // Begin initializing the encoder
     libavEncoder = {};
-    libav.ff_init_encoder(useFlac?"flac":"libopus", encOptions, 1, 48000).then(function(ret) {
+    libav.ff_init_encoder(useFlac?"flac":"libopus", encOptions, 1, sampleRate).then(function(ret) {
 
         libavEncoder.codec = ret[0];
         libavEncoder.c = ret[1];
