@@ -43,6 +43,11 @@ function initRTC(peer, start) {
         iceServers: [
             {
                 urls: "stun:stun.l.google.com:19302"
+            },
+            {
+                urls: "turn:" + url.hostname + ":3478",
+                username: config.id.toString(36),
+                credential: config.key.toString(36)
             }
         ],
         iceTransportPolicy: "all"
@@ -66,6 +71,11 @@ function initRTC(peer, start) {
         }).catch(function(ex) {
             pushStatus("rtc", "Failed to play remote audio!");
         });
+    };
+
+    conn.oniceconnectionstatechange = function(ev) {
+        if (conn.iceConnectionState === "failed")
+            pushStatus("rtc", "RTC connection failed!");
     };
 
     userMediaRTC.getTracks().forEach(function(track) {
