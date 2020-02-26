@@ -891,3 +891,9 @@ function flushBuffers() {
         flushBuffers();
     }, 1000);
 }
+
+// If we're buffering, warn before closing
+window.onbeforeunload = function() {
+    if (mode === prot.mode.buffering && dataSock.bufferedAmount)
+        return "Data is still buffering to the server!";
+}
