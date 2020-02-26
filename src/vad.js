@@ -33,13 +33,13 @@ function localProcessing() {
         throw new Error();
     }
 
-    var bufSz = 480;
+    var bufSz = 640 /* 20ms at 32000Hz */;
     var dataPtr = m.malloc(bufSz * 2);
     var buf = new Int16Array(m.heap.buffer, dataPtr, bufSz * 2);
     var bi = 0;
     var timeout = null;
 
-    m.set_mode(2);
+    m.set_mode(3);
 
 
     // Now the display steps
@@ -108,6 +108,9 @@ function localProcessing() {
     // Make the log display appropriate
     log.classList.add("status");
 
+    // The VAD needs packets in odd intervals
+    var step = ac.sampleRate / 32000;
+
     // Set up the audio processor for both VAD and display
     var mss = ac.createMediaStreamSource(userMedia);
     /* NOTE: We don't actually care about output, but Chrome won't run a
@@ -119,17 +122,20 @@ function localProcessing() {
 
         // VAD
         var vadSet = rawVadOn;
-        for (var i = 0; i < ib.length; i += 3) {
-            buf[bi++] = ib[i] * 0x7FFF;
+        for (var i = 0; i < ib.length; i += step) {
+            buf[bi++] = ib[~~i] * 0x7FFF;
 
             if (bi == bufSz) {
                 // We have a complete packet
-                vadSet = !!m.Process(handle, 16000, dataPtr, bufSz);
+                if (m.Process(handle, 32000, dataPtr, bufSz))
+                    rawVadCt++;
+                else
+                    rawVadCt = 0;
                 bi = 0;
             }
         }
 
-        if (vadSet) {
+        if (rawVadCt >= 5 /* 100ms */) {
             if (timeout) {
                 clearTimeout(timeout);
                 timeout = null;
@@ -140,7 +146,7 @@ function localProcessing() {
                     updateWaveRetroactive();
                 rawVadOn = vadOn = true;
             }
-        } else if (!vadSet && rawVadOn) {
+        } else if (rawVadCt === 0 && rawVadOn) {
             // We flipped off
             rawVadOn = false;
             if (!timeout) {

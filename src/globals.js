@@ -64,6 +64,9 @@ var rtcConnections = {};
 // WebRTCVAD's raw output
 var rawVadOn = false;
 
+// Warmup for rawVadOn to swap on
+var rawVadCt = 0;
+
 // VAD output after our cooldown
 var vadOn = false;
 
@@ -82,7 +85,7 @@ var waveData = [];
 var waveVADs = [];
 
 var waveVADColorSets = {
-    "sv": ["#000", "#730", "#730", "#a30"],
+    "sv": ["#000", "#753", "#730", "#a30"],
     "sc": ["#000", "#730", "#730", "#a30"],
     "rv": ["#000", "#aaa", "#073", "#0a3"],
     "rc": ["#000", "#073", "#073", "#0a3"]
