@@ -1,7 +1,11 @@
 ennuicastr.js
 ennuicastr.min.js
+ennuicastr-test.js
+ennuicastr-test.min.js
 protocol.min.js
 node_modules
 package-lock.json
 rec.opus
 fa/
+libav/*.js
+libav/*.wasm
