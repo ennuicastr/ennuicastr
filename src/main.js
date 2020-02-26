@@ -230,9 +230,9 @@ function dataSockMsg(msg) {
 
                     // Update the status
                     popStatus("mode");
-                    if (mode === prot.mode.init)
+                    if (mode < prot.mode.rec)
                         pushStatus("mode", "Not yet recording");
-                    else if (mode === prot.mode.finished)
+                    else if (mode > prot.mode.rec)
                         pushStatus("mode", "Not recording");
 
                     // Mention flushing buffers if we are
