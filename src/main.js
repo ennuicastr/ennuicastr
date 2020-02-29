@@ -399,12 +399,17 @@ function userMediaSet() {
     pushStatus("initenc", "Initializing encoder...");
     popStatus("getmic");
 
-    userMediaAvailableEvent.dispatchEvent(new CustomEvent("ready", {}));
+    userMediaAvailableEvent.dispatchEvent(new CustomEvent("rtcready", {}));
 
     // Check whether we should be using WebAssembly
     var wa = isWebAssemblySupported();
 
-    ac = new AudioContext();
+    try {
+        ac = new AudioContext();
+    } catch (ex) {
+        // Try Apple's, and if not that, nothing left to try, so crash
+        ac = new webkitAudioContext();
+    }
 
     // Set up the VAD
     WebRtcVad = {

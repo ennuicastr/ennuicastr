@@ -30,7 +30,7 @@ function rtcSignal(peer, type, value) {
 function initRTC(peer, start) {
     if (!userMediaRTC) {
         // We need userMediaRTC to even start this process
-        userMediaAvailableEvent.addEventListener("ready", function() {
+        userMediaAvailableEvent.addEventListener("rtcready", function() {
             initRTC(peer, start);
         });
         return;

@@ -46,7 +46,13 @@ var mode = prot.mode.init;
 // There are a lot of intermediate steps to getting audio from point A to point B
 var userMedia = null; // The microphone input for recording
 var userMediaRTC = null; // The microphone input for RTC
-var userMediaAvailableEvent = new EventTarget(); // "ready" fires when userMedia and userMediaRTC are ready
+var userMediaAvailableEvent; // "rtcready" fires when userMedia and userMediaRTC are ready
+try {
+    userMediaAvailableEvent = new EventTarget();
+} catch (ex) {
+    // No EventTarget
+    userMediaAvailableEvent = window;
+}
 var ac = null; // The audio context for our scripts
 var fileReader = null; // Used to transfer Opus data from the built-in encoder
 var mediaRecorder = null; // The built-in media recorder, on browsers which support encoding to Ogg Opus

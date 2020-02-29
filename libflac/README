@@ -1,7 +1,0 @@
-This is copied from the libflac.js repo's dist/min directory as specified in
-VERSION, with the following changes:
-
-* I've added the license header to the .js files
-
-* I've changed the references to the .mem and .wasm files to refer instead to
-  the files in the libflac/ directory.
