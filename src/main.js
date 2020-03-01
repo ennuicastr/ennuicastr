@@ -948,6 +948,15 @@ function mkUI(small) {
     return wrapper;
 }
 
+// Shrink the UI if there's nothing interesting in it
+function maybeShrinkUI() {
+    if (postWrapper.childNodes.length === 0) {
+        var newH = 160 + window.outerHeight - window.innerHeight;
+        if (window.innerHeight > 160)
+            window.resizeTo(window.innerWidth, newH);
+    }
+}
+
 // If we're buffering, warn before closing
 window.onbeforeunload = function() {
     if (mode === prot.mode.buffering && dataSock.bufferedAmount)

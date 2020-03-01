@@ -55,6 +55,15 @@ function mkChatBox() {
     wrapper.style.display = "flex";
     wrapper.style.flexDirection = "column";
 
+    // Create the close button
+    var cw = dce("div");
+    cw.style.textAlign = "right";
+    var close = dce("button");
+    close.classList.add("button");
+    close.innerText = "X";
+    cw.appendChild(close);
+    wrapper.appendChild(cw);
+
     // Create the incoming box
     var incoming = chatBox.incoming = dce("div");
     incoming.classList.add("chat");
@@ -78,6 +87,13 @@ function mkChatBox() {
     // Make it visible
     mkUI().appendChild(wrapper);
     chatBox.visible = true;
+
+    // Make close work
+    close.onclick = function() {
+        mkUI().removeChild(chatBox.wrapper);
+        maybeShrinkUI();
+        chatBox.visible = false;
+    };
 
     // Make outgoing work
     outgoing.onkeydown = function(ev) {
