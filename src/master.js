@@ -16,7 +16,8 @@
 
 // Set up the master interface
 function createMasterInterface() {
-    var wrapper = mkUI();
+    var wrapper = dce("div");
+    mkUI().appendChild(wrapper);
 
     // We divide the master interface into to halves
     function halfSpan(on) {

@@ -57,11 +57,11 @@ function mkChatBox() {
 
     // Create the incoming box
     var incoming = chatBox.incoming = dce("div");
+    incoming.classList.add("chat");
     incoming.style.flex = "auto";
     incoming.style.padding = "0.5em";
-    incoming.style.minHeight = "2em";
+    incoming.style.height = "2em";
     incoming.style.overflow = "auto";
-    //incoming.style.resize = "vertical";
     wrapper.appendChild(incoming);
 
     // The outgoing box needs a wrapper to take full width
