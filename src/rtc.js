@@ -75,7 +75,7 @@ function initRTC(peer, start) {
 
     conn.oniceconnectionstatechange = function(ev) {
         if (conn.iceConnectionState === "failed")
-            pushStatus("rtc", "RTC connection failed!");
+            rtcFail();
     };
 
     userMediaRTC.getTracks().forEach(function(track) {
@@ -90,8 +90,20 @@ function initRTC(peer, start) {
             rtcSignal(peer, prot.rtc.offer, conn.localDescription);
 
         }).catch(function(ex) {
-            pushStatus("rtc", "RTC connection failed!");
+            rtcFail();
 
         });
     }
 }
+
+// Notify of a failed RTC connection
+function rtcFail() {
+    if (rtcFailTimeout)
+        clearTimeout(rtcFailTimeout);
+    pushStatus("rtc", "RTC connection failed!");
+    rtcFailTimeout = setTimeout(function() {
+        rtcFailTimeout = null;
+        popStatus("rtc");
+    }, 10000);
+}
+var rtcFailTimeout = null;

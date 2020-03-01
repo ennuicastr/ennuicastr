@@ -37,6 +37,9 @@
             // Main data message
             "data": 0x30,
 
+            // Text chat
+            "text": 0x31,
+
             // Monitoring
             "user": 0x40,
             "speech": 0x41,
@@ -84,6 +87,12 @@
                 "length": 12,
                 "granulePos": 4,
                 "packet": 12
+            },
+
+            "text": {
+                "length": 8,
+                "reserved": 4,
+                "text": 8
             },
 
             "user": {

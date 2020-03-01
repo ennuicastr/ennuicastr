@@ -16,14 +16,7 @@
 
 // Set up the master interface
 function createMasterInterface() {
-    document.body.style.margin = "0";
-    document.body.style.padding = "0";
-
-    /* Our overall wrapper makes sure the master interface is below the
-     * recording interface */
-    var wrapper = masterUI.wrapper = dce("div");
-    wrapper.style.margin = "160px 0 3em 0";
-    document.body.appendChild(wrapper);
+    var wrapper = mkUI();
 
     // We divide the master interface into to halves
     function halfSpan(on) {

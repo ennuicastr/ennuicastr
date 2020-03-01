@@ -31,10 +31,6 @@ a {
 .status {
     background: #ccc;
     color: #333;
-    position: fixed;
-    left: 0px;
-    bottom: 0px;
-    width: 100%;
     text-align: center;
     padding: 0.25em;
 }

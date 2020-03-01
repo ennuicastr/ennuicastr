@@ -100,9 +100,16 @@ var waveVADColorSets = {
 var waveVADColors = waveVADColorSets.sv;
 
 // The display canvas and data
+var waveBox = null;
 var waveCanvas = null;
 var waveWatcher = null;
 var waveRotate = false;
+
+// If we're showing anything *other* than the wave display, it goes here
+var postWrapper = null;
+
+// If we've received chat, the box for that
+var chatBox = null;
 
 // If we're in master mode, master UI elements
 var masterUI = {};
