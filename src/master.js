@@ -281,7 +281,9 @@ function masterUpdateCreditCost() {
         return;
     var cc = masterUI.creditCost;
     var cr = masterUI.creditRate;
-    masterUI.recCost.value = masterCreditsToDollars(cr[0] + cr[1], cc);
+    if (mode === prot.mode.rec)
+        cr[0] += cr[1]; // Report the *next* minute so you're not surprised
+    masterUI.recCost.value = masterCreditsToDollars(cr[0], cc);
     masterUI.recRate.value = masterCreditsToDollars(cr[1]*60, cc) + "/hour";
 }
 
