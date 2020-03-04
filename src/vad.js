@@ -39,6 +39,11 @@ function localProcessing() {
     var bi = 0;
     var timeout = null;
 
+    /* WebRTC VAD is pretty finicky, so also keep track of volume as a
+     * secondary gate */
+    var triggerVadVolume = 0;
+    var curVadVolume = 0;
+
     m.set_mode(3);
 
 
@@ -96,33 +101,51 @@ function localProcessing() {
     sp.onaudioprocess = function(ev) {
         var ib = ev.inputBuffer.getChannelData(0);
 
-        // VAD
+        // Transfer data for the VAD
         var vadSet = rawVadOn;
+        var curVolume = 0;
         for (var i = 0; i < ib.length; i += step) {
-            buf[bi++] = ib[~~i] * 0x7FFF;
+            var v = ib[~~i];
+            var a = Math.abs(v);
+            curVolume += a;
+            curVadVolume += a;
+
+            buf[bi++] = v * 0x7FFF;
 
             if (bi == bufSz) {
                 // We have a complete packet
-                if (m.Process(handle, 32000, dataPtr, bufSz))
-                    rawVadCt++;
-                else
-                    rawVadCt = 0;
+                vadSet = !!m.Process(handle, 32000, dataPtr, bufSz);
                 bi = 0;
+
+                if (vadSet) {
+                    // Adjust the trigger value
+                    triggerVadVolume = (
+                            triggerVadVolume * 15 +
+                            curVadVolume/bufSz/2
+                        ) / 16;
+                    curVadVolume = 0;
+                }
             }
         }
+        if (rawVadOn)
+            curVadTime += ib.length;
 
-        if (rawVadCt >= 5 /* 100ms */) {
-            if (timeout) {
-                clearTimeout(timeout);
-                timeout = null;
+        if (vadSet) {
+            // Gate by volume
+            if (curVolume/ib.length >= triggerVadVolume) {
+                if (timeout) {
+                    clearTimeout(timeout);
+                    timeout = null;
+                }
+                if (!rawVadOn) {
+                    // We flipped on
+                    if (!vadOn)
+                        updateWaveRetroactive();
+                    rawVadOn = vadOn = true;
+                    curVadVolume = curVadTime = 0;
+                }
             }
-            if (!rawVadOn) {
-                // We flipped on
-                if (!vadOn)
-                    updateWaveRetroactive();
-                rawVadOn = vadOn = true;
-            }
-        } else if (rawVadCt === 0 && rawVadOn) {
+        } else if (rawVadOn) {
             // We flipped off
             rawVadOn = false;
             if (!timeout) {
