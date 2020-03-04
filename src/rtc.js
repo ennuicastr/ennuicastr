@@ -74,15 +74,17 @@ function initRTC(peer, start) {
     };
 
     conn.oniceconnectionstatechange = function(ev) {
-        if (conn.iceConnectionState === "failed")
+        if (conn.iceConnectionState === "failed") // report the failure
             rtcFail();
+        else if (conn.iceConnectionState === "closed" && start) // attempt reconnection
+            connect();
     };
 
     userMediaRTC.getTracks().forEach(function(track) {
         conn.addTrack(track, userMediaRTC);
     });
 
-    if (start) {
+    function connect() {
         conn.createOffer().then(function(offer) {
             return conn.setLocalDescription(offer);
 
@@ -93,6 +95,11 @@ function initRTC(peer, start) {
             rtcFail();
 
         });
+    }
+
+    // We do the initial connection if we start
+    if (start) {
+        connect();
     }
 }
 
