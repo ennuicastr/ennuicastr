@@ -36,6 +36,10 @@ function createMasterInterface() {
     var right = masterUI.right = halfSpan();
 
     // On the left, interface buttons
+    var pauseResume = masterUI.pauseResumeB = dce("button");
+    pauseResume.classList.add("row");
+    left.appendChild(pauseResume);
+
     var startStop = masterUI.startStopB = dce("button");
     startStop.classList.add("row");
     left.appendChild(startStop);
@@ -180,20 +184,33 @@ function configureMasterInterface() {
     if (!masterUI.startStopB)
         return;
 
+    var pauseResume = masterUI.pauseResumeB;
     var startStop = masterUI.startStopB;
     masterUI.startStopYesNo.style.display = "none";
 
     // Start/stop button
+    pauseResume.disabled = false;
     startStop.disabled = false;
     if (mode < prot.mode.rec) {
+        pauseResume.style.display = "none";
         startStop.innerText = "Start recording";
         startStop.onclick = masterStartRecording;
 
-    } else if (mode === prot.mode.rec) {
+    } else if (mode === prot.mode.rec ||
+               mode === prot.mode.paused) {
+        pauseResume.style.display = "";
+        if (mode === prot.mode.rec) {
+            pauseResume.innerText = "Pause recording";
+            pauseResume.onclick = masterPauseRecording;
+        } else {
+            pauseResume.innerText = "Resume recording";
+            pauseResume.onclick = masterResumeRecording;
+        }
         startStop.innerText = "Stop recording";
         startStop.onclick = masterStopRecording;
 
     } else {
+        pauseResume.style.display = "none";
         if (mode === prot.mode.buffering)
             startStop.innerText = "Waiting for audio from clients...";
         else
@@ -206,15 +223,31 @@ function configureMasterInterface() {
     masterUpdateCreditCost();
 }
 
-// Start the recording (start button clicked)
-function masterStartRecording() {
-    masterUI.startStopB.disabled = true;
-
+// Generic "send this mode change" function
+function masterSendMode(mode) {
     var p = prot.parts.mode;
     var out = new DataView(new ArrayBuffer(p.length));
     out.setUint32(0, prot.ids.mode, true);
-    out.setUint32(p.mode, prot.mode.rec, true);
+    out.setUint32(p.mode, mode, true);
     masterSock.send(out.buffer);
+}
+
+// Start the recording (start button clicked)
+function masterStartRecording() {
+    masterUI.startStopB.disabled = true;
+    masterSendMode(prot.mode.rec);
+}
+
+// Pause the recording
+function masterPauseRecording() {
+    masterUI.pauseResumeB.disabled = true;
+    masterSendMode(prot.mode.paused);
+}
+
+// Resume a paused recording
+function masterResumeRecording() {
+    masterUI.pauseResumeB.disabled = true;
+    masterSendMode(prot.mode.rec);
 }
 
 // Stop the recording (stop button clicked)
@@ -233,11 +266,7 @@ function masterStopRecordingYes() {
     masterUI.startStopYesNo.style.display = "none";
 
     // Send out the stop request
-    var p = prot.parts.mode;
-    var out = new DataView(new ArrayBuffer(p.length));
-    out.setUint32(0, prot.ids.mode, true);
-    out.setUint32(p.mode, prot.mode.finished, true);
-    masterSock.send(out.buffer);
+    masterSendMode(prot.mode.finished);
 }
 
 function masterStopRecordingNo() {
