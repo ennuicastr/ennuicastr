@@ -193,20 +193,20 @@ function configureMasterInterface() {
     startStop.disabled = false;
     if (mode < prot.mode.rec) {
         pauseResume.style.display = "none";
-        startStop.innerText = "Start recording";
+        startStop.innerHTML = '<i class="fas fa-microphone-alt"></i> Start recording';
         startStop.onclick = masterStartRecording;
 
     } else if (mode === prot.mode.rec ||
                mode === prot.mode.paused) {
         pauseResume.style.display = "";
         if (mode === prot.mode.rec) {
-            pauseResume.innerText = "Pause recording";
+            pauseResume.innerHTML = '<i class="fas fa-pause"></i> Pause recording';
             pauseResume.onclick = masterPauseRecording;
         } else {
-            pauseResume.innerText = "Resume recording";
+            pauseResume.innerHTML = '<i class="far fa-pause-circle"></i> Resume recording';
             pauseResume.onclick = masterResumeRecording;
         }
-        startStop.innerText = "Stop recording";
+        startStop.innerHTML = '<i class="fas fa-stop"></i> Stop recording';
         startStop.onclick = masterStopRecording;
 
     } else {
@@ -214,7 +214,7 @@ function configureMasterInterface() {
         if (mode === prot.mode.buffering)
             startStop.innerText = "Waiting for audio from clients...";
         else
-            startStop.innerText = "Recording stopped";
+            startStop.innerHTML = '<i class="fas fa-check"></i> Recording finished';
         startStop.onclick = function() {};
         startStop.disabled = true;
 
