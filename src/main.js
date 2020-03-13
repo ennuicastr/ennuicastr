@@ -382,8 +382,8 @@ function getMic() {
         if (useRTC) {
             return navigator.mediaDevices.getUserMedia({
                 audio: {
-                    autoGainControl: plzyes,
-                    echoCancellation: plzyes,
+                    autoGainControl: plzno, // In some setups, this will affect the recording gain
+                    echoCancellation: plzno, // This would mask a real problem in recording if yes
                     noiseSuppression: plzyes
                 }
             });
