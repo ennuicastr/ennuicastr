@@ -216,8 +216,8 @@ function updateWave(value) {
         pushStatus("notencoding", "Audio encoding is not functioning!");
 
     // Start from the element size
-    var w = window.innerWidth;
-    var h = window.innerHeight - log.offsetHeight;
+    var w = Math.min(window.innerWidth, window.outerWidth);
+    var h = Math.min(window.innerHeight, window.outerHeight) - log.offsetHeight;
     if (postWrapper.childNodes.length)
         h = 160;
 
