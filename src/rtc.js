@@ -40,16 +40,7 @@ function initRTC(peer, start) {
         rtcConnections[peer].close();
 
     var conn = rtcConnections[peer] = new RTCPeerConnection({
-        iceServers: [
-            {
-                urls: "stun:stun.l.google.com:19302"
-            },
-            {
-                urls: "turn:" + url.hostname + ":3478",
-                username: config.id.toString(36),
-                credential: config.key.toString(36)
-            }
-        ],
+        iceServers: iceServers,
         iceTransportPolicy: "all"
     });
     var audioEl = null;
@@ -74,10 +65,18 @@ function initRTC(peer, start) {
     };
 
     conn.oniceconnectionstatechange = function(ev) {
-        if (conn.iceConnectionState === "failed") // report the failure
-            rtcFail();
-        else if (conn.iceConnectionState === "closed" && start) // attempt reconnection
-            connect();
+        switch (conn.iceConnectionState) {
+            case "failed":
+                // report the failure
+                rtcFail();
+                break;
+
+            case "closed":
+                // attempt reconnection
+                if (start)
+                    connect();
+                break;
+        }
     };
 
     userMediaRTC.getTracks().forEach(function(track) {

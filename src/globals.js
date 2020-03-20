@@ -140,3 +140,10 @@ var data = [];
 
 // The Opus or FLAC packets to be handled. Format: [granulePos, data]
 var packets = [];
+
+// ICE servers for RTC
+var iceServers = [
+    {
+        urls: "stun:stun.l.google.com:19302"
+    }
+];

@@ -185,7 +185,10 @@
             /* S->C, 2xuint32: Inform the client of how much credits cost.
              * First int is units of currency (typically cents), second int is
              * units of credits, so they form a ratio. */
-            "creditCost": 0x21
+            "creditCost": 0x21,
+
+            // S->C, JSON: Give an eligible ICE server for RTC
+            "ice": 0x50
         },
 
         "rtc": {

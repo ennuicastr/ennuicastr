@@ -250,6 +250,11 @@ function dataSockMsg(msg) {
                         configureMasterInterface();
 
                     break;
+
+                case prot.info.ice:
+                    var iceServer = JSON.parse(decodeText(msg.buffer.slice(p.value)));
+                    iceServers.push(iceServer);
+                    break;
             }
             break;
 
