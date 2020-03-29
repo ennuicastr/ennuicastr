@@ -114,7 +114,7 @@ function mkChatBox() {
 
 // And make it possible to display it
 document.body.addEventListener("keydown", function(ev) {
-    if (ev.key !== "c" || ev.target.nodeName === "INPUT")
+    if (ev.key !== "c" || ev.ctrlKey || ev.target.nodeName === "INPUT")
         return true;
 
     mkChatBox().outgoing.focus();
