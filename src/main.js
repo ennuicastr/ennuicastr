@@ -604,6 +604,11 @@ function libavProcess() {
     var pts = 0;
     var inSampleRate = ac.sampleRate;
 
+    // Keep track of how much data we've received to see if it's too little
+    var dataReceived = 0;
+    var pktCounter = [];
+    var tooLittle = inSampleRate * 0.9;
+
     // Start reading the input
     var mss = ac.createMediaStreamSource(userMedia);
     /* NOTE: We don't actually care about output, but Chrome won't run a script
@@ -612,11 +617,29 @@ function libavProcess() {
     sp.connect(ac.destination);
 
     sp.onaudioprocess = function(ev) {
+        // Determine the data timing
+        var now = performance.now();
         var ib = ev.inputBuffer.getChannelData(0);
         var pktTime = Math.round(
-            (performance.now() - startTime) * 48 -
+            (now - startTime) * 48 -
             (ib.length * 48000 / inSampleRate)
         );
+
+        // Count it
+        var ctrStart = now - 1000;
+        pktCounter.push([now, ib.length]);
+        dataReceived += ib.length;
+        if (pktCounter[0][0] < ctrStart) {
+            while (pktCounter[0][0] < ctrStart) {
+                dataReceived -= pktCounter[0][1];
+                pktCounter.shift();
+            }
+            if (dataReceived < tooLittle) {
+                pushStatus("toolittle", "Encoding is overloaded, incomplete audio data!");
+            } else {
+                popStatus("toolittle");
+            }
+        }
 
         // Put it in libav's format
         var frames = [{
