@@ -167,7 +167,7 @@ var wsUrl = (url.protocol==="http:"?"ws":"wss") + "://" + url.hostname + ":" + c
 
 // Do we need to use libav.js?
 var useLibAV = false;
-var libavVersion = "1.3.4.2.2";
+var libavVersion = "1.4.4.2.2";
 
 // Should we be creating FLAC?
 var useFlac = ((config.format&prot.flags.dataTypeMask) === prot.flags.dataType.flac);

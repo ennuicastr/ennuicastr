@@ -459,7 +459,6 @@ function userMediaSet() {
         if (typeof LibAV === "undefined")
             LibAV = {};
         LibAV.base = "libav";
-        LibAV.noworker = true;
         var scr = dce("script");
         scr.addEventListener("load", function() {
             if (LibAV.ready)
@@ -496,7 +495,7 @@ function encoderLoaded() {
             blobs.shift();
             if (blobs.length)
                 fileReader.readAsArrayBuffer(blobs[0]);
-            handleData(performance.now());
+            handleOggData(performance.now());
         });
 
         // MediaRecorder will do what we need
@@ -703,7 +702,7 @@ function granulePosSet(header, to) {
 }
 
 // Handle input data, splitting Ogg packets so we can fine-tune the granule position
-function handleData(endTime) {
+function handleOggData(endTime) {
     var splitPackets = [];
 
     // First split the data into separate packets
