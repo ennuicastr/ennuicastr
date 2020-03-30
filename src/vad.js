@@ -217,7 +217,9 @@ function updateWave(value) {
 
     // Start from the element size
     var w = Math.min(window.innerWidth, window.outerWidth);
-    var h = Math.min(window.innerHeight, window.outerHeight) - log.offsetHeight;
+    var h = Math.min(window.innerHeight, window.outerHeight) -
+        (ui.menu?ui.menu.offsetHeight:0) -
+        log.offsetHeight;
 
     // If we have any other modules open, shrink the waveform view
     if (ui.postWrapper.childNodes.length)

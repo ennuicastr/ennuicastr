@@ -107,8 +107,11 @@ var ui = {
     waveWatcher: null,
     waveRotate: false,
 
-    /* If we're showing anything *other* than the wave display, it goes here
-     * (everything below this point) */
+    // The menu
+    menu: null,
+
+    /* If we're showing anything *other* than the wave display and menu, it
+     * goes here (everything below this point) */
     postWrapper: null,
 
     // If we've received chat, the box for that

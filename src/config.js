@@ -145,7 +145,7 @@ if (username === null || username === "") {
         for (var key in config)
             target += key[0] + "=" + config[key].toString(36) + "&";
         target += "nm=" + encodeURIComponent(gebi("nm").value);
-        var height = ("master" in config)?480:160;
+        var height = ("master" in config)?480:240;
         if (window.open(target, "", "width=640,height=" + height + ",menubar=0,toolbar=0,location=0,personalbar=0,status=0") === null) {
             // Just use the regular submit
             return true;

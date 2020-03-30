@@ -112,12 +112,34 @@ function mkChatBox() {
     return chatBox;
 }
 
+// Chat visibility toggler
+function toggleChat(to) {
+    // Initial creation
+    if (!ui.chatBox) {
+        if (typeof to !== "undefined" && !to) return;
+        mkChatBox().outgoing.focus();
+        return;
+    }
+
+    // Or, toggle
+    if (typeof to === "undefined")
+        to = !ui.chatBox.visible;
+
+    if (to) {
+        mkChatBox().outgoing.focus();
+    } else {
+        mkUI().removeChild(ui.chatBox.wrapper);
+        maybeShrinkUI();
+        ui.chatBox.visible = false;
+    }
+}
+
 // And make it possible to display it
 document.body.addEventListener("keydown", function(ev) {
     if (ev.key !== "c" || ev.ctrlKey || ev.target.nodeName === "INPUT")
         return true;
 
-    mkChatBox().outgoing.focus();
+    toggleChat(true);
 
     ev.preventDefault();
     return false;
