@@ -50,9 +50,9 @@ function localProcessing() {
     // Now the display steps
 
     // Create a canvas for it
-    if (!waveCanvas)
+    if (!ui.waveCanvas)
         mkUI(true);
-    var wc = waveCanvas;
+    var wc = ui.waveCanvas;
 
     // Now the background is nothing, so should just be grey
     document.body.style.backgroundColor = "#111";
@@ -64,7 +64,7 @@ function localProcessing() {
     img.style.left = "0px";
     img.style.top = "0px";
     img.style.height = "0px"; // Changed automatically when data arrives
-    waveWatcher = img;
+    ui.waveWatcher = img;
     document.body.appendChild(img);
 
     // And choose its type based on support
@@ -218,34 +218,37 @@ function updateWave(value) {
     // Start from the element size
     var w = Math.min(window.innerWidth, window.outerWidth);
     var h = Math.min(window.innerHeight, window.outerHeight) - log.offsetHeight;
-    if (postWrapper.childNodes.length)
+
+    // If we have any other modules open, shrink the waveform view
+    if (ui.postWrapper.childNodes.length)
         h = 160;
 
     // Rotate if our view is vertical
     if (h > w) {
-        if (!waveRotate) {
-            waveWatcher.style.visibility = "hidden";
-            waveRotate = true;
+        if (!ui.waveRotate) {
+            ui.waveWatcher.style.visibility = "hidden";
+            ui.waveRotate = true;
         }
     } else {
-        if (waveRotate) {
-            waveWatcher.style.visibility = "";
-            waveRotate = false;
+        if (ui.waveRotate) {
+            ui.waveWatcher.style.visibility = "";
+            ui.waveRotate = false;
         }
         if (h > w/2) h = Math.ceil(w/2);
     }
 
     // Make sure the canvases are correct
-    if (+waveCanvas.width !== w)
-        waveCanvas.width = w;
-    if (+waveCanvas.height !== h)
-        waveCanvas.height = h;
-    if (waveCanvas.style.height !== h+"px")
-        waveCanvas.style.height = h+"px";
-    if (waveWatcher.style.height !== h+"px")
-        waveWatcher.style.height = h+"px";
+    var wc = ui.waveCanvas;
+    if (+wc.width !== w)
+        wc.width = w;
+    if (+wc.height !== h)
+        wc.height = h;
+    if (wc.style.height !== h+"px")
+        wc.style.height = h+"px";
+    if (ui.waveWatcher.style.height !== h+"px")
+        ui.waveWatcher.style.height = h+"px";
 
-    if (waveRotate) {
+    if (ui.waveRotate) {
         var tmp = w;
         w = h;
         h = tmp;
@@ -275,10 +278,10 @@ function updateWave(value) {
     var good = connected && transmitting && timeOffset && sentRecently;
 
     // And draw it
-    var ctx = waveCanvas.getContext("2d");
+    var ctx = wc.getContext("2d");
     var i, p;
     ctx.save();
-    if (waveRotate) {
+    if (ui.waveRotate) {
         ctx.rotate(Math.PI/2);
         ctx.translate(0, -2*h);
     }

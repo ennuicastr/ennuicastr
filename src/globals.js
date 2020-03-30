@@ -99,20 +99,24 @@ var waveVADColorSets = {
 
 var waveVADColors = waveVADColorSets.sv;
 
-// The display canvas and data
-var waveBox = null;
-var waveCanvas = null;
-var waveWatcher = null;
-var waveRotate = false;
+// The entire user interface
+var ui = {
 
-// If we're showing anything *other* than the wave display, it goes here
-var postWrapper = null;
+    // The display canvas and data
+    waveCanvas: null,
+    waveWatcher: null,
+    waveRotate: false,
 
-// If we've received chat, the box for that
-var chatBox = null;
+    /* If we're showing anything *other* than the wave display, it goes here
+     * (everything below this point) */
+    postWrapper: null,
 
-// If we're in master mode, master UI elements
-var masterUI = {};
+    // If we've received chat, the box for that
+    chatBox: null,
+
+    // If we're in master mode, master UI elements
+    masterUI: {},
+};
 
 // Our start time is in local ticks, and our offset is updated every so often
 var startTime = 0;

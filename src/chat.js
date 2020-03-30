@@ -16,13 +16,13 @@
 
 // Receive a chat message
 function recvChat(text) {
-    if (!chatBox || !chatBox.visible)
+    if (!ui.chatBox || !ui.chatBox.visible)
         mkChatBox();
 
     var line = dce("div");
     line.innerText = text;
-    chatBox.incoming.appendChild(line);
-    chatBox.incoming.scroll(0, 1000000);
+    ui.chatBox.incoming.appendChild(line);
+    ui.chatBox.incoming.scroll(0, 1000000);
 }
 
 // Send a chat message
@@ -38,16 +38,16 @@ function sendChat(text) {
 
 // Build the chat box
 function mkChatBox() {
-    if (chatBox) {
+    if (ui.chatBox) {
         // It already exists, but is it actually visible?
-        if (!chatBox.visible) {
-            mkUI().appendChild(chatBox.wrapper);
-            chatBox.visible = true;
+        if (!ui.chatBox.visible) {
+            mkUI().appendChild(ui.chatBox.wrapper);
+            ui.chatBox.visible = true;
         }
-        return chatBox;
+        return ui.chatBox;
     }
 
-    chatBox = {};
+    var chatBox = ui.chatBox = {};
 
     // Create a wrapper so we can easily hide this
     var wrapper = chatBox.wrapper = dce("div");

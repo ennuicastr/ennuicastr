@@ -320,7 +320,7 @@ function masterSockMsg(msg) {
                 case prot.info.creditCost:
                     // Informing us of the cost of credits
                     var v2 = msg.getUint32(p.value + 4, true);
-                    masterUI.creditCost = {
+                    ui.masterUI.creditCost = {
                         currency: val,
                         credits: v2
                     };
@@ -329,7 +329,7 @@ function masterSockMsg(msg) {
                 case prot.info.creditRate:
                     // Informing us of the total cost and rate in credits
                     var v2 = msg.getUint32(p.value + 4, true);
-                    masterUI.creditRate = [val, v2];
+                    ui.masterUI.creditRate = [val, v2];
                     masterUpdateCreditCost();
                     break;
             }
@@ -342,10 +342,10 @@ function masterSockMsg(msg) {
             var nick = decodeText(msg.buffer.slice(p.nick));
 
             // Add it to the UI
-            masterUI.speech = masterUI.speech || [];
-            while (masterUI.speech.length <= index)
-                masterUI.speech.push(null);
-            masterUI.speech[index] = {
+            var speech = ui.masterUI.speech = ui.masterUI.speech || [];
+            while (speech.length <= index)
+                speech.push(null);
+            speech[index] = {
                 nick: nick,
                 online: !!status,
                 speaking: false
@@ -359,8 +359,8 @@ function masterSockMsg(msg) {
             var indexStatus = msg.getUint32(p.indexStatus, true);
             var index = indexStatus>>>1;
             var status = (indexStatus&1);
-            if (!masterUI.speech[index]) return;
-            masterUI.speech[index].speaking = !!status;
+            if (!ui.masterUI.speech[index]) return;
+            ui.masterUI.speech[index].speaking = !!status;
             updateMasterSpeech();
             break;
     }
@@ -939,8 +939,8 @@ function mkUI(small) {
             window.resizeTo(window.innerWidth, 480);
     }
 
-    if (postWrapper)
-        return postWrapper;
+    if (ui.postWrapper)
+        return ui.postWrapper;
 
     // Make an outer wrapper in which to fit everything
     var outer = dce("div");
@@ -949,16 +949,16 @@ function mkUI(small) {
     outer.style.minHeight = window.innerHeight + "px";
 
     // Make a canvas for the waveform
-    waveCanvas = dce("canvas");
-    waveCanvas.style.height = "160px";
-    outer.appendChild(waveCanvas);
+    ui.waveCanvas = dce("canvas");
+    ui.waveCanvas.style.height = "160px";
+    outer.appendChild(ui.waveCanvas);
 
     // Make our own flexible wrapper for post-stuff
     var wrapper = dce("div");
     wrapper.style.flex = "auto";
     wrapper.style.display = "flex";
     wrapper.style.flexDirection = "column";
-    postWrapper = wrapper;
+    ui.postWrapper = wrapper;
     outer.appendChild(wrapper);
 
     // Move the status box
@@ -979,7 +979,7 @@ function mkUI(small) {
 
 // Shrink the UI if there's nothing interesting in it
 function maybeShrinkUI() {
-    if (postWrapper.childNodes.length === 0) {
+    if (ui.postWrapper.childNodes.length === 0) {
         var newH = 160 + window.outerHeight - window.innerHeight;
         if (window.innerHeight > 160)
             window.resizeTo(window.innerWidth, newH);

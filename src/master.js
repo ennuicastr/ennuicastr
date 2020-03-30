@@ -32,6 +32,7 @@ function createMasterInterface() {
         return ret;
     }
 
+    var masterUI = ui.masterUI;
     var left = masterUI.left = halfSpan();
     var right = masterUI.right = halfSpan();
 
@@ -181,6 +182,8 @@ function createMasterInterface() {
 
 // (Re)configure the master interface
 function configureMasterInterface() {
+    var masterUI = ui.masterUI;
+
     if (!masterUI.startStopB)
         return;
 
@@ -234,36 +237,36 @@ function masterSendMode(mode) {
 
 // Start the recording (start button clicked)
 function masterStartRecording() {
-    masterUI.startStopB.disabled = true;
+    ui.masterUI.startStopB.disabled = true;
     masterSendMode(prot.mode.rec);
 }
 
 // Pause the recording
 function masterPauseRecording() {
-    masterUI.pauseResumeB.disabled = true;
+    ui.masterUI.pauseResumeB.disabled = true;
     masterSendMode(prot.mode.paused);
 }
 
 // Resume a paused recording
 function masterResumeRecording() {
-    masterUI.pauseResumeB.disabled = true;
+    ui.masterUI.pauseResumeB.disabled = true;
     masterSendMode(prot.mode.rec);
 }
 
 // Stop the recording (stop button clicked)
 function masterStopRecording() {
-    var startStop = masterUI.startStopB;
+    var startStop = ui.masterUI.startStopB;
 
     startStop.disabled = true;
     startStop.innerText = "Are you sure?";
 
-    masterUI.startStopYesNo.style.display = "";
-    masterUI.startStopYesB.onclick = masterStopRecordingYes;
-    masterUI.startStopNoB.onclick = masterStopRecordingNo;
+    ui.masterUI.startStopYesNo.style.display = "";
+    ui.masterUI.startStopYesB.onclick = masterStopRecordingYes;
+    ui.masterUI.startStopNoB.onclick = masterStopRecordingNo;
 }
 
 function masterStopRecordingYes() {
-    masterUI.startStopYesNo.style.display = "none";
+    ui.masterUI.startStopYesNo.style.display = "none";
 
     // Send out the stop request
     masterSendMode(prot.mode.finished);
@@ -278,9 +281,9 @@ function masterStopRecordingNo() {
 function masterGenInvite() {
     // Generate the search string
     var f = (
-        (masterUI.inviteContinuous.checked?features.continuous:0) +
+        (ui.masterUI.inviteContinuous.checked?features.continuous:0) +
         ((config.format&features.rtc)?features.rtc:0) +
-        (masterUI.inviteFlac.checked?prot.flags.dataType.flac:0)
+        (ui.masterUI.inviteFlac.checked?prot.flags.dataType.flac:0)
     );
     var sb = "?" + config.id.toString(36) + "-" + config.key.toString(36);
     if (config.port !== 36678)
@@ -290,12 +293,12 @@ function masterGenInvite() {
 
     // Make the URL
     url.search = sb;
-    masterUI.invite.value = url.toString();
+    ui.masterUI.invite.value = url.toString();
 }
 
 // Copy the invite link
 function masterCopyInvite() {
-    masterUI.invite.select();
+    ui.masterUI.invite.select();
     document.execCommand("copy");
 
     pushStatus("invite", "Copied invite link");
@@ -306,6 +309,7 @@ function masterCopyInvite() {
 
 // Update the credit cost/rate meter
 function masterUpdateCreditCost() {
+    var masterUI = ui.masterUI;
     if (!masterUI.recRate || !masterUI.creditCost || !masterUI.creditRate)
         return;
     var cc = masterUI.creditCost;
@@ -338,6 +342,8 @@ function masterCreditsToDollars(c, creditCost) {
 
 // Update the speech interface for the master
 function updateMasterSpeech() {
+    var masterUI = ui.masterUI;
+
     if (!masterUI.speech || !masterUI.userStatusB) return;
 
     // First make sure we have a div for each user
