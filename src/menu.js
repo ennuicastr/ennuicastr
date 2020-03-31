@@ -180,11 +180,12 @@ function toggleDeviceList(to) {
 
     if (ui.deviceList.visible !== to) {
         if (to) {
-            ui.postWrapper.appendChild(ui.deviceList.wrapper);
+            mkUI().appendChild(ui.deviceList.wrapper);
             ui.deviceList.visible = true;
         } else {
-            ui.postWrapper.removeChild(ui.deviceList.wrapper);
+            mkUI(true).removeChild(ui.deviceList.wrapper);
             ui.deviceList.visible = false;
+            maybeShrinkUI();
         }
     }
 }
