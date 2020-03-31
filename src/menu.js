@@ -68,6 +68,9 @@ function mkUI(small) {
     // Set up the menu
     createMenu();
 
+    // The device list submenu
+    createDeviceList();
+
     // Set up the master interface
     if ("master" in config)
         createMasterInterface();
@@ -86,24 +89,102 @@ function maybeShrinkUI() {
 
 // Create the menu
 function createMenu() {
-    mkUI(true);
     var menu = ui.menu;
+
+    function spacer() {
+        var spc = dce("span");
+        spc.innerText = " ";
+        menu.appendChild(spc);
+    }
+
+    function btn() {
+        var btn = dce("button");
+        btn.classList.add("menubutton");
+        menu.appendChild(btn);
+        spacer();
+        return btn;
+    }
 
     // Make buttons for our main actions
 
     // Open/close chat mode
-    var chat = dce("button");
+    var chat = btn();
     chat.innerHTML = '<i class="fas fa-keyboard"></i>';
     chat.onclick = function() {
         toggleChat();
     };
-    menu.appendChild(chat);
 
     // Device list
-    var dl = dce("button");
+    var dl = btn();
     dl.innerHTML = '<i class="fas fa-microphone-alt"></i>';
     dl.onclick = function() {
-        getMic();
+        toggleDeviceList();
     };
-    menu.appendChild(dl);
+}
+
+// Create the device list submenu
+function createDeviceList() {
+    if (!userMedia) {
+        // Wait until we can know what device we selected
+        userMediaAvailableEvent.addEventListener("usermediaready", createDeviceList, {once: true});
+        return;
+    }
+
+    // Make the main wrapper
+    ui.deviceList = {};
+    var wrapper = ui.deviceList.wrapper = dce("div");
+    ui.deviceList.visible = false;
+
+    var lbl = dce("Label");
+    lbl.htmlFor = "device-list";
+    lbl.innerText = "Input device: ";
+    wrapper.appendChild(lbl);
+
+    var sel = dce("select");
+    sel.id = "device-list";
+    wrapper.appendChild(sel);
+    var selected = null;
+    try {
+        selected = userMedia.getTracks()[0].getSettings().deviceId;
+    } catch (ex) {}
+
+    // When it's changed, reselct the mic
+    sel.onchange = function() {
+        toggleDeviceList(false);
+        getMic(sel.value);
+    };
+
+    // Fill it with the available devices
+    navigator.mediaDevices.enumerateDevices().then(function(devices) {
+        var ctr = 1;
+        devices.forEach(function(dev) {
+            if (dev.kind !== "audioinput") return;
+
+            // Create an option for this
+            var opt = dce("option");
+            var label = dev.label || ("Mic " + ctr++);
+            opt.innerText = label;
+            opt.value = dev.deviceId;
+            if (dev.deviceId === selected)
+                opt.selected = true;
+            sel.appendChild(opt);
+        });
+
+    }).catch(function() {}); // Nothing really to do here
+}
+
+// Toggle the visibility of the device list submenu
+function toggleDeviceList(to) {
+    if (typeof to === "undefined")
+        to = !ui.deviceList.visible;
+
+    if (ui.deviceList.visible !== to) {
+        if (to) {
+            ui.postWrapper.appendChild(ui.deviceList.wrapper);
+            ui.deviceList.visible = true;
+        } else {
+            ui.postWrapper.removeChild(ui.deviceList.wrapper);
+            ui.deviceList.visible = false;
+        }
+    }
 }

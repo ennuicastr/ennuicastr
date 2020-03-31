@@ -648,7 +648,13 @@ function libavProcess() {
     var acdestination = ac.destination;
     sp.connect(acdestination);
 
+    // Don't try to process that last sip of data after termination
+    var dead = false;
+
     sp.onaudioprocess = function(ev) {
+        if (dead)
+            return;
+
         // Determine the data timing
         var now = performance.now();
         var ib = ev.inputBuffer.getChannelData(0);
@@ -711,6 +717,8 @@ function libavProcess() {
 
     // Terminate the recording
     function terminate() {
+        dead = true;
+
         // Close the encoder
         enc.p = enc.p.then(function() {
             return libav.avfilter_graph_free_js(enc.filter_graph);

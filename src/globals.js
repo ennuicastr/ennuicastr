@@ -118,6 +118,9 @@ var ui = {
      * goes here (everything below this point) */
     postWrapper: null,
 
+    // The wrapper for the device selector
+    deviceList: null,
+
     // If we've received chat, the box for that
     chatBox: null,
 
