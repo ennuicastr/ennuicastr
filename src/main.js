@@ -366,16 +366,18 @@ function masterSockMsg(msg) {
     }
 }
 
-// Get our microphone input
-function getMic() {
+/* The starting point for enabling encoding. Get our microphone input. Returns
+ * a promise that resolves when encoding is active. */
+function getMic(deviceId) {
     if (!connected)
         return;
 
     pushStatus("getmic", "Asking for microphone permission...");
     popStatus("conn");
 
-    navigator.mediaDevices.getUserMedia({
+    return navigator.mediaDevices.getUserMedia({
         audio: {
+            deviceId: deviceId,
             autoGainControl: plzno,
             echoCancellation: plzno,
             noiseSuppression: plzno,
@@ -387,6 +389,7 @@ function getMic() {
         if (useRTC) {
             return navigator.mediaDevices.getUserMedia({
                 audio: {
+                    deviceId: deviceId,
                     autoGainControl: plzno, // In some setups, this will affect the recording gain
                     echoCancellation: plzno, // This would mask a real problem in recording if yes
                     noiseSuppression: plzyes
@@ -396,7 +399,7 @@ function getMic() {
     }).then(function(userMediaIn) {
         if (useRTC)
             userMediaRTC = userMediaIn;
-        userMediaSet();
+        return userMediaSet();
     }).catch(function(err) {
         disconnect();
         pushStatus("fail", "Cannot get microphone: " + err);
@@ -404,7 +407,8 @@ function getMic() {
     });
 }
 
-// Called once we have mic access
+/* Called once we have mic access. Returns a promise that resolves once
+ * encoding is active. */
 function userMediaSet() {
     if (!connected)
         return;
@@ -425,20 +429,18 @@ function userMediaSet() {
     }
 
     // Set up the VAD
-    WebRtcVad = {
-        onRuntimeInitialized: localProcessing
-    };
-    var scr = dce("script");
-    scr.async = true;
-    scr.src = "vad/vad" + (wa?".wasm":"") + ".js";
-    document.body.appendChild(scr);
+    if (typeof WebRtcVad === "undefined") {
+        WebRtcVad = {
+            onRuntimeInitialized: localProcessing
+        };
+        var scr = dce("script");
+        scr.async = true;
+        scr.src = "vad/vad" + (wa?".wasm":"") + ".js";
+        document.body.appendChild(scr);
+    }
 
-    // Set up the menu
-    createMenu();
-
-    // Set up the master interface
-    if ("master" in config)
-        createMasterInterface();
+    // If the UI hasn't been created yet, now's the time
+    mkUI(true);
 
     // If the browser can't encode to Ogg Opus directly, we need a JS solution
     useLibAV = false;
@@ -457,29 +459,39 @@ function userMediaSet() {
         dataSock.send(out.buffer);
     });
 
-    if (useLibAV) {
-        // Load it
-        if (typeof LibAV === "undefined")
-            LibAV = {};
-        LibAV.base = "libav";
-        var scr = dce("script");
-        scr.addEventListener("load", function() {
-            if (LibAV.ready)
-                encoderLoaded();
-            else
-                LibAV.onready = encoderLoaded;
-        });
-        scr.src = "libav/libav-" + libavVersion + "-opus-flac.js";
-        scr.async = true;
-        document.body.appendChild(scr);
+    // Load anything we need
+    return new Promise(function(res, rej) {
+        if (useLibAV) {
+            // Load it
+            if (typeof LibAV === "undefined")
+                LibAV = {};
+            if (LibAV.ready) {
+                // Already loaded!
+                return res();
+            }
+            LibAV.base = "libav";
+            var scr = dce("script");
+            scr.addEventListener("load", function() {
+                if (LibAV.ready)
+                    res();
+                else
+                    LibAV.onready = res;
+            });
+            scr.addEventListener("error", rej);
+            scr.src = "libav/libav-" + libavVersion + "-opus-flac.js";
+            scr.async = true;
+            document.body.appendChild(scr);
 
-    } else {
-        encoderLoaded();
+        } else {
+            res();
 
-    }
+        }
+
+    }).then(encoderLoaded);
 }
 
-// Called once the encoder is loaded
+/* Called once the encoder is loaded, if it's needed. Returns a promise that
+ * resolves once encoding is active. */
 function encoderLoaded() {
     if (!connected)
         return;
@@ -488,7 +500,7 @@ function encoderLoaded() {
     popStatus("initenc");
 
     if (useLibAV) {
-        libavStart();
+        return libavStart();
 
     } else {
         // We're ready to record, but need a file reader to transfer the data
@@ -513,6 +525,8 @@ function encoderLoaded() {
         });
         startTime = performance.now();
         mediaRecorder.start(200);
+
+        return Promise.all([]);
 
     }
 }
@@ -564,7 +578,7 @@ function libavStart() {
 
     // Begin initializing the encoder
     libavEncoder = {};
-    libav.ff_init_encoder(useFlac?"flac":"libopus", encOptions, 1, sampleRate).then(function(ret) {
+    return libav.ff_init_encoder(useFlac?"flac":"libopus", encOptions, 1, sampleRate).then(function(ret) {
 
         libavEncoder.codec = ret[0];
         libavEncoder.c = ret[1];
@@ -592,6 +606,8 @@ function libavStart() {
         // We're ready to go!
         startTime = performance.now();
         libavEncoder.p = Promise.all([]);
+
+        // Start processing in the background
         libavProcess();
 
     }).catch(function(ex) {

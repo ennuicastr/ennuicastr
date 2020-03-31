@@ -60,6 +60,15 @@ function mkUI(small) {
         outer.style.minHeight = window.innerHeight + "px";
     });
 
+    // Now actually fill in the UI
+
+    // Set up the menu
+    createMenu();
+
+    // Set up the master interface
+    if ("master" in config)
+        createMasterInterface();
+
     return wrapper;
 }
 
