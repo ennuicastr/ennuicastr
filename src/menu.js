@@ -50,6 +50,9 @@ function mkUI(small) {
     // Move the status box
     outer.appendChild(log);
 
+    // Make the log display appropriate
+    log.classList.add("status");
+
     // This is our new body
     document.body.style.margin =
         document.body.style.padding = "0";
@@ -87,10 +90,20 @@ function createMenu() {
     var menu = ui.menu;
 
     // Make buttons for our main actions
+
+    // Open/close chat mode
     var chat = dce("button");
     chat.innerHTML = '<i class="fas fa-keyboard"></i>';
     chat.onclick = function() {
         toggleChat();
     };
     menu.appendChild(chat);
+
+    // Device list
+    var dl = dce("button");
+    dl.innerHTML = '<i class="fas fa-microphone-alt"></i>';
+    dl.onclick = function() {
+        getMic();
+    };
+    menu.appendChild(dl);
 }

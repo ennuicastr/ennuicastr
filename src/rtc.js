@@ -30,9 +30,9 @@ function rtcSignal(peer, type, value) {
 function initRTC(peer, start) {
     if (!userMediaRTC) {
         // We need userMediaRTC to even start this process
-        userMediaAvailableEvent.addEventListener("rtcready", function() {
+        userMediaAvailableEvent.addEventListener("usermediaready", function() {
             initRTC(peer, start);
-        });
+        }, {once: true});
         return;
     }
 
@@ -79,10 +79,20 @@ function initRTC(peer, start) {
         }
     };
 
-    userMediaRTC.getTracks().forEach(function(track) {
-        conn.addTrack(track, userMediaRTC);
-    });
+    // Add each track to the connection
+    function addTracks() {
+        userMediaRTC.getTracks().forEach(function(track) {
+            conn.addTrack(track, userMediaRTC);
+        });
+    }
+    addTracks();
 
+    // If we switch UserMedia, we'll need to re-up
+    userMediaAvailableEvent.addEventListener("usermediaready", addTracks);
+
+    // FIXME: Closing is handled poorly throughout
+
+    // Initial connection function
     function connect() {
         conn.createOffer().then(function(offer) {
             return conn.setLocalDescription(offer);

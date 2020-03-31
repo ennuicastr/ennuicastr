@@ -375,6 +375,18 @@ function getMic(deviceId) {
     pushStatus("getmic", "Asking for microphone permission...");
     popStatus("conn");
 
+    // First get rid of any active sources
+    if (userMediaRTC) {
+        userMediaRTC.getTracks().forEach(function(track) { track.stop(); });
+        userMediaRTC = null;
+    }
+    if (userMedia) {
+        userMedia.getTracks().forEach(function(track) { track.stop(); });
+        userMedia = null;
+        userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediastopped", {}));
+    }
+
+    // Then request the new ones
     return navigator.mediaDevices.getUserMedia({
         audio: {
             deviceId: deviceId,
@@ -416,7 +428,7 @@ function userMediaSet() {
     pushStatus("initenc", "Initializing encoder...");
     popStatus("getmic");
 
-    userMediaAvailableEvent.dispatchEvent(new CustomEvent("rtcready", {}));
+    userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediaready", {}));
 
     // Check whether we should be using WebAssembly
     var wa = isWebAssemblySupported();
@@ -633,7 +645,8 @@ function libavProcess() {
     /* NOTE: We don't actually care about output, but Chrome won't run a script
      * processor with 0 outputs */
     var sp = ac.createScriptProcessor(1024, 1, 1);
-    sp.connect(ac.destination);
+    var acdestination = ac.destination;
+    sp.connect(acdestination);
 
     sp.onaudioprocess = function(ev) {
         // Determine the data timing
@@ -696,7 +709,8 @@ function libavProcess() {
 
     mss.connect(sp);
 
-    ac.addEventListener("disconnected", function() {
+    // Terminate the recording
+    function terminate() {
         // Close the encoder
         enc.p = enc.p.then(function() {
             return libav.avfilter_graph_free_js(enc.filter_graph);
@@ -705,9 +719,16 @@ function libavProcess() {
             return libav.ff_free_encoder(enc.c, enc.frame, enc.pkt);
 
         });
+
+        // And disconnect the ScriptProcessor
         mss.disconnect(sp);
-        sp.disconnect(ac.destination);
-    });
+        sp.disconnect(acdestination);
+    }
+
+    // Catch when our UserMedia ends and stop (FIXME: race condition before reloading?)
+    userMediaAvailableEvent.addEventListener("usermediastopped", terminate, {once: true});
+
+    ac.addEventListener("disconnected", terminate);
 }
 
 // Shift a chunk of blob

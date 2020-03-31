@@ -16,6 +16,12 @@
 
 // Create a VAD and wave display
 function localProcessing() {
+    if (!userMedia) {
+        // Need our MediaSource first!
+        userMediaAvailableEvent.addEventListener("usermediaready", localProcessing, {once: true});
+        return;
+    }
+
     // Set our lastSentTime now so that we don't immediately report a problem
     lastSentTime = performance.now();
 
@@ -58,36 +64,35 @@ function localProcessing() {
     document.body.style.backgroundColor = "#111";
 
     // Create our watcher image
-    var img = dce("img");
-    img.style.display = "none";
-    img.style.position = "absolute";
-    img.style.left = "0px";
-    img.style.top = "0px";
-    img.style.height = "0px"; // Changed automatically when data arrives
-    ui.waveWatcher = img;
-    document.body.appendChild(img);
+    if (!ui.waveWatcher) {
+        var img = dce("img");
+        img.style.display = "none";
+        img.style.position = "absolute";
+        img.style.left = "0px";
+        img.style.top = "0px";
+        img.style.height = "0px"; // Changed automatically when data arrives
+        ui.waveWatcher = img;
+        document.body.appendChild(img);
 
-    // And choose its type based on support
-    function usePng() {
-        img.src = "images/watcher.png";
-        img.style.display = "";
-    }
-    if (!window.createImageBitmap || !window.fetch) {
-        usePng();
-    } else {
-        var sample = "data:image/webp;base64,UklGRh4AAABXRUJQVlA4TBEAAAAvAAAAAAfQ//73v/+BiOh/AAA=";
-        fetch(sample).then(function(res) {
-            return res.blob();
-        }).then(function(blob) {
-            return createImageBitmap(blob)
-        }).then(function() {
-            img.src = "images/watcher.webp";
+        // And choose its type based on support
+        function usePng() {
+            img.src = "images/watcher.png";
             img.style.display = "";
-        }).catch(usePng);
+        }
+        if (!window.createImageBitmap || !window.fetch) {
+            usePng();
+        } else {
+            var sample = "data:image/webp;base64,UklGRh4AAABXRUJQVlA4TBEAAAAvAAAAAAfQ//73v/+BiOh/AAA=";
+            fetch(sample).then(function(res) {
+                return res.blob();
+            }).then(function(blob) {
+                return createImageBitmap(blob)
+            }).then(function() {
+                img.src = "images/watcher.webp";
+                img.style.display = "";
+            }).catch(usePng);
+        }
     }
-
-    // Make the log display appropriate
-    log.classList.add("status");
 
     // The VAD needs packets in odd intervals
     var step = ac.sampleRate / 32000;
@@ -97,7 +102,8 @@ function localProcessing() {
     /* NOTE: We don't actually care about output, but Chrome won't run a
      * script processor with 0 outputs */
     var sp = ac.createScriptProcessor(1024, 1, 1);
-    sp.connect(ac.destination);
+    var acdestination = ac.destination;
+    sp.connect(acdestination);
     sp.onaudioprocess = function(ev) {
         var ib = ev.inputBuffer.getChannelData(0);
 
@@ -190,6 +196,13 @@ function localProcessing() {
         updateWave(max);
     };
     mss.connect(sp);
+
+    // Restart if we change devices
+    userMediaAvailableEvent.addEventListener("usermediastopped", function() {
+        mss.disconnect(sp);
+        sp.disconnect(acdestination);
+        localProcessing();
+    }, {once: true});
 
     ac.addEventListener("disconnected", function() {
         updateWave(1);

@@ -46,7 +46,11 @@ var mode = prot.mode.init;
 // There are a lot of intermediate steps to getting audio from point A to point B
 var userMedia = null; // The microphone input for recording
 var userMediaRTC = null; // The microphone input for RTC
-var userMediaAvailableEvent; // "rtcready" fires when userMedia and userMediaRTC are ready
+
+/* We need an event target we can use. "usermediaready" fires when userMedia
+ * and (if applicable) userMediaRTC are ready. "usermediastopped" fires when
+ * they stop. */
+var userMediaAvailableEvent;
 try {
     userMediaAvailableEvent = new EventTarget();
 } catch (ex) {
