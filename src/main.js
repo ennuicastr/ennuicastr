@@ -454,12 +454,24 @@ function userMediaSet() {
     // If the UI hasn't been created yet, now's the time
     mkUI(true);
 
-    // If the browser can't encode to Ogg Opus directly, we need a JS solution
+    // Which solution we need depends on browser support
     useLibAV = false;
-    if (useFlac ||
-        typeof MediaRecorder === "undefined" ||
-        !MediaRecorder.isTypeSupported("audio/ogg; codec=opus")) {
+    useMkvDemux = false;
+    if (useFlac) {
+        // Always need libav for this
         useLibAV = true;
+    } else if (typeof MediaRecorder === "undefined") {
+        // No built-in encoding
+        useLibAV = true;
+    } else if (!MediaRecorder.isTypeSupported("audio/ogg; codecs=opus")) {
+        // We'll need at least demuxing
+        if (MediaRecorder.isTypeSupported("audio/webm; codecs=opus")) {
+            useMkvDemux = true;
+        } else {
+            useLibAV = true;
+        }
+    } else {
+        // No extras needed!
     }
 
     // At this point, we want to start catching errors
@@ -494,6 +506,16 @@ function userMediaSet() {
             scr.async = true;
             document.body.appendChild(scr);
 
+        } else if (useMkvDemux) {
+            if (typeof mkvdemuxjs !== "undefined")
+                return res();
+            var scr = dce("script");
+            scr.addEventListener("load", res);
+            scr.addEventListener("error", rej);
+            scr.src = "mkvdemux.min.js";
+            scr.async = true;
+            document.body.appendChild(scr);
+
         } else {
             res();
 
@@ -515,25 +537,34 @@ function encoderLoaded() {
         return libavStart();
 
     } else {
-        // We're ready to record, but need a file reader to transfer the data
-        fileReader = new FileReader();
-        fileReader.addEventListener("load", function(chunk) {
-            data.push(chunk.target.result);
+        var format = "ogg";
+        var handler = handleOggData;
+        if (useMkvDemux) {
+            format = "webm";
+            handler = handleMkvData;
+            mkvDemuxer = new mkvdemuxjs.MkvDemux();
+        }
+
+        // We're ready to record, but need a handler for the Blob->ArrayBuffer conversion
+        function postBlob(ab) {
             blobs.shift();
             if (blobs.length)
-                fileReader.readAsArrayBuffer(blobs[0]);
-            handleOggData(performance.now());
-        });
+                blobs[0].arrayBuffer().then(postBlob);
+            if (ab.byteLength !== 0) {
+                data.push(ab);
+                handler(performance.now());
+            }
+        }
 
         // MediaRecorder will do what we need
         mediaRecorder = new MediaRecorder(userMedia, {
-            mimeType: "audio/ogg; codec=opus",
+            mimeType: "audio/" + format + "; codecs=opus",
             audioBitsPerSecond: 128000
         });
         mediaRecorder.addEventListener("dataavailable", function(chunk) {
             blobs.push(chunk.data);
             if (blobs.length === 1)
-                fileReader.readAsArrayBuffer(chunk.data);
+                chunk.data.arrayBuffer().then(postBlob);
         });
         startTime = performance.now();
         mediaRecorder.start(200);
@@ -772,6 +803,114 @@ function granulePosSet(header, to) {
     header.setUint32(6, to & 0xFFFFFFFF, true);
 }
 
+// "Demux" a single Opus frame that might be in multiple parts into multiple frames
+function opusDemux(opusFrame) {
+    var toc = opusFrame.getUint8(0);
+    var ct = (toc & 0x3);
+    toc &= 0xfc;
+    if (ct === 0) {
+        // No demuxing needed!
+        return null;
+    }
+    opusFrame = new Uint8Array(opusFrame.buffer);
+
+    // Reader for frame length coding
+    var p = 1;
+    function getFrameLen() {
+        var len = opusFrame[p++];
+        if (len >= 252) {
+            // 2-byte length
+            len += opusFrame[p++]*4;
+        }
+        return len;
+    }
+
+    // Switch on the style of multi-frame
+    switch (ct) {
+        case 1:
+            // Two equal-sized frames
+            var len = (opusFrame.byteLength - 1) / 2;
+            var ret = [
+                new Uint8Array(len + 1),
+                new Uint8Array(len + 1)
+            ];
+            ret[0][0] = toc;
+            ret[0].set(opusFrame.slice(1, 1+len), 1);
+            ret[0] = new DataView(ret[0].buffer);
+            ret[1][0] = toc;
+            ret[1].set(opusFrame.slice(1+len), 1);
+            ret[1] = new DataView(ret[1].buffer);
+            return ret;
+
+        case 2:
+            // Two variable-sized frames
+            var len = getFrameLen();
+            var len2 = opusFrame.length - len - p;
+            var ret = [
+                new Uint8Array(len + 1),
+                new Uint8Array(len2 + 1)
+            ];
+            ret[0][0] = toc;
+            ret[0].set(opusFrame.slice(p, p+len), 1);
+            ret[0] = new DataView(ret[0].buffer);
+            ret[1][0] = toc;
+            ret[1].set(opusFrame.slice(p+len), 1);
+            ret[1] = new DataView(ret[1].buffer);
+            return ret;
+
+        case 3:
+            // Variable-number variable-sized frames
+            var frameCtB = opusFrame[p++];
+            var frameCt = frameCtB & 0x3f;
+            var padding = 0;
+            if (frameCtB & 0x40) {
+                // There's padding. Skip the count.
+                while (true) {
+                    var pa = opusFrame[p++];
+                    if (pa === 0xFF) {
+                        padding += 0xFE;
+                    } else {
+                        padding += pa;
+                        break;
+                    }
+                }
+            }
+
+            // Get the sizes of each
+            var sizes = [];
+            if (frameCtB & 0x80) {
+                // Variable-sized
+                var tot = 0;
+                for (var i = 0; i < frameCt - 1; i++) {
+                    var len = getFrameLen();
+                    tot += len;
+                    sizes.push(len);
+                }
+                // The last one is whatever's left
+                sizes.push(opusFrame.length - padding - p - tot);
+            } else {
+                // Constant-sized
+                // FIXME
+                var len = Math.floor((opusFrame.length - padding - p) / frameCt);
+                console.log(opusFrame.length + " " + p + " " + padding + " ... " + len);
+                for (var i = 0; i < frameCt; i++)
+                    sizes.push(len);
+            }
+
+            // Now make the output
+            var ret = [];
+            for (var i = 0; i < frameCt; i++) {
+                var len = sizes[i];
+                var part = new Uint8Array(len + 1);
+                part[0] = toc;
+                part.set(opusFrame.slice(p, p+len), 1);
+                p += len;
+                ret.push(new DataView(part.buffer));
+            }
+            return ret;
+    }
+}
+
 // Handle input data, splitting Ogg packets so we can fine-tune the granule position
 function handleOggData(endTime) {
     var splitPackets = [];
@@ -851,6 +990,51 @@ function handleOggData(endTime) {
         var packet = splitPackets.shift();
         packet[0] = packet[0] - inEndGranule + outEndGranule;
         packets.push(packet);
+    }
+
+    handlePackets();
+}
+
+// Handle input Matroska (WebM) data
+function handleMkvData(endTime) {
+    // Pass the data to mkvdemuxjs
+    while (data.length)
+        mkvDemuxer.push(data.shift());
+
+    // Demux it
+    var frames = [];
+    var el;
+    while ((el = mkvDemuxer.demux()) !== null) {
+        if (el.frames)
+            frames = frames.concat(el.frames);
+        if (el.track)
+            console.log(el.track);
+    }
+    if (frames.length === 0) return;
+
+    // Adjust the times and move them
+    var outEndGranule = (endTime - startTime) * 48;
+    var inEndGranule = frames[frames.length-1].timestamp * 48000;
+    var last = 0;
+    while (frames.length) {
+        var packet = frames.shift();
+        var ts = packet.timestamp * 48000 - inEndGranule + outEndGranule;
+        var pData = new DataView(packet.data);
+
+        // Split it if necessary
+        var multi = opusDemux(pData);
+        if (multi !== null) {
+            // It was a multi-part packet, so split it up
+            ts -= 960 * (multi.length - 1); // 20ms per packet
+            while (multi.length) {
+                packet = multi.shift();
+                packets.push([ts, packet]);
+                ts += 960; // 20ms
+            }
+        } else {
+            // Just one!
+            packets.push([ts, pData]);
+        }
     }
 
     handlePackets();

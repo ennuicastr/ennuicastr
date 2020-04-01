@@ -169,6 +169,9 @@ var wsUrl = (url.protocol==="http:"?"ws":"wss") + "://" + url.hostname + ":" + c
 var useLibAV = false;
 var libavVersion = "1.4.4.2.2";
 
+// Do we need to use mkvdemux.js?
+var useMkvDemuxJS = false;
+
 // Should we be creating FLAC?
 var useFlac = ((config.format&prot.flags.dataTypeMask) === prot.flags.dataType.flac);
 

@@ -222,7 +222,7 @@ function updateWaveRetroactive() {
 // Update the wave display
 function updateWave(value) {
     // Display an issue if we haven't sent recently
-    var sentRecently = (lastSentTime > performance.now()-1000);
+    var sentRecently = (lastSentTime > performance.now()-1500);
     if (sentRecently)
         popStatus("notencoding");
     else
