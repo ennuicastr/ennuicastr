@@ -180,4 +180,4 @@ var useContinuous = !!(config.format&features.continuous);
 var useRTC = !!(config.format&features.rtc);
 
 // If we're in continuous mode, we don't distinguish the degrees of VAD
-if (useContinuous) waveVADColors = waveVADColors.sc;
+if (useContinuous) waveVADColors = waveVADColorSets.sc;
