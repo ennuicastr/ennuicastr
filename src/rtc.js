@@ -50,8 +50,13 @@ function initRTC(peer, start) {
     };
 
     conn.ontrack = function(ev) {
-        if (audioEl)
-            return;
+        if (audioEl) {
+            // Replace it
+            try {
+                audioEl.pause();
+                document.body.removeChild(audioEl);
+            } catch (ex) {}
+        }
 
         audioEl = document.createElement("audio");
         document.body.appendChild(audioEl);
