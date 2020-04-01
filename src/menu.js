@@ -68,6 +68,9 @@ function mkUI(small) {
     // Set up the menu
     createMenu();
 
+    // The user list sub"menu"
+    createUserList();
+
     // The device list submenu
     createDeviceList();
 
@@ -114,6 +117,20 @@ function createMenu() {
         toggleChat();
     };
 
+    // User list, in a hidden span until we get info
+    var uls = dce("span");
+    uls.style.display = "none";
+    menu.appendChild(uls);
+    ui.userList.button = uls;
+    var r = menu;
+    menu = uls;
+    var ul = btn();
+    menu = r;
+    ul.innerHTML = '<i class="fas fa-users"></i>';
+    ul.onclick = function() {
+        toggleUserList();
+    };
+
     // Device list
     var dl = btn();
     dl.innerHTML = '<i class="fas fa-microphone-alt"></i>';
@@ -121,6 +138,97 @@ function createMenu() {
         toggleDeviceList();
     };
 }
+
+
+// Create the user list sub"menu"
+function createUserList() {
+    var wrapper = ui.userList.wrapper = dce("div");
+    ui.userList.visible = false;
+
+    function halfSpan() {
+        var hs = dce("span");
+        hs.classList.add("halfspan");
+        wrapper.appendChild(hs);
+
+        var ret = dce("div");
+        ret.style.padding = "0.5em";
+        hs.appendChild(ret);
+
+        return ret;
+    }
+
+    // Make a left and right half to show the parts in
+    ui.userList.left = halfSpan();
+    ui.userList.right = halfSpan();
+
+    // In case we already made elements for them, add them
+    for (var i = 0; i < ui.userList.els.length; i++) {
+        var el = ui.userList.els[i];
+        if (el)
+            userListAdd(i, el.innerText);
+    }
+}
+
+// Toggle the visibility of the user list sub"menu"
+function toggleUserList(to) {
+    if (typeof to === "undefined")
+        to = !ui.userList.visible;
+
+    if (ui.userList.visible !== to) {
+        if (to) {
+            mkUI().appendChild(ui.userList.wrapper);
+            ui.userList.visible = true;
+        } else {
+            mkUI(true).removeChild(ui.userList.wrapper);
+            ui.userList.visible = false;
+            maybeShrinkUI();
+        }
+    }
+}
+
+// Add a user to the user list
+function userListAdd(idx, name) {
+    // Create the node
+    var els = ui.userList.els;
+    while (els.length <= idx)
+        els.push(null);
+    var el = els[idx];
+    if (!el) {
+        el = els[idx] = dce("div");
+        el.style.backgroundColor = "#000";
+    }
+    el.innerText = name;
+
+    if (!ui.userList.left) return;
+    ui.userList.button.style.display = "";
+
+    // Add it to one side or the other to balance
+    var addTo;
+    if (ui.userList.left.childNodes.length <=
+        ui.userList.right.childNodes.length)
+        addTo = ui.userList.left;
+    else
+        addTo = ui.userList.right;
+    addTo.appendChild(el);
+}
+
+// Remove a user from the user list
+function userListRemove(idx) {
+    var el = ui.userList.els[idx];
+    if (!el) return;
+    els[idx] = null;
+
+    el.parentNode.removeChild(el);
+}
+
+// Update the speaking status of an element in the user list
+function userListUpdate(idx, speaking) {
+    var el = ui.userList.els[idx];
+    if (!el) return;
+
+    el.style.backgroundColor = speaking?"#050":"#000";
+}
+
 
 // Create the device list submenu
 function createDeviceList() {

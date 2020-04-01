@@ -119,6 +119,16 @@ var ui = {
      * goes here (everything below this point) */
     postWrapper: null,
 
+    // The user list and voice status
+    userList: {
+        button: null,
+        wrapper: null,
+        left: null,
+        right: null,
+        visible: false,
+        els: []
+    },
+
     // The wrapper for the device selector
     deviceList: null,
 

@@ -258,6 +258,27 @@ function dataSockMsg(msg) {
             }
             break;
 
+        case prot.ids.user:
+            p = prot.parts.user;
+            var index = msg.getUint32(p.index, true);
+            var status = msg.getUint32(p.status, true);
+            var nick = decodeText(msg.buffer.slice(p.nick));
+
+            // Add it to the UI
+            if (status)
+                userListAdd(index, nick);
+            else
+                userListRemove(index, nick);
+            break;
+
+        case prot.ids.speech:
+            p = prot.parts.speech;
+            var indexStatus = msg.getUint32(p.indexStatus, true);
+            var index = indexStatus>>>1;
+            var status = (indexStatus&1);
+            userListUpdate(index, !!status);
+            break;
+
         case prot.ids.rtc:
             var p = prot.parts.rtc;
             var peer = msg.getUint32(p.peer, true);
