@@ -675,7 +675,7 @@ function libavProcess() {
     var mss = ac.createMediaStreamSource(userMedia);
     /* NOTE: We don't actually care about output, but Chrome won't run a script
      * processor with 0 outputs */
-    var sp = ac.createScriptProcessor(1024, 1, 1);
+    var sp = ac.createScriptProcessor(16384 /* Max: Latency doesn't actually matter in this context */, 1, 1);
     var acdestination = ac.destination;
     sp.connect(acdestination);
 
