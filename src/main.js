@@ -459,6 +459,7 @@ function userMediaSet() {
     } catch (ex) {
         // Try Apple's, and if not that, nothing left to try, so crash
         ac = new webkitAudioContext();
+        alert("NOTE: Ennuicastr currently does not work on Safari! Please try a different browser. We're working on it!");
     }
 
     // Set up the VAD
