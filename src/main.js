@@ -471,7 +471,6 @@ function userMediaSet() {
     } catch (ex) {
         // Try Apple's, and if not that, nothing left to try, so crash
         ac = new webkitAudioContext();
-        alert("NOTE: Ennuicastr currently does not work on Safari! Please try a different browser. We're working on it!");
     }
 
     // Set up the VAD
@@ -611,7 +610,6 @@ function encoderLoaded() {
 // Start the libav encoder
 function libavStart() {
     var libav = LibAV;
-    var mss;
 
     // We need to choose our target sample rate based on the input sample rate and format
     sampleRate = 48000;
@@ -706,12 +704,7 @@ function libavProcess() {
     var tooLittle = inSampleRate * 0.9;
 
     // Start reading the input
-    var mss = ac.createMediaStreamSource(userMedia);
-    /* NOTE: We don't actually care about output, but Chrome won't run a script
-     * processor with 0 outputs */
-    var sp = ac.createScriptProcessor(16384 /* Max: Latency doesn't actually matter in this context */, 1, 1);
-    var acdestination = ac.destination;
-    sp.connect(acdestination);
+    var sp = createScriptProcessor(ac, userMedia, 16384 /* Max: Latency doesn't actually matter in this context */);
 
     // Don't try to process that last sip of data after termination
     var dead = false;
@@ -778,10 +771,10 @@ function libavProcess() {
         });
     }
 
-    mss.connect(sp);
-
     // Terminate the recording
     function terminate() {
+        if (dead)
+            return;
         dead = true;
 
         // Close the encoder
@@ -792,10 +785,6 @@ function libavProcess() {
             return libav.ff_free_encoder(enc.c, enc.frame, enc.pkt);
 
         });
-
-        // And disconnect the ScriptProcessor
-        mss.disconnect(sp);
-        sp.disconnect(acdestination);
     }
 
     // Catch when our UserMedia ends and stop (FIXME: race condition before reloading?)

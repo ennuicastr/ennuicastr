@@ -5,6 +5,7 @@ SRC=src/head.js \
 	src/config.js \
 	src/log.js \
 	src/util.js \
+	src/safari.js \
 	src/vad.js \
 	src/menu.js \
 	src/chat.js \

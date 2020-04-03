@@ -66,13 +66,8 @@ function localProcessing() {
     // The VAD needs packets in odd intervals
     var step = ac.sampleRate / 32000;
 
-    // Set up the audio processor for both VAD and display
-    var mss = ac.createMediaStreamSource(userMedia);
-    /* NOTE: We don't actually care about output, but Chrome won't run a
-     * script processor with 0 outputs */
-    var sp = ac.createScriptProcessor(1024, 1, 1);
-    var acdestination = ac.destination;
-    sp.connect(acdestination);
+    // Create our script processor
+    var sp = createScriptProcessor(ac, userMedia, 1024);
     sp.onaudioprocess = function(ev) {
         var ib = ev.inputBuffer.getChannelData(0);
 
@@ -133,51 +128,44 @@ function localProcessing() {
 
 
         // And display
+        for (var part = 0; part < ib.length; part += 1024) {
+            // Find the max for this range
+            var max = 0;
+            var end = part + 1024;
+            for (var i = part; i < end; i++) {
+                var v = ib[i];
+                if (v < 0) v = -v;
+                if (v > max) max = v;
+            }
 
-        // Find the max for this range
-        var max = 0;
-        var ib = ev.inputBuffer.getChannelData(0);
-        for (var i = 0; i < ib.length; ib++) {
-            var v = ib[i];
-            if (v < 0) v = -v;
-            if (v > max) max = v;
-        }
+            // Bump up surrounding ones to make the wave look nicer
+            if (waveData.length > 0) {
+                var last = waveData.pop();
+                if (last < max)
+                    last = (last+max)/2;
+                else
+                    max = (last+max)/2;
+                waveData.push(last);
+            }
 
-        // Bump up surrounding ones to make the wave look nicer
-        if (waveData.length > 0) {
-            var last = waveData.pop();
-            if (last < max)
-                last = (last+max)/2;
+            waveData.push(max);
+            if (!transmitting)
+                waveVADs.push(0);
+            else if (rawVadOn)
+                waveVADs.push(3);
+            else if (vadOn)
+                waveVADs.push(2);
             else
-                max = (last+max)/2;
-            waveData.push(last);
+                waveVADs.push(1);
         }
 
-        waveData.push(max);
-        if (!transmitting)
-            waveVADs.push(0);
-        else if (rawVadOn)
-            waveVADs.push(3);
-        else if (vadOn)
-            waveVADs.push(2);
-        else
-            waveVADs.push(1);
         updateWave(max);
     };
-    mss.connect(sp);
 
     // Restart if we change devices
     userMediaAvailableEvent.addEventListener("usermediastopped", function() {
-        mss.disconnect(sp);
-        sp.disconnect(acdestination);
         localProcessing();
     }, {once: true});
-
-    ac.addEventListener("disconnected", function() {
-        updateWave(1);
-        mss.disconnect(sp);
-        sp.disconnect(ac.destination);
-    });
 }
 
 // Update the wave display when we retroactively promote VAD data
