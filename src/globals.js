@@ -43,9 +43,12 @@ var masterSock = null;
 // We connect assuming our mode is not-yet-recording
 var mode = prot.mode.init;
 
-// There are a lot of intermediate steps to getting audio from point A to point B
+// The audio device being read, in full and RTC forms
 var userMedia = null; // The microphone input for recording
 var userMediaRTC = null; // The microphone input for RTC
+
+// The video device being read
+var userMediaVideo = null;
 
 /* We need an event target we can use. "usermediaready" fires when userMedia
  * and (if applicable) userMediaRTC are ready. "usermediastopped" fires when
@@ -106,6 +109,8 @@ var waveVADColors = waveVADColorSets.sv;
 
 // The entire user interface
 var ui = {
+    // The video canvas wrapper
+    video: null,
 
     // The display canvas and data
     waveCanvas: null,
@@ -131,6 +136,9 @@ var ui = {
 
     // The wrapper for the device selector
     deviceList: null,
+
+    // The wrapper for the video device selector, if applicable
+    videoDeviceList: null,
 
     // If we've received chat, the box for that
     chatBox: null,

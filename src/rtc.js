@@ -43,30 +43,55 @@ function initRTC(peer, start) {
         iceServers: iceServers,
         iceTransportPolicy: "all"
     });
-    var audioEl = null;
+    var el = null;
 
     conn.onicecandidate = function(c) {
         rtcSignal(peer, prot.rtc.candidate, c.candidate);
     };
 
     conn.ontrack = function(ev) {
-        if (audioEl) {
-            // Replace it
-            try {
-                audioEl.pause();
-                document.body.removeChild(audioEl);
-            } catch (ex) {}
+        var isVideo = (ev.track.kind === "video");
+        mkUI();
+
+        if (el) {
+            // Remember if it's a video track
+            if (isVideo && !ui.video.hasVideo[peer]) {
+                ui.video.hasVideo[peer] = true;
+                updateVideoUI(peer);
+            }
+            return;
         }
 
-        audioEl = document.createElement("audio");
-        document.body.appendChild(audioEl);
-        audioEl.style.position = "absolute";
-        audioEl.style.left = audioEl.style.top = "0px";
-        audioEl.srcObject = ev.streams[0];
-        audioEl.play().then(function() {
+        // Create this element
+        var stream = ev.streams[0];
+        el = dce("video");
+        el.height = 0; // Use CSS for sizing
+        el.style.maxWidth = "100%";
+        el.srcObject = ev.streams[0];
+
+        // Add it to the UI
+        var els = ui.video.els;
+        var hasVideo = ui.video.hasVideo;
+        while (els.length <= peer) {
+            els.push(null);
+            hasVideo.push(false);
+        }
+        els[peer] = el;
+        hasVideo[peer] = isVideo;
+        updateVideoUI(peer, true);
+
+        // Then play it
+        el.play().then(function() {
         }).catch(function(ex) {
             pushStatus("rtc", "Failed to play remote audio!");
         });
+
+        // Prepare for its destruction
+        stream.onremovetrack = function() {
+            var hasTracks = (stream.getTracks().length !== 0);
+            var hasVideo = (stream.getVideoTracks().length !== 0);
+            reassessRTCEl(peer, hasTracks, hasVideo);
+        };
     };
 
     conn.oniceconnectionstatechange = function(ev) {
@@ -92,10 +117,19 @@ function initRTC(peer, start) {
     }
     addTracks();
 
+    // Add video tracks to the connection
+    function addVideoTracks() {
+        userMediaVideo.getTracks().forEach(function(track) {
+            console.log(track);
+            conn.addTrack(track, userMediaRTC);
+        });
+    }
+    if (userMediaVideo)
+        addVideoTracks();
+
     // If we switch UserMedia, we'll need to re-up
     userMediaAvailableEvent.addEventListener("usermediaready", addTracks);
-
-    // FIXME: Closing is handled poorly throughout
+    userMediaAvailableEvent.addEventListener("usermediavideoready", addVideoTracks);
 
     // Initial connection function
     function connect() {
@@ -115,6 +149,33 @@ function initRTC(peer, start) {
     if (start) {
         connect();
     }
+}
+
+// Close an RTC connection when a peer disconnects
+function closeRTC(peer) {
+    var conn = rtcConnections[peer];
+    if (!conn)
+        return;
+    conn.close();
+    reassessRTCEl(peer, false, false);
+}
+
+// Reassess the properties of the RTC element for this peer
+function reassessRTCEl(peer, hasTracks, hasVideo) {
+    var el = ui.video.els[peer];
+    if (!el)
+        return;
+
+    if (!hasTracks) {
+        // Destroy it
+        el.pause();
+        try {
+            el.parentNode.removeChild(el);
+        } catch (ex) {}
+        ui.video.els[peer] = null;
+    }
+    ui.video.hasVideo[peer] = hasVideo;
+    updateVideoUI(peer);
 }
 
 // Notify of a failed RTC connection

@@ -151,6 +151,13 @@ function disconnect(ev) {
         });
         userMediaRTC = null;
     }
+
+    if (userMediaVideo) {
+        userMediaVideo.getTracks().forEach(function(track) {
+            track.stop();
+        });
+        userMediaVideo = null;
+    }
 }
 
 // Ping the ping socket
@@ -217,6 +224,11 @@ function dataSockMsg(msg) {
                     // We may need to start an RTC connection
                     if (useRTC)
                         initRTC(val, (key === prot.info.peerContinuing));
+                    break;
+
+                case prot.info.peerLost:
+                    if (useRTC)
+                        closeRTC(val);
                     break;
 
                 case prot.info.mode:
@@ -429,9 +441,9 @@ function getMic(deviceId) {
                 }
             });
         }
+        return null;
     }).then(function(userMediaIn) {
-        if (useRTC)
-            userMediaRTC = userMediaIn;
+        userMediaRTC = userMediaIn;
         return userMediaSet();
     }).catch(function(err) {
         disconnect();
@@ -1184,6 +1196,57 @@ function flushBuffers() {
         flushTimeout = null;
         flushBuffers();
     }, 1000);
+}
+
+// Get a camera/video device
+function getCamera(id) {
+    return Promise.all([]).then(function() {
+        // If we already have a video device, stop it first
+        if (userMediaVideo) {
+            userMediaVideo.getTracks().forEach(function(track) {
+                track.stop();
+            });
+            userMediaVideo = null;
+        }
+
+        // Now request the new one
+        if (id === "-screen") {
+            // Special pseudo-device: Grab the screen
+            return navigator.mediaDevices.getDisplayMedia({
+                video: true
+            });
+
+        } else if (id === "-none") {
+            // Special pseudo-device: No
+            return null;
+
+        } else {
+            return navigator.mediaDevices.getUserMedia({
+                video: {
+                    deviceId: id,
+                    aspectRatio: {ideal: 16/9},
+                    facingMode: {ideal: "user"},
+                    frameRate: {ideal: 30},
+                    height: {max: 720}
+                }
+            });
+        }
+
+    }).then(function(userMediaIn) {
+        userMediaVideo = userMediaIn;
+        if (userMediaVideo) {
+            // Inform RTC
+            userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediavideoready", {}));
+        }
+
+    }).catch(function(err) {
+        pushStatus("video", "Failed to capture camera!");
+        setTimeout(function() {
+            popStatus("video");
+        }, 10000);
+
+    });
+
 }
 
 // If we're buffering, warn before closing

@@ -63,37 +63,6 @@ function localProcessing() {
     // Now the background is nothing, so should just be grey
     document.body.style.backgroundColor = "#111";
 
-    // Create our watcher image
-    if (!ui.waveWatcher) {
-        var img = dce("img");
-        img.style.display = "none";
-        img.style.position = "absolute";
-        img.style.left = "0px";
-        img.style.top = "0px";
-        img.style.height = "0px"; // Changed automatically when data arrives
-        ui.waveWatcher = img;
-        document.body.appendChild(img);
-
-        // And choose its type based on support
-        function usePng() {
-            img.src = "images/watcher.png";
-            img.style.display = "";
-        }
-        if (!window.createImageBitmap || !window.fetch) {
-            usePng();
-        } else {
-            var sample = "data:image/webp;base64,UklGRh4AAABXRUJQVlA4TBEAAAAvAAAAAAfQ//73v/+BiOh/AAA=";
-            fetch(sample).then(function(res) {
-                return res.blob();
-            }).then(function(blob) {
-                return createImageBitmap(blob)
-            }).then(function() {
-                img.src = "images/watcher.webp";
-                img.style.display = "";
-            }).catch(usePng);
-        }
-    }
-
     // The VAD needs packets in odd intervals
     var step = ac.sampleRate / 32000;
 
@@ -221,6 +190,8 @@ function updateWaveRetroactive() {
 
 // Update the wave display
 function updateWave(value) {
+    var wc = ui.waveCanvas;
+
     // Display an issue if we haven't sent recently
     var sentRecently = (lastSentTime > performance.now()-1500);
     if (sentRecently)
@@ -235,7 +206,8 @@ function updateWave(value) {
         log.offsetHeight;
 
     // If we have any other modules open, shrink the waveform view
-    if (ui.postWrapper.childNodes.length)
+    if (ui.video.main.style.display !== "none" ||
+        ui.postWrapper.childNodes.length)
         h = 160;
 
     // Rotate if our view is vertical
@@ -249,11 +221,11 @@ function updateWave(value) {
             ui.waveWatcher.style.visibility = "";
             ui.waveRotate = false;
         }
+        ui.waveWatcher.style.top = ui.waveCanvas.offsetTop + "px";
         if (h > w/2) h = Math.ceil(w/2);
     }
 
     // Make sure the canvases are correct
-    var wc = ui.waveCanvas;
     if (+wc.width !== w)
         wc.width = w;
     if (+wc.height !== h)
