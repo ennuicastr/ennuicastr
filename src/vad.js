@@ -192,20 +192,11 @@ function localProcessing() {
 
         updateWave(max);
     };
-    mss.connect(sp);
 
     // Restart if we change devices
     userMediaAvailableEvent.addEventListener("usermediastopped", function() {
-        mss.disconnect(sp);
-        sp.disconnect(acdestination);
         localProcessing();
     }, {once: true});
-
-    ac.addEventListener("disconnected", function() {
-        updateWave(1);
-        mss.disconnect(sp);
-        sp.disconnect(ac.destination);
-    });
 }
 
 // Update the wave display when we retroactively promote VAD data

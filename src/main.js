@@ -598,7 +598,6 @@ function encoderLoaded() {
 // Start the libav encoder
 function libavStart() {
     var libav = LibAV;
-    var mss;
 
     // We need to choose our target sample rate based on the input sample rate and format
     sampleRate = 48000;
@@ -762,6 +761,8 @@ function libavProcess() {
 
     // Terminate the recording
     function terminate() {
+        if (dead)
+            return;
         dead = true;
 
         // Close the encoder
