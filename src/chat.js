@@ -132,6 +132,8 @@ function toggleChat(to) {
         maybeShrinkUI();
         ui.chatBox.visible = false;
     }
+
+    reflexUI();
 }
 
 // And make it possible to display it

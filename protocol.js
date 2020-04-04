@@ -110,7 +110,7 @@
             "rtc": {
                 "length": 12,
                 "peer": 4,
-                "type": 8,
+                "type": 8, // High bit is outgoing
                 "value": 12
             },
 

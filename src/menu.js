@@ -17,8 +17,11 @@
 // Make the overall UI, returning the post-waveform wrapper
 function mkUI(small) {
     if (!small) {
-        if (window.innerHeight < 480)
-            window.resizeTo(window.innerWidth, 480);
+        var wanted = 480;
+        if (ui.video.main && ui.video.main.style.display !== "none")
+            wanted += 320;
+        if (window.innerHeight < wanted)
+            window.resizeTo(window.innerWidth, wanted);
     }
 
     if (ui.postWrapper)
@@ -29,6 +32,67 @@ function mkUI(small) {
     outer.style.display = "flex";
     outer.style.flexDirection = "column";
     outer.style.minHeight = window.innerHeight + "px";
+
+    // The video has several elements
+    ui.video = {
+        els: [],
+        hasVideo: [],
+        major: -1,
+        selected: -1,
+        self: null,
+        main: null,
+        side: null
+    };
+
+    // A wrapper for the main video (if visible)
+    var videoMain = ui.video.main = dce("div");
+    videoMain.style.flex = "auto";
+    videoMain.style.display = "none";
+    videoMain.style.flexDirection = "column";
+    videoMain.style.minHeight = "160px";
+    videoMain.style.textAlign = "center";
+    outer.appendChild(videoMain);
+
+    // And for side video
+    var videoSide = ui.video.side = dce("div");
+    videoSide.style.display = "none";
+    videoSide.style.height = "160px";
+    videoSide.style.width = "100%";
+    videoSide.style.overflow = "auto hidden";
+    outer.appendChild(videoSide);
+
+    // And for our own video
+    var selfVideo = ui.video.self = dce("video");
+    ui.video.els.push(selfVideo);
+    ui.video.hasVideo.push(false);
+
+    // Create our watcher image
+    var img = ui.waveWatcher = dce("img");
+    img.style.display = "none";
+    img.style.position = "absolute";
+    img.style.left = "0px";
+    img.style.top = "0px";
+    img.style.height = "0px"; // Changed automatically when data arrives
+    document.body.appendChild(img);
+
+    // And choose its type based on support
+    function usePng() {
+        img.src = "images/watcher.png";
+        img.style.display = "";
+    }
+    if (!window.createImageBitmap || !window.fetch) {
+        usePng();
+    } else {
+        var sample = "data:image/webp;base64,UklGRh4AAABXRUJQVlA4TBEAAAAvAAAAAAfQ//73v/+BiOh/AAA=";
+        fetch(sample).then(function(res) {
+            return res.blob();
+        }).then(function(blob) {
+            return createImageBitmap(blob)
+        }).then(function() {
+            img.src = "images/watcher.webp";
+            img.style.display = "";
+        }).catch(usePng);
+    }
 
     // Make a canvas for the waveform
     ui.waveCanvas = dce("canvas");
@@ -68,11 +132,18 @@ function mkUI(small) {
     // Set up the menu
     createMenu();
 
+    // Set up the video UI
+    updateVideoUI(0, true);
+
     // The user list sub"menu"
     createUserList();
 
     // The device list submenu
     createDeviceList();
+
+    // The video device list submenu
+    if (useRTC)
+        createVideoDeviceList();
 
     // Set up the master interface
     if ("master" in config)
@@ -83,11 +154,144 @@ function mkUI(small) {
 
 // Shrink the UI if there's nothing interesting in it
 function maybeShrinkUI() {
-    if (ui.postWrapper.childNodes.length === 0) {
+    if (!("master" in config) &&
+        ui.video.main.style.display === "none" &&
+        ui.video.side.style.display === "none" &&
+        ui.postWrapper.childNodes.length === 0) {
         var newH = 240 + window.outerHeight - window.innerHeight;
         if (window.innerHeight > 240)
             window.resizeTo(window.innerWidth, newH);
     }
+}
+
+// Re-adjust flex-assigned boxes
+function reflexUI() {
+    var hasFlex = false;
+    if (ui.video.main.style.display === "none") {
+        // Always flex the post wrapper if there's no video
+        hasFlex = true;
+
+    } else {
+        var cns = ui.postWrapper.childNodes;
+        for (var i = 0; i < cns.length; i++) {
+            var cn = cns[i];
+            if (cn.style.display.flex &&
+                cn.style.display.flex.includes("auto")) {
+                hasFlex = true;
+                break;
+            }
+        }
+    }
+
+    // Flex or unflex
+    if (hasFlex)
+        ui.postWrapper.style.flex = "auto";
+    else
+        ui.postWrapper.style.flex = "";
+}
+
+// Update the video UI based on the addition/removal of this peer
+function updateVideoUI(peer, neww) {
+    var el = ui.video.els[peer];
+    var pi;
+
+    if (neww) {
+        function rbg() {
+            return Math.round(Math.random()*0x4);
+        }
+
+        // Totally new peer, set up their videobox
+        el.height = 0; // Use CSS for style
+        el.style.backgroundColor = "#" + rbg() + rbg() + rbg();
+        el.style.flex = "auto";
+
+        // When you click, they become the selected major
+        el.onclick = function() {
+            if (ui.video.selected === peer)
+                ui.video.selected = -1;
+            else
+                ui.video.selected =
+                    ui.video.major =
+                    peer;
+            updateVideoUI(peer);
+        };
+    }
+
+    // We'll only display the video at all if *somebody* has video
+    var hasVideo = ui.video.hasVideo[0], hasRemoteVideo = false;
+    for (pi = 1; pi < ui.video.hasVideo.length; pi++) {
+        if (ui.video.hasVideo[pi]) {
+            hasVideo =
+                hasRemoteVideo = true;
+            break;
+        }
+    }
+
+    if (!hasVideo) {
+        // Nope!
+        ui.video.main.style.display = "none";
+        ui.video.side.style.display = "none";
+        reflexUI();
+        maybeShrinkUI();
+        return;
+    }
+
+    if (!hasRemoteVideo) {
+        // Cannot select without remote video
+        ui.video.selected =
+            ui.video.major = -1;
+    }
+
+    // Displaying video
+    ui.video.main.style.display = (hasRemoteVideo?"flex":"none");
+    ui.video.side.style.display = "";
+
+    // Change any highlighting
+    if (el) {
+        // If we currently have no major, this'll do
+        if (ui.video.major === -1 && peer !== 0 && ui.video.hasVideo[peer])
+            ui.video.major = peer;
+    } else {
+        // If this was the major, it won't do
+        if (ui.video.major === peer)
+            ui.video.major = -1;
+        if (ui.video.selected === peer)
+            ui.video.selected = -1;
+    }
+
+    // First rearrange them all in the side box
+    for (pi = 0; pi < ui.video.els.length; pi++) {
+        el = ui.video.els[pi];
+        if (!el) continue;
+        ui.video.side.appendChild(el);
+        el.style.maxWidth = "214px";
+        el.style.height = "100%";
+    }
+
+    // Remove anything left over highlighted
+    ui.video.main.innerHTML = "";
+
+    // Look for something to highlight
+    if (ui.video.major === -1) {
+        for (pi = 1; pi < ui.video.els.length; pi++) {
+            if (ui.video.hasVideo[pi]) {
+                ui.video.major = pi;
+                break;
+            }
+        }
+    }
+
+    // And highlight it
+    if (ui.video.major !== -1) {
+        el = ui.video.els[ui.video.major];
+        ui.video.main.appendChild(el);
+        el.style.maxWidth = "100%";
+        el.style.height = "";
+    }
+
+    reflexUI();
+    mkUI(); // Just for growth
+    maybeShrinkUI();
 }
 
 // Create the menu
@@ -137,6 +341,15 @@ function createMenu() {
     dl.onclick = function() {
         toggleDeviceList();
     };
+
+    // Video device list
+    if (useRTC) {
+        var vdl = btn();
+        vdl.innerHTML = '<i class="fas fa-video"></i>';
+        vdl.onclick = function() {
+            toggleVideoDeviceList();
+        };
+    }
 }
 
 
@@ -256,7 +469,7 @@ function createDeviceList() {
         selected = userMedia.getTracks()[0].getSettings().deviceId;
     } catch (ex) {}
 
-    // When it's changed, reselct the mic
+    // When it's changed, reselect the mic
     sel.onchange = function() {
         toggleDeviceList(false);
         getMic(sel.value);
@@ -293,6 +506,81 @@ function toggleDeviceList(to) {
         } else {
             mkUI(true).removeChild(ui.deviceList.wrapper);
             ui.deviceList.visible = false;
+            maybeShrinkUI();
+        }
+    }
+}
+
+
+// Create the video device list submenu
+function createVideoDeviceList() {
+    if (!userMedia) {
+        // Wait until we can know full names
+        userMediaAvailableEvent.addEventListener("usermediaready", createVideoDeviceList, {once: true});
+        return;
+    }
+
+    // Make the main wrapper
+    ui.videoDeviceList = {};
+    var wrapper = ui.videoDeviceList.wrapper = dce("div");
+    ui.videoDeviceList.visible = false;
+
+    var lbl = dce("Label");
+    lbl.htmlFor = "video-device-list";
+    lbl.innerText = "Camera: ";
+    wrapper.appendChild(lbl);
+
+    var sel = dce("select");
+    sel.id = "video-device-list";
+    wrapper.appendChild(sel);
+
+    // When it's changed, start video
+    sel.onchange = function() {
+        toggleVideoDeviceList(false);
+        getCamera(sel.value);
+    };
+
+    // Add a pseudo-device so nothing is selected at first
+    var opt = dce("option");
+    opt.innerText = "None";
+    opt.value = "-none";
+    sel.appendChild(opt);
+
+    // Fill it with the available devices
+    navigator.mediaDevices.enumerateDevices().then(function(devices) {
+        var ctr = 1;
+        devices.forEach(function(dev) {
+            if (dev.kind !== "videoinput") return;
+
+            // Create an option for this
+            var opt = dce("option");
+            var label = dev.label || ("Camera " + ctr++);
+            opt.innerText = label;
+            opt.value = dev.deviceId;
+            sel.appendChild(opt);
+        });
+
+        // Add a special pseudo-device for screen capture
+        var opt = dce("option");
+        opt.innerText = "Capture screen";
+        opt.value = "-screen";
+        sel.appendChild(opt);
+
+    }).catch(function() {}); // Nothing really to do here
+}
+
+// Toggle the visibility of the video device list submenu
+function toggleVideoDeviceList(to) {
+    if (typeof to === "undefined")
+        to = !ui.videoDeviceList.visible;
+
+    if (ui.videoDeviceList.visible !== to) {
+        if (to) {
+            mkUI().appendChild(ui.videoDeviceList.wrapper);
+            ui.videoDeviceList.visible = true;
+        } else {
+            mkUI(true).removeChild(ui.videoDeviceList.wrapper);
+            ui.videoDeviceList.visible = false;
             maybeShrinkUI();
         }
     }
