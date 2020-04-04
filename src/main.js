@@ -1224,7 +1224,7 @@ function getCamera(id) {
                     aspectRatio: {ideal: 16/9},
                     facingMode: {ideal: "user"},
                     frameRate: {ideal: 30},
-                    height: {max: 720}
+                    height: {ideal: 720}
                 }
             });
         }
