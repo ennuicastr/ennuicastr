@@ -44,8 +44,6 @@ function createSafariScriptProcessor(ac, ms, bufferSize) {
 
     var sp = ac.ecSafariScriptProcessors[ms.id];
     if (!sp) {
-        alert("Safari workarounds");
-
         // Create our script processor with a compromise buffer size
         sp = ac.ecSafariScriptProcessors[ms.id] =
             ac.createScriptProcessor(4096, 1, 1);
