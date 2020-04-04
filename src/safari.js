@@ -44,9 +44,14 @@ function createSafariScriptProcessor(ac, ms, bufferSize) {
 
     var sp = ac.ecSafariScriptProcessors[ms.id];
     if (!sp) {
+        // Choose the older name if necessary
+        var name = "createScriptProcessor";
+        if (!ac[name])
+            name = "createJavaScriptNode";
+
         // Create our script processor with a compromise buffer size
         sp = ac.ecSafariScriptProcessors[ms.id] =
-            ac.createScriptProcessor(4096, 1, 1);
+            ac[name](4096, 1, 1);
 
         // Keep track of who's using it
         sp.ecUsers = [];
