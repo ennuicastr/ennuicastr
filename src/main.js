@@ -478,7 +478,7 @@ function userMediaSet() {
     // Which solution we need depends on browser support
     useLibAV = false;
     useMkvDemux = false;
-    if (useFlac) {
+    if (useFlac || !Blob.prototype.arrayBuffer) {
         // Always need libav for this
         useLibAV = true;
     } else if (typeof MediaRecorder === "undefined") {
