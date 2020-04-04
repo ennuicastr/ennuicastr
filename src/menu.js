@@ -38,7 +38,10 @@ function mkUI(small) {
         els: [],
         hasVideo: [],
         major: -1,
-        selected: -1
+        selected: -1,
+        self: null,
+        main: null,
+        side: null
     };
 
     // A wrapper for the main video (if visible)
@@ -59,7 +62,7 @@ function mkUI(small) {
     outer.appendChild(videoSide);
 
     // And for our own video
-    var selfVideo = dce("video");
+    var selfVideo = ui.video.self = dce("video");
     ui.video.els.push(selfVideo);
     ui.video.hasVideo.push(false);
 
@@ -215,10 +218,11 @@ function updateVideoUI(peer, neww) {
     }
 
     // We'll only display the video at all if *somebody* has video
-    var hasVideo = false;
-    for (pi = 0; pi < ui.video.hasVideo.length; pi++) {
+    var hasVideo = ui.video.hasVideo[0], hasRemoteVideo = false;
+    for (pi = 1; pi < ui.video.hasVideo.length; pi++) {
         if (ui.video.hasVideo[pi]) {
-            hasVideo = true;
+            hasVideo =
+                hasRemoteVideo = true;
             break;
         }
     }
@@ -232,14 +236,20 @@ function updateVideoUI(peer, neww) {
         return;
     }
 
+    if (!hasRemoteVideo) {
+        // Cannot select without remote video
+        ui.video.selected =
+            ui.video.major = -1;
+    }
+
     // Displaying video
-    ui.video.main.style.display = "flex";
+    ui.video.main.style.display = (hasRemoteVideo?"flex":"none");
     ui.video.side.style.display = "";
 
     // Change any highlighting
     if (el) {
         // If we currently have no major, this'll do
-        if (ui.video.major === -1 && peer !== 0)
+        if (ui.video.major === -1 && peer !== 0 && ui.video.hasVideo[peer])
             ui.video.major = peer;
     } else {
         // If this was the major, it won't do

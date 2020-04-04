@@ -73,7 +73,10 @@ var flushTimeout = null;
 var sampleRate = 48000;
 
 // Our RTC peer connections
-var rtcConnections = {};
+var rtcConnections = {
+    outgoing: {},
+    incoming: {}
+};
 
 // WebRTCVAD's raw output
 var rawVadOn = false;

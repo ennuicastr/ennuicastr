@@ -222,8 +222,10 @@ function dataSockMsg(msg) {
                 case prot.info.peerInitial:
                 case prot.info.peerContinuing:
                     // We may need to start an RTC connection
-                    if (useRTC)
-                        initRTC(val, (key === prot.info.peerContinuing));
+                    if (useRTC) {
+                        initRTC(val, false);
+                        initRTC(val, true);
+                    }
                     break;
 
                 case prot.info.peerLost:
@@ -294,16 +296,25 @@ function dataSockMsg(msg) {
         case prot.ids.rtc:
             var p = prot.parts.rtc;
             var peer = msg.getUint32(p.peer, true);
-            var conn = rtcConnections[peer];
+            var type = msg.getUint32(p.type, true);
+            var conn, outgoing;
+            if (type & 0x80000000) {
+                // For *their* outgoing connection
+                conn = rtcConnections.incoming[peer];
+                outgoing = false;
+            } else {
+                conn = rtcConnections.outgoing[peer];
+                outgoing = true;
+            }
             if (!conn)
                 break;
 
-            var type = msg.getUint32(p.type, true);
             var value = JSON.parse(decodeText(msg.buffer.slice(p.value)));
 
-            switch (type) {
+            switch (type&0x7F) {
                 case prot.rtc.candidate:
-                    conn.addIceCandidate(value);
+                    if (value && value.candidate)
+                        conn.addIceCandidate(value);
                     break;
 
                 case prot.rtc.offer:
@@ -314,7 +325,7 @@ function dataSockMsg(msg) {
                         return conn.setLocalDescription(answer);
 
                     }).then(function() {
-                        rtcSignal(peer, prot.rtc.answer, conn.localDescription);
+                        rtcSignal(peer, outgoing, prot.rtc.answer, conn.localDescription);
 
                     }).catch(function(ex) {
                         pushStatus("rtc", "RTC connection failed!");
@@ -915,7 +926,6 @@ function opusDemux(opusFrame) {
                 // Constant-sized
                 // FIXME
                 var len = Math.floor((opusFrame.length - padding - p) / frameCt);
-                console.log(opusFrame.length + " " + p + " " + padding + " ... " + len);
                 for (var i = 0; i < frameCt; i++)
                     sizes.push(len);
             }
@@ -1030,8 +1040,6 @@ function handleMkvData(endTime) {
     while ((el = mkvDemuxer.demux()) !== null) {
         if (el.frames)
             frames = frames.concat(el.frames);
-        if (el.track)
-            console.log(el.track);
     }
     if (frames.length === 0) return;
 
@@ -1223,13 +1231,26 @@ function getCamera(id) {
 
     }).then(function(userMediaIn) {
         userMediaVideo = userMediaIn;
+        mkUI(true);
         if (userMediaVideo) {
             // Inform RTC
             userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediavideoready", {}));
+
+            // And update the display
+            ui.video.self.srcObject = userMediaVideo;
+            ui.video.self.play().catch(function(){});
+            ui.video.hasVideo[0] = true;
+
+        } else {
+            // No video :(
+            ui.video.self.srcObject = null;
+            ui.video.hasVideo[0] = false;
+
         }
+        updateVideoUI(0, false);
 
     }).catch(function(err) {
-        pushStatus("video", "Failed to capture camera!");
+        pushStatus("video", "Failed to capture video!");
         setTimeout(function() {
             popStatus("video");
         }, 10000);
