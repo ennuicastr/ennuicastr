@@ -72,10 +72,19 @@ function initRTC(peer, outgoing) {
                 stream.removeTrack(otrack);
         });
 
-        if (el) {
-            // Remember if it's a video track
+        // Prepare for tracks to end
+        stream.onremovetrack = function() {
             el.srcObject = stream;
             el.play().catch(function(){});
+            el = reassessRTCEl(peer, !!stream.getTracks().length, !!stream.getVideoTracks().length);
+        };
+
+        if (el) {
+            // Reset the stream
+            el.srcObject = stream;
+            el.play().catch(function(){});
+
+            // Remember if it's a video track
             if (isVideo && !ui.video.hasVideo[peer]) {
                 ui.video.hasVideo[peer] = true;
                 updateVideoUI(peer, false);
@@ -122,7 +131,7 @@ function initRTC(peer, outgoing) {
     };
 
     // Add each track to the connection
-    function addTracks(ev) {
+    function addTracks() {
         userMedia.getTracks().forEach(function(track) {
             conn.addTrack(track, userMedia);
         });
@@ -131,7 +140,7 @@ function initRTC(peer, outgoing) {
         addTracks();
 
     // Add video tracks to the connection
-    function addVideoTracks(ev) {
+    function addVideoTracks() {
         userMediaVideo.getTracks().forEach(function(track) {
             conn.addTrack(track, userMedia);
         });
@@ -139,16 +148,41 @@ function initRTC(peer, outgoing) {
     if (outgoing && userMediaVideo)
         addVideoTracks();
 
+    // Remove any inactive tracks from the connection
+    function removeTracks() {
+        // Figure out which tracks should stay
+        var tracks = {};
+        function listTracks(from) {
+            from.getTracks().forEach(function(track) {
+                tracks[track.id] = true;
+            });
+        }
+        if (userMedia) listTracks(userMedia);
+        if (userMediaVideo) listTracks(userMediaVideo);
+
+        // Then remove any tracks that should go
+        conn.getSenders().forEach(function(sender) {
+            var track = sender.track;
+            if (!track) return;
+            if (!tracks[track.id])
+                conn.removeTrack(sender);
+        });
+    }
+
     // If we switch UserMedia, we'll need to re-up
     if (outgoing) {
         userMediaAvailableEvent.addEventListener("usermediaready", addTracks);
         userMediaAvailableEvent.addEventListener("usermediavideoready", addVideoTracks);
+        userMediaAvailableEvent.addEventListener("usermediastopped", removeTracks);
+        userMediaAvailableEvent.addEventListener("usermediavideostopped", removeTracks);
 
         conn.onsignalingstatechange = function() {
             if (conn.signalingState === "closed") {
                 // Don't send any new events
                 userMediaAvailableEvent.removeEventListener("usermediaready", addTracks);
                 userMediaAvailableEvent.removeEventListener("usermediavideoready", addVideoTracks);
+                userMediaAvailableEvent.removeEventListener("usermediastopped", removeTracks);
+                userMediaAvailableEvent.removeEventListener("usermediavideostopped", removeTracks);
             }
         };
     }
@@ -172,10 +206,12 @@ function initRTC(peer, outgoing) {
 
 // Close an RTC connection when a peer disconnects
 function closeRTC(peer) {
-    var conn = rtcConnections[peer];
-    if (!conn)
-        return;
-    conn.close();
+    ["outgoing", "incoming"].forEach(function(group) {
+        var conn = rtcConnections[group][peer];
+        if (!conn)
+            return;
+        conn.close();
+    });
     reassessRTCEl(peer, false, false);
 }
 
@@ -183,7 +219,7 @@ function closeRTC(peer) {
 function reassessRTCEl(peer, hasTracks, hasVideo) {
     var el = ui.video.els[peer];
     if (!el)
-        return;
+        return null;
 
     if (!hasTracks) {
         // Destroy it
@@ -191,10 +227,11 @@ function reassessRTCEl(peer, hasTracks, hasVideo) {
         try {
             el.parentNode.removeChild(el);
         } catch (ex) {}
-        ui.video.els[peer] = null;
+        el = ui.video.els[peer] = null;
     }
     ui.video.hasVideo[peer] = hasVideo;
     updateVideoUI(peer, false);
+    return el;
 }
 
 // Notify of a failed RTC connection

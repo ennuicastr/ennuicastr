@@ -1180,6 +1180,7 @@ function getCamera(id) {
                 track.stop();
             });
             userMediaVideo = null;
+            userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediavideostopped", {}));
         }
 
         // Now request the new one
