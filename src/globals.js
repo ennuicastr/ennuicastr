@@ -43,16 +43,15 @@ var masterSock = null;
 // We connect assuming our mode is not-yet-recording
 var mode = prot.mode.init;
 
-// The audio device being read, in full and RTC forms
-var userMedia = null; // The microphone input for recording
-var userMediaRTC = null; // The microphone input for RTC
+// The audio device being read
+var userMedia = null;
 
 // The video device being read
 var userMediaVideo = null;
 
-/* We need an event target we can use. "usermediaready" fires when userMedia
- * and (if applicable) userMediaRTC are ready. "usermediastopped" fires when
- * they stop. */
+/* We need an event target we can use. "usermediaready" fires when userMedia is
+ * ready. "usermediastopped" fires when it stops. "usermediavideoready" fires
+ * when video is ready. */
 var userMediaAvailableEvent;
 try {
     userMediaAvailableEvent = new EventTarget();

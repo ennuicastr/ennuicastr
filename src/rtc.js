@@ -28,8 +28,8 @@ function rtcSignal(peer, outgoing, type, value) {
 
 // Initialize a connection to an RTC peer
 function initRTC(peer, outgoing) {
-    if (!userMediaRTC) {
-        // We need userMediaRTC to even start this process
+    if (!userMedia) {
+        // We need userMedia to even start this process
         userMediaAvailableEvent.addEventListener("usermediaready", function() {
             initRTC(peer, outgoing);
         }, {once: true});
@@ -123,8 +123,8 @@ function initRTC(peer, outgoing) {
 
     // Add each track to the connection
     function addTracks(ev) {
-        userMediaRTC.getTracks().forEach(function(track) {
-            conn.addTrack(track, userMediaRTC);
+        userMedia.getTracks().forEach(function(track) {
+            conn.addTrack(track, userMedia);
         });
     }
     if (outgoing)
@@ -133,7 +133,7 @@ function initRTC(peer, outgoing) {
     // Add video tracks to the connection
     function addVideoTracks(ev) {
         userMediaVideo.getTracks().forEach(function(track) {
-            conn.addTrack(track, userMediaRTC);
+            conn.addTrack(track, userMedia);
         });
     }
     if (outgoing && userMediaVideo)

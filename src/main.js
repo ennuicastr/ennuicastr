@@ -145,13 +145,6 @@ function disconnect(ev) {
         userMedia = null;
     }
 
-    if (userMediaRTC) {
-        userMediaRTC.getTracks().forEach(function (track) {
-            track.stop();
-        });
-        userMediaRTC = null;
-    }
-
     if (userMediaVideo) {
         userMediaVideo.getTracks().forEach(function(track) {
             track.stop();
@@ -420,10 +413,6 @@ function getMic(deviceId) {
     popStatus("conn");
 
     // First get rid of any active sources
-    if (userMediaRTC) {
-        userMediaRTC.getTracks().forEach(function(track) { track.stop(); });
-        userMediaRTC = null;
-    }
     if (userMedia) {
         userMedia.getTracks().forEach(function(track) { track.stop(); });
         userMedia = null;
@@ -442,19 +431,6 @@ function getMic(deviceId) {
         }
     }).then(function(userMediaIn) {
         userMedia = userMediaIn;
-        if (useRTC) {
-            return navigator.mediaDevices.getUserMedia({
-                audio: {
-                    deviceId: deviceId,
-                    autoGainControl: plzno, // In some setups, this will affect the recording gain
-                    echoCancellation: plzno, // This would mask a real problem in recording if yes
-                    noiseSuppression: plzyes
-                }
-            });
-        }
-        return null;
-    }).then(function(userMediaIn) {
-        userMediaRTC = userMediaIn;
         return userMediaSet();
     }).catch(function(err) {
         disconnect();
