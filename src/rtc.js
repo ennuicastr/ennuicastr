@@ -28,14 +28,6 @@ function rtcSignal(peer, outgoing, type, value) {
 
 // Initialize a connection to an RTC peer
 function initRTC(peer, outgoing) {
-    if (!userMedia) {
-        // We need userMedia to even start this process
-        userMediaAvailableEvent.addEventListener("usermediaready", function() {
-            initRTC(peer, outgoing);
-        }, {once: true});
-        return;
-    }
-
     // Which set are we in?
     var group;
     if (outgoing)
@@ -136,7 +128,7 @@ function initRTC(peer, outgoing) {
             conn.addTrack(track, userMedia);
         });
     }
-    if (outgoing)
+    if (outgoing && userMedia)
         addTracks();
 
     // Add video tracks to the connection
