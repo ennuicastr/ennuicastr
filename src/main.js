@@ -485,11 +485,13 @@ function userMediaSet() {
         useLibAV = true;
     } else if (!MediaRecorder.isTypeSupported("audio/ogg; codecs=opus")) {
         // We'll need at least demuxing
-        if (MediaRecorder.isTypeSupported("audio/webm; codecs=opus")) {
+        /* FIXME: This seems to be causing memory issues on Chrome, so use
+         * libav */
+        /*if (MediaRecorder.isTypeSupported("audio/webm; codecs=opus")) {
             useMkvDemux = true;
-        } else {
+        } else {*/
             useLibAV = true;
-        }
+        //}
     } else {
         // No extras needed!
     }
