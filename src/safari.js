@@ -16,7 +16,7 @@
 
 // Safari-specific workarounds for scriptProcessor
 function createScriptProcessor(ac, ms, bufferSize) {
-    if (typeof AudioContext === "undefined")
+    if (typeof webkitAudioContext !== "undefined")
         return createSafariScriptProcessor(ac, ms, bufferSize);
 
     // All other browsers
