@@ -70,11 +70,11 @@ function createSafariScriptProcessor(ac, ms, bufferSize) {
         mss.connect(sp);
 
         // And disconnect it when user media stops
-        userMediaAvailableEvent.addEventListener("usermediasatopped", function() {
+        userMediaAvailableEvent.addEventListener("usermediastopped", function() {
             mss.disconnect(sp);
             sp.disconnect(acdestination);
             delete ac.ecSafariScriptProcessors[ms.id];
-        });
+        }, {once: true});
     }
 
     // Now create the user object for this

@@ -453,11 +453,13 @@ function userMediaSet() {
     // Check whether we should be using WebAssembly
     var wa = isWebAssemblySupported();
 
-    try {
-        ac = new AudioContext();
-    } catch (ex) {
-        // Try Apple's, and if not that, nothing left to try, so crash
-        ac = new webkitAudioContext();
+    if (!ac) {
+        try {
+            ac = new AudioContext();
+        } catch (ex) {
+            // Try Apple's, and if not that, nothing left to try, so crash
+            ac = new webkitAudioContext();
+        }
     }
 
     // Set up the VAD
