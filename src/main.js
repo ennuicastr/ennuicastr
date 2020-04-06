@@ -500,11 +500,23 @@ function userMediaSet() {
 
     // At this point, we want to start catching errors
     window.addEventListener("error", function(error) {
-        var errBuf = encodeText(error.error + "\n\n" + error.error.stack);
-        var out = new DataView(new ArrayBuffer(4 + errBuf.length));
-        out.setUint32(0, prot.ids.error, true);
-        new Uint8Array(out.buffer).set(errBuf, 4);
-        dataSock.send(out.buffer);
+        errorHandler(error.error + "\n\n" + error.error.stack);
+    });
+
+    window.addEventListener("unhandledrejection", function(error) {
+        error = error.reason;
+        if (error instanceof Error) {
+            errorHandler(error + "\n\n" + error.stack);
+        } else {
+            var msg;
+            try {
+                msg = JSON.stringify(error);
+            } catch (ex) {
+                msg = error+"";
+            }
+            msg += "\n\n" + new Error().stack;
+            errorHandler(msg);
+        }
     });
 
     // Load anything we need
@@ -678,6 +690,7 @@ function libavStart() {
 
     }).catch(function(ex) {
         pushStatus("libaverr", "Encoding error: " + ex);
+        errorHandler(ex);
 
     });
 }
@@ -758,6 +771,7 @@ function libavProcess() {
 
         }).catch(function(ex) {
             pushStatus("libaverr", "Encoding error: " + ex);
+            errorHandler(ex);
 
         });
     }
@@ -1239,6 +1253,16 @@ function getCamera(id) {
     });
 
 }
+
+// Generic phone-home error handler
+function errorHandler(error) {
+    var errBuf = encodeText(error + "\n\n" + navigator.userAgent);
+    var out = new DataView(new ArrayBuffer(4 + errBuf.length));
+    out.setUint32(0, prot.ids.error, true);
+    new Uint8Array(out.buffer).set(errBuf, 4);
+    dataSock.send(out.buffer);
+}
+
 
 // If we're buffering, warn before closing
 window.onbeforeunload = function() {
