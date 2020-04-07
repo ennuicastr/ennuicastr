@@ -462,6 +462,10 @@ function userMediaSet() {
         }
     }
 
+    /* On Safari on mobile devices, AudioContexts start paused, and sometimes
+     * need to be unpaused directly in an event handler. Check if it's paused,
+     * and unpause it either out of or in a button handler. */
+
     return Promise.all([]).then(function() {
         if (ac.state !== "running") {
             // Try to just activate it
