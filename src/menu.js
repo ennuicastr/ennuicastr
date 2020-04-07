@@ -37,6 +37,7 @@ function mkUI(small) {
     ui.video = {
         els: [],
         hasVideo: [],
+        speech: {},
         major: -1,
         selected: -1,
         self: null,
@@ -190,10 +191,10 @@ function reflexUI() {
         ui.postWrapper.style.flex = "";
 }
 
-// Update the video UI based on the addition/removal of this peer
+// Update the video UI based on new information about this peer
 function updateVideoUI(peer, neww) {
     var el = ui.video.els[peer];
-    var pi;
+    var pi, prevMajor = ui.video.major;
 
     if (neww) {
         function rbg() {
@@ -204,6 +205,8 @@ function updateVideoUI(peer, neww) {
         el.height = 0; // Use CSS for style
         el.style.backgroundColor = "#" + rbg() + rbg() + rbg();
         el.style.flex = "auto";
+        el.style.boxSizing = "border-box";
+        el.style.border = "4px solid #000";
 
         // When you click, they become the selected major
         el.onclick = function() {
@@ -211,18 +214,16 @@ function updateVideoUI(peer, neww) {
                 ui.video.selected = -1;
             else
                 ui.video.selected =
-                    ui.video.major =
                     peer;
-            updateVideoUI(peer);
+            updateVideoUI(peer, false);
         };
     }
 
     // We'll only display the video at all if *somebody* has video
-    var hasVideo = ui.video.hasVideo[0], hasRemoteVideo = false;
-    for (pi = 1; pi < ui.video.hasVideo.length; pi++) {
+    var hasVideo = false;
+    for (pi = 0; pi < ui.video.hasVideo.length; pi++) {
         if (ui.video.hasVideo[pi]) {
-            hasVideo =
-                hasRemoteVideo = true;
+            hasVideo = true;
             break;
         }
     }
@@ -236,22 +237,12 @@ function updateVideoUI(peer, neww) {
         return;
     }
 
-    if (!hasRemoteVideo) {
-        // Cannot select without remote video
-        ui.video.selected =
-            ui.video.major = -1;
-    }
-
     // Displaying video
-    ui.video.main.style.display = (hasRemoteVideo?"flex":"none");
+    ui.video.main.style.display = "flex";
     ui.video.side.style.display = "";
 
-    // Change any highlighting
-    if (el) {
-        // If we currently have no major, this'll do
-        if (ui.video.major === -1 && peer !== 0 && ui.video.hasVideo[peer])
-            ui.video.major = peer;
-    } else {
+    // Don't let them be the major if they're gone
+    if (!el) {
         // If this was the major, it won't do
         if (ui.video.major === peer)
             ui.video.major = -1;
@@ -259,27 +250,65 @@ function updateVideoUI(peer, neww) {
             ui.video.selected = -1;
     }
 
-    // First rearrange them all in the side box
-    for (pi = 0; pi < ui.video.els.length; pi++) {
-        el = ui.video.els[pi];
-        if (!el) continue;
-        ui.video.side.appendChild(el);
-        el.style.maxWidth = "214px";
-        el.style.height = "100%";
+    // Perhaps there's already something selected
+    if (ui.video.selected !== -1) {
+        ui.video.major = ui.video.selected;
+
+    } else if (ui.video.major === 0 ||
+               !(ui.video.major in ui.video.speech)) {
+        // Otherwise, choose a major based on speech
+        var speech = ui.video.speech;
+        var earliest = 0;
+        for (pi = 1; pi < ui.video.els.length; pi++) {
+            if (pi in speech && (earliest === 0 || speech[pi] < speech[earliest]))
+                earliest = pi;
+        }
+        if (earliest !== 0)
+            ui.video.major = earliest;
     }
 
-    // Remove anything left over highlighted
-    ui.video.main.innerHTML = "";
+    if (el) {
+        // If we currently have no major, this'll do
+        if (ui.video.major === -1 && peer !== 0)
+            ui.video.major = peer;
+    }
 
-    // Look for something to highlight
+    // If we still have no major, just choose one
     if (ui.video.major === -1) {
-        for (pi = 1; pi < ui.video.els.length; pi++) {
-            if (ui.video.hasVideo[pi]) {
+        for (pi = ui.video.els.length - 1; pi >= 0; pi--) {
+            if (ui.video.els[pi]) {
                 ui.video.major = pi;
                 break;
             }
         }
     }
+
+    // First rearrange them all in the side box
+    for (pi = 0; pi < ui.video.els.length; pi++) {
+        el = ui.video.els[pi];
+        if (!el) continue;
+
+        var selected = (ui.video.selected === pi);
+        if (pi in ui.video.speech)
+            el.style.borderColor = selected?"#090":"#5e8f52";
+        else
+            el.style.borderColor = selected?"#999":"#000";
+
+        if (ui.video.major === pi) continue;
+        if (el.parentNode !== ui.video.side) {
+            ui.video.side.appendChild(el);
+            el.style.maxWidth = "214px";
+            el.style.height = "100%";
+        }
+    }
+
+    if (ui.video.major === prevMajor) {
+        // No need to change the major
+        return;
+    }
+
+    // Remove anything left over highlighted
+    ui.video.main.innerHTML = "";
 
     // And highlight it
     if (ui.video.major !== -1) {

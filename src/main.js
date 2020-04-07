@@ -1301,6 +1301,9 @@ function getCamera(id) {
 
 // Update speech info everywhere that needs it. peer===null is self
 function updateSpeech(peer, status) {
+    // In video, to avoid races, peer 0 is us, not selfId
+    var vpeer = peer;
+
     if (peer === null) {
         // Set the VAD
         vadOn = status;
@@ -1308,12 +1311,19 @@ function updateSpeech(peer, status) {
         // Send the update to all RTC peers
         rtcSpeech(status);
         peer = selfId;
+        vpeer = 0;
     }
 
     // Update the user list
     userListUpdate(peer, status);
 
-    // FIXME: Update video display
+    // Update video speech info
+    if (!ui.video) return;
+    if (status)
+        ui.video.speech[vpeer] = performance.now();
+    else
+        delete ui.video.speech[vpeer];
+    updateVideoUI(vpeer, false);
 }
 
 // Generic phone-home error handler
