@@ -212,6 +212,11 @@ function dataSockMsg(msg) {
             var key = msg.getUint32(p.key, true);
             var val = msg.getUint32(p.value, true);
             switch (key) {
+                case prot.info.id:
+                    // Our own ID
+                    selfId = val;
+                    break;
+
                 case prot.info.peerInitial:
                 case prot.info.peerContinuing:
                     // We may need to start an RTC connection
@@ -279,6 +284,10 @@ function dataSockMsg(msg) {
             break;
 
         case prot.ids.speech:
+            if (useRTC) {
+                // Handled through RTC
+                break;
+            }
             p = prot.parts.speech;
             var indexStatus = msg.getUint32(p.indexStatus, true);
             var index = indexStatus>>>1;
@@ -1288,6 +1297,23 @@ function getCamera(id) {
 
     });
 
+}
+
+// Update speech info everywhere that needs it. peer===null is self
+function updateSpeech(peer, status) {
+    if (peer === null) {
+        // Set the VAD
+        vadOn = status;
+
+        // Send the update to all RTC peers
+        rtcSpeech(status);
+        peer = selfId;
+    }
+
+    // Update the user list
+    userListUpdate(peer, status);
+
+    // FIXME: Update video display
 }
 
 // Generic phone-home error handler

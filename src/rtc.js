@@ -179,6 +179,24 @@ function initRTC(peer, outgoing) {
         };
     }
 
+    // Make a data channel for speech status
+    if (outgoing) {
+        var chan = conn.ecDataChannel = conn.createDataChannel("ennuicastr");
+        chan.binaryType = "arraybuffer";
+        chan.onopen = function() {
+            rtcSpeech(vadOn, peer);
+        };
+
+    } else {
+        conn.ondatachannel = function(ev) {
+            ev.channel.binaryType = "arraybuffer";
+            ev.channel.onmessage = function(msg) {
+                msg = new DataView(msg.data);
+                rtcMessage(peer, msg);
+            };
+        };
+    }
+
     // Outgoing negotiation function
     function connect() {
         conn.createOffer().then(function(offer) {
@@ -224,6 +242,49 @@ function reassessRTCEl(peer, hasTracks, hasVideo) {
     ui.video.hasVideo[peer] = hasVideo;
     updateVideoUI(peer, false);
     return el;
+}
+
+// Receive a data channel message from an RTC peer
+function rtcMessage(peer, msg) {
+    if (msg.byteLength < 4) return;
+    var cmd = msg.getUint32(0, true);
+
+    switch (cmd) {
+        case prot.ids.speech:
+            // User speech status
+            var p = prot.parts.speech;
+            if (msg.byteLength < p.length) return;
+            var status = !!msg.getUint32(p.indexStatus, true);
+            updateSpeech(peer, status);
+            break;
+    }
+}
+
+// Send a speech message to every RTC peer, or a specific peer
+function rtcSpeech(status, peer) {
+    if (!useRTC) return;
+
+    // Build the message
+    var p = prot.parts.speech;
+    var msg = new DataView(new ArrayBuffer(p.length));
+    msg.setUint32(0, prot.ids.speech, true);
+    msg.setUint32(p.indexStatus, status?1:0, true);
+    msg = msg.buffer;
+
+    // Maybe just send it to the specified peer
+    if (typeof peer !== "undefined") {
+        try {
+            rtcConnections.outgoing[peer].ecDataChannel.send(msg);
+        } catch (ex) {}
+        return;
+    }
+
+    // Send it everywhere
+    for (peer in rtcConnections.outgoing) {
+        try {
+            rtcConnections.outgoing[peer].ecDataChannel.send(msg);
+        } catch (ex) {}
+    }
 }
 
 // Notify of a failed RTC connection

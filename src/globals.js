@@ -40,6 +40,9 @@ var pingSock = null;
 var dataSock = null;
 var masterSock = null;
 
+// Our own ID
+var selfId = 0;
+
 // We connect assuming our mode is not-yet-recording
 var mode = prot.mode.init;
 

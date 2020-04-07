@@ -109,9 +109,11 @@ function localProcessing() {
                 }
                 if (!rawVadOn) {
                     // We flipped on
-                    if (!vadOn)
+                    if (!vadOn) {
                         updateWaveRetroactive();
-                    rawVadOn = vadOn = true;
+                        updateSpeech(null, true);
+                    }
+                    rawVadOn = true;
                     curVadVolume = curVadTime = 0;
                 }
             }
@@ -120,8 +122,8 @@ function localProcessing() {
             rawVadOn = false;
             if (!timeout) {
                 timeout = setTimeout(function() {
-                    vadOn = false;
                     timeout = null;
+                    updateSpeech(null, false);
                 }, vadExtension);
             }
         }
