@@ -385,6 +385,7 @@ function createMenu() {
 // Create the user list sub"menu"
 function createUserList() {
     var wrapper = ui.userList.wrapper = dce("div");
+    wrapper.classList.add("row");
     ui.userList.visible = false;
 
     function halfSpan() {
@@ -483,6 +484,7 @@ function createDeviceList() {
     // Make the main wrapper
     ui.deviceList = {};
     var wrapper = ui.deviceList.wrapper = dce("div");
+    wrapper.classList.add("row");
     ui.deviceList.visible = false;
 
     var lbl = dce("Label");
@@ -552,6 +554,7 @@ function createVideoDeviceList() {
     // Make the main wrapper
     ui.videoDeviceList = {};
     var wrapper = ui.videoDeviceList.wrapper = dce("div");
+    wrapper.classList.add("row");
     ui.videoDeviceList.visible = false;
 
     var lbl = dce("Label");
