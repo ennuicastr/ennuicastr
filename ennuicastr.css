@@ -43,7 +43,7 @@ a {
     border: solid 1px;
 }
 
-button, .button {
+button:not(.plain), .button {
     -moz-transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
     -webkit-transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
     -ms-transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
@@ -62,7 +62,7 @@ button, .button {
     white-space: nowrap;
 }
 
-button:hover, .button:hover {
+button:not(.plain):hover, .button:hover {
     background-color: #055;
 }
 

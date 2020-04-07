@@ -462,101 +462,133 @@ function userMediaSet() {
         }
     }
 
-    // Set up the VAD
-    if (typeof WebRtcVad === "undefined") {
-        WebRtcVad = {
-            onRuntimeInitialized: localProcessing
-        };
-        var scr = dce("script");
-        scr.async = true;
-        scr.src = "vad/vad" + (wa?".wasm":"") + ".js";
-        document.body.appendChild(scr);
-    }
-
-    // If the UI hasn't been created yet, now's the time
-    mkUI(true);
-
-    // Which solution we need depends on browser support
-    useLibAV = false;
-    useMkvDemux = false;
-    if (useFlac || !Blob.prototype.arrayBuffer) {
-        // Always need libav for this
-        useLibAV = true;
-    } else if (typeof MediaRecorder === "undefined") {
-        // No built-in encoding
-        useLibAV = true;
-    } else if (!MediaRecorder.isTypeSupported("audio/ogg; codecs=opus")) {
-        // We'll need at least demuxing
-        /* FIXME: This seems to be causing memory issues on Chrome, so use
-         * libav */
-        /*if (MediaRecorder.isTypeSupported("audio/webm; codecs=opus")) {
-            useMkvDemux = true;
-        } else {*/
-            useLibAV = true;
-        //}
-    } else {
-        // No extras needed!
-    }
-
-    // At this point, we want to start catching errors
-    window.addEventListener("error", function(error) {
-        errorHandler(error.error + "\n\n" + error.error.stack);
-    });
-
-    window.addEventListener("unhandledrejection", function(error) {
-        error = error.reason;
-        if (error instanceof Error) {
-            errorHandler(error + "\n\n" + error.stack);
-        } else {
-            var msg;
-            try {
-                msg = JSON.stringify(error);
-            } catch (ex) {
-                msg = error+"";
-            }
-            msg += "\n\n" + new Error().stack;
-            errorHandler(msg);
+    return Promise.all([]).then(function() {
+        if (ac.state !== "running") {
+            // Try to just activate it
+            return ac.resume();
         }
-    });
 
-    // Load anything we need
-    return new Promise(function(res, rej) {
-        if (useLibAV) {
-            // Load it
-            if (typeof LibAV === "undefined")
-                LibAV = {};
-            if (LibAV.ready) {
-                // Already loaded!
-                return res();
-            }
-            LibAV.base = "libav";
-            var scr = dce("script");
-            scr.addEventListener("load", function() {
-                if (LibAV.ready)
-                    res();
-                else
-                    LibAV.onready = res;
+    }).then(function() {
+        if (ac.state !== "running") {
+            return new Promise(function(res, rej) {
+                // This browser won't let us resume an AudioContext outside of an event handler
+                var btn = dce("button");
+                btn.classList.add("plain");
+                btn.style.position = "absolute";
+                btn.style.left = "1%";
+                btn.style.top = "1%";
+                btn.style.width = "98%";
+                btn.style.height = "98%";
+                btn.innerText = "Begin recording audio";
+                document.body.appendChild(btn);
+
+                btn.onclick = function() {
+                    ac.resume().then(res).catch(res);
+                    document.body.removeChild(btn);
+                };
             });
-            scr.addEventListener("error", rej);
-            scr.src = "libav/libav-" + libavVersion + "-opus-flac.js";
-            scr.async = true;
-            document.body.appendChild(scr);
-
-        } else if (useMkvDemux) {
-            if (typeof mkvdemuxjs !== "undefined")
-                return res();
-            var scr = dce("script");
-            scr.addEventListener("load", res);
-            scr.addEventListener("error", rej);
-            scr.src = "mkvdemux.min.js";
-            scr.async = true;
-            document.body.appendChild(scr);
-
-        } else {
-            res();
-
         }
 
+    }).then(function() {
+        if (ac.state !== "running")
+            pushStatus("audiocontext", "Cannot capture audio! State: " + ac.state);
+
+        // Set up the VAD
+        if (typeof WebRtcVad === "undefined") {
+            WebRtcVad = {
+                onRuntimeInitialized: localProcessing
+            };
+            var scr = dce("script");
+            scr.async = true;
+            scr.src = "vad/vad" + (wa?".wasm":"") + ".js";
+            document.body.appendChild(scr);
+        }
+
+        // If the UI hasn't been created yet, now's the time
+        mkUI(true);
+
+        // Which solution we need depends on browser support
+        useLibAV = false;
+        useMkvDemux = false;
+        if (useFlac || !Blob.prototype.arrayBuffer) {
+            // Always need libav for this
+            useLibAV = true;
+        } else if (typeof MediaRecorder === "undefined") {
+            // No built-in encoding
+            useLibAV = true;
+        } else if (!MediaRecorder.isTypeSupported("audio/ogg; codecs=opus")) {
+            // We'll need at least demuxing
+            /* FIXME: This seems to be causing memory issues on Chrome, so use
+             * libav */
+            /*if (MediaRecorder.isTypeSupported("audio/webm; codecs=opus")) {
+                useMkvDemux = true;
+            } else {*/
+                useLibAV = true;
+            //}
+        } else {
+            // No extras needed!
+        }
+
+        // At this point, we want to start catching errors
+        window.addEventListener("error", function(error) {
+            errorHandler(error.error + "\n\n" + error.error.stack);
+        });
+
+        window.addEventListener("unhandledrejection", function(error) {
+            error = error.reason;
+            if (error instanceof Error) {
+                errorHandler(error + "\n\n" + error.stack);
+            } else {
+                var msg;
+                try {
+                    msg = JSON.stringify(error);
+                } catch (ex) {
+                    msg = error+"";
+                }
+                msg += "\n\n" + new Error().stack;
+                errorHandler(msg);
+            }
+        });
+
+        // Load anything we need
+        return new Promise(function(res, rej) {
+            if (useLibAV) {
+                // Load it
+                if (typeof LibAV === "undefined")
+                    LibAV = {};
+                if (LibAV.ready) {
+                    // Already loaded!
+                    return res();
+                }
+                LibAV.base = "libav";
+                var scr = dce("script");
+                scr.addEventListener("load", function() {
+                    if (LibAV.ready)
+                        res();
+                    else
+                        LibAV.onready = res;
+                });
+                scr.addEventListener("error", rej);
+                scr.src = "libav/libav-" + libavVersion + "-opus-flac.js";
+                scr.async = true;
+                document.body.appendChild(scr);
+
+            } else if (useMkvDemux) {
+                if (typeof mkvdemuxjs !== "undefined")
+                    return res();
+                var scr = dce("script");
+                scr.addEventListener("load", res);
+                scr.addEventListener("error", rej);
+                scr.src = "mkvdemux.min.js";
+                scr.async = true;
+                document.body.appendChild(scr);
+
+            } else {
+                res();
+
+            }
+
+        });
     }).then(encoderLoaded);
 }
 
