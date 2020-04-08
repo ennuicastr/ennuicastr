@@ -262,13 +262,34 @@ function updateWave(value) {
         ctx.rotate(Math.PI/2);
         ctx.translate(0, -2*h);
     }
+
+    // A function for drawing our level warning bars
+    function levelBar(at, color) {
+        if (dh <= at) return;
+        var y = at/dh * h;
+        ctx.fillStyle = color;
+        ctx.fillRect(0, h-y-1, w, 1);
+        ctx.fillRect(0, h+y, w, 1);
+    }
+
+    // Background color
     ctx.fillStyle = "#033";
     ctx.fillRect(0, 0, w, h*2);
+
+    // Level bar at 0.4% for "too soft"
+    levelBar(0.004, "#333");
+
+    // Each column
     for (i = 0, p = 0; i < dw; i++, p += sw) {
+        // Note: 54.598150033 is just a magic number such that ln(x)==4
         var d = Math.max(Math.log((waveData[i] / dh) * 54.598150033) / 4, 0) * h;
         if (d === 0) d = 1;
         ctx.fillStyle = good ? waveVADColors[waveVADs[i]] : "#000";
         ctx.fillRect(p, h-d, sw, 2*d);
     }
+
+    // Level bar at 90% for "too loud"
+    levelBar(0.9, "#700");
+
     ctx.restore();
 }
