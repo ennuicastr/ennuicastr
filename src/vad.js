@@ -178,6 +178,9 @@ function updateWaveRetroactive() {
         waveVADs[i] = (waveVADs[i] === 1) ? 2 : waveVADs[i];
 }
 
+// Constant used by updateWave
+var e4 = Math.exp(4);
+
 // Update the wave display
 function updateWave(value) {
     var wc = ui.waveCanvas;
@@ -266,7 +269,7 @@ function updateWave(value) {
     // A function for drawing our level warning bars
     function levelBar(at, color) {
         if (dh <= at) return;
-        var y = at/dh * h;
+        var y = Math.log(at/dh * e4) / 4 * h;
         ctx.fillStyle = color;
         ctx.fillRect(0, h-y-1, w, 1);
         ctx.fillRect(0, h+y, w, 1);
@@ -281,8 +284,7 @@ function updateWave(value) {
 
     // Each column
     for (i = 0, p = 0; i < dw; i++, p += sw) {
-        // Note: 54.598150033 is just a magic number such that ln(x)==4
-        var d = Math.max(Math.log((waveData[i] / dh) * 54.598150033) / 4, 0) * h;
+        var d = Math.max(Math.log((waveData[i] / dh) * e4) / 4, 0) * h;
         if (d === 0) d = 1;
         ctx.fillStyle = good ? waveVADColors[waveVADs[i]] : "#000";
         ctx.fillRect(p, h-d, sw, 2*d);
