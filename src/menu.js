@@ -142,9 +142,11 @@ function mkUI(small) {
     // The device list submenu
     createDeviceList();
 
-    // The video device list submenu
-    if (useRTC)
+    // The output and video device list submenu
+    if (useRTC) {
+        createOutputDeviceList();
         createVideoDeviceList();
+    }
 
     // Set up the master interface
     if ("master" in config)
@@ -207,6 +209,8 @@ function updateVideoUI(peer, neww) {
         el.style.flex = "auto";
         el.style.boxSizing = "border-box";
         el.style.border = "4px solid #000";
+        if (outputDeviceId)
+            el.setSinkId(outputDeviceId);
 
         // When you click, they become the selected major
         el.onclick = function() {
@@ -370,6 +374,15 @@ function createMenu() {
     dl.onclick = function() {
         toggleDeviceList();
     };
+
+    // Output device list
+    if (useRTC) {
+        var odl = btn();
+        odl.innerHTML = '<i class="fas fa-headphones-alt"></i>';
+        odl.onclick = function() {
+            toggleOutputDeviceList();
+        };
+    }
 
     // Video device list
     if (useRTC) {
@@ -616,4 +629,132 @@ function toggleVideoDeviceList(to) {
             maybeShrinkUI();
         }
     }
+}
+
+// Create the video device list submenu
+function createVideoDeviceList() {
+    if (!userMedia) {
+        // Wait until we can know full names
+        userMediaAvailableEvent.addEventListener("usermediaready", createVideoDeviceList, {once: true});
+        return;
+    }
+
+    // Make the main wrapper
+    ui.videoDeviceList = {};
+    var wrapper = ui.videoDeviceList.wrapper = dce("div");
+    wrapper.classList.add("row");
+    ui.videoDeviceList.visible = false;
+
+    var lbl = dce("Label");
+    lbl.htmlFor = "video-device-list";
+    lbl.innerText = "Camera: ";
+    wrapper.appendChild(lbl);
+
+    var sel = dce("select");
+    sel.id = "video-device-list";
+    wrapper.appendChild(sel);
+
+    // When it's changed, start video
+    sel.onchange = function() {
+        toggleVideoDeviceList(false);
+        getCamera(sel.value);
+    };
+
+    // Add a pseudo-device so nothing is selected at first
+    var opt = dce("option");
+    opt.innerText = "None";
+    opt.value = "-none";
+    sel.appendChild(opt);
+
+    // Fill it with the available devices
+    navigator.mediaDevices.enumerateDevices().then(function(devices) {
+        var ctr = 1;
+        devices.forEach(function(dev) {
+            if (dev.kind !== "videoinput") return;
+
+            // Create an option for this
+            var opt = dce("option");
+            var label = dev.label || ("Camera " + ctr++);
+            opt.innerText = label;
+            opt.value = dev.deviceId;
+            sel.appendChild(opt);
+        });
+
+        // Add a special pseudo-device for screen capture
+        var opt = dce("option");
+        opt.innerText = "Capture screen";
+        opt.value = "-screen";
+        sel.appendChild(opt);
+
+    }).catch(function() {}); // Nothing really to do here
+}
+
+// Toggle the visibility of the output device list submenu
+function toggleOutputDeviceList(to) {
+    if (typeof to === "undefined")
+        to = !ui.outputDeviceList.visible;
+
+    if (ui.outputDeviceList.visible !== to) {
+        if (to) {
+            mkUI().appendChild(ui.outputDeviceList.wrapper);
+            ui.outputDeviceList.visible = true;
+        } else {
+            mkUI(true).removeChild(ui.outputDeviceList.wrapper);
+            ui.outputDeviceList.visible = false;
+            maybeShrinkUI();
+        }
+    }
+}
+
+// Create the output device list submenu
+function createOutputDeviceList() {
+    if (!userMedia) {
+        // Wait until we can know full names
+        userMediaAvailableEvent.addEventListener("usermediaready", createOutputDeviceList, {once: true});
+        return;
+    }
+
+    // Make the main wrapper
+    ui.outputDeviceList = {};
+    var wrapper = ui.outputDeviceList.wrapper = dce("div");
+    wrapper.classList.add("row");
+    ui.outputDeviceList.visible = false;
+
+    var lbl = dce("Label");
+    lbl.htmlFor = "output-device-list";
+    lbl.innerText = "Output: ";
+    wrapper.appendChild(lbl);
+
+    var sel = dce("select");
+    sel.id = "output-device-list";
+    wrapper.appendChild(sel);
+
+    // When it's changed, start output
+    sel.onchange = function() {
+        if (sel.value === "-none") return;
+        toggleOutputDeviceList(false);
+        setOutputDevice(sel.value);
+    };
+
+    // Add a pseudo-device so nothing is selected at first
+    var opt = dce("option");
+    opt.innerText = "-";
+    opt.value = "-none";
+    sel.appendChild(opt);
+
+    // Fill it with the available devices
+    navigator.mediaDevices.enumerateDevices().then(function(devices) {
+        var ctr = 1;
+        devices.forEach(function(dev) {
+            if (dev.kind !== "audiooutput") return;
+
+            // Create an option for this
+            var opt = dce("option");
+            var label = dev.label || ("Output " + ctr++);
+            opt.innerText = label;
+            opt.value = dev.deviceId;
+            sel.appendChild(opt);
+        });
+
+    }).catch(function() {}); // Nothing really to do here
 }

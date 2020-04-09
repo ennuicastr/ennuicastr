@@ -1319,6 +1319,21 @@ function getCamera(id) {
 
 }
 
+// Set the output device
+function setOutputDevice(deviceId) {
+    // Set it as the default
+    outputDeviceId = deviceId;
+
+    // Set it on all currently active outputs
+    var p = Promise.all([]);
+    ui.video.els.forEach(function(el) {
+        if (!el) return;
+        p = p.then(function() {
+            return el.setSinkId(deviceId);
+        });
+    });
+}
+
 // Update speech info everywhere that needs it. peer===null is self
 function updateSpeech(peer, status) {
     // In video, to avoid races, peer 0 is us, not selfId

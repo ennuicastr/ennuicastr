@@ -80,6 +80,9 @@ var rtcConnections = {
     incoming: {}
 };
 
+// Our output device, if it's been explicitly chosen
+var outputDeviceId = null;
+
 // WebRTCVAD's raw output
 var rawVadOn = false;
 
@@ -141,6 +144,9 @@ var ui = {
 
     // The wrapper for the device selector
     deviceList: null,
+
+    // The wrapper for the output device selector
+    outputDeviceList: null,
 
     // The wrapper for the video device selector, if applicable
     videoDeviceList: null,
