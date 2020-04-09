@@ -269,6 +269,7 @@ function updateWave(value) {
 
     // Figure out the height of the display
     var dh = Math.min(Math.max.apply(Math, waveData) * 1.5, 1);
+    if (dh < 0.06) dh = 0.06; // Make sure the too-quiet bars are always visible
 
     // Figure out whether it should be colored at all
     var good = connected && transmitting && timeOffset && sentRecently;
