@@ -10,6 +10,10 @@
     </head>
     <body>
         <div id="log"></div>
-        <script type="text/javascript" src="ennuicastr-test.js"></script>
+        <script type="text/javascript">(function() {
+            var scr = document.createElement("script");
+            scr.src = "ennuicastr-test.js?v=" + Math.random() + Math.random() + Math.random();
+            document.body.appendChild(scr);
+        })();</script>
     </body>
 </html>
