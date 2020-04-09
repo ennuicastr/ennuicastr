@@ -685,6 +685,23 @@ function libavStart() {
         }
     }
 
+    // Figure out our channel layout based on the number of channels
+    var channelLayout = 4;
+    var channelCount = ~~(userMedia.getAudioTracks()[0].getSettings().channelCount);
+    switch (channelCount) {
+        case 0:
+        case 1:
+            channelCount = 1;
+            channelLayout = 4; // Mono
+            break;
+        case 2:
+            channelLayout = 3; // Stereo
+            break;
+        default:
+            // Just give a vaguely-sensible value
+            channelLayout = Math.pow(2, channelCount) - 1;
+    }
+
     // Determine our encoder options
     var encOptions = {
         sample_rate: sampleRate,
@@ -700,7 +717,7 @@ function libavStart() {
     }
 
     // Begin initializing the encoder
-    libavEncoder = {};
+    libavEncoder = {input_channel_layout: channelLayout};
     return libav.ff_init_encoder(useFlac?"flac":"libopus", encOptions, 1, sampleRate).then(function(ret) {
 
         libavEncoder.codec = ret[0];
@@ -712,8 +729,8 @@ function libavStart() {
         // Now make the filter
         return libav.ff_init_filter_graph("aresample", {
             sample_rate: ac.sampleRate,
-            sample_fmt: libav.AV_SAMPLE_FMT_FLT,
-            channel_layout: 4
+            sample_fmt: libav.AV_SAMPLE_FMT_FLTP,
+            channel_layout: channelLayout
         }, {
             sample_rate: encOptions.sample_rate,
             sample_fmt: encOptions.sample_fmt,
@@ -764,16 +781,19 @@ function libavProcess() {
 
         // Determine the data timing
         var now = performance.now();
-        var ib = ev.inputBuffer.getChannelData(0);
+        var channelCount = ev.inputBuffer.numberOfChannels;
+        var ib = new Array(channelCount);
+        for (var ci = 0; ci < channelCount; ci++)
+            ib[ci] = ev.inputBuffer.getChannelData(ci);
         var pktTime = Math.round(
             (now - startTime) * 48 -
-            (ib.length * 48000 / inSampleRate)
+            (ib[0].length * 48000 / inSampleRate)
         );
 
         // Count it
         var ctrStart = now - 1000;
-        pktCounter.push([now, ib.length]);
-        dataReceived += ib.length;
+        pktCounter.push([now, ib[0].length]);
+        dataReceived += ib[0].length;
         if (pktCounter[0][0] < ctrStart) {
             while (pktCounter[0][0] < ctrStart) {
                 dataReceived -= pktCounter[0][1];
@@ -789,12 +809,12 @@ function libavProcess() {
         // Put it in libav's format
         var frames = [{
             data: ib,
-            channel_layout: 4,
-            format: libav.AV_SAMPLE_FMT_FLT,
+            channel_layout: libavEncoder.input_channel_layout,
+            format: libav.AV_SAMPLE_FMT_FLTP,
             pts: pts,
             sample_rate: inSampleRate
         }];
-        pts += ib.length;
+        pts += ib[0].length;
 
         // Wait for any previous filtering
         enc.p = enc.p.then(function() {

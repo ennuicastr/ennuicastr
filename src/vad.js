@@ -69,7 +69,23 @@ function localProcessing() {
     // Create our script processor
     var sp = createScriptProcessor(ac, userMedia, 1024);
     sp.onaudioprocess = function(ev) {
+        // Merge together the channels
         var ib = ev.inputBuffer.getChannelData(0);
+        var cc = ev.inputBuffer.numberOfChannels;
+        if (cc !== 1) {
+            ib = ib.slice(0);
+
+            // Mix it
+            for (var i = 1; i < cc; i++) {
+                var ibc = ev.inputBuffer.getChannelData(i);
+                for (var j = 0; j < ib.length; j++)
+                    ib[j] += ibc[j];
+            }
+
+            // Then temper it
+            for (var i = 0; i < ib.length; i++)
+                ib[i] /= cc;
+        }
 
         // Transfer data for the VAD
         var vadSet = rawVadOn;
