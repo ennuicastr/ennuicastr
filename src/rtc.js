@@ -67,14 +67,14 @@ function initRTC(peer, outgoing) {
         // Prepare for tracks to end
         stream.onremovetrack = function() {
             el.srcObject = stream;
-            el.play().catch(function(){});
+            playRTCEl(el);
             el = reassessRTCEl(peer, !!stream.getTracks().length, !!stream.getVideoTracks().length);
         };
 
         if (el) {
             // Reset the stream
             el.srcObject = stream;
-            el.play().catch(function(){});
+            playRTCEl(el);
 
             // Remember if it's a video track
             if (isVideo && !ui.video.hasVideo[peer]) {
@@ -102,10 +102,7 @@ function initRTC(peer, outgoing) {
         updateVideoUI(peer, true);
 
         // Then play it
-        el.play().then(function() {
-        }).catch(function(ex) {
-            pushStatus("rtc", "Failed to play remote audio!");
-        });
+        playRTCEl(el);
     };
 
     conn.oniceconnectionstatechange = function(ev) {
@@ -242,6 +239,22 @@ function reassessRTCEl(peer, hasTracks, hasVideo) {
     ui.video.hasVideo[peer] = hasVideo;
     updateVideoUI(peer, false);
     return el;
+}
+
+// Play an element used by RTC, once that's possible
+function playRTCEl(el) {
+    if (!userMedia) {
+        /* Although our own UserMedia isn't technically needed to play, it's
+         * needed to *auto*play on many platforms, so wait for it. */
+        userMediaAvailableEvent.addEventListener("usermediaready", function() {
+            playRTCEl(el);
+        }, {once: true});
+        return;
+    }
+
+    el.play().catch(function(ex) {
+        pushStatus("rtc", "Failed to play remote audio!");
+    });
 }
 
 // Receive a data channel message from an RTC peer
