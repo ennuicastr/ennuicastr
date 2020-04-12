@@ -151,6 +151,17 @@ function disconnect(ev) {
         });
         userMediaVideo = null;
     }
+
+    for (var id in rtcConnections.outgoing) {
+        try {
+            rtcConnections.outgoing[id].close();
+        } catch (ex) {}
+    }
+    for (var id in rtcConnections.incoming) {
+        try {
+            rtcConnections.incoming[id].close();
+        } catch (ex) {}
+    }
 }
 
 // Ping the ping socket
