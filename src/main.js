@@ -769,6 +769,10 @@ function libavProcess() {
     var pktCounter = [];
     var tooLittle = inSampleRate * 0.9;
 
+    // And if our latency is too high
+    enc.latency = 0;
+    enc.latencyDump = false;
+
     // Start reading the input
     var sp = createScriptProcessor(ac, userMedia, 16384 /* Max: Latency doesn't actually matter in this context */);
 
@@ -785,9 +789,10 @@ function libavProcess() {
         var ib = new Array(channelCount);
         for (var ci = 0; ci < channelCount; ci++)
             ib[ci] = ev.inputBuffer.getChannelData(ci);
+        var pktLen = (ib[0].length * 48000 / inSampleRate);
         var pktTime = Math.round(
             (now - startTime) * 48 -
-            (ib[0].length * 48000 / inSampleRate)
+            pktLen
         );
 
         // Count it
@@ -804,6 +809,30 @@ function libavProcess() {
             } else {
                 popStatus("toolittle");
             }
+        }
+
+        // Check for latency
+        if (enc.latency > 1000) {
+            // Maybe report it
+            if (enc.latency > 2000)
+                pushStatus("latency", "Encoding is buffering. " + Math.ceil(enc.latency/1000) + " seconds of audio buffered.");
+
+            // Choose whether to dump audio
+            if (!enc.latencyDump)
+                enc.latencyDump = (enc.latency > 1500);
+
+            if (!vadOn && enc.latencyDump) {
+                // VAD is off, so lose some data to try to eliminate latency
+                enc.latency -= (pktLen/48);
+
+                // Don't let the display get independently concerned about this
+                lastSentTime = now;
+                return;
+            }
+        } else {
+            if (enc.latencyDump)
+                enc.latencyDump = false;
+            popStatus("latency");
         }
 
         // Put it in libav's format
@@ -833,6 +862,9 @@ function libavProcess() {
                 pktTime += 960; // 20ms
             }
             handlePackets();
+
+            // Look for latency problems
+            enc.latency = performance.now() - now;
 
         }).catch(function(ex) {
             pushStatus("libaverr", "Encoding error: " + ex);
