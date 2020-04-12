@@ -17,7 +17,7 @@
 // "Log" is really status (whoops), and in order to control that we keep a status index
 var curStatus = {};
 function pushStatus(id, text) {
-    if (id in curStatus) return;
+    if (id in curStatus && curStatus[id] === text) return;
     curStatus[id] = text;
     updateStatus();
 }
