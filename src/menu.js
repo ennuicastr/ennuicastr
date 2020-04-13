@@ -453,6 +453,7 @@ function userListAdd(idx, name) {
         el.style.backgroundColor = "#000";
     }
     el.innerText = name;
+    el.setAttribute("aria-label", name + ": Not speaking");
 
     if (!ui.userList.left) return;
     ui.userList.button.style.display = "";
@@ -482,6 +483,7 @@ function userListUpdate(idx, speaking) {
     if (!el) return;
 
     el.style.backgroundColor = speaking?"#050":"#000";
+    el.setAttribute("aria-label", el.innerText + ": " + (speaking?"Speaking":"Not speaking"));
 }
 
 

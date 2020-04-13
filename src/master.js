@@ -366,13 +366,18 @@ function updateMasterSpeech() {
         if (!status) continue;
         var div = masterUI.speechB[i];
 
-        var color;
-        if (!status.online)
+        var color, aria;
+        if (!status.online) {
             color = "#333";
-        else if (status.speaking)
+            aria = "Disconnected";
+        } else if (status.speaking) {
             color = "#050";
-        else
+            aria = "Receiving";
+        } else {
             color = "#000";
+            aria = "Not receiving";
+        }
         div.style.backgroundColor = color;
+        div.setAttribute("aria-label", status.nick + ": " + aria);
     }
 }
