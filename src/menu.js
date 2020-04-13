@@ -337,9 +337,13 @@ function createMenu() {
         menu.appendChild(spc);
     }
 
-    function btn() {
+    function btn(label, aria) {
         var btn = dce("button");
         btn.classList.add("menubutton");
+
+        btn.innerHTML = '<i class="fas fa-' + label + '"></i>';
+        btn.setAttribute("aria-label", aria);
+
         menu.appendChild(btn);
         spacer();
         return btn;
@@ -348,8 +352,7 @@ function createMenu() {
     // Make buttons for our main actions
 
     // Open/close chat mode
-    var chat = btn();
-    chat.innerHTML = '<i class="fas fa-keyboard"></i>';
+    var chat = btn("keyboard", "Chat");
     chat.onclick = function() {
         toggleChat();
     };
@@ -361,24 +364,21 @@ function createMenu() {
     ui.userList.button = uls;
     var r = menu;
     menu = uls;
-    var ul = btn();
+    var ul = btn("users", "User list");
     menu = r;
-    ul.innerHTML = '<i class="fas fa-users"></i>';
     ul.onclick = function() {
         toggleUserList();
     };
 
     // Device list
-    var dl = btn();
-    dl.innerHTML = '<i class="fas fa-microphone-alt"></i>';
+    var dl = btn("microphone-alt", "Microphone selector");
     dl.onclick = function() {
         toggleDeviceList();
     };
 
     // Output device list
     if (useRTC) {
-        var odl = btn();
-        odl.innerHTML = '<i class="fas fa-headphones-alt"></i>';
+        var odl = btn("headphones-alt", "Output selector");
         odl.onclick = function() {
             toggleOutputDeviceList();
         };
@@ -386,8 +386,7 @@ function createMenu() {
 
     // Video device list
     if (useRTC) {
-        var vdl = btn();
-        vdl.innerHTML = '<i class="fas fa-video"></i>';
+        var vdl = btn("video", "Camera selector");
         vdl.onclick = function() {
             toggleVideoDeviceList();
         };

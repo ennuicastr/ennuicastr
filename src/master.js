@@ -85,6 +85,7 @@ function createMasterInterface() {
 
     var ilc = masterUI.inviteCopy = dce("button");
     ilc.innerHTML = '<i class="fas fa-clipboard"></i>';
+    ilc.setAttribute("aria-label", "Copy invite link");
     ilc.onclick = masterCopyInvite;
     ifbox.appendChild(ilc);
 
