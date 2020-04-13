@@ -506,7 +506,7 @@ function createDeviceList() {
     lbl.innerText = "Input device: ";
     wrapper.appendChild(lbl);
 
-    var sel = dce("select");
+    var sel = ui.deviceList.select = dce("select");
     sel.id = "device-list";
     wrapper.appendChild(sel);
     var selected = null;
@@ -547,6 +547,7 @@ function toggleDeviceList(to) {
     if (ui.deviceList.visible !== to) {
         if (to) {
             mkUI().appendChild(ui.deviceList.wrapper);
+            ui.deviceList.select.focus();
             ui.deviceList.visible = true;
         } else {
             mkUI(true).removeChild(ui.deviceList.wrapper);
@@ -576,7 +577,7 @@ function createVideoDeviceList() {
     lbl.innerText = "Camera: ";
     wrapper.appendChild(lbl);
 
-    var sel = dce("select");
+    var sel = ui.videoDeviceList.select = dce("select");
     sel.id = "video-device-list";
     wrapper.appendChild(sel);
 
@@ -623,85 +624,11 @@ function toggleVideoDeviceList(to) {
     if (ui.videoDeviceList.visible !== to) {
         if (to) {
             mkUI().appendChild(ui.videoDeviceList.wrapper);
+            ui.videoDeviceList.select.focus();
             ui.videoDeviceList.visible = true;
         } else {
             mkUI(true).removeChild(ui.videoDeviceList.wrapper);
             ui.videoDeviceList.visible = false;
-            maybeShrinkUI();
-        }
-    }
-}
-
-// Create the video device list submenu
-function createVideoDeviceList() {
-    if (!userMedia) {
-        // Wait until we can know full names
-        userMediaAvailableEvent.addEventListener("usermediaready", createVideoDeviceList, {once: true});
-        return;
-    }
-
-    // Make the main wrapper
-    ui.videoDeviceList = {};
-    var wrapper = ui.videoDeviceList.wrapper = dce("div");
-    wrapper.classList.add("row");
-    ui.videoDeviceList.visible = false;
-
-    var lbl = dce("Label");
-    lbl.htmlFor = "video-device-list";
-    lbl.innerText = "Camera: ";
-    wrapper.appendChild(lbl);
-
-    var sel = dce("select");
-    sel.id = "video-device-list";
-    wrapper.appendChild(sel);
-
-    // When it's changed, start video
-    sel.onchange = function() {
-        toggleVideoDeviceList(false);
-        getCamera(sel.value);
-    };
-
-    // Add a pseudo-device so nothing is selected at first
-    var opt = dce("option");
-    opt.innerText = "None";
-    opt.value = "-none";
-    sel.appendChild(opt);
-
-    // Fill it with the available devices
-    navigator.mediaDevices.enumerateDevices().then(function(devices) {
-        var ctr = 1;
-        devices.forEach(function(dev) {
-            if (dev.kind !== "videoinput") return;
-
-            // Create an option for this
-            var opt = dce("option");
-            var label = dev.label || ("Camera " + ctr++);
-            opt.innerText = label;
-            opt.value = dev.deviceId;
-            sel.appendChild(opt);
-        });
-
-        // Add a special pseudo-device for screen capture
-        var opt = dce("option");
-        opt.innerText = "Capture screen";
-        opt.value = "-screen";
-        sel.appendChild(opt);
-
-    }).catch(function() {}); // Nothing really to do here
-}
-
-// Toggle the visibility of the output device list submenu
-function toggleOutputDeviceList(to) {
-    if (typeof to === "undefined")
-        to = !ui.outputDeviceList.visible;
-
-    if (ui.outputDeviceList.visible !== to) {
-        if (to) {
-            mkUI().appendChild(ui.outputDeviceList.wrapper);
-            ui.outputDeviceList.visible = true;
-        } else {
-            mkUI(true).removeChild(ui.outputDeviceList.wrapper);
-            ui.outputDeviceList.visible = false;
             maybeShrinkUI();
         }
     }
@@ -726,7 +653,7 @@ function createOutputDeviceList() {
     lbl.innerText = "Output: ";
     wrapper.appendChild(lbl);
 
-    var sel = dce("select");
+    var sel = ui.outputDeviceList.select = dce("select");
     sel.id = "output-device-list";
     wrapper.appendChild(sel);
 
@@ -758,4 +685,22 @@ function createOutputDeviceList() {
         });
 
     }).catch(function() {}); // Nothing really to do here
+}
+
+// Toggle the visibility of the output device list submenu
+function toggleOutputDeviceList(to) {
+    if (typeof to === "undefined")
+        to = !ui.outputDeviceList.visible;
+
+    if (ui.outputDeviceList.visible !== to) {
+        if (to) {
+            mkUI().appendChild(ui.outputDeviceList.wrapper);
+            ui.outputDeviceList.select.focus();
+            ui.outputDeviceList.visible = true;
+        } else {
+            mkUI(true).removeChild(ui.outputDeviceList.wrapper);
+            ui.outputDeviceList.visible = false;
+            maybeShrinkUI();
+        }
+    }
 }
