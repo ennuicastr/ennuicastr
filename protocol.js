@@ -23,7 +23,9 @@
 (function() {
     var EnnuiCastrProtocol = {
         "ids": {
+            // Good and evil
             "ack": 0x00,
+            "nack": 0x01,
 
             // Basic
             "login": 0x10,
@@ -55,6 +57,13 @@
             "ack": {
                 "length": 8,
                 "ackd": 4
+            },
+
+            "nack": {
+                "length": 12,
+                "ackd": 4,
+                "code": 8,
+                "msg": 12
             },
 
             "login": {

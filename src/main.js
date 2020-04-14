@@ -218,6 +218,14 @@ function dataSockMsg(msg) {
     var cmd = msg.getUint32(0, true);
 
     switch (cmd) {
+        case prot.ids.nack:
+            // Just tell the user
+            var p = prot.parts.nack;
+            var text = decodeText(msg.buffer.slice(p.msg));
+            alert(text);
+            pushStatus("nack", text);
+            break;
+
         case prot.ids.info:
             var p = prot.parts.info;
             var key = msg.getUint32(p.key, true);
