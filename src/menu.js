@@ -453,8 +453,6 @@ function userListAdd(idx, name) {
         el.style.backgroundColor = "#000";
     }
     el.innerText = name;
-    el.setAttribute("role", "status");
-    el.setAttribute("aria-live", "polite");
     el.setAttribute("aria-label", name + ": Not speaking");
 
     if (!ui.userList.left) return;
