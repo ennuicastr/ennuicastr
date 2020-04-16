@@ -324,32 +324,60 @@ function rtcSpeech(status, peer) {
     }
 }
 
-/* Create the RTC version of a UserMedia, which just has a slight delay to make
- * up for VAD */
+// Create the RTC version of UserMedia, with noise suppression
 function createUserMediaRTC() {
-    var stream = ac.createMediaStreamSource(userMedia);
-    var delay = ac.createDelay();
-    delay.delayTime.value = 0.04;
-    var dest = ac.createMediaStreamDestination();
-    var output = dest.stream;
+    if (typeof webkitAudioContext !== "undefined") {
+        // Safari gets angry if you ask for the same device twice
+        return new Promise(function(res) {
+            res(userMedia.clone());
+        });
+    }
 
-    // Store all the context in the output for later destruction
-    output.ennuicastr = {
-        stream: stream,
-        delay: delay,
-        dest: dest
-    };
+    /* Here's the big idea: We want a specialized version of our usermedia with
+     * two changed properties:
+     * (1) Noise suppression ON, and
+     * (2) A brief delay, to react properly to the VAD.
+     *
+     * We do this by requesting a new UserMedia, then feeding it through
+     * AudioContext's DelayNode.
+     */
 
-    // Connect it up
-    stream.connect(delay);
-    delay.connect(dest);
-    return output;
+    return navigator.mediaDevices.getUserMedia({
+        audio: {
+            deviceId: userMedia.getTracks()[0].getSettings().deviceId,
+            autoGainControl: plzno,
+            echoCancellation: plzno,
+            noiseSuppression: plzyes
+        }
+
+    }).then(function(um) {
+        var stream = ac.createMediaStreamSource(um);
+        var delay = ac.createDelay();
+        delay.delayTime.value = 0.04;
+        var dest = ac.createMediaStreamDestination();
+        var output = dest.stream;
+
+        // Store all the context in the output for later destruction
+        output.ennuicastr = {
+            userMedia: um,
+            stream: stream,
+            delay: delay,
+            dest: dest
+        };
+
+        // Connect it up
+        stream.connect(delay);
+        delay.connect(dest);
+        return output;
+
+    });
 }
 
 // Destroy a UserMediaRTC
 function destroyUserMediaRTC(userMediaRTC) {
     userMediaRTC.getTracks().forEach(function(track) { track.stop(); });
     var ec = userMediaRTC.ennuicastr;
+    ec.userMedia.getTracks().forEach(function(track) { track.stop(); });
     ec.stream.disconnect(ec.delay);
     ec.delay.disconnect(ec.dest);
 }

@@ -493,17 +493,22 @@ function userMediaSet() {
         }
     }
 
-    // And the RTC version of our UserMedia
-    userMediaRTC = createUserMediaRTC();
-
-    // Now UserMedia and AudioContext are ready
-    userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediaready", {}));
-
-    /* On Safari on mobile devices, AudioContexts start paused, and sometimes
-     * need to be unpaused directly in an event handler. Check if it's paused,
-     * and unpause it either out of or in a button handler. */
-
     return Promise.all([]).then(function() {
+        // Create the RTC version of our UserMedia
+        if (useRTC)
+            return createUserMediaRTC();
+        return null;
+
+    }).then(function(userMediaIn) {
+        userMediaRTC = userMediaIn;
+
+        // Now UserMedia and AudioContext are ready
+        userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediaready", {}));
+
+        /* On Safari on mobile devices, AudioContexts start paused, and sometimes
+         * need to be unpaused directly in an event handler. Check if it's paused,
+         * and unpause it either out of or in a button handler. */
+
         if (ac.state !== "running") {
             // Try to just activate it
             return ac.resume();

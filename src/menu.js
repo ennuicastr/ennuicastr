@@ -721,7 +721,7 @@ function createOutputControlPanel() {
     vol.id = "output-volume";
     vol.type = "range";
     vol.min = 0;
-    vol.max = 200;
+    vol.max = 400;
     vol.value = 100;
     vol.style.flex = "auto";
     vol.style.minWidth = "5em";

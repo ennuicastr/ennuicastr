@@ -96,14 +96,7 @@ var rtcCompression = {
         knee: 0,
 
         // 8-to-1 brings everything into 40-35dB, a 5dB range
-        ratio: 8,
-
-        // React quickly when loudness happens
-        attack: 0.1,
-
-        /* But glacially slowly to softness. This is more of a limiter than a
-         * true compressor, in this configuration. */
-        release: 60
+        ratio: 8
     },
 
     gain: {
@@ -139,7 +132,7 @@ var rtcVadOn = false;
 var vadExtension = 2000;
 
 // Similar, for RTC transmission
-var rtcVadExtension = 1000;
+var rtcVadExtension = 250;
 
 // When we're not sending real data, we have to send a few (arbitrarily, 3) empty frames
 var sentZeroes = 999;

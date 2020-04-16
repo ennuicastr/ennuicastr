@@ -31,36 +31,87 @@ function createCompressor(idx, ac, input) {
     var ret = {
         ac: ac,
         inputStream: input,
-        input: null,
+        input1: null,
+        input2: null,
 
-        // Compressor node
+        // Compressor node, only used for measurement
         compressor: null,
+
+        // Null output for the compressor
+        nullOutput: null,
+
+        // Our current gain, constantly adjusted by the compressor
+        compressedGain: 1,
+
+        // Interval to apply gating
+        interval: null,
+
+        // Currently gating?
+        ducking: true,
 
         // Gain node
         gain: null
     };
 
     // Create our input
-    var i = ret.input = ac.createMediaStreamSource(input);
+    var i = ret.input1 = ac.createMediaStreamSource(input);
 
-    // Create our compressor
+    /* Create our compressor. What we're actually building is more like a
+     * limiter than a compressor, so we only use the compressor node to
+     * generate the reduction value, and that feeds into gain. That way, we can
+     * get the gain to a point where the user is audible, but we're not too
+     * eager to increase it just because they're not talking. */
     var c = ret.compressor = ac.createDynamicsCompressor();
     for (var k in rtcCompression.compressor)
         c[k].value = rtcCompression.compressor[k];
+    i.connect(c);
 
-    setInterval(function() {
-        console.log(c.reduction);
-    }, 100);
+    // And a null target for it
+    var n = ret.nullOutput = ac.createMediaStreamDestination();
+    c.connect(n);
+
+    // Create the interval for 
+    ret.interval = setInterval(function() {
+        if (!rtcCompression.gain.gain)
+            return; // Wait for this to be calculated
+
+        if (rtcCompression.compressor.ratio === 1) {
+            // Compression is off
+            ret.compressedGain = 1;
+
+        } else {
+            // Find a target compressed gain
+            var target = Math.pow(10, c.reduction/10);
+
+            // Eagerly choose more reduction, so that the actual max is accounted for
+            if (target < ret.compressedGain) {
+                ret.compressedGain = target;
+            } else {
+                // But choose less reduction with glacial slowness
+                // This magic number is just 1 second worth of these intervals, it's meaningless
+                ret.compressedGain = ((1499*ret.compressedGain) + target) / 1500;
+            }
+
+        }
+
+        var gain = rtcCompression.gain.volume * rtcCompression.gain.gain * ret.compressedGain;
+
+        // Now move the compression
+        g.gain.setTargetAtTime(gain, 0, 0.03);
+    }, 20);
+
+    // Create our second input
+    i = ret.input2 = ac.createMediaStreamSource(input);
 
     // Create our gain node
     var g = ret.gain = ac.createGain();
-    g.gain.value = rtcCompression.gain.volume * rtcCompression.gain.gain;
+    g.gain.value = rtcCompression.gain.volume;
+    i.connect(g);
 
-    // Connect it all
-    i.connect(c);
-    c.connect(g);
+    // Connect it to the destination
     g.connect(ac.destination);
 
+    // And add it to the list
     var cs = rtcCompression.compressors;
     while (cs.length <= idx)
         cs.push(null);
@@ -76,8 +127,14 @@ function destroyCompressor(idx) {
         return;
     rtcCompression.compressors[idx] = null;
 
-    com.input.disconnect(com.compressor);
-    com.compressor.disconnect(com.gain);
+    clearInterval(com.interval);
+
+    // Disconnect the compression chain
+    com.input1.disconnect(com.compressor);
+    com.compressor.disconnect(com.nullOutput);
+
+    // And the gain chain
+    com.input2.disconnect(com.gain);
     com.gain.disconnect(com.ac.destination);
 }
 
@@ -93,7 +150,7 @@ function compressorCalculateGain() {
      * gain to increase that to g.target. */
     var min = c.threshold + c.knee;
     var max = min - (min/c.ratio);
-    var gain = 10 * Math.log10(max/g.target);
+    var gain = Math.pow(10, (g.target - max) / 10);
     g.gain = gain;
 }
 
@@ -112,6 +169,5 @@ function compressorChanged() {
         if (!co) return;
         for (var k in c)
             co.compressor[k].setTargetAtTime(c[k], 0, 0.03);
-        co.gain.gain.setTargetAtTime(g.gain * g.volume, 0, 0.03);
     });
 }
