@@ -355,6 +355,8 @@ function updateMasterSpeech() {
     for (var i = 0; i < masterUI.speech.length; i++) {
         if (masterUI.speech[i] && !masterUI.speechB[i]) {
             var div = masterUI.speechB[i] = dce("div");
+            div.setAttribute("role", "status");
+            div.setAttribute("aria-live", "polite");
             div.innerText = masterUI.speech[i].nick;
             masterUI.userStatusB.appendChild(div);
         }
