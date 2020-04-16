@@ -746,7 +746,7 @@ function createOutputControlPanel() {
     };
 
     /*****
-     * 3: Dynamic range compression
+     * 3: Dynamic range compression (volume leveling)
      *****/
     var compressionWrap = dce("div");
     compressionWrap.classList.add("row");
@@ -760,7 +760,7 @@ function createOutputControlPanel() {
 
     lbl = dce("label");
     lbl.htmlFor = "dynamic-range-compression";
-    lbl.innerHTML = "&nbsp;Dynamic range compression";
+    lbl.innerHTML = "&nbsp;Level each speaker's volume";
     compressionWrap.appendChild(lbl);
 
     // Swap on or off compression
