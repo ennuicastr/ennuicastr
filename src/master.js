@@ -386,6 +386,8 @@ function updateMasterSpeech() {
         if (div.ecConnected !== status.online) {
             div.ecConnected = status.online;
             div.setAttribute("aria-live", "polite");
+            if (status.online)
+                aria = "Connected";
         } else {
             div.setAttribute("aria-live", "off");
         }
