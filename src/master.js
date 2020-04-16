@@ -357,6 +357,7 @@ function updateMasterSpeech() {
             var div = masterUI.speechB[i] = dce("div");
             div.setAttribute("role", "status");
             div.setAttribute("aria-live", "polite");
+            div.ecConnected = true; // So that we can adjust the aria-live setting usefully
             div.innerText = masterUI.speech[i].nick;
             masterUI.userStatusB.appendChild(div);
         }
@@ -380,6 +381,14 @@ function updateMasterSpeech() {
             aria = "Not receiving";
         }
         div.style.backgroundColor = color;
+
+        // Speak the status only if online has changed
+        if (div.ecConnected !== status.online) {
+            div.ecConnected = status.online;
+            div.setAttribute("aria-live", "polite");
+        } else {
+            div.setAttribute("aria-live", "off");
+        }
         div.setAttribute("aria-label", status.nick + ": " + aria);
     }
 }
