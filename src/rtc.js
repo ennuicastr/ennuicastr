@@ -341,16 +341,26 @@ function createUserMediaRTC() {
      * We do this by requesting a new UserMedia, then feeding it through
      * AudioContext's DelayNode.
      */
+    var deviceId = userMedia.getTracks()[0].getSettings().deviceId;
+    console.log("Device ID: " + deviceId);
 
     return navigator.mediaDevices.getUserMedia({
         audio: {
-            deviceId: userMedia.getTracks()[0].getSettings().deviceId,
+            deviceId: deviceId,
             autoGainControl: plzno,
             echoCancellation: plzno,
             noiseSuppression: plzyes
         }
 
     }).then(function(um) {
+        // Make sure it actually gave us what we asked for
+        if (um.getTracks()[0].getSettings().deviceId !== deviceId) {
+            // Thanks for the lie!
+            um.getTracks().forEach(function(track) { track.stop(); });
+            um = userMedia.clone();
+        }
+
+        // Make the delay components
         var stream = ac.createMediaStreamSource(um);
         var delay = ac.createDelay();
         delay.delayTime.value = 0.04;
