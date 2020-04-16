@@ -88,8 +88,8 @@ function createCompressor(idx, ac, input) {
                 ret.compressedGain = target;
             } else {
                 // But choose less reduction with glacial slowness
-                // This magic number is just 1 second worth of these intervals, it's meaningless
-                ret.compressedGain = ((1499*ret.compressedGain) + target) / 1500;
+                // This magic number is so that 90% change will be achieved after a quarter of a second
+                ret.compressedGain = ((5*ret.compressedGain) + target) / 6;
             }
 
         }

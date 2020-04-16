@@ -96,7 +96,11 @@ var rtcCompression = {
         knee: 0,
 
         // 8-to-1 brings everything into 40-35dB, a 5dB range
-        ratio: 8
+        ratio: 8,
+
+        // Standard attack and release times
+        attack: 0.1,
+        release: 0.25
     },
 
     gain: {
