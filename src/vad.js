@@ -43,7 +43,7 @@ function localProcessing() {
     var dataPtr = m.malloc(bufSz * 2);
     var buf = new Int16Array(m.heap.buffer, dataPtr, bufSz * 2);
     var bi = 0;
-    var timeout = null;
+    var timeout = null, rtcTimeout = null;
 
     /* WebRTC VAD is pretty finicky, so also keep track of volume as a
      * secondary gate */
@@ -113,11 +113,18 @@ function localProcessing() {
                 }
             }
         }
-        if (rawVadOn)
-            curVadTime += ib.length;
 
         if (vadSet) {
-            // Gate by volume
+            // Our transmission VAD has a hair trigger
+            if (!rtcVadOn) {
+                rtcVadOn = true;
+                rtcVad(true);
+            } else if (rtcTimeout) {
+                clearTimeout(rtcTimeout);
+                rtcTimeout = null;
+            }
+
+            // Gate the normal VAD by volume
             if (curVolume/ib.length >= triggerVadVolume) {
                 if (timeout) {
                     clearTimeout(timeout);
@@ -130,17 +137,31 @@ function localProcessing() {
                         updateSpeech(null, true);
                     }
                     rawVadOn = true;
-                    curVadVolume = curVadTime = 0;
+                    curVadVolume = 0;
                 }
             }
-        } else if (rawVadOn) {
-            // We flipped off
-            rawVadOn = false;
-            if (!timeout) {
-                timeout = setTimeout(function() {
-                    timeout = null;
-                    updateSpeech(null, false);
-                }, vadExtension);
+
+        } else {
+            if (rtcVadOn) {
+                // Flip off after a second
+                if (!rtcTimeout) {
+                    rtcTimeout = setTimeout(function() {
+                        rtcTimeout = null;
+                        rtcVadOn = false;
+                        rtcVad(false);
+                    }, rtcVadExtension);
+                }
+            }
+
+            if (rawVadOn) {
+                // Flip off after a while
+                rawVadOn = false;
+                if (!timeout) {
+                    timeout = setTimeout(function() {
+                        timeout = null;
+                        updateSpeech(null, false);
+                    }, vadExtension);
+                }
             }
         }
 

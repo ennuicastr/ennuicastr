@@ -444,6 +444,10 @@ function getMic(deviceId) {
     if (userMedia) {
         userMedia.getTracks().forEach(function(track) { track.stop(); });
         userMedia = null;
+        if (userMediaRTC) {
+            destroyUserMediaRTC(userMediaRTC);
+            userMediaRTC = null;
+        }
         userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediastopped", {}));
     }
 
@@ -476,11 +480,10 @@ function userMediaSet() {
     pushStatus("initenc", "Initializing encoder...");
     popStatus("getmic");
 
-    userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediaready", {}));
-
     // Check whether we should be using WebAssembly
     var wa = isWebAssemblySupported();
 
+    // Create our AudioContext if needed
     if (!ac) {
         try {
             ac = new AudioContext();
@@ -489,6 +492,12 @@ function userMediaSet() {
             ac = new webkitAudioContext();
         }
     }
+
+    // And the RTC version of our UserMedia
+    userMediaRTC = createUserMediaRTC();
+
+    // Now UserMedia and AudioContext are ready
+    userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediaready", {}));
 
     /* On Safari on mobile devices, AudioContexts start paused, and sometimes
      * need to be unpaused directly in an event handler. Check if it's paused,

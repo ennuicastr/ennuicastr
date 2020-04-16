@@ -42,7 +42,7 @@ function initRTC(peer, outgoing) {
         iceServers: iceServers,
         iceTransportPolicy: "all"
     });
-    var el = null;
+    var videoEl = null, compressor = null;
 
     conn.onicecandidate = function(c) {
         rtcSignal(peer, outgoing, prot.rtc.candidate, c.candidate);
@@ -51,12 +51,32 @@ function initRTC(peer, outgoing) {
     // Called when we get a new track
     if (!outgoing)
     conn.ontrack = function(ev) {
+        // If we haven't yet approved audio, then we're not ready for this track
+        if (!ac) {
+            userMediaAvailableEvent.addEventListener("usermediaready", function() {
+                conn.ontrack(ev);
+            }, {once: true});
+            return;
+        }
+
+        // Get out the information
         var track = ev.track;
         var stream = ev.streams[0];
         var isVideo = (track.kind === "video");
         mkUI(true);
 
         if (!stream) return;
+
+        // Check for a new stream
+        if (compressor && compressor.inputStream !== stream) {
+            // New stream for this user
+            destroyCompressor(peer);
+            compressor = null;
+        }
+
+        // Make the compressor
+        if (!compressor)
+            compressor = createCompressor(peer, ac, stream);
 
         // Remove any existing tracks of the same kind
         stream.getTracks().forEach(function(otrack) {
@@ -66,15 +86,15 @@ function initRTC(peer, outgoing) {
 
         // Prepare for tracks to end
         stream.onremovetrack = function() {
-            el.srcObject = stream;
-            playRTCEl(el);
-            el = reassessRTCEl(peer, !!stream.getTracks().length, !!stream.getVideoTracks().length);
+            videoEl.srcObject = stream;
+            playRTCEl(videoEl);
+            videoEl = reassessRTCEl(peer, !!stream.getTracks().length, !!stream.getVideoTracks().length);
         };
 
-        if (el) {
+        if (videoEl) {
             // Reset the stream
-            el.srcObject = stream;
-            playRTCEl(el);
+            videoEl.srcObject = stream;
+            playRTCEl(videoEl);
 
             // Remember if it's a video track
             if (isVideo && !ui.video.hasVideo[peer]) {
@@ -84,11 +104,15 @@ function initRTC(peer, outgoing) {
             return;
         }
 
-        // Create this element
-        el = dce("video");
-        el.height = 0; // Use CSS for sizing
-        el.style.maxWidth = "100%";
-        el.srcObject = stream;
+        /* We have a separate video and audio element so that the audio can
+         * reliably go through AudioContext while the video is used directly. */
+
+        // Create the video element
+        videoEl = dce("video");
+        videoEl.height = 0; // Use CSS for sizing
+        videoEl.muted = true; // In the audio element
+        videoEl.style.maxWidth = "100%";
+        videoEl.srcObject = stream;
 
         // Add it to the UI
         var els = ui.video.els;
@@ -97,12 +121,12 @@ function initRTC(peer, outgoing) {
             els.push(null);
             hasVideo.push(false);
         }
-        els[peer] = el;
+        els[peer] = videoEl;
         hasVideo[peer] = isVideo;
         updateVideoUI(peer, true);
 
         // Then play it
-        playRTCEl(el);
+        playRTCEl(videoEl);
     };
 
     conn.oniceconnectionstatechange = function(ev) {
@@ -121,17 +145,17 @@ function initRTC(peer, outgoing) {
 
     // Add each track to the connection
     function addTracks() {
-        userMedia.getTracks().forEach(function(track) {
-            conn.addTrack(track, userMedia);
+        userMediaRTC.getTracks().forEach(function(track) {
+            conn.addTrack(track, userMediaRTC);
         });
     }
-    if (outgoing && userMedia)
+    if (outgoing && userMediaRTC)
         addTracks();
 
     // Add video tracks to the connection
     function addVideoTracks() {
         userMediaVideo.getTracks().forEach(function(track) {
-            conn.addTrack(track, userMedia);
+            conn.addTrack(track, userMediaRTC);
         });
     }
     if (outgoing && userMediaVideo)
@@ -146,7 +170,7 @@ function initRTC(peer, outgoing) {
                 tracks[track.id] = true;
             });
         }
-        if (userMedia) listTracks(userMedia);
+        if (userMediaRTC) listTracks(userMediaRTC);
         if (userMediaVideo) listTracks(userMediaVideo);
 
         // Then remove any tracks that should go
@@ -196,7 +220,7 @@ function initRTC(peer, outgoing) {
 
     // Outgoing negotiation function
     function connect() {
-        conn.createOffer().then(function(offer) {
+        conn.createOffer({voiceActivityDetection: true}).then(function(offer) {
             return conn.setLocalDescription(offer);
 
         }).then(function() {
@@ -243,7 +267,7 @@ function reassessRTCEl(peer, hasTracks, hasVideo) {
 
 // Play an element used by RTC, once that's possible
 function playRTCEl(el) {
-    if (!userMedia) {
+    if (!userMediaRTC) {
         /* Although our own UserMedia isn't technically needed to play, it's
          * needed to *auto*play on many platforms, so wait for it. */
         userMediaAvailableEvent.addEventListener("usermediaready", function() {
@@ -298,6 +322,43 @@ function rtcSpeech(status, peer) {
             rtcConnections.outgoing[peer].ecDataChannel.send(msg);
         } catch (ex) {}
     }
+}
+
+/* Create the RTC version of a UserMedia, which just has a slight delay to make
+ * up for VAD */
+function createUserMediaRTC() {
+    var stream = ac.createMediaStreamSource(userMedia);
+    var delay = ac.createDelay();
+    delay.delayTime.value = 0.04;
+    var dest = ac.createMediaStreamDestination();
+    var output = dest.stream;
+
+    // Store all the context in the output for later destruction
+    output.ennuicastr = {
+        stream: stream,
+        delay: delay,
+        dest: dest
+    };
+
+    // Connect it up
+    stream.connect(delay);
+    delay.connect(dest);
+    return output;
+}
+
+// Destroy a UserMediaRTC
+function destroyUserMediaRTC(userMediaRTC) {
+    userMediaRTC.getTracks().forEach(function(track) { track.stop(); });
+    var ec = userMediaRTC.ennuicastr;
+    ec.stream.disconnect(ec.delay);
+    ec.delay.disconnect(ec.dest);
+}
+
+// En/disable tracks for RTC transmission
+function rtcVad(to) {
+    userMediaRTC.getAudioTracks().forEach(function(track) {
+        track.enabled = to;
+    });
 }
 
 // Notify of a failed RTC connection

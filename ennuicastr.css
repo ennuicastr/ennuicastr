@@ -24,6 +24,10 @@ a {
     margin-bottom: 0.5em;
 }
 
+.panel {
+    margin: 0 0.5em 0 0.5em;
+}
+
 .invite {
     background-color: #055;
 }

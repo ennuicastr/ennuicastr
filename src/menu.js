@@ -144,7 +144,7 @@ function mkUI(small) {
 
     // The output and video device list submenu
     if (useRTC) {
-        createOutputDeviceList();
+        createOutputControlPanel();
         createVideoDeviceList();
     }
 
@@ -380,7 +380,7 @@ function createMenu() {
     if (useRTC) {
         var odl = btn("headphones-alt", "Output selector");
         odl.onclick = function() {
-            toggleOutputDeviceList();
+            toggleOutputControlPanel();
         };
     }
 
@@ -499,11 +499,12 @@ function createDeviceList() {
     ui.deviceList = {};
     var wrapper = ui.deviceList.wrapper = dce("div");
     wrapper.classList.add("row");
+    wrapper.classList.add("panel");
     ui.deviceList.visible = false;
 
     var lbl = dce("Label");
     lbl.htmlFor = "device-list";
-    lbl.innerText = "Input device: ";
+    lbl.innerHTML = "Input device:&nbsp;";
     wrapper.appendChild(lbl);
 
     var sel = ui.deviceList.select = dce("select");
@@ -570,11 +571,12 @@ function createVideoDeviceList() {
     ui.videoDeviceList = {};
     var wrapper = ui.videoDeviceList.wrapper = dce("div");
     wrapper.classList.add("row");
+    wrapper.classList.add("panel");
     ui.videoDeviceList.visible = false;
 
     var lbl = dce("Label");
     lbl.htmlFor = "video-device-list";
-    lbl.innerText = "Camera: ";
+    lbl.innerHTML = "Camera:&nbsp;";
     wrapper.appendChild(lbl);
 
     var sel = ui.videoDeviceList.select = dce("select");
@@ -635,32 +637,42 @@ function toggleVideoDeviceList(to) {
 }
 
 // Create the output device list submenu
-function createOutputDeviceList() {
+function createOutputControlPanel() {
     if (!userMedia) {
         // Wait until we can know full names
-        userMediaAvailableEvent.addEventListener("usermediaready", createOutputDeviceList, {once: true});
+        userMediaAvailableEvent.addEventListener("usermediaready", createOutputControlPanel, {once: true});
         return;
     }
 
     // Make the main wrapper
-    ui.outputDeviceList = {};
-    var wrapper = ui.outputDeviceList.wrapper = dce("div");
-    wrapper.classList.add("row");
-    ui.outputDeviceList.visible = false;
+    ui.outputControlPanel = {};
+    var wrapper = ui.outputControlPanel.wrapper = dce("div");
+    wrapper.classList.add("panel");
+    ui.outputControlPanel.visible = false;
 
+    /*****
+     * 1: Output device list
+     *****/
+
+    // The output device list has its own wrapper, so we can hide it if there are no devices
+    var odl = dce("div");
+    odl.classList.add("row");
+    wrapper.appendChild(odl);
+
+    // The output device list
     var lbl = dce("Label");
     lbl.htmlFor = "output-device-list";
-    lbl.innerText = "Output: ";
-    wrapper.appendChild(lbl);
+    lbl.innerHTML = "Output:&nbsp;";
+    odl.appendChild(lbl);
 
-    var sel = ui.outputDeviceList.select = dce("select");
+    var sel = ui.outputControlPanel.select = dce("select");
     sel.id = "output-device-list";
-    wrapper.appendChild(sel);
+    odl.appendChild(sel);
 
     // When it's changed, start output
     sel.onchange = function() {
         if (sel.value === "-none") return;
-        toggleOutputDeviceList(false);
+        toggleOutputControlPanel(false);
         setOutputDevice(sel.value);
     };
 
@@ -672,9 +684,10 @@ function createOutputDeviceList() {
 
     // Fill it with the available devices
     navigator.mediaDevices.enumerateDevices().then(function(devices) {
-        var ctr = 1;
+        var ctr = 1, hadOutputs = false;
         devices.forEach(function(dev) {
             if (dev.kind !== "audiooutput") return;
+            hadOutputs = true;
 
             // Create an option for this
             var opt = dce("option");
@@ -684,22 +697,100 @@ function createOutputDeviceList() {
             sel.appendChild(opt);
         });
 
+        if (!hadOutputs) {
+            // This selector does nothing for us
+            odl.style.display = "none";
+        }
+
     }).catch(function() {}); // Nothing really to do here
+
+    /*****
+     * 2: Master volume
+     *****/
+    var volWrap = dce("div");
+    volWrap.classList.add("row");
+    volWrap.style.display = "flex";
+    wrapper.appendChild(volWrap);
+
+    lbl = dce("label");
+    lbl.htmlFor = "output-volume";
+    lbl.innerHTML = "Volume:&nbsp;";
+    volWrap.appendChild(lbl);
+
+    var vol = dce("input");
+    vol.id = "output-volume";
+    vol.type = "range";
+    vol.min = 0;
+    vol.max = 200;
+    vol.value = 100;
+    vol.style.flex = "auto";
+    vol.style.minWidth = "5em";
+    volWrap.appendChild(vol);
+
+    var volStatus = dce("span");
+    volStatus.innerHTML = "&nbsp;100%";
+    volWrap.appendChild(volStatus);
+
+    // When we change the volume, pass that to the compressors
+    vol.oninput = function() {
+        // Snap to 100%
+        if (vol.value >= 90 && vol.value <= 110)
+            vol.value = 100;
+
+        // Show the status
+        volStatus.innerHTML = "&nbsp;" + vol.value + "%";
+
+        // Set it
+        rtcCompression.gain.volume = vol.value / 100;
+        compressorChanged();
+    };
+
+    /*****
+     * 3: Dynamic range compression
+     *****/
+    var compressionWrap = dce("div");
+    compressionWrap.classList.add("row");
+    wrapper.appendChild(compressionWrap);
+
+    var compression = dce("input");
+    compression.id = "dynamic-range-compression";
+    compression.type = "checkbox";
+    compression.checked = true;
+    compressionWrap.appendChild(compression);
+
+    lbl = dce("label");
+    lbl.htmlFor = "dynamic-range-compression";
+    lbl.innerHTML = "&nbsp;Dynamic range compression";
+    compressionWrap.appendChild(lbl);
+
+    // Swap on or off compression
+    compression.onchange = function() {
+        var c = rtcCompression;
+        if (compression.checked) {
+            // FIXME: Magic numbers
+            c.compressor.ratio = 8;
+            c.gain.gain = null;
+        } else {
+            c.compressor.ratio = 1;
+            c.gain.gain = 1;
+        }
+        compressorChanged();
+    };
 }
 
 // Toggle the visibility of the output device list submenu
-function toggleOutputDeviceList(to) {
+function toggleOutputControlPanel(to) {
     if (typeof to === "undefined")
-        to = !ui.outputDeviceList.visible;
+        to = !ui.outputControlPanel.visible;
 
-    if (ui.outputDeviceList.visible !== to) {
+    if (ui.outputControlPanel.visible !== to) {
         if (to) {
-            mkUI().appendChild(ui.outputDeviceList.wrapper);
-            ui.outputDeviceList.select.focus();
-            ui.outputDeviceList.visible = true;
+            mkUI().appendChild(ui.outputControlPanel.wrapper);
+            ui.outputControlPanel.select.focus();
+            ui.outputControlPanel.visible = true;
         } else {
-            mkUI(true).removeChild(ui.outputDeviceList.wrapper);
-            ui.outputDeviceList.visible = false;
+            mkUI(true).removeChild(ui.outputControlPanel.wrapper);
+            ui.outputControlPanel.visible = false;
             maybeShrinkUI();
         }
     }

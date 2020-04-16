@@ -49,6 +49,9 @@ var mode = prot.mode.init;
 // The audio device being read
 var userMedia = null;
 
+// A clone of the audio device being read, which will be dis/enabled for RTC
+var userMediaRTC = null;
+
 // The video device being read
 var userMediaVideo = null;
 
@@ -80,20 +83,63 @@ var rtcConnections = {
     incoming: {}
 };
 
+/* For RTC, we apply compression. Those properties are here, along with a
+ * callback for when they change. */
+var rtcCompression = {
+    compressor: {
+        // Default settings suitable for most users
+
+        // Anything below -40dB is almost certainly noise
+        threshold: -40,
+
+        // No need to knee in noise
+        knee: 0,
+
+        // 8-to-1 brings everything into 40-35dB, a 5dB range
+        ratio: 8,
+
+        // React quickly when loudness happens
+        attack: 0.1,
+
+        /* But glacially slowly to softness. This is more of a limiter than a
+         * true compressor, in this configuration. */
+        release: 60
+    },
+
+    gain: {
+        // Multiplier to the gain from below, our volume knob
+        volume: 1,
+
+        /* Direct gain to apply. Reset to null to force recalculation from
+         * target. */
+        gain: null,
+
+        /* Target peak, based on compressor above. Reset gain to null to
+         * recalculate. */
+        target: -18
+    },
+
+    // Our currently active compressors
+    compressors: []
+};
+
 // Our output device, if it's been explicitly chosen
 var outputDeviceId = null;
 
 // WebRTCVAD's raw output
 var rawVadOn = false;
 
-// Warmup for rawVadOn to swap on
-var rawVadCt = 0;
-
-// VAD output after our cooldown
+// Recording VAD after warmup and cooldown
 var vadOn = false;
+
+// RTC VAD after cooldown
+var rtcVadOn = false;
 
 // Number of milliseconds to run the VAD for before/after talking
 var vadExtension = 2000;
+
+// Similar, for RTC transmission
+var rtcVadExtension = 1000;
 
 // When we're not sending real data, we have to send a few (arbitrarily, 3) empty frames
 var sentZeroes = 999;
@@ -145,8 +191,8 @@ var ui = {
     // The wrapper for the device selector
     deviceList: null,
 
-    // The wrapper for the output device selector
-    outputDeviceList: null,
+    // The wrapper for the output control panel
+    outputControlPanel: null,
 
     // The wrapper for the video device selector, if applicable
     videoDeviceList: null,

@@ -11,6 +11,7 @@ SRC=src/head.js \
 	src/chat.js \
 	src/master.js \
 	src/rtc.js \
+	src/compression.js \
 	src/main.js \
 	src/tail.js
 
