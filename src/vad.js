@@ -73,10 +73,13 @@ function localProcessing() {
 
 
     // Now the noise repellent steps
-    var nr = new NoiseRepellent.NoiseRepellent(ac.sampleRate);
-    nr.set(NoiseRepellent.N_ADAPTIVE, 1);
-    nr.set(NoiseRepellent.AMOUNT, 20);
-    nr.set(NoiseRepellent.WHITENING, 50);
+    var nr = null;
+    if (useRTC) {
+        nr = new NoiseRepellent.NoiseRepellent(ac.sampleRate);
+        nr.set(NoiseRepellent.N_ADAPTIVE, 1);
+        nr.set(NoiseRepellent.AMOUNT, 20);
+        nr.set(NoiseRepellent.WHITENING, 50);
+    }
 
 
     // Now the display steps
@@ -208,11 +211,14 @@ function localProcessing() {
         }
 
 
-        // Our actual script processing step: noise reduction
-        var ob = nr.run(ib);
-        var cc = ev.outputBuffer.numberOfChannels;
-        for (var oi = 0; oi < cc; oi++)
-            ev.outputBuffer.getChannelData(oi).set(ob);
+        /* Our actual script processing step: noise reduction, only for RTC
+         * (live voice chat) */
+        if (nr) {
+            var ob = nr.run(ib);
+            var cc = ev.outputBuffer.numberOfChannels;
+            for (var oi = 0; oi < cc; oi++)
+                ev.outputBuffer.getChannelData(oi).set(ob);
+        }
 
 
         // And display
@@ -252,6 +258,10 @@ function localProcessing() {
 
     // Restart if we change devices
     userMediaAvailableEvent.addEventListener("usermediastopped", function() {
+        if (nr) {
+            nr.cleanup();
+            nr = null;
+        }
         localProcessing();
     }, {once: true});
 }
