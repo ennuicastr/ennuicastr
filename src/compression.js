@@ -94,7 +94,11 @@ function createCompressor(idx, ac, input) {
 
         }
 
-        var gain = rtcCompression.gain.volume * rtcCompression.gain.gain * ret.compressedGain;
+        var gain = rtcCompression.gain.gain * ret.compressedGain;
+        // Don't increase by more than 20dB
+        if (gain > 10)
+            gain = 10;
+        gain *= rtcCompression.gain.volume;
 
         // Now move the compression
         g.gain.setTargetAtTime(gain, 0, 0.03);
