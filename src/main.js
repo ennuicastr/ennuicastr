@@ -444,6 +444,11 @@ function getMic(deviceId) {
     if (userMedia) {
         userMedia.getTracks().forEach(function(track) { track.stop(); });
         userMedia = null;
+        if (userMediaRTC) {
+            // FIXME: Really need to properly destroy the whole chain
+            userMediaRTC.getTracks().forEach(function(track) { track.stop(); });
+            userMediaRTC = null;
+        }
         userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediastopped", {}));
     }
 
@@ -476,11 +481,10 @@ function userMediaSet() {
     pushStatus("initenc", "Initializing encoder...");
     popStatus("getmic");
 
-    userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediaready", {}));
-
     // Check whether we should be using WebAssembly
     var wa = isWebAssemblySupported();
 
+    // Create our AudioContext if needed
     if (!ac) {
         try {
             ac = new AudioContext();
@@ -490,11 +494,14 @@ function userMediaSet() {
         }
     }
 
-    /* On Safari on mobile devices, AudioContexts start paused, and sometimes
-     * need to be unpaused directly in an event handler. Check if it's paused,
-     * and unpause it either out of or in a button handler. */
+    // Now UserMedia and AudioContext are ready
+    userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediaready", {}));
 
     return Promise.all([]).then(function() {
+        /* On Safari on mobile devices, AudioContexts start paused, and sometimes
+         * need to be unpaused directly in an event handler. Check if it's paused,
+         * and unpause it either out of or in a button handler. */
+
         if (ac.state !== "running") {
             // Try to just activate it
             return ac.resume();
@@ -793,7 +800,7 @@ function libavProcess() {
     enc.latencyDump = false;
 
     // Start reading the input
-    var sp = createScriptProcessor(ac, userMedia, 16384 /* Max: Latency doesn't actually matter in this context */);
+    var sp = createScriptProcessor(ac, userMedia, 16384 /* Max: Latency doesn't actually matter in this context */).scriptProcessor;
 
     // Don't try to process that last sip of data after termination
     var dead = false;

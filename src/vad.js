@@ -14,11 +14,30 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-// Create a VAD and wave display
+// All local processing: The VAD, wave display, and noise reduction
 function localProcessing() {
     if (!userMedia) {
         // Need our MediaSource first!
         userMediaAvailableEvent.addEventListener("usermediaready", localProcessing, {once: true});
+        return;
+    }
+
+    if (typeof NoiseRepellent === "undefined" ||
+        !NoiseRepellent.ready) {
+        // Load the library first
+        NoiseRepellent = {base: "noise-repellent"};
+        var scr = dce("script");
+        scr.async = true;
+        scr.src = "noise-repellent/noise-repellent.js";
+
+        scr.onload = function() {
+            if (NoiseRepellent.ready)
+                localProcessing();
+            else
+                NoiseRepellent.onready = localProcessing;
+        };
+
+        document.body.appendChild(scr);
         return;
     }
 
@@ -43,7 +62,7 @@ function localProcessing() {
     var dataPtr = m.malloc(bufSz * 2);
     var buf = new Int16Array(m.heap.buffer, dataPtr, bufSz * 2);
     var bi = 0;
-    var timeout = null;
+    var timeout = null, rtcTimeout = null;
 
     /* WebRTC VAD is pretty finicky, so also keep track of volume as a
      * secondary gate */
@@ -51,6 +70,16 @@ function localProcessing() {
     var curVadVolume = 0;
 
     m.set_mode(3);
+
+
+    // Now the noise repellent steps
+    var nr = null;
+    if (useRTC) {
+        nr = new NoiseRepellent.NoiseRepellent(ac.sampleRate);
+        nr.set(NoiseRepellent.N_ADAPTIVE, 1);
+        nr.set(NoiseRepellent.AMOUNT, 20);
+        nr.set(NoiseRepellent.WHITENING, 50);
+    }
 
 
     // Now the display steps
@@ -68,6 +97,21 @@ function localProcessing() {
 
     // Create our script processor
     var sp = createScriptProcessor(ac, userMedia, 1024);
+    var destination = sp.destination;
+    sp = sp.scriptProcessor;
+
+    function rtcVad(to) {
+        destination.getTracks().forEach(function(track) {
+            track.enabled = to;
+        });
+    }
+    rtcVad(false);
+
+    // Now anything that needs its output can get it
+    userMediaRTC = destination;
+    userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediartcready", {}));
+
+    // The actual processing
     sp.onaudioprocess = function(ev) {
         // Merge together the channels
         var ib = ev.inputBuffer.getChannelData(0);
@@ -113,11 +157,19 @@ function localProcessing() {
                 }
             }
         }
-        if (rawVadOn)
-            curVadTime += ib.length;
 
+        // Possibly swap the VAD mode
         if (vadSet) {
-            // Gate by volume
+            // Our transmission VAD has a hair trigger
+            if (!rtcVadOn) {
+                rtcVadOn = true;
+                rtcVad(true);
+            } else if (rtcTimeout) {
+                clearTimeout(rtcTimeout);
+                rtcTimeout = null;
+            }
+
+            // Gate the normal VAD by volume
             if (curVolume/ib.length >= triggerVadVolume) {
                 if (timeout) {
                     clearTimeout(timeout);
@@ -130,18 +182,46 @@ function localProcessing() {
                         updateSpeech(null, true);
                     }
                     rawVadOn = true;
-                    curVadVolume = curVadTime = 0;
+                    curVadVolume = 0;
                 }
             }
-        } else if (rawVadOn) {
-            // We flipped off
-            rawVadOn = false;
-            if (!timeout) {
-                timeout = setTimeout(function() {
-                    timeout = null;
-                    updateSpeech(null, false);
-                }, vadExtension);
+
+        } else {
+            if (rtcVadOn) {
+                // Flip off after a second
+                if (!rtcTimeout) {
+                    rtcTimeout = setTimeout(function() {
+                        rtcTimeout = null;
+                        rtcVadOn = false;
+                        rtcVad(false);
+                    }, rtcVadExtension);
+                }
             }
+
+            if (rawVadOn) {
+                // Flip off after a while
+                rawVadOn = false;
+                if (!timeout) {
+                    timeout = setTimeout(function() {
+                        timeout = null;
+                        updateSpeech(null, false);
+                    }, vadExtension);
+                }
+            }
+        }
+
+
+        /* Our actual script processing step: noise reduction, only for RTC
+         * (live voice chat) */
+        if (nr) {
+            var ob;
+            if (useNR)
+                ob = nr.run(ib);
+            else
+                ob = ib;
+            var cc = ev.outputBuffer.numberOfChannels;
+            for (var oi = 0; oi < cc; oi++)
+                ev.outputBuffer.getChannelData(oi).set(ob);
         }
 
 
@@ -182,6 +262,10 @@ function localProcessing() {
 
     // Restart if we change devices
     userMediaAvailableEvent.addEventListener("usermediastopped", function() {
+        if (nr) {
+            nr.cleanup();
+            nr = null;
+        }
         localProcessing();
     }, {once: true});
 }
