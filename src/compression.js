@@ -31,8 +31,7 @@ function createCompressor(idx, ac, input) {
     var ret = {
         ac: ac,
         inputStream: input,
-        input1: null,
-        input2: null,
+        input: null,
 
         // Compressor node, only used for measurement
         compressor: null,
@@ -53,8 +52,10 @@ function createCompressor(idx, ac, input) {
         gain: null
     };
 
-    // Create our input
-    var i = ret.input1 = ac.createMediaStreamSource(input);
+    var c;
+
+    // Create the input
+    var i = ret.input = ac.createMediaStreamSource(input);
 
     /* Create our compressor. What we're actually building is more like a
      * limiter than a compressor, so we only use the compressor node to
@@ -66,51 +67,60 @@ function createCompressor(idx, ac, input) {
         c[k].value = rtcCompression.compressor[k];
     i.connect(c);
 
-    // And a null target for it
-    var n = ret.nullOutput = ac.createMediaStreamDestination();
-    c.connect(n);
+    if (typeof webkitAudioContext === "undefined") {
+        // Non-Safari
 
-    // Create the interval for 
-    ret.interval = setInterval(function() {
-        if (!rtcCompression.gain.gain)
-            return; // Wait for this to be calculated
+        // And a null target for it
+        var n = ret.nullOutput = ac.createMediaStreamDestination();
+        c.connect(n);
 
-        if (rtcCompression.compressor.ratio === 1) {
-            // Compression is off
-            ret.compressedGain = 1;
+        // Create the interval for 
+        ret.interval = setInterval(function() {
+            if (!rtcCompression.gain.gain)
+                return; // Wait for this to be calculated
 
-        } else {
-            // Find a target compressed gain
-            var target = Math.pow(10, c.reduction/10);
+            if (rtcCompression.compressor.ratio === 1) {
+                // Compression is off
+                ret.compressedGain = 1;
 
-            // Eagerly choose more reduction, so that the actual max is accounted for
-            if (target < ret.compressedGain) {
-                ret.compressedGain = target;
             } else {
-                // But choose less reduction with glacial slowness
-                // This magic number is so that 90% change will be achieved after a quarter of a second
-                ret.compressedGain = ((5*ret.compressedGain) + target) / 6;
+                // Find a target compressed gain
+                var target = Math.pow(10, c.reduction/10);
+
+                // Eagerly choose more reduction, so that the actual max is accounted for
+                if (target < ret.compressedGain) {
+                    ret.compressedGain = target;
+                } else {
+                    // But choose less reduction with glacial slowness
+                    // This magic number is so that 90% change will be achieved after a quarter of a second
+                    ret.compressedGain = ((5*ret.compressedGain) + target) / 6;
+                }
+
             }
 
-        }
+            var gain = rtcCompression.gain.gain * ret.compressedGain;
+            // Don't increase by more than 20dB
+            if (gain > 10)
+                gain = 10;
+            gain *= rtcCompression.gain.volume;
 
-        var gain = rtcCompression.gain.gain * ret.compressedGain;
-        // Don't increase by more than 20dB
-        if (gain > 10)
-            gain = 10;
-        gain *= rtcCompression.gain.volume;
+            // Now move the compression
+            g.gain.setTargetAtTime(gain, 0, 0.03);
+        }, 20);
 
-        // Now move the compression
-        g.gain.setTargetAtTime(gain, 0, 0.03);
-    }, 20);
+    }
+    // On Safari, DynamicsCompressorNode doesn't report its reduction, so we just have to trust it to do the right thing directly
 
-    // Create our second input
-    i = ret.input2 = ac.createMediaStreamSource(input);
 
     // Create our gain node
     var g = ret.gain = ac.createGain();
-    g.gain.value = rtcCompression.gain.volume;
-    i.connect(g);
+    if (typeof webkitAudioContext === "undefined") {
+        g.gain.value = rtcCompression.gain.volume;
+        i.connect(g);
+    } else {
+        g.gain.value = rtcCompression.gain.volume * rtcCompression.gain.gain * 0.01;
+        c.connect(g);
+    }
 
     // Connect it to the destination
     g.connect(ac.destination);
@@ -131,15 +141,24 @@ function destroyCompressor(idx) {
         return;
     rtcCompression.compressors[idx] = null;
 
-    clearInterval(com.interval);
+    if (typeof webkitAudioContext === "undefined") {
+        clearInterval(com.interval);
 
-    // Disconnect the compression chain
-    com.input1.disconnect(com.compressor);
-    com.compressor.disconnect(com.nullOutput);
+        // Disconnect the compression chain
+        com.input.disconnect(com.compressor);
+        com.compressor.disconnect(com.nullOutput);
 
-    // And the gain chain
-    com.input2.disconnect(com.gain);
-    com.gain.disconnect(com.ac.destination);
+        // And the gain chain
+        com.input.disconnect(com.gain);
+        com.gain.disconnect(com.ac.destination);
+
+    } else {
+        // Disconnect the whole chain
+        com.input.disconnect(com.compressor);
+        com.compressor.disconnect(com.gain);
+        com.gain.disconnect(com.ac.destination);
+
+    }
 }
 
 // Calculate our correct gain based on the compressor and gain values set
@@ -173,5 +192,10 @@ function compressorChanged() {
         if (!co) return;
         for (var k in c)
             co.compressor[k].setTargetAtTime(c[k], 0, 0.03);
+
+        if (typeof webkitAudioContext !== "undefined") {
+            // Gain handled directly
+            co.gain.gain.setTargetAtTime(g.volume * g.gain * 0.01, 0, 0.03);
+        }
     });
 }
