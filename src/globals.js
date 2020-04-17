@@ -49,7 +49,7 @@ var mode = prot.mode.init;
 // The audio device being read
 var userMedia = null;
 
-// A clone of the audio device being read, which will be dis/enabled for RTC
+// The pseudodevice as processed to reduce noise, for RTC
 var userMediaRTC = null;
 
 // The video device being read
@@ -57,7 +57,8 @@ var userMediaVideo = null;
 
 /* We need an event target we can use. "usermediaready" fires when userMedia is
  * ready. "usermediastopped" fires when it stops. "usermediavideoready" fires
- * when video is ready. */
+ * when video is ready. "spmediaready" fires when the media device that's
+ * processed through the ScriptProcessor is ready. */
 var userMediaAvailableEvent;
 try {
     userMediaAvailableEvent = new EventTarget();

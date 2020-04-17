@@ -52,8 +52,8 @@ function initRTC(peer, outgoing) {
     if (!outgoing)
     conn.ontrack = function(ev) {
         // If we haven't yet approved audio, then we're not ready for this track
-        if (!ac) {
-            userMediaAvailableEvent.addEventListener("usermediaready", function() {
+        if (!userMediaRTC) {
+            userMediaAvailableEvent.addEventListener("usermediartcready", function() {
                 conn.ontrack(ev);
             }, {once: true});
             return;
@@ -184,7 +184,7 @@ function initRTC(peer, outgoing) {
 
     // If we switch UserMedia, we'll need to re-up
     if (outgoing) {
-        userMediaAvailableEvent.addEventListener("usermediaready", addTracks);
+        userMediaAvailableEvent.addEventListener("usermediartcready", addTracks);
         userMediaAvailableEvent.addEventListener("usermediavideoready", addVideoTracks);
         userMediaAvailableEvent.addEventListener("usermediastopped", removeTracks);
         userMediaAvailableEvent.addEventListener("usermediavideostopped", removeTracks);
@@ -192,7 +192,7 @@ function initRTC(peer, outgoing) {
         conn.onsignalingstatechange = function() {
             if (conn.signalingState === "closed") {
                 // Don't send any new events
-                userMediaAvailableEvent.removeEventListener("usermediaready", addTracks);
+                userMediaAvailableEvent.removeEventListener("usermediartcready", addTracks);
                 userMediaAvailableEvent.removeEventListener("usermediavideoready", addVideoTracks);
                 userMediaAvailableEvent.removeEventListener("usermediastopped", removeTracks);
                 userMediaAvailableEvent.removeEventListener("usermediavideostopped", removeTracks);
@@ -270,7 +270,7 @@ function playRTCEl(el) {
     if (!userMediaRTC) {
         /* Although our own UserMedia isn't technically needed to play, it's
          * needed to *auto*play on many platforms, so wait for it. */
-        userMediaAvailableEvent.addEventListener("usermediaready", function() {
+        userMediaAvailableEvent.addEventListener("usermediartcready", function() {
             playRTCEl(el);
         }, {once: true});
         return;
@@ -390,13 +390,6 @@ function destroyUserMediaRTC(userMediaRTC) {
     ec.userMedia.getTracks().forEach(function(track) { track.stop(); });
     ec.stream.disconnect(ec.delay);
     ec.delay.disconnect(ec.dest);
-}
-
-// En/disable tracks for RTC transmission
-function rtcVad(to) {
-    userMediaRTC.getAudioTracks().forEach(function(track) {
-        track.enabled = to;
-    });
 }
 
 // Notify of a failed RTC connection

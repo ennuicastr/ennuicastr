@@ -445,7 +445,8 @@ function getMic(deviceId) {
         userMedia.getTracks().forEach(function(track) { track.stop(); });
         userMedia = null;
         if (userMediaRTC) {
-            destroyUserMediaRTC(userMediaRTC);
+            // FIXME: Really need to properly destroy the whole chain
+            userMediaRTC.getTracks().forEach(function(track) { track.stop(); });
             userMediaRTC = null;
         }
         userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediastopped", {}));
@@ -493,18 +494,10 @@ function userMediaSet() {
         }
     }
 
+    // Now UserMedia and AudioContext are ready
+    userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediaready", {}));
+
     return Promise.all([]).then(function() {
-        // Create the RTC version of our UserMedia
-        if (useRTC)
-            return createUserMediaRTC();
-        return null;
-
-    }).then(function(userMediaIn) {
-        userMediaRTC = userMediaIn;
-
-        // Now UserMedia and AudioContext are ready
-        userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediaready", {}));
-
         /* On Safari on mobile devices, AudioContexts start paused, and sometimes
          * need to be unpaused directly in an event handler. Check if it's paused,
          * and unpause it either out of or in a button handler. */
@@ -807,7 +800,7 @@ function libavProcess() {
     enc.latencyDump = false;
 
     // Start reading the input
-    var sp = createScriptProcessor(ac, userMedia, 16384 /* Max: Latency doesn't actually matter in this context */);
+    var sp = createScriptProcessor(ac, userMedia, 16384 /* Max: Latency doesn't actually matter in this context */).scriptProcessor;
 
     // Don't try to process that last sip of data after termination
     var dead = false;

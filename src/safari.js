@@ -21,18 +21,21 @@ function createScriptProcessor(ac, ms, bufferSize) {
 
     // All other browsers
     var ret = ac.createScriptProcessor(bufferSize);
-    var acdestination = ac.destination;
-    ret.connect(acdestination);
     var mss = ac.createMediaStreamSource(ms);
     mss.connect(ret);
+    var destination = ac.createMediaStreamDestination();
+    ret.connect(destination);
 
     // Disconnect it when user media stops
     userMediaAvailableEvent.addEventListener("usermediastopped", function() {
         mss.disconnect(ret);
-        ret.disconnect(acdestination);
+        ret.disconnect(destination);
     }, {once: true});
 
-    return ret;
+    return {
+        scriptProcessor: ret,
+        destination: destination.stream
+    };
 }
 
 // Safari-specific
@@ -64,15 +67,16 @@ function createSafariScriptProcessor(ac, ms, bufferSize) {
         }
 
         // Connect it
-        var acdestination = ac.destination;
-        sp.connect(acdestination);
         var mss = ac.createMediaStreamSource(ms);
         mss.connect(sp);
+        var destination = ac.createMediaStreamDestination()
+        sp.connect(destination);
+        sp.ecDestination = destination;
 
         // And disconnect it when user media stops
         userMediaAvailableEvent.addEventListener("usermediastopped", function() {
             mss.disconnect(sp);
-            sp.disconnect(acdestination);
+            sp.disconnect(destination);
             delete ac.ecSafariScriptProcessors[ms.id];
         }, {once: true});
     }
@@ -84,7 +88,10 @@ function createSafariScriptProcessor(ac, ms, bufferSize) {
     sp.ecUsers.push(user);
 
     // That tiny object is our fake interface
-    return user;
+    return {
+        scriptProcessor: user,
+        destination: sp.ecDestination.stream
+    };
 }
 
 // Safari-specific fake audio buffer
