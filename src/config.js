@@ -178,6 +178,7 @@ var useFlac = ((config.format&prot.flags.dataTypeMask) === prot.flags.dataType.f
 // Which features to use
 var useContinuous = !!(config.format&features.continuous);
 var useRTC = !!(config.format&features.rtc);
+var useNR = true;
 
 // If we're in continuous mode, we don't distinguish the degrees of VAD
 if (useContinuous) waveVADColors = waveVADColorSets.sc;

@@ -214,7 +214,11 @@ function localProcessing() {
         /* Our actual script processing step: noise reduction, only for RTC
          * (live voice chat) */
         if (nr) {
-            var ob = nr.run(ib);
+            var ob;
+            if (useNR)
+                ob = nr.run(ib);
+            else
+                ob = ib;
             var cc = ev.outputBuffer.numberOfChannels;
             for (var oi = 0; oi < cc; oi++)
                 ev.outputBuffer.getChannelData(oi).set(ob);

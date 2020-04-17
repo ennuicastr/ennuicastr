@@ -498,18 +498,22 @@ function createDeviceList() {
     // Make the main wrapper
     ui.deviceList = {};
     var wrapper = ui.deviceList.wrapper = dce("div");
-    wrapper.classList.add("row");
     wrapper.classList.add("panel");
     ui.deviceList.visible = false;
+
+    // Wrapper for the actual device list
+    var dlw = dce("div");
+    dlw.classList.add("row");
+    wrapper.appendChild(dlw);
 
     var lbl = dce("Label");
     lbl.htmlFor = "device-list";
     lbl.innerHTML = "Input device:&nbsp;";
-    wrapper.appendChild(lbl);
+    dlw.appendChild(lbl);
 
     var sel = ui.deviceList.select = dce("select");
     sel.id = "device-list";
-    wrapper.appendChild(sel);
+    dlw.appendChild(sel);
     var selected = null;
     try {
         selected = userMedia.getTracks()[0].getSettings().deviceId;
@@ -538,6 +542,31 @@ function createDeviceList() {
         });
 
     }).catch(function() {}); // Nothing really to do here
+
+    // Also include a selector for noise reduction
+    if (useRTC) {
+        var nrw = dce("div");
+        nrw.classList.add("row");
+        wrapper.appendChild(nrw);
+
+        // Toggle
+        var noiser = dce("input");
+        noiser.id = "noise-reduction";
+        noiser.type = "checkbox";
+        noiser.checked = useNR;
+        nrw.appendChild(noiser);
+
+        // And label
+        lbl = dce("label");
+        lbl.htmlFor = "noise-reduction";
+        lbl.innerHTML = "&nbsp;Apply noise reduction";
+        nrw.appendChild(lbl);
+
+        // Change noise reduction when we change it
+        noiser.onchange = function() {
+            useNR = noiser.checked;
+        };
+    }
 }
 
 // Toggle the visibility of the device list submenu
