@@ -74,10 +74,17 @@ function createCompressor(idx, ac, input) {
         var n = ret.nullOutput = ac.createMediaStreamDestination();
         c.connect(n);
 
-        // Create the interval for 
+        // Create the interval for compression
         ret.interval = setInterval(function() {
             if (!rtcCompression.gain.gain)
                 return; // Wait for this to be calculated
+
+            /* Here's the big idea: We have a fast reactor (the original
+             * compressor) and a slow reactor (ret.compressedGain). We choose
+             * whichever is less, i.e., whichever compresses more. The purpose
+             * to doing that is so that brief spikes don't wildly alter the
+             * gain, but consistent loudness does. */
+            var chosenGain = 1;
 
             if (rtcCompression.compressor.ratio === 1) {
                 // Compression is off
@@ -86,26 +93,23 @@ function createCompressor(idx, ac, input) {
             } else {
                 // Find a target compressed gain
                 var target = Math.pow(10, c.reduction/10);
-
-                // Eagerly choose more reduction, so that the actual max is accounted for
-                if (target < ret.compressedGain) {
-                    ret.compressedGain = target;
-                } else {
-                    // But choose less reduction with glacial slowness
-                    // This magic number is so that 90% change will be achieved after a quarter of a second
-                    ret.compressedGain = ((5*ret.compressedGain) + target) / 6;
-                }
+                // This magic number is so that 90% change will be achieved after 10 seconds
+                ret.compressedGain = ((217*ret.compressedGain) + target) / 218;
+                if (target < ret.compressedGain)
+                    chosenGain = target;
+                else
+                    chosenGain = ret.compressedGain;
 
             }
 
-            var gain = rtcCompression.gain.gain * ret.compressedGain;
+            var gain = rtcCompression.gain.gain * chosenGain;
             // Don't increase by more than 20dB
             if (gain > 10)
                 gain = 10;
             gain *= rtcCompression.gain.volume;
 
             // Now move the compression
-            g.gain.setTargetAtTime(gain, 0, 0.03);
+            g.gain.setTargetAtTime(gain, 0, 0.003);
         }, 20);
 
     }
