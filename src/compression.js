@@ -93,8 +93,15 @@ function createCompressor(idx, ac, input) {
             } else {
                 // Find a target compressed gain
                 var target = Math.pow(10, c.reduction/10);
-                // This magic number is so that 90% change will be achieved after 10 seconds
-                ret.compressedGain = ((217*ret.compressedGain) + target) / 218;
+
+                /* If the target is (essentially) 1, then the audio is
+                 * (essentially) silence. Don't learn the gain from silence! */
+                if (target < 0.99) {
+                    // This magic number is so that 90% change will be achieved after 10 seconds
+                    ret.compressedGain = ((217*ret.compressedGain) + target) / 218;
+                }
+
+                // Choose whichever reduces more
                 if (target < ret.compressedGain)
                     chosenGain = target;
                 else
