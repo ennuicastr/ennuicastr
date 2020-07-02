@@ -780,6 +780,9 @@ function libavStart() {
         pushStatus("libaverr", "Encoding error: " + ex);
         errorHandler(ex);
 
+        // This is sufficiently catastrophic that we should disconnect if it happens
+        disconnect();
+
     });
 }
 
@@ -895,6 +898,9 @@ function libavProcess() {
         }).catch(function(ex) {
             pushStatus("libaverr", "Encoding error: " + ex);
             errorHandler(ex);
+
+            // This is sufficiently catastrophic that we should disconnect if it happens
+            disconnect();
 
         });
     }
