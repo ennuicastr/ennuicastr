@@ -693,6 +693,10 @@ function libavStart() {
     if (useFlac && ac.sampleRate === 44100)
         sampleRate = 44100;
 
+    // Figure out if we need a custom AudioContext, due to sample rate differences
+    var umSampleRate = userMedia.getAudioTracks()[0].getSettings().sampleRate;
+    var needCustomAC = (umSampleRate !== ac.sampleRate) && (typeof AudioContext !== "undefined");
+
     // The server needs to be informed of FLAC's sample rate
     if (useFlac) {
         var p = prot.parts.info;
@@ -745,8 +749,11 @@ function libavStart() {
         encOptions.bit_rate = 128000;
     }
 
+    // Make our custom AudioContext if needed
+    var libavAC = needCustomAC ? new AudioContext({sampleRate: umSampleRate}) : ac;
+
     // Begin initializing the encoder
-    libavEncoder = {input_channel_layout: channelLayout};
+    libavEncoder = {ac: libavAC, input_channel_layout: channelLayout};
     return libav.ff_init_encoder(useFlac?"flac":"libopus", encOptions, 1, sampleRate).then(function(ret) {
 
         libavEncoder.codec = ret[0];
@@ -757,7 +764,7 @@ function libavStart() {
 
         // Now make the filter
         return libav.ff_init_filter_graph("aresample", {
-            sample_rate: ac.sampleRate,
+            sample_rate: libavAC.sampleRate,
             sample_fmt: libav.AV_SAMPLE_FMT_FLTP,
             channel_layout: channelLayout
         }, {
@@ -794,7 +801,7 @@ function libavProcess() {
     var libav = LibAV;
     var enc = libavEncoder;
     var pts = 0;
-    var inSampleRate = ac.sampleRate;
+    var inSampleRate = enc.ac.sampleRate;
 
     // Keep track of how much data we've received to see if it's too little
     var dataReceived = 0;
@@ -806,7 +813,7 @@ function libavProcess() {
     enc.latencyDump = false;
 
     // Start reading the input
-    var sp = createScriptProcessor(ac, userMedia, 16384 /* Max: Latency doesn't actually matter in this context */).scriptProcessor;
+    var sp = createScriptProcessor(enc.ac, userMedia, 16384 /* Max: Latency doesn't actually matter in this context */).scriptProcessor;
 
     // Don't try to process that last sip of data after termination
     var dead = false;
@@ -914,6 +921,10 @@ function libavProcess() {
             return;
         dead = true;
 
+        // Terminate our custom AC if needed
+        if (enc.ac !== ac)
+            enc.ac.close();
+
         // Close the encoder
         enc.p = enc.p.then(function() {
             return libav.avfilter_graph_free_js(enc.filter_graph);
@@ -926,8 +937,8 @@ function libavProcess() {
 
     // Catch when our UserMedia ends and stop (FIXME: race condition before reloading?)
     userMediaAvailableEvent.addEventListener("usermediastopped", terminate, {once: true});
-
     ac.addEventListener("disconnected", terminate);
+    enc.ac.addEventListener("disconnected", terminate);
 }
 
 // Shift a chunk of blob
