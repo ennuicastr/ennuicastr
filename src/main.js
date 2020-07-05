@@ -481,16 +481,19 @@ function userMediaSet() {
     pushStatus("initenc", "Initializing encoder...");
     popStatus("getmic");
 
+    // Get the sample rate from the user media
+    var sampleRate = userMedia.getAudioTracks()[0].getSettings().sampleRate;
+
     // Check whether we should be using WebAssembly
     var wa = isWebAssemblySupported();
 
     // Create our AudioContext if needed
     if (!ac) {
         try {
-            ac = new AudioContext();
+            ac = new AudioContext({sampleRate: sampleRate});
         } catch (ex) {
             // Try Apple's, and if not that, nothing left to try, so crash
-            ac = new webkitAudioContext();
+            ac = new webkitAudioContext({sampleRate: sampleRate});
         }
     }
 
