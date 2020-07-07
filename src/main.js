@@ -555,20 +555,31 @@ function userMediaSet() {
         if (useFlac || !Blob.prototype.arrayBuffer) {
             // Always need libav for this
             useLibAV = true;
+
         } else if (typeof MediaRecorder === "undefined") {
             // No built-in encoding
             useLibAV = true;
-        } else if (!MediaRecorder.isTypeSupported("audio/ogg; codecs=opus")) {
-            // We'll need at least demuxing
-            /* FIXME: This seems to be causing memory issues on Chrome, so use
-             * libav */
-            /*if (MediaRecorder.isTypeSupported("audio/webm; codecs=opus")) {
-                useMkvDemux = true;
-            } else {*/
-                useLibAV = true;
-            //}
+
         } else {
-            // No extras needed!
+            // We'll need resampling, but let's not trust the OS to do it
+            if (sampleRate !== 48000) {
+                useLibAV = true;
+
+            } else if (!MediaRecorder.isTypeSupported("audio/ogg; codecs=opus")) {
+                // We'll need at least demuxing
+                /* FIXME: This seems to be causing memory issues on Chrome, so use
+                 * libav */
+                /*if (MediaRecorder.isTypeSupported("audio/webm; codecs=opus")) {
+                    useMkvDemux = true;
+                } else {*/
+                    useLibAV = true;
+                //}
+
+            } else {
+                // No extras needed, raw ogg/opus extracting
+
+            }
+
         }
 
         // At this point, we want to start catching errors
