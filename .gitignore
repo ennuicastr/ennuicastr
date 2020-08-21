@@ -9,4 +9,6 @@ rec.opus
 fa/
 libav/*.js
 libav/*.wasm
+noise-repellent/*.js
+noise-repellent/*.wasm
 web-streams-ponyfill.js
