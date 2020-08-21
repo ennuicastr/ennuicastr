@@ -167,10 +167,13 @@ var wsUrl = (url.protocol==="http:"?"ws":"wss") + "://" + url.hostname + ":" + c
 
 // Do we need to use libav.js?
 var useLibAV = false;
-var libavVersion = "1.4.4.2.2";
+var libavVersion = "1.6.4.3.1";
 
 // Do we need to use mkvdemux.js?
 var useMkvDemuxJS = false;
+
+// Do we support MediaRecorder with VP8 output?
+var mediaRecorderVP8 = (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("video/webm; codecs=vp8"));
 
 // Should we be creating FLAC?
 var useFlac = ((config.format&prot.flags.dataTypeMask) === prot.flags.dataType.flac);

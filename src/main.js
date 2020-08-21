@@ -540,10 +540,7 @@ function userMediaSet() {
             WebRtcVad = {
                 onRuntimeInitialized: localProcessing
             };
-            var scr = dce("script");
-            scr.async = true;
-            scr.src = "vad/vad" + (wa?".wasm":"") + ".js";
-            document.body.appendChild(scr);
+            loadLibrary("vad/vad" + (wa?".wasm":"") + ".js");
         }
 
         // If the UI hasn't been created yet, now's the time
@@ -577,6 +574,7 @@ function userMediaSet() {
 
             } else {
                 // No extras needed, raw ogg/opus extracting
+                useLibAV = true;
 
             }
 
@@ -604,46 +602,37 @@ function userMediaSet() {
         });
 
         // Load anything we need
-        return new Promise(function(res, rej) {
-            if (useLibAV) {
-                // Load it
-                if (typeof LibAV === "undefined")
-                    LibAV = {};
-                if (LibAV.ready) {
-                    // Already loaded!
-                    return res();
-                }
-                LibAV.base = "libav";
-                var scr = dce("script");
-                scr.addEventListener("load", function() {
-                    if (LibAV.ready)
-                        res();
-                    else
-                        LibAV.onready = res;
-                });
-                scr.addEventListener("error", rej);
-                scr.src = "libav/libav-" + libavVersion + "-opus-flac.js";
-                scr.async = true;
-                document.body.appendChild(scr);
-
-            } else if (useMkvDemux) {
-                if (typeof mkvdemuxjs !== "undefined")
-                    return res();
-                var scr = dce("script");
-                scr.addEventListener("load", res);
-                scr.addEventListener("error", rej);
-                scr.src = "mkvdemux.min.js";
-                scr.async = true;
-                document.body.appendChild(scr);
-
-            } else {
-                res();
-
-            }
-
-        });
+        if (useLibAV) {
+            return loadLibAV();
+        } else if (useMkvDemux) {
+            if (typeof mkvdemuxjs === "undefined")
+                return loadLibrary("mkvdemux.min.js");
+        } else {
+            // Nothing to load!
+        }
     }).then(encoderLoaded);
 }
+
+
+// Load LibAV if it's not already loaded
+function loadLibAV() {
+    if (typeof LibAV === "undefined")
+        LibAV = {};
+    if (LibAV.ready) {
+        // Already loaded!
+        return Promise.all([]);;
+    }
+
+    LibAV.base = "libav";
+    return loadLibrary("libav/libav-" + libavVersion + "-webm-opus-flac.js").then(function() {
+        if (!LibAV.ready) {
+            return new Promise(function(res) {
+                LibAV.onready = res;
+            });
+        }
+    });
+}
+
 
 /* Called once the encoder is loaded, if it's needed. Returns a promise that
  * resolves once encoding is active. */
@@ -1457,6 +1446,18 @@ function errorHandler(error) {
     out.setUint32(0, prot.ids.error, true);
     new Uint8Array(out.buffer).set(errBuf, 4);
     dataSock.send(out.buffer);
+}
+
+// Generic library loader
+function loadLibrary(name) {
+    return new Promise(function(res, rej) {
+        var scr = dce("script");
+        scr.addEventListener("load", res);
+        scr.addEventListener("error", rej);
+        scr.src = name;
+        scr.async = true;
+        document.body.appendChild(scr);
+    });
 }
 
 

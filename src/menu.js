@@ -391,6 +391,9 @@ function createMenu() {
             toggleVideoDeviceList();
         };
     }
+
+    var rec = btn("file-video", "Record video");
+    rec.onclick = recordVideo;
 }
 
 

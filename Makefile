@@ -12,12 +12,13 @@ SRC=src/head.js \
 	src/master.js \
 	src/rtc.js \
 	src/compression.js \
+	src/video-record.js \
 	src/main.js \
 	src/tail.js
 
-all: ennuicastr.js ennuicastr.min.js protocol.min.js
+all: ennuicastr.js ennuicastr.min.js protocol.min.js web-streams-ponyfill.js
 
-test: ennuicastr-test.js ennuicastr-test.min.js
+test: ennuicastr-test.js ennuicastr-test.min.js web-streams-ponyfill.js
 
 ennuicastr.js: $(SRC)
 	cat $(SRC) | cat src/license.js - > $@
@@ -34,5 +35,9 @@ ennuicastr-test.min.js: $(SRC)
 protocol.min.js: protocol.js
 	cat $< | $(MINIFIER) | cat src/license.js - > $@
 
+web-streams-ponyfill.js:
+	test -e node_modules/web-streams-polyfill/dist/ponyfill.js || npm install web-streams-polyfill
+	cp node_modules/web-streams-polyfill/dist/ponyfill.js $@
+
 clean:
-	rm -f ennuicastr.js ennuicastr.min.js
+	rm -f ennuicastr.js ennuicastr.min.js web-streams-ponyfill.js
