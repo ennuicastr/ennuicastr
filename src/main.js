@@ -620,7 +620,7 @@ function loadLibAV() {
         LibAV = {};
     if (LibAV.ready) {
         // Already loaded!
-        return Promise.all([]);;
+        return Promise.all([]);
     }
 
     LibAV.base = "libav";
@@ -754,7 +754,15 @@ function libavStart() {
 
     // Begin initializing the encoder
     libavEncoder = {ac: libavAC, input_channel_layout: channelLayout};
-    return libav.ff_init_encoder(useFlac?"flac":"libopus", encOptions, 1, sampleRate).then(function(ret) {
+    return libav.ff_init_encoder(useFlac?"flac":"libopus", encOptions, 1, sampleRate).catch(function(ie) {
+        // Initialization error. Try again. FIXME in libav.js
+        return new Promise(function(res, rej) {
+            setTimeout(res, 500);
+        }).then(function() {
+            return libav.ff_init_encoder(useFlac?"flac":"libopus", encOptions, 1, sampleRate);
+        });
+
+    }).then(function(ret) {
 
         libavEncoder.codec = ret[0];
         libavEncoder.c = ret[1];
