@@ -366,35 +366,47 @@ function recordVideoButton(loading) {
     var btn = ui.recordVideoButton;
     if (!btn) return;
 
+    function disabled(to) {
+        btn.disabled = to;
+        if (to)
+            btn.classList.add("off");
+        else
+            btn.classList.remove("off");
+    }
+
     var start = '<i class="fas fa-file-video"></i> ';
     if (loading) {
         // Currently loading, don't mess with it
         btn.innerHTML = start + '<i class="fas fa-ellipsis-h"></i>';
-        btn.disabled = true;
+        disabled(true);
 
     } else if (recordVideoStop) {
         // Current recording is stoppable
         btn.innerHTML = start + '<i class="fas fa-stop"></i>';
         btn.disabled = false;
+        disabled(false);
         btn.onclick = function() {
-            btn.disabled = true;
+            disabled(true);
             recordVideoStop();
         };
 
     } else {
+        // FIXME: Figure out why StreamSaver and Firefox aren't getting along
+        var isFirefox = (navigator.userAgent.indexOf("Firefox") >= 0);
+
         // Not currently recording
         btn.innerHTML = start + '<i class="fas fa-circle"></i>';
-        if (mediaRecorderVP8 && userMediaVideo) {
+        if (mediaRecorderVP8 && userMediaVideo && !isFirefox) {
             // But we could be!
-            btn.disabled = false;
+            disabled(false);
             btn.onclick = function() {
-                btn.disabled = true;
+                disabled(true);
                 recordVideo();
             };
 
         } else {
             // And we can't
-            btn.disabled = true;
+            disabled(true);
 
         }
 

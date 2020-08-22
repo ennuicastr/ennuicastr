@@ -71,7 +71,7 @@ button:not(.plain):hover, .button:hover {
 }
 
 button.off, button.off:hover {
-    background-color: #500;
+    background-color: #333;
 }
 
 .menubutton {
