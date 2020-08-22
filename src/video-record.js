@@ -97,7 +97,6 @@ function recordVideo() {
 
             var sentFirst = false;
             var lastDTS = 0;
-            var lastPTS = 0;
 
             // Now read it in
             return new Promise(function(res, rej) {
@@ -151,53 +150,34 @@ function recordVideo() {
                         if (packets.length) {
                             // Update the timing
                             if (remoteBeginTime) {
-                                // Get the last packet's time
+                                // The last packet tells us roughly when we are
                                 var lastPacket = packets[packets.length-1];
-                                /*
-                                FIXME: This makes mathematical sense, but
-                                causes stutter. The new solution doesn't
-                                stutter, but probably drifts. I'll have to find
-                                an intermediate.
 
-                                var endTimeDTS = timeFrom(lastPacket.dtshi, lastPacket.dts);
-                                var endTimePTS = timeFrom(lastPacket.ptshi, lastPacket.pts);
-                                if (endTimeDTS < lastDTS) endTimeDTS = lastDTS;
-                                if (endTimePTS < lastPTS) endTimePTS = lastPTS;
-                                var startTimeDTS = endTimeDTS - frameTime * (packets.length-1);
-                                var startTimePTS = endTimePTS - frameTime * (packets.length-1);
-                                */
-                                var endTimeDTS, startTimeDTS;
-                                if (lastDTS) {
-                                    startTimeDTS = lastDTS + frameTime;
-                                } else {
-                                    startTimeDTS = endTimeReal // Time when this packet ended
-                                        - frameTime * (packets.length-1) // But from the first frame
-                                        + timeOffset // Convert to remote time
-                                        - remoteBeginTime; // Base at recording begin time
-                                }
-                                endTimeDTS = startTimeDTS + frameTime * (packets.length-1);
-
-                                /*
                                 // Figure out the correct offset
-                                var offset = 0 - endTimePTS // Remove file time
+                                var endTimeDTS = timeFrom(lastPacket.dtshi, lastPacket.dts);
+                                var offset = 0 - endTimeDTS // Remove file time
                                              + endTimeReal // Convert to local time
                                              + timeOffset // Convert to remote time
                                              - remoteBeginTime; // Base at recording time
-                                packets.forEach(function(packet) {
-                                    var dts = timeFrom(packet.dtshi, packet.dts);
-                                    var pts = timeFrom(packet.ptshi, packet.pts);
-                                    dts += offset;
-                                    pts += offset;
-                                    if (dts < lastDTS) dts = lastDTS;
-                                    if (pts < lastPTS) pts = lastPTS;
-                                    dts = timeTo(dts);
-                                    pts = timeTo(pts);
-                                    packet.dtshi = dts.hi;
-                                    packet.dts = dts.lo;
-                                    packet.ptshi = pts.hi;
-                                    packet.pts = pts.lo;
-                                });
-                                */
+
+                                // Now figure out the practical range of times
+                                var startTimeDTS;
+                                if (lastDTS)
+                                    startTimeDTS = lastDTS + frameTime;
+                                else
+                                    startTimeDTS = endTimeDTS - frameTime * (packets.length-1);
+
+                                // Figure out our ideal time step between these
+                                var step = (endTimeDTS - startTimeDTS) / (packets.length-1);
+
+                                // But don't let it get too far from the frame rate
+                                var stepVRate = step/frameRate;
+                                if (stepVRate < 0.99)
+                                    step = frameRate * 0.99;
+                                else if (stepVRate > 1.01)
+                                    step = frameRate * 1.01;
+
+                                // Now retime all the packets
                                 var dts = startTimeDTS;
                                 for (var pi = 0; pi < packets.length; pi++) {
                                     var packet = packets[pi];
@@ -213,7 +193,7 @@ function recordVideo() {
                                     packet.dts = pdts.lo;
                                     packet.ptshi = ppts.hi;
                                     packet.pts = ppts.lo;
-                                    dts += frameTime;
+                                    dts += step;
                                 }
 
                                 lastDTS = endTimeDTS;
