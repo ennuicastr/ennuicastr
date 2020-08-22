@@ -286,6 +286,9 @@ function recordVideo() {
 
         // Set up a way to stop it
         recordVideoStop = function() {
+            // Stop writing the file immediately
+            fileWriter.close();
+
             // And end the translation
             if (transtate.write) {
                 transtate.write(null);
