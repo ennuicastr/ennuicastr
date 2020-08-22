@@ -282,6 +282,10 @@ function dataSockMsg(msg) {
 
                     break;
 
+                case prot.info.startTime:
+                    remoteBeginTime = msg.getFloat64(p.value, true);
+                    break;
+
                 case prot.info.ice:
                     var iceServer = JSON.parse(decodeText(msg.buffer.slice(p.value)));
                     iceServers.push(iceServer);
@@ -788,7 +792,8 @@ function libavStart() {
         libavEncoder.buffersink_ctx = ret[2];
 
         // We're ready to go!
-        startTime = performance.now();
+        if (!startTime)
+            startTime = performance.now();
         libavEncoder.p = Promise.all([]);
 
         // Start processing in the background

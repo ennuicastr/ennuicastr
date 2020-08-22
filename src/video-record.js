@@ -18,7 +18,10 @@ function recordVideo() {
     var libav;
 
     // We decide the bitrate based on the height (FIXME: Configurability)
-    var bitrate = userMediaVideo.getVideoTracks()[0].getSettings().height * 5000;
+    var videoSettings = userMediaVideo.getVideoTracks()[0].getSettings();
+    var bitrate = videoSettings.height * 5000;
+    var frameRate = videoSettings.frameRate;
+    var frameTime = 1/frameRate * 1000;
 
     return loadLibAV().then(function() {
         libav = LibAV;
@@ -62,7 +65,6 @@ function recordVideo() {
                 return; // Ignore patches
             }
             buf = new Uint8Array(buf.buffer);
-            console.log(buf);
             fileWriter.write(buf);
             transtate.written += buf.length;
         };
@@ -93,10 +95,14 @@ function recordVideo() {
             transtate.pkt = ret[2];
             transtate.frame = ret[3];
 
+            var sentFirst = false;
+            var lastDTS = 0;
+            var lastPTS = 0;
+
             // Now read it in
             return new Promise(function(res, rej) {
                 function go() {
-                    var readState, packets;
+                    var readState, packets, endTimeReal;
                     libav.ff_read_multi(transtate.in_fmt_ctx, transtate.pkt, transtate.inF).then(function(ret) {
                         readState = ret[0];
                         if (readState !== 0 && readState !== -libav.EAGAIN && readState !== libav.AVERROR_EOF) {
@@ -104,6 +110,10 @@ function recordVideo() {
                             throw new Error(ret[0]);
                         }
                         packets = ret[1][transtate.in_stream_idx] || [];
+
+                        // Figure out the timing
+                        if (packets.length)
+                            endTimeReal = performance.now();
 
                         // Maybe prepare output
                         if (packets.length && !transtate.out_oc) {
@@ -125,9 +135,112 @@ function recordVideo() {
                         }
 
                     }).then(function() {
-                        // And write (FIXME: Timestamp madness)
-                        if (packets.length)
+                        function timeFrom(fromhi, from) {
+                            from += fromhi * 0x100000000;
+                            return from * transtate.in_stream.time_base_num / transtate.in_stream.time_base_den * 1000;
+                        }
+
+                        function timeTo(from) {
+                            var to = from * transtate.in_stream.time_base_den / transtate.in_stream.time_base_num / 1000;
+                            return {
+                                hi: ~~(to / 0x100000000),
+                                lo: ~~(to % 0x100000000)
+                            };
+                        }
+
+                        if (packets.length) {
+                            // Update the timing
+                            if (remoteBeginTime) {
+                                // Get the last packet's time
+                                var lastPacket = packets[packets.length-1];
+                                /*
+                                FIXME: This makes mathematical sense, but
+                                causes stutter. The new solution doesn't
+                                stutter, but probably drifts. I'll have to find
+                                an intermediate.
+
+                                var endTimeDTS = timeFrom(lastPacket.dtshi, lastPacket.dts);
+                                var endTimePTS = timeFrom(lastPacket.ptshi, lastPacket.pts);
+                                if (endTimeDTS < lastDTS) endTimeDTS = lastDTS;
+                                if (endTimePTS < lastPTS) endTimePTS = lastPTS;
+                                var startTimeDTS = endTimeDTS - frameTime * (packets.length-1);
+                                var startTimePTS = endTimePTS - frameTime * (packets.length-1);
+                                */
+                                var endTimeDTS, startTimeDTS;
+                                if (lastDTS) {
+                                    startTimeDTS = lastDTS + frameTime;
+                                } else {
+                                    startTimeDTS = endTimeReal // Time when this packet ended
+                                        - frameTime * (packets.length-1) // But from the first frame
+                                        + timeOffset // Convert to remote time
+                                        - remoteBeginTime; // Base at recording begin time
+                                }
+                                endTimeDTS = startTimeDTS + frameTime * (packets.length-1);
+
+                                /*
+                                // Figure out the correct offset
+                                var offset = 0 - endTimePTS // Remove file time
+                                             + endTimeReal // Convert to local time
+                                             + timeOffset // Convert to remote time
+                                             - remoteBeginTime; // Base at recording time
+                                packets.forEach(function(packet) {
+                                    var dts = timeFrom(packet.dtshi, packet.dts);
+                                    var pts = timeFrom(packet.ptshi, packet.pts);
+                                    dts += offset;
+                                    pts += offset;
+                                    if (dts < lastDTS) dts = lastDTS;
+                                    if (pts < lastPTS) pts = lastPTS;
+                                    dts = timeTo(dts);
+                                    pts = timeTo(pts);
+                                    packet.dtshi = dts.hi;
+                                    packet.dts = dts.lo;
+                                    packet.ptshi = pts.hi;
+                                    packet.pts = pts.lo;
+                                });
+                                */
+                                var dts = startTimeDTS;
+                                for (var pi = 0; pi < packets.length; pi++) {
+                                    var packet = packets[pi];
+                                    var pdts = timeFrom(packet.dtshi, packet.dts);
+                                    var ppts = timeFrom(packet.ptshi, packet.pts);
+                                    ppts -= pdts;
+                                    pdts = (dts < lastDTS) ? lastDTS : dts;
+                                    ppts += pdts;
+                                    if (ppts < 0) ppts = 0;
+                                    pdts = timeTo(pdts);
+                                    ppts = timeTo(ppts);
+                                    packet.dtshi = pdts.hi;
+                                    packet.dts = pdts.lo;
+                                    packet.ptshi = ppts.hi;
+                                    packet.pts = ppts.lo;
+                                    dts += frameTime;
+                                }
+
+                                lastDTS = endTimeDTS;
+
+                            } else {
+                                /* No starting time yet, so either send only
+                                 * one packet (to get the timestamps right) or
+                                 * nothing */
+                                if (!sentFirst)
+                                    packets = [packets[0]];
+                                else
+                                    packets = [];
+
+                            }
+                        }
+
+                        if (packets.length) {
+                            if (!sentFirst) {
+                                // Make sure the first packet has timestamp 0 so that all the other timestamps are right
+                                packets[0].dtshi = packets[0].dts = packets[0].ptshi = packets[0].pts = 0;
+                                sentFirst = true;
+                            }
+
+                            // And write
                             return libav.ff_write_multi(transtate.out_oc, transtate.pkt, packets);
+
+                        }
 
                     }).then(function() {
                         // Continue or end

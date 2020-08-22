@@ -213,6 +213,9 @@ var targetTimeOffset = null;
 // And this is the amount to adjust it per frame (1%)
 var timeOffsetAdjPerFrame = 0.0002;
 
+// The remote start time, i.e., when recording began
+var remoteBeginTime = null;
+
 /* We keep track of the last time we successfully encoded data for
  * transfer, to determine if anything's gone wrong */
 var lastSentTime = 0;

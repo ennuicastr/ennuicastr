@@ -186,6 +186,10 @@
             // S->C, uint32: Inform the user of the current mode
             "mode": 0x14,
 
+            /* S->C, double: Inform the user of the timestamp at which
+             * recording formally began */
+            "startTime": 0x15,
+
             /* S->C, 2xuint32: Inform the client of the current cost of the
              * recording in credits, and their rate of credit consumption per
              * minute. */
