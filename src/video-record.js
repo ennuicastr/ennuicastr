@@ -286,11 +286,6 @@ function recordVideo() {
 
         // Set up a way to stop it
         recordVideoStop = function() {
-            /* Close the file, as some browsers need this to be in the button
-             * event */
-            if (fileWriter)
-                fileWriter.close();
-
             // And end the translation
             if (transtate.write) {
                 transtate.write(null);
@@ -397,7 +392,7 @@ function recordVideoButton(loading) {
             if (typeof streamSaver === "undefined") {
                 disabled(true);
                 loadLibrary("web-streams-ponyfill.js").then(function() {
-                    return loadLibrary("StreamSaver.js?v=2");
+                    return loadLibrary("StreamSaver.js?v=3");
                 }).then(function() {
                     disabled(false);
                     streamSaver.mitm = "StreamSaver/mitm.html";
