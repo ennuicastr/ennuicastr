@@ -19,6 +19,10 @@ var recordVideoStop = null;
 function recordVideo() {
     var libav;
 
+    // Create a write stream early, so it's in response to the button click
+    var fileStream = streamSaver.createWriteStream("video.webm"); // FIXME: name
+    var fileWriter = fileStream.getWriter();
+
     if (recordVideoStop) {
         // Can't have two videos recording at once!
         recordVideoStop();
@@ -49,20 +53,7 @@ function recordVideo() {
             };
         }
 
-        // Make sure we've loaded StreamSaver
-        if (typeof streamSaver === "undefined") {
-            return loadLibrary("web-streams-ponyfill.js").then(function() {
-                return loadLibrary("StreamSaver.js");
-            }).then(function() {
-                streamSaver.mitm = "StreamSaver/mitm.html";
-            });
-        }
-
     }).then(function() {
-        // Create a write stream
-        var fileStream = streamSaver.createWriteStream("video.webm"); // FIXME: name
-        var fileWriter = fileStream.getWriter();
-
         // Create our LibAV input
         var transtate = {};
         transtate.inF = "in-" + Math.random() + ".webm";
@@ -295,6 +286,12 @@ function recordVideo() {
 
         // Set up a way to stop it
         recordVideoStop = function() {
+            /* Close the file, as some browsers need this to be in the button
+             * event */
+            if (fileWriter)
+                fileWriter.close();
+
+            // And end the translation
             if (transtate.write) {
                 transtate.write(null);
                 transtate.write = null;
@@ -391,14 +388,24 @@ function recordVideoButton(loading) {
         };
 
     } else {
-        // FIXME: Figure out why StreamSaver and Firefox aren't getting along
-        var isFirefox = (navigator.userAgent.indexOf("Firefox") >= 0);
-
         // Not currently recording
         btn.innerHTML = start + '<i class="fas fa-circle"></i>';
         if (mediaRecorderVP8 && userMediaVideo && !isFirefox) {
             // But we could be!
-            disabled(false);
+
+            // Make sure we've loaded StreamSaver
+            if (typeof streamSaver === "undefined") {
+                disabled(true);
+                loadLibrary("web-streams-ponyfill.js").then(function() {
+                    return loadLibrary("StreamSaver.js?v=2");
+                }).then(function() {
+                    disabled(false);
+                    streamSaver.mitm = "StreamSaver/mitm.html";
+                });
+            } else {
+                disabled(false);
+            }
+
             btn.onclick = function() {
                 disabled(true);
                 recordVideo();
