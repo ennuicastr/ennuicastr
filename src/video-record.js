@@ -390,7 +390,7 @@ function recordVideoButton(loading) {
     } else {
         // Not currently recording
         btn.innerHTML = start + '<i class="fas fa-circle"></i>';
-        if (mediaRecorderVP8 && userMediaVideo && !isFirefox) {
+        if (mediaRecorderVP8 && userMediaVideo) {
             // But we could be!
 
             // Make sure we've loaded StreamSaver
