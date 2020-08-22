@@ -14,8 +14,20 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+var recordVideoStop = null;
+
 function recordVideo() {
     var libav;
+
+    if (recordVideoStop) {
+        // Can't have two videos recording at once!
+        recordVideoStop();
+    }
+    recordVideoButton(true);
+
+    // Make sure they know what's what
+    pushStatus("video-beta", "Video recording is an ALPHA feature in early testing.");
+    setTimeout(function() { popStatus("video-beta"); }, 10000);
 
     // We decide the bitrate based on the height (FIXME: Configurability)
     var videoSettings = userMediaVideo.getVideoTracks()[0].getSettings();
@@ -60,10 +72,8 @@ function recordVideo() {
         // And output
         transtate.written = 0;
         libav.onwriteto[transtate.outF] = function(pos, buf) {
-            if (pos !== transtate.written) {
-                console.error("Patch");
+            if (pos !== transtate.written)
                 return; // Ignore patches
-            }
             buf = new Uint8Array(buf.buffer);
             fileWriter.write(buf);
             transtate.written += buf.length;
@@ -102,7 +112,7 @@ function recordVideo() {
             return new Promise(function(res, rej) {
                 function go() {
                     var readState, packets, endTimeReal;
-                    libav.ff_read_multi(transtate.in_fmt_ctx, transtate.pkt, transtate.inF).then(function(ret) {
+                    return libav.ff_read_multi(transtate.in_fmt_ctx, transtate.pkt, transtate.inF).then(function(ret) {
                         readState = ret[0];
                         if (readState !== 0 && readState !== -libav.EAGAIN && readState !== libav.AVERROR_EOF) {
                             // Weird error!
@@ -222,8 +232,10 @@ function recordVideo() {
 
                     }).then(function() {
                         // Continue or end
-                        if (readState == libav.AVERROR_EOF)
+                        if (readState === libav.AVERROR_EOF)
                             res();
+                        else if (readState === -libav.EAGAIN && packets.length === 0)
+                            new Promise(function(res) { transtate.read = res; }).then(go);
                         else
                             go();
 
@@ -261,12 +273,39 @@ function recordVideo() {
             videoBitsPerSecond: bitrate
         });
         mediaRecorder.addEventListener("dataavailable", function(chunk) {
-            transtate.write(chunk.data);
+            if (transtate.write) {
+                transtate.write(chunk.data);
+                if (transtate.read)
+                    transtate.read();
+            }
         });
         mediaRecorder.addEventListener("stop", function() {
-            transtate.write(null);
+            if (transtate.write) {
+                transtate.write(null);
+                transtate.write = null;
+
+                if (transtate.read)
+                    transtate.read();
+
+                recordVideoStop = null;
+                recordVideoButton();
+            }
         });
         mediaRecorder.start(200);
+
+        // Set up a way to stop it
+        recordVideoStop = function() {
+            if (transtate.write) {
+                transtate.write(null);
+                transtate.write = null;
+
+                if (transtate.read)
+                    transtate.read();
+            }
+            recordVideoStop = null;
+            recordVideoButton();
+        };
+        recordVideoButton();
 
     });
 }
@@ -321,3 +360,47 @@ function recordVideoInput(transtate) {
         });
     }
 }
+
+// Configure the video recording button based on the current state
+function recordVideoButton(loading) {
+    var btn = ui.recordVideoButton;
+    if (!btn) return;
+
+    var start = '<i class="fas fa-file-video"></i> ';
+    if (loading) {
+        // Currently loading, don't mess with it
+        btn.innerHTML = start + '<i class="fas fa-ellipsis-h"></i>';
+        btn.disabled = true;
+
+    } else if (recordVideoStop) {
+        // Current recording is stoppable
+        btn.innerHTML = start + '<i class="fas fa-stop"></i>';
+        btn.disabled = false;
+        btn.onclick = function() {
+            btn.disabled = true;
+            recordVideoStop();
+        };
+
+    } else {
+        // Not currently recording
+        btn.innerHTML = start + '<i class="fas fa-circle"></i>';
+        if (mediaRecorderVP8 && userMediaVideo) {
+            // But we could be!
+            btn.disabled = false;
+            btn.onclick = function() {
+                btn.disabled = true;
+                recordVideo();
+            };
+
+        } else {
+            // And we can't
+            btn.disabled = true;
+
+        }
+
+    }
+}
+
+// Make sure the record button updates when the video state updates
+userMediaAvailableEvent.addEventListener("usermediavideoready", function() { recordVideoButton(); });
+userMediaAvailableEvent.addEventListener("usermediavideostopped", function() { recordVideoButton(); });
