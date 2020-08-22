@@ -149,21 +149,19 @@ function recordVideo() {
 
                         if (packets.length) {
                             // Update the timing
-                            if (remoteBeginTime) {
+                            if (remoteBeginTime && timeOffset) {
                                 // The last packet tells us roughly when we are
                                 var lastPacket = packets[packets.length-1];
 
-                                // Figure out the correct offset
-                                var endTimeDTS = timeFrom(lastPacket.dtshi, lastPacket.dts);
-                                var offset = 0 - endTimeDTS // Remove file time
-                                             + endTimeReal // Convert to local time
-                                             + timeOffset // Convert to remote time
-                                             - remoteBeginTime; // Base at recording time
+                                // Figure out the ideal end time
+                                var endTimeDTS = endTimeReal // The real time when we received this packet
+                                    + timeOffset // Convert to remote time
+                                    - remoteBeginTime; // Base at recording start time
 
                                 // Now figure out the practical range of times
                                 var startTimeDTS;
                                 if (lastDTS)
-                                    startTimeDTS = lastDTS + frameTime;
+                                    startTimeDTS = lastDTS;
                                 else
                                     startTimeDTS = endTimeDTS - frameTime * (packets.length-1);
 
@@ -196,7 +194,7 @@ function recordVideo() {
                                     dts += step;
                                 }
 
-                                lastDTS = endTimeDTS;
+                                lastDTS = dts;
 
                             } else {
                                 /* No starting time yet, so either send only
