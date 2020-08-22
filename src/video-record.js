@@ -36,8 +36,7 @@ function recordVideo() {
     // We decide the bitrate based on the height (FIXME: Configurability)
     var videoSettings = userMediaVideo.getVideoTracks()[0].getSettings();
     var bitrate = videoSettings.height * 5000;
-    var frameRate = videoSettings.frameRate;
-    var frameTime = 1/frameRate * 1000;
+    var globalFrameTime = 1/videoSettings.frameRate * 1000;
 
     return loadLibAV().then(function() {
         libav = LibAV;
@@ -154,6 +153,16 @@ function recordVideo() {
                                 // The last packet tells us roughly when we are
                                 var lastPacket = packets[packets.length-1];
 
+                                // Get the framerate from the packets
+                                var frameTime;
+                                if (packets.length > 1) {
+                                    var last = timeFrom(lastPacket.dtshi, lastPacket.dts);
+                                    var first = timeFrom(packets[0].dtshi, packets[0].dts);
+                                    frameTime = (last - first) / (packets.length - 1);
+                                } else {
+                                    frameTime = globalFrameTime;
+                                }
+
                                 // Figure out the ideal end time
                                 var endTimeDTS = endTimeReal // The real time when we received this packet
                                     + timeOffset // Convert to remote time
@@ -170,11 +179,11 @@ function recordVideo() {
                                 var step = (endTimeDTS - startTimeDTS) / (packets.length-1);
 
                                 // But don't let it get too far from the frame rate
-                                var stepVRate = step/frameRate;
+                                var stepVRate = step/frameTime;
                                 if (stepVRate < 0.99)
-                                    step = frameRate * 0.99;
+                                    step = frameTime * 0.99;
                                 else if (stepVRate > 1.01)
-                                    step = frameRate * 1.01;
+                                    step = frameTime * 1.01;
 
                                 // Now retime all the packets
                                 var dts = startTimeDTS;
