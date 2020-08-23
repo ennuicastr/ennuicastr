@@ -77,6 +77,24 @@ function mkUI(small) {
                 btn.innerHTML = '<i class="fas fa-expand"></i>';
         });
 
+        // But hide it when the mouse isn't in the right place
+        var timeout = null;
+        el.style.cursor = "none";
+        btn.style.display = "none";
+        function mouseenter() {
+            if (timeout)
+                clearTimeout(timeout);
+            btn.style.display = "";
+            el.style.cursor = "";
+            timeout = setTimeout(function() {
+                btn.style.display = "none";
+                el.style.cursor = "none";
+                timeout = null;
+            }, 5000);
+        }
+        el.addEventListener("mouseenter", mouseenter);
+        el.addEventListener("mousemove", mouseenter);
+
         return btn;
     }
 
