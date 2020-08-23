@@ -45,22 +45,70 @@ function mkUI(small) {
         side: null
     };
 
+    // A generic function to generate fullscreen buttons
+    function fullscreen(el, aria) {
+        var btn = dce("button");
+
+        // A fullscreen button for the main video
+        var btn = dce("button");
+        btn.classList.add("menubutton");
+        btn.innerHTML = '<i class="fas fa-expand"></i>';
+        btn.setAttribute("aria-label", aria);
+        btn.style.position = "absolute";
+        btn.style.right = "0px";
+        btn.style.bottom = "0px";
+        btn.style.zIndex = "100";
+        el.appendChild(btn);
+
+        // And the fullscreen handler
+        function toggleFullscreen() {
+            if (document.fullscreenElement === el)
+                document.exitFullscreen();
+            else
+                el.requestFullscreen();
+        }
+        videoMain.ondblclick = toggleFullscreen;
+        btn.onclick = toggleFullscreen;
+
+        document.addEventListener("fullscreenchange", function() {
+            if (document.fullscreenElement === el)
+                btn.innerHTML = '<i class="fas fa-compress"></i>';
+            else
+                btn.innerHTML = '<i class="fas fa-expand"></i>';
+        });
+
+        return btn;
+    }
+
+    // A wrapper for *all* video
+    var videoWrapper = ui.video.wrapper = dce("div");
+    videoWrapper.style.position = "relative";
+    videoWrapper.style.flex = "auto";
+    videoWrapper.style.display = "none";
+    videoWrapper.style.flexDirection = "column";
+    outer.appendChild(videoWrapper);
+
     // A wrapper for the main video (if visible)
     var videoMain = ui.video.main = dce("div");
+    videoMain.style.position = "relative";
+    videoMain.style.display = "flex";
     videoMain.style.flex = "auto";
-    videoMain.style.display = "none";
     videoMain.style.flexDirection = "column";
     videoMain.style.minHeight = "160px";
     videoMain.style.textAlign = "center";
-    outer.appendChild(videoMain);
+    videoWrapper.appendChild(videoMain);
+    ui.video.mainFullscreen = fullscreen(videoMain, "Fullscreen (single video)");
 
-    // And for side video
+    // A wrapper for side video
     var videoSide = ui.video.side = dce("div");
-    videoSide.style.display = "none";
+    videoSide.style.display = "flex";
     videoSide.style.height = "160px";
     videoSide.style.width = "100%";
     videoSide.style.overflow = "auto hidden";
-    outer.appendChild(videoSide);
+    videoWrapper.appendChild(videoSide);
+
+    // And a fullscreen button for all video
+    fullscreen(videoWrapper, "Fullscreen (all video)");
 
     // And for our own video
     var selfVideo = ui.video.self = dce("video");
@@ -158,8 +206,7 @@ function mkUI(small) {
 // Shrink the UI if there's nothing interesting in it
 function maybeShrinkUI() {
     if (!("master" in config) &&
-        ui.video.main.style.display === "none" &&
-        ui.video.side.style.display === "none" &&
+        ui.video.wrapper.style.display === "none" &&
         ui.postWrapper.childNodes.length === 0) {
         var newH = 240 + window.outerHeight - window.innerHeight;
         if (window.innerHeight > 240)
@@ -170,7 +217,7 @@ function maybeShrinkUI() {
 // Re-adjust flex-assigned boxes
 function reflexUI() {
     var hasFlex = false;
-    if (ui.video.main.style.display === "none") {
+    if (ui.video.wrapper.style.display === "none") {
         // Always flex the post wrapper if there's no video
         hasFlex = true;
 
@@ -234,16 +281,14 @@ function updateVideoUI(peer, neww) {
 
     if (!hasVideo) {
         // Nope!
-        ui.video.main.style.display = "none";
-        ui.video.side.style.display = "none";
+        ui.video.wrapper.style.display = "none";
         reflexUI();
         maybeShrinkUI();
         return;
     }
 
     // Displaying video
-    ui.video.main.style.display = "flex";
-    ui.video.side.style.display = "";
+    ui.video.wrapper.style.display = "flex";
 
     // Don't let them be the major if they're gone
     if (!el) {
@@ -318,6 +363,7 @@ function updateVideoUI(peer, neww) {
     if (ui.video.major !== -1) {
         el = ui.video.els[ui.video.major];
         ui.video.main.appendChild(el);
+        ui.video.main.appendChild(ui.video.mainFullscreen);
         el.style.maxWidth = "100%";
         el.style.height = "";
     }
