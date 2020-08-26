@@ -620,20 +620,21 @@ function userMediaSet() {
 
 // Load LibAV if it's not already loaded
 function loadLibAV() {
-    if (typeof LibAV === "undefined")
-        LibAV = {};
-    if (LibAV.ready) {
-        // Already loaded!
+    if (libav) {
+        // Already loaded
         return Promise.all([]);
     }
 
+    if (typeof LibAV === "undefined")
+        LibAV = {};
     LibAV.base = "libav";
+
     return loadLibrary("libav/libav-" + libavVersion + "-webm-opus-flac.js").then(function() {
-        if (!LibAV.ready) {
-            return new Promise(function(res) {
-                LibAV.onready = res;
-            });
-        }
+        return LibAV.LibAV();
+
+    }).then(function(ret) {
+        libav = ret;
+
     });
 }
 
@@ -690,8 +691,6 @@ function encoderLoaded() {
 
 // Start the libav encoder
 function libavStart() {
-    var libav = LibAV;
-
     // We need to choose our target sample rate based on the input sample rate and format
     sampleRate = 48000;
     if (useFlac && ac.sampleRate === 44100)
@@ -758,15 +757,7 @@ function libavStart() {
 
     // Begin initializing the encoder
     libavEncoder = {ac: libavAC, input_channel_layout: channelLayout};
-    return libav.ff_init_encoder(useFlac?"flac":"libopus", encOptions, 1, sampleRate).catch(function(ie) {
-        // Initialization error. Try again. FIXME in libav.js
-        return new Promise(function(res, rej) {
-            setTimeout(res, 500);
-        }).then(function() {
-            return libav.ff_init_encoder(useFlac?"flac":"libopus", encOptions, 1, sampleRate);
-        });
-
-    }).then(function(ret) {
+    return libav.ff_init_encoder(useFlac?"flac":"libopus", encOptions, 1, sampleRate).then(function(ret) {
 
         libavEncoder.codec = ret[0];
         libavEncoder.c = ret[1];
@@ -811,7 +802,6 @@ function libavStart() {
 
 // libav's actual per-chunk processing
 function libavProcess() {
-    var libav = LibAV;
     var enc = libavEncoder;
     var pts = 0;
     var inSampleRate = enc.ac.sampleRate;

@@ -167,7 +167,7 @@ var wsUrl = (url.protocol==="http:"?"ws":"wss") + "://" + url.hostname + ":" + c
 
 // Do we need to use libav.js?
 var useLibAV = false;
-var libavVersion = "1.6.4.3.1";
+var libavVersion = "2.0.4.3.1";
 
 // Do we need to use mkvdemux.js?
 var useMkvDemuxJS = false;

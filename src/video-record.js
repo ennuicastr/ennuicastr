@@ -17,8 +17,6 @@
 var recordVideoStop = null;
 
 function recordVideo() {
-    var libav;
-
     // Create a write stream early, so it's in response to the button click
     var fileStream = streamSaver.createWriteStream("video.webm"); // FIXME: name
     var fileWriter = fileStream.getWriter();
@@ -39,8 +37,6 @@ function recordVideo() {
     var globalFrameTime = 1/videoSettings.frameRate * 1000;
 
     return loadLibAV().then(function() {
-        libav = LibAV;
-
         // Set up our forwarder in LibAV
         if (!libav.onwrite) {
             libav.onwriteto = {};
@@ -316,7 +312,6 @@ function recordVideo() {
 
 // Input handler for video recording
 function recordVideoInput(transtate) {
-    var libav = LibAV;
     var buf;
 
     /* Create a promise for the start, because we have to buffer the header

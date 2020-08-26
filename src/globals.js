@@ -69,6 +69,7 @@ try {
 var ac = null; // The audio context for our scripts
 var fileReader = null; // Used to transfer Opus data from the built-in encoder
 var mediaRecorder = null; // The built-in media recorder, on browsers which support encoding to Ogg Opus
+var libav = null; // If using libav.js
 var libavEncoder = null; // If using libav.js to encode
 var mkvDemuxer = null; // If using mkvdemux.js to demux
 
