@@ -132,8 +132,12 @@ if (username === null || username === "") {
     var form = dce("form");
     form.action = "?";
     form.method = "GET";
+    var def = "";
+    if (typeof localStorage !== "")
+        def = localStorage.getItem("username") || "";
+    def = def.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     var html =
-        "<label for=\"nm\">Username: </label><input name=\"nm\" id=\"nm\" type=\"text\" /> ";
+        "<label for=\"nm\">Username: </label><input name=\"nm\" id=\"nm\" type=\"text\" value=\"" + def + "\" /> ";
     for (var key in config)
         html += "<input name=\"" + key[0] + "\" type=\"hidden\" value=\"" + config[key].toString(36) + "\" />";
     html += "<input type=\"submit\" value=\"Join\" />";
@@ -160,6 +164,12 @@ if (username === null || username === "") {
     div.appendChild(form);
     document.body.appendChild(div);
     return;
+
+} else {
+    // Remember the username
+    if (typeof localStorage !== "")
+        localStorage.setItem("username", username);
+
 }
 
 // Find the websock URL
