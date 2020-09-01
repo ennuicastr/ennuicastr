@@ -63,7 +63,6 @@ function initRTC(peer, outgoing) {
         var track = ev.track;
         var stream = ev.streams[0];
         var isVideo = (track.kind === "video");
-        mkUI(true);
 
         if (!stream) return;
 

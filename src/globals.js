@@ -122,6 +122,10 @@ var rtcCompression = {
     compressors: []
 };
 
+// Global connection state
+var connected = false;
+var transmitting = false;
+
 // Our output device, if it's been explicitly chosen
 var outputDeviceId = null;
 
@@ -162,10 +166,32 @@ var waveVADColors = waveVADColorSets.sv;
 
 // The entire user interface
 var ui = {
+    // Has the user taken control of the window size?
+    manualSize: false,
+
+    // What is our desired automatic size?
+    autoSize: 0,
+
+    // Are we currently resizing?
+    resizing: null,
+
+    // The code for the entire UI
+    code: null,
+
+    // The outermost wrapper
+    wrapper: null,
+
+    // All of our panels
+    panels: {},
+
+    // The element to auto-focus when a panel is activated
+    panelAutos: {},
+
     // The video canvas wrapper
     video: null,
 
     // The display canvas and data
+    waveWrapper: null,
     waveCanvas: null,
     waveWatcher: null,
     waveRotate: false,
@@ -179,11 +205,8 @@ var ui = {
 
     // The user list and voice status
     userList: {
-        button: null,
-        wrapper: null,
         left: null,
         right: null,
-        visible: false,
         els: []
     },
 

@@ -16,9 +16,7 @@
 
 // Receive a chat message
 function recvChat(text) {
-    if (!ui.chatBox || !ui.chatBox.visible)
-        mkChatBox();
-
+    togglePanel("chat", true);
     var line = dce("div");
     line.innerText = text;
     ui.chatBox.incoming.appendChild(line);
@@ -36,66 +34,13 @@ function sendChat(text) {
     dataSock.send(out.buffer);
 }
 
-// Build the chat box
-function mkChatBox() {
-    if (ui.chatBox) {
-        // It already exists, but is it actually visible?
-        if (!ui.chatBox.visible) {
-            mkUI().appendChild(ui.chatBox.wrapper);
-            ui.chatBox.visible = true;
-        }
-        return ui.chatBox;
-    }
-
-    var chatBox = ui.chatBox = {};
-
-    // Create a wrapper so we can easily hide this
-    var wrapper = chatBox.wrapper = dce("div");
-    wrapper.style.flex = "auto";
-    wrapper.style.display = "flex";
-    wrapper.style.flexDirection = "column";
-
-    // Create the close button
-    var cw = dce("div");
-    cw.style.textAlign = "right";
-    var close = dce("button");
-    close.classList.add("button");
-    close.innerText = "X";
-    cw.appendChild(close);
-    wrapper.appendChild(cw);
-
-    // Create the incoming box
-    var incoming = chatBox.incoming = dce("div");
-    incoming.classList.add("chat");
-    incoming.style.flex = "auto";
-    incoming.style.padding = "0.5em";
-    incoming.style.height = "2em";
-    incoming.style.overflow = "auto";
-    incoming.setAttribute("role", "log");
-    incoming.setAttribute("aria-live", "polite");
-    wrapper.appendChild(incoming);
-
-    // The outgoing box needs a wrapper to take full width
-    var ogw = dce("div");
-    ogw.style.display = "flex";
-
-    // Create the outgoing box
-    var outgoing = chatBox.outgoing = dce("input");
-    outgoing.type = "text";
-    outgoing.style.flex = "auto";
-    ogw.appendChild(outgoing);
-    wrapper.appendChild(ogw);
-
-    // Make it visible
-    mkUI().appendChild(wrapper);
-    chatBox.visible = true;
-
-    // Make close work
-    close.onclick = function() {
-        mkUI().removeChild(chatBox.wrapper);
-        maybeShrinkUI();
-        chatBox.visible = false;
+// Build the chat box behavior
+function createChatBox() {
+    var chatBox = ui.chatBox = {
+        incoming: gebi("ecchat-incoming"),
+        outgoing: gebi("ecchat-outgoing")
     };
+    var outgoing = chatBox.outgoing;
 
     // Make outgoing work
     outgoing.onkeydown = function(ev) {
@@ -110,40 +55,14 @@ function mkChatBox() {
         ev.preventDefault();
         return false;
     };
-
-    return chatBox;
 }
 
-// Chat visibility toggler
-function toggleChat(to) {
-    // Initial creation
-    if (!ui.chatBox) {
-        if (typeof to !== "undefined" && !to) return;
-        mkChatBox().outgoing.focus();
-        return;
-    }
-
-    // Or, toggle
-    if (typeof to === "undefined")
-        to = !ui.chatBox.visible;
-
-    if (to) {
-        mkChatBox().outgoing.focus();
-    } else {
-        mkUI().removeChild(ui.chatBox.wrapper);
-        maybeShrinkUI();
-        ui.chatBox.visible = false;
-    }
-
-    reflexUI();
-}
-
-// And make it possible to display it
+// Add a keydown so you can instantly get to chat
 document.body.addEventListener("keydown", function(ev) {
     if (ev.key !== "c" || ev.ctrlKey || ev.target.nodeName === "INPUT")
         return true;
 
-    toggleChat(true);
+    togglePanel("chat", true);
 
     ev.preventDefault();
     return false;

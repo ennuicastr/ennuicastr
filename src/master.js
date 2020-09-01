@@ -16,161 +16,54 @@
 
 // Set up the master interface
 function createMasterInterface() {
-    var wrapper = dce("div");
-    mkUI().appendChild(wrapper);
-
-    // We divide the master interface into to halves
-    function halfSpan(on) {
-        var hs = dce("span");
-        hs.classList.add("halfspan");
-        (on||wrapper).appendChild(hs);
-
-        var ret = dce("div");
-        ret.style.padding = "0.5em";
-        hs.appendChild(ret);
-
-        return ret;
-    }
-
     var masterUI = ui.masterUI;
-    var left = masterUI.left = halfSpan();
-    var right = masterUI.right = halfSpan();
+    var right = masterUI.right = gebi("ecmaster-right");
+    gebi("ecmenu-master-hider").style.display = "";
 
     // On the left, interface buttons
-    var pauseResume = masterUI.pauseResumeB = dce("button");
-    pauseResume.classList.add("row");
-    left.appendChild(pauseResume);
-
-    var startStop = masterUI.startStopB = dce("button");
-    startStop.classList.add("row");
-    left.appendChild(startStop);
+    var pauseResume = masterUI.pauseResumeB = gebi("ecmaster-pause-resume");
+    var startStop = masterUI.startStopB = gebi("ecmaster-start-stop");
 
     // When we stop recording, there's a yes-no selector
-    var ssyn = masterUI.startStopYesNo = dce("div");
-    ssyn.classList.add("row");
-    ssyn.style.display = "none";
-    var ssys = halfSpan(ssyn);
-    var ssy = masterUI.startStopYesB = dce("button");
-    ssy.style.width = "100%";
-    ssy.innerText = "Yes";
-    ssys.appendChild(ssy);
-    var ssns = halfSpan(ssyn);
-    var ssn = masterUI.startStopNoB = dce("button");
-    ssn.style.width = "100%";
-    ssn.innerText = "No";
-    ssns.appendChild(ssn);
-    left.appendChild(ssyn);
+    var ssyn = masterUI.startStopYesNo = gebi("ecmaster-yes-no");
+    var ssy = masterUI.startStopYesB = gebi("ecmaster-yes");
+    var ssn = masterUI.startStopNoB = gebi("ecmaster-no");
 
     // The invitation link
-    var ibox = dce("div");
-    ibox.classList.add("row");
-    ibox.classList.add("invite");
-
-    var ifbox = dce("div");
-    ifbox.style.display = "flex";
-    ifbox.style.alignItems = "center";
-
-    var ill = dce("label");
-    ill.htmlFor = "invite-link";
-    ill.innerHTML = "&nbsp;Invite:&nbsp;";
-    ifbox.appendChild(ill);
-
-    var invite = masterUI.invite = dce("input");
-    invite.style.flex = "auto";
-    invite.style.minWidth = "1em";
-    invite.type = "text";
-    invite.readOnly = true;
-    invite.id = "invite-link";
-    ifbox.appendChild(invite);
-
-    var ilc = masterUI.inviteCopy = dce("button");
-    ilc.innerHTML = '<i class="fas fa-clipboard"></i>';
-    ilc.setAttribute("aria-label", "Copy invite link");
+    var invite = masterUI.invite = gebi("ecmaster-invite-link");
+    var ilc = masterUI.inviteCopy = gebi("ecmaster-invite-link-copy");
     ilc.onclick = masterCopyInvite;
-    ifbox.appendChild(ilc);
-
-    ibox.appendChild(ifbox);
 
     // And invite options
-    var iob = dce("div");
-    iob.classList.add("row");
-    iob.style.textAlign = "right";
-
-    var inviteFlac = masterUI.inviteFlac = dce("input");
-    inviteFlac.type = "checkbox";
-    inviteFlac.id = "invite-flac";
-    var ifl = dce("label");
-    ifl.htmlFor = "invite-flac";
-    ifl.innerHTML = "FLAC&nbsp;&nbsp;";
+    var inviteFlac = masterUI.inviteFlac = gebi("ecmaster-invite-flac");
 
     // FIXME: Better setup for this option
     if ((config.format&prot.flags.dataTypeMask) === prot.flags.dataType.flac) {
         inviteFlac.checked = true;
         iob.appendChild(inviteFlac);
         iob.appendChild(ifl);
+    } else {
+        gebi("ecmaster-invite-flac-wrapper").style.display = "none";
     }
     inviteFlac.onchange = masterGenInvite;
 
-    var inviteContinuous = masterUI.inviteContinuous = dce("input");
-    inviteContinuous.type = "checkbox";
-    inviteContinuous.id = "invite-continuous";
-    var icl = dce("label");
-    icl.htmlFor = "invite-continuous";
-    icl.innerHTML = "Continuous&nbsp;";
-
+    var inviteContinuous = masterUI.inviteContinuous = gebi("ecmaster-invite-continuous");
     if (config.format & features.continuous) {
         inviteContinuous.checked = true;
         iob.appendChild(inviteContinuous);
         iob.appendChild(icl);
+    } else {
+        gebi("ecmaster-invite-continuous-wrapper").style.display = "none";
     }
     inviteContinuous.onchange = masterGenInvite;
-
-    ibox.appendChild(iob);
-    left.appendChild(ibox);
 
     masterGenInvite();
 
     // The total cost
-    var cbox = dce("div");
-    cbox.classList.add("row");
-    cbox.style.display = "flex";
-    cbox.style.alignItems = "center";
-
-    var cl = dce("span");
-    cl.innerHTML = "Recording cost:&nbsp;";
-    cl.style.minWidth = "10em";
-    cl.style.textAlign = "right";
-    cbox.appendChild(cl);
-
-    var recCost = masterUI.recCost = dce("input");
-    recCost.style.flex = "auto";
-    recCost.style.minWidth = "1em";
-    recCost.type = "text";
-    recCost.readOnly = true;
-    cbox.appendChild(recCost);
-
-    left.appendChild(cbox);
+    var recCost = masterUI.recCost = gebi("ecmaster-recording-cost");
 
     // And current rate
-    var rbox = dce("div");
-    rbox.classList.add("row");
-    rbox.style.display = "flex";
-    rbox.style.alignItems = "center";
-
-    var rl = dce("span");
-    rl.innerHTML = "Current rate:&nbsp;";
-    rl.style.minWidth = "10em";
-    rl.style.textAlign = "right";
-    rbox.appendChild(rl);
-
-    var recRate = masterUI.recRate = dce("input");
-    recRate.style.flex = "auto";
-    recRate.style.minWidth = "1em";
-    recRate.type = "text";
-    recRate.readOnly = true;
-    rbox.appendChild(recRate);
-
-    left.appendChild(rbox);
+    var recRate = masterUI.recRate = gebi("ecmaster-recording-rate");
 
     masterUpdateCreditCost();
 
@@ -225,6 +118,7 @@ function configureMasterInterface() {
     }
 
     masterUpdateCreditCost();
+    reflexUI();
 }
 
 // Generic "send this mode change" function
@@ -264,6 +158,8 @@ function masterStopRecording() {
     ui.masterUI.startStopYesNo.style.display = "";
     ui.masterUI.startStopYesB.onclick = masterStopRecordingYes;
     ui.masterUI.startStopNoB.onclick = masterStopRecordingNo;
+
+    reflexUI();
 }
 
 function masterStopRecordingYes() {
@@ -271,6 +167,7 @@ function masterStopRecordingYes() {
 
     // Send out the stop request
     masterSendMode(prot.mode.finished);
+    reflexUI();
 }
 
 function masterStopRecordingNo() {

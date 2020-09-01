@@ -3,15 +3,18 @@ MINIFIER=closure-compiler --language_in=ECMASCRIPT5
 SRC=src/head.js \
 	src/globals.js \
 	src/config.js \
-	src/log.js \
-	src/util.js \
-	src/safari.js \
-	src/vad.js \
-	src/menu.js \
+	src/audio.js \
 	src/chat.js \
-	src/master.js \
-	src/rtc.js \
 	src/compression.js \
+	src/log.js \
+	src/master.js \
+	src/menu.js \
+	src/net.js \
+	src/rtc.js \
+	src/safari.js \
+	src/ui.js \
+	src/util.js \
+	src/vad.js \
 	src/video-record.js \
 	src/main.js \
 	src/tail.js

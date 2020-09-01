@@ -7,15 +7,42 @@ a {
     color: #fcc;
 }
 
+.cflex {
+    display: flex;
+    flex-direction: column;
+}
+
+.rflex {
+    display: flex;
+    align-items: center;
+}
+
 .halfspan {
     display: inline-block;
     width: 50%;
     vertical-align: top;
+    box-sizing: border-box;
+}
+
+.halfspan-left {
+    padding-right: 0.25em;
+}
+
+.halfspan-right {
+    padding-left: 0.25em;
 }
 
 @media screen and (max-width: 480px) {
     .halfspan {
         width: 100%;
+    }
+
+    .halfspan-left {
+        padding-right: 0;
+    }
+
+    .halfspan-right {
+        padding-left: 0;
     }
 }
 
@@ -25,7 +52,7 @@ a {
 }
 
 .panel {
-    margin: 0 0.5em 0 0.5em;
+    margin: 0.5em 0.5em 0 0.5em;
 }
 
 .invite {
@@ -37,6 +64,7 @@ a {
     color: #333;
     text-align: center;
     padding: 0.25em;
+    margin-top: 0.5em;
 }
 
 .status > a {
@@ -75,6 +103,16 @@ button.off, button.off:hover {
 }
 
 .menubutton {
+    font-size: 1em;
+    min-width: 4em;
+    margin-right: 0.5em;
+}
+
+.fsbutton {
+    position: absolute;
+    right: 0px;
+    bottom: 0px;
+    z-index: 100;
     font-size: 1em;
     min-width: 4em;
 }

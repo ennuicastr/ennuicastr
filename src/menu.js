@@ -14,60 +14,32 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-// Make the overall UI, returning the post-waveform wrapper
-function mkUI(small) {
-    if (!small) {
-        var wanted = 480;
-        if (ui.video.main && ui.video.main.style.display !== "none")
-            wanted += 320;
-        if (window.innerHeight < wanted)
-            window.resizeTo(window.innerWidth, wanted);
-    }
+// Make the overall UI
+function mkUI() {
+    document.body.style.margin =
+        document.body.style.padding = "0";
+    document.body.innerHTML = ui.code;
 
-    if (ui.postWrapper)
-        return ui.postWrapper;
+    // When we resize, we need to flex the UI
+    var wrapper = ui.wrapper = gebi("ecouter");
+    wrapper.style.minHeight = window.innerHeight + "px";
+    window.addEventListener("resize", function() {
+        wrapper.style.minHeight = window.innerHeight + "px";
+        if (!ui.resizing)
+            ui.manualSize = true;
+    });
 
-    // Make an outer wrapper in which to fit everything
-    var outer = dce("div");
-    outer.style.display = "flex";
-    outer.style.flexDirection = "column";
-    outer.style.minHeight = window.innerHeight + "px";
-
-    // The video has several elements
-    ui.video = {
-        els: [],
-        hasVideo: [],
-        speech: {},
-        major: -1,
-        selected: -1,
-        self: null,
-        main: null,
-        side: null
-    };
-
-    // A generic function to generate fullscreen buttons
-    function fullscreen(el, aria) {
-        var btn = dce("button");
-
-        // A fullscreen button for the main video
-        var btn = dce("button");
-        btn.classList.add("menubutton");
+    // A generic function to handle fullscreen buttons
+    function fullscreen(el, btn) {
         btn.innerHTML = '<i class="fas fa-expand"></i>';
-        btn.setAttribute("aria-label", aria);
-        btn.style.position = "absolute";
-        btn.style.right = "0px";
-        btn.style.bottom = "0px";
-        btn.style.zIndex = "100";
-        el.appendChild(btn);
 
-        // And the fullscreen handler
+        // Toggle based on what's fullscreen
         function toggleFullscreen() {
             if (document.fullscreenElement === el)
                 document.exitFullscreen();
             else
                 el.requestFullscreen();
         }
-        videoMain.ondblclick = toggleFullscreen;
         btn.onclick = toggleFullscreen;
 
         document.addEventListener("fullscreenchange", function() {
@@ -94,58 +66,45 @@ function mkUI(small) {
         }
         el.addEventListener("mouseenter", mouseenter);
         el.addEventListener("mousemove", mouseenter);
-
-        return btn;
     }
 
+    // The video has several elements
+    ui.video = {
+        els: [],
+        hasVideo: [],
+        speech: {},
+        major: -1,
+        selected: -1,
+        self: null,
+        main: null,
+        side: null
+    };
+
     // A wrapper for *all* video
-    var videoWrapper = ui.video.wrapper = dce("div");
-    videoWrapper.style.position = "relative";
-    videoWrapper.style.flex = "auto";
-    videoWrapper.style.display = "none";
-    videoWrapper.style.flexDirection = "column";
-    outer.appendChild(videoWrapper);
+    ui.video.wrapper = gebi("ecvideo-wrapper");
+    ui.video.wrapper.style.display = "none";
 
     // A wrapper for the main video (if visible)
-    var videoMain = ui.video.main = dce("div");
-    videoMain.style.position = "relative";
-    videoMain.style.display = "flex";
-    videoMain.style.flex = "auto";
-    videoMain.style.flexDirection = "column";
-    videoMain.style.minHeight = "160px";
-    videoMain.style.textAlign = "center";
-    videoWrapper.appendChild(videoMain);
-    ui.video.mainFullscreen = fullscreen(videoMain, "Fullscreen (single video)");
+    ui.video.main = gebi("ecvideo-main");
+    ui.video.mainFullscreen = gebi("ecvideo-main-fs");
+    fullscreen(ui.video.main, ui.video.mainFullscreen);
 
     // A wrapper for side video
-    var videoSide = ui.video.side = dce("div");
-    videoSide.style.display = "flex";
-    videoSide.style.height = "160px";
-    videoSide.style.width = "100%";
-    videoSide.style.overflow = "auto hidden";
-    videoWrapper.appendChild(videoSide);
-
-    // And a fullscreen button for all video
-    fullscreen(videoWrapper, "Fullscreen (all video)");
+    ui.video.side = gebi("ecvideo-side");
+    ui.video.wrapperFullscreen = gebi("ecvideo-wrapper-fs");
+    fullscreen(ui.video.wrapper, ui.video.wrapperFullscreen);
 
     // And for our own video
     var selfVideo = ui.video.self = dce("video");
     ui.video.els.push(selfVideo);
     ui.video.hasVideo.push(false);
 
-    // Create our watcher image
-    var img = ui.waveWatcher = dce("img");
-    img.style.display = "none";
-    img.style.position = "absolute";
-    img.style.left = "0px";
-    img.style.top = "0px";
-    img.style.height = "0px"; // Changed automatically when data arrives
-    document.body.appendChild(img);
+    // The watcher image
+    var img = ui.waveWatcher = gebi("ecwave-watcher");
 
     // And choose its type based on support
     function usePng() {
         img.src = "images/watcher.png";
-        img.style.display = "";
     }
     if (!window.createImageBitmap || !window.fetch) {
         usePng();
@@ -157,50 +116,44 @@ function mkUI(small) {
             return createImageBitmap(blob)
         }).then(function() {
             img.src = "images/watcher.webp";
-            img.style.display = "";
         }).catch(usePng);
     }
 
-    // Make a canvas for the waveform
-    ui.waveCanvas = dce("canvas");
-    ui.waveCanvas.style.height = "160px";
-    outer.appendChild(ui.waveCanvas);
+    // The canvas for the waveform
+    ui.waveWrapper = gebi("ecwaveform-wrapper");
+    ui.waveCanvas = gebi("ecwaveform");
 
-    // And a div for the menu
-    ui.menu = dce("div");
-    outer.appendChild(ui.menu);
-
-    // Make our own flexible wrapper for post-stuff
-    var wrapper = dce("div");
-    wrapper.style.flex = "auto";
-    wrapper.style.display = "flex";
-    wrapper.style.flexDirection = "column";
-    ui.postWrapper = wrapper;
-    outer.appendChild(wrapper);
+    // The menu
+    ui.menu = gebi("ecmenu");
 
     // Move the status box
-    outer.appendChild(log);
+    var eclog = gebi("eclog");
+    eclog.innerHTML = "";
+    eclog.appendChild(log);
 
-    // Make the log display appropriate
-    log.classList.add("status");
+    // Load all the panels
+    function panel(nm, auto) {
+        var p = ui.panels[nm] = gebi("ec" + nm + "-wrapper");
+        p.style.display = "none";
 
-    // This is our new body
-    document.body.style.margin =
-        document.body.style.padding = "0";
-    document.body.appendChild(outer);
-
-    // Expand the wrapper as needed
-    window.addEventListener("resize", function() {
-        outer.style.minHeight = window.innerHeight + "px";
-    });
-
-    // Now actually fill in the UI
+        if (auto)
+            ui.panelAutos[nm] = gebi("ec" + auto);
+    }
+    panel("master", "master-invite-link-copy");
+    panel("user-list");
+    panel("input-device", "input-device-list");
+    panel("output-device", "output-device-list");
+    panel("video-device", "video-device-list");
+    panel("chat", "chat-outgoing");
 
     // Set up the menu
     createMenu();
 
     // Set up the video UI
     updateVideoUI(0, true);
+
+    // The chat box
+    createChatBox();
 
     // The user list sub"menu"
     createUserList();
@@ -215,47 +168,47 @@ function mkUI(small) {
     }
 
     // Set up the master interface
-    if ("master" in config)
+    if ("master" in config) {
         createMasterInterface();
-
-    return wrapper;
-}
-
-// Shrink the UI if there's nothing interesting in it
-function maybeShrinkUI() {
-    if (!("master" in config) &&
-        ui.video.wrapper.style.display === "none" &&
-        ui.postWrapper.childNodes.length === 0) {
-        var newH = 240 + window.outerHeight - window.innerHeight;
-        if (window.innerHeight > 240)
-            window.resizeTo(window.innerWidth, newH);
+        ui.panels.master.style.display = "";
     }
+
+    reflexUI();
 }
 
-// Re-adjust flex-assigned boxes
+// Re-adjust the flex elements of our UI and resize if needed
 function reflexUI() {
-    var hasFlex = false;
-    if (ui.video.wrapper.style.display === "none") {
-        // Always flex the post wrapper if there's no video
-        hasFlex = true;
+    // Only two elements are meant to flex large: The video interface and chat
+    if (ui.video.wrapper.style.display !== "none" || ui.panels.chat.style.display !== "none") {
+        ui.waveWrapper.style.flex = "";
+        ui.waveWrapper.style.minHeight = "160px";
 
-    } else {
-        var cns = ui.postWrapper.childNodes;
-        for (var i = 0; i < cns.length; i++) {
-            var cn = cns[i];
-            if (cn.style.display.flex &&
-                cn.style.display.flex.includes("auto")) {
-                hasFlex = true;
-                break;
-            }
+        // Just make sure it's large enough
+        if (window.innerHeight < 640) {
+            ui.autoSize = 640;
+            resizeUI();
         }
+        return;
     }
 
-    // Flex or unflex
-    if (hasFlex)
-        ui.postWrapper.style.flex = "auto";
-    else
-        ui.postWrapper.style.flex = "";
+    /* There's nothing flexing large, so make the waveform flex large and
+     * calculate the correct height directly */
+    ui.waveWrapper.style.flex = "auto";
+    ui.waveWrapper.style.minHeight = "";
+    ui.autoSize = ui.wrapper.offsetHeight - ui.waveWrapper.offsetHeight + 160;
+    resizeUI();
+}
+
+// Resize the UI if the user hasn't taken control
+function resizeUI() {
+    if (ui.manualSize && (window.innerHeight >= 640 || window.innerHeight >= ui.autoSize))
+        return;
+    ui.manualSize = false;
+    if (ui.resizing)
+        clearTimeout(ui.resizing);
+    ui.resizing = setTimeout(function() { ui.resizing = null; }, 200);
+    //window.resizeTo(window.innerWidth, ui.autoSize + window.outerHeight - window.innerHeight);
+    window.resizeTo(window.innerWidth, ui.autoSize);
 }
 
 // Update the video UI based on new information about this peer
@@ -301,7 +254,6 @@ function updateVideoUI(peer, neww) {
         // Nope!
         ui.video.wrapper.style.display = "none";
         reflexUI();
-        maybeShrinkUI();
         return;
     }
 
@@ -387,126 +339,74 @@ function updateVideoUI(peer, neww) {
     }
 
     reflexUI();
-    mkUI(); // Just for growth
-    maybeShrinkUI();
+}
+
+// Toggle the visibility of a panel
+function togglePanel(panel, to) {
+    var el = ui.panels[panel];
+    if (typeof to === "undefined")
+        to = (el.style.display === "none");
+
+    // Don't allow multiple device panels to be visible at the same time
+    if (/-device$/.test(panel)) {
+        ["input", "output", "video"].forEach(function(nm) {
+            ui.panels[nm + "-device"].style.display = "none";
+        });
+    }
+
+    // Then switch the desired one
+    el.style.display = to?"":"none";
+    if (ui.panelAutos[panel])
+        ui.panelAutos[panel].focus();
+    reflexUI();
 }
 
 // Create the menu
 function createMenu() {
     var menu = ui.menu;
 
-    function spacer() {
-        var spc = dce("span");
-        spc.innerText = " ";
-        menu.appendChild(spc);
-    }
-
-    function btn(label, aria) {
-        var btn = dce("button");
-        btn.classList.add("menubutton");
-
-        btn.innerHTML = '<i class="fas fa-' + label + '"></i>';
-        btn.setAttribute("aria-label", aria);
-
-        menu.appendChild(btn);
-        spacer();
-        return btn;
-    }
-
-    // Make buttons for our main actions
-
-    // Open/close chat mode
-    var chat = btn("keyboard", "Chat");
-    chat.onclick = function() {
-        toggleChat();
-    };
-
-    // User list, in a hidden span until we get info
-    var uls = dce("span");
-    uls.style.display = "none";
-    menu.appendChild(uls);
-    ui.userList.button = uls;
-    var r = menu;
-    menu = uls;
-    var ul = btn("users", "User list");
-    menu = r;
-    ul.onclick = function() {
-        toggleUserList();
-    };
-
-    // Device list
-    var dl = btn("microphone-alt", "Microphone selector");
-    dl.onclick = function() {
-        toggleDeviceList();
-    };
-
-    // Output device list
-    if (useRTC) {
-        var odl = btn("headphones-alt", "Output selector");
-        odl.onclick = function() {
-            toggleOutputControlPanel();
+    // Most buttons open or close a panel
+    function toggleBtn(btn, panel) {
+        btn = gebi("ecmenu-" + btn);
+        btn.onclick = function() {
+            togglePanel(panel);
         };
     }
 
-    // Video device list
-    if (useRTC) {
-        var vdl = btn("video", "Camera selector");
-        vdl.onclick = function() {
-            toggleVideoDeviceList();
-        };
+    toggleBtn("master", "master");
+    toggleBtn("chat", "chat");
+    toggleBtn("users", "user-list");
+    toggleBtn("input-devices", "input-device");
+    toggleBtn("output-devices", "output-device");
+    toggleBtn("camera-devices", "video-device");
+
+    // The user list button only becomes visible if we actually have a user list, so we need to keep track of it
+    ui.userList.button = gebi("ecmenu-users-hider");
+
+    // Hide irrelevant buttons
+    if (!useRTC) {
+        ["output-devices", "camera-devices", "record"].forEach(function(btn) {
+            gebi("ecmenu-" + btn).style.display = "none";
+        });
     }
 
-    // Video recording
-    var rec = btn("file-video", "Record video");
+    // Video recording has its own action
+    var rec = gebi("ecmenu-record");
     ui.recordVideoButton = rec;
     recordVideoButton();
 }
 
-
 // Create the user list sub"menu"
 function createUserList() {
-    var wrapper = ui.userList.wrapper = dce("div");
-    wrapper.classList.add("row");
-    ui.userList.visible = false;
+    // All we care about is the left and right halves
+    ui.userList.left = gebi("ecuser-list-left");
+    ui.userList.right = gebi("ecuser-list-right");
 
-    function halfSpan() {
-        var hs = dce("span");
-        hs.classList.add("halfspan");
-        wrapper.appendChild(hs);
-
-        var ret = dce("div");
-        ret.style.padding = "0.5em";
-        hs.appendChild(ret);
-
-        return ret;
-    }
-
-    // Make a left and right half to show the parts in
-    ui.userList.left = halfSpan();
-    ui.userList.right = halfSpan();
-
-    // In case we already made elements for them, add them
+    // Fill in the UI with any elements we already have
     for (var i = 0; i < ui.userList.els.length; i++) {
         var el = ui.userList.els[i];
         if (el)
             userListAdd(i, el.innerText);
-    }
-}
-
-// Toggle the visibility of the user list sub"menu"
-function toggleUserList(to) {
-    if (typeof to === "undefined")
-        to = !ui.userList.visible;
-
-    if (ui.userList.visible !== to) {
-        if (to) {
-            mkUI().appendChild(ui.userList.wrapper);
-            ui.userList.visible = true;
-        } else {
-            mkUI(true).removeChild(ui.userList.wrapper);
-            ui.userList.visible = false;
-            maybeShrinkUI();
-        }
     }
 }
 
@@ -555,8 +455,7 @@ function userListUpdate(idx, speaking) {
     el.setAttribute("aria-label", el.innerText + ": " + (speaking?"Speaking":"Not speaking"));
 }
 
-
-// Create the device list submenu
+// Create the (input) device list submenu
 function createDeviceList() {
     if (!userMedia) {
         // Wait until we can know what device we selected
@@ -564,25 +463,13 @@ function createDeviceList() {
         return;
     }
 
-    // Make the main wrapper
-    ui.deviceList = {};
-    var wrapper = ui.deviceList.wrapper = dce("div");
-    wrapper.classList.add("panel");
-    ui.deviceList.visible = false;
+    ui.deviceList = {
+        select: gebi("ecinput-device-list"),
+        noiserWrapper: gebi("ecnoise-reduction-wrapper"),
+        noiser: gebi("ecnoise-reduction")
+    };
 
-    // Wrapper for the actual device list
-    var dlw = dce("div");
-    dlw.classList.add("row");
-    wrapper.appendChild(dlw);
-
-    var lbl = dce("Label");
-    lbl.htmlFor = "device-list";
-    lbl.innerHTML = "Input device:&nbsp;";
-    dlw.appendChild(lbl);
-
-    var sel = ui.deviceList.select = dce("select");
-    sel.id = "device-list";
-    dlw.appendChild(sel);
+    var sel = ui.deviceList.select;
     var selected = null;
     try {
         selected = userMedia.getTracks()[0].getSettings().deviceId;
@@ -590,7 +477,7 @@ function createDeviceList() {
 
     // When it's changed, reselect the mic
     sel.onchange = function() {
-        toggleDeviceList(false);
+        togglePanel("input-device", false);
         getMic(sel.value);
     };
 
@@ -612,50 +499,16 @@ function createDeviceList() {
 
     }).catch(function() {}); // Nothing really to do here
 
-    // Also include a selector for noise reduction
-    if (useRTC) {
-        var nrw = dce("div");
-        nrw.classList.add("row");
-        wrapper.appendChild(nrw);
+    // And the selector for noise reduction
+    var noiser = ui.deviceList.noiser;
+    noiser.checked = useNR;
+    noiser.onchange = function() {
+        userNR = noiser.checked;
+    };
 
-        // Toggle
-        var noiser = dce("input");
-        noiser.id = "noise-reduction";
-        noiser.type = "checkbox";
-        noiser.checked = useNR;
-        nrw.appendChild(noiser);
-
-        // And label
-        lbl = dce("label");
-        lbl.htmlFor = "noise-reduction";
-        lbl.innerHTML = "&nbsp;Apply noise reduction";
-        nrw.appendChild(lbl);
-
-        // Change noise reduction when we change it
-        noiser.onchange = function() {
-            useNR = noiser.checked;
-        };
-    }
+    if (!useRTC)
+        ui.deviceList.noiserWrapper.style.display = "none";
 }
-
-// Toggle the visibility of the device list submenu
-function toggleDeviceList(to) {
-    if (typeof to === "undefined")
-        to = !ui.deviceList.visible;
-
-    if (ui.deviceList.visible !== to) {
-        if (to) {
-            mkUI().appendChild(ui.deviceList.wrapper);
-            ui.deviceList.select.focus();
-            ui.deviceList.visible = true;
-        } else {
-            mkUI(true).removeChild(ui.deviceList.wrapper);
-            ui.deviceList.visible = false;
-            maybeShrinkUI();
-        }
-    }
-}
-
 
 // Create the video device list submenu
 function createVideoDeviceList() {
@@ -665,25 +518,15 @@ function createVideoDeviceList() {
         return;
     }
 
-    // Make the main wrapper
-    ui.videoDeviceList = {};
-    var wrapper = ui.videoDeviceList.wrapper = dce("div");
-    wrapper.classList.add("row");
-    wrapper.classList.add("panel");
-    ui.videoDeviceList.visible = false;
+    ui.videoDeviceList = {
+        select: gebi("ecvideo-device-list")
+    };
 
-    var lbl = dce("Label");
-    lbl.htmlFor = "video-device-list";
-    lbl.innerHTML = "Camera:&nbsp;";
-    wrapper.appendChild(lbl);
-
-    var sel = ui.videoDeviceList.select = dce("select");
-    sel.id = "video-device-list";
-    wrapper.appendChild(sel);
+    var sel = ui.videoDeviceList.select;
 
     // When it's changed, start video
     sel.onchange = function() {
-        toggleVideoDeviceList(false);
+        togglePanel("video-device", false);
         getCamera(sel.value);
     };
 
@@ -716,24 +559,6 @@ function createVideoDeviceList() {
     }).catch(function() {}); // Nothing really to do here
 }
 
-// Toggle the visibility of the video device list submenu
-function toggleVideoDeviceList(to) {
-    if (typeof to === "undefined")
-        to = !ui.videoDeviceList.visible;
-
-    if (ui.videoDeviceList.visible !== to) {
-        if (to) {
-            mkUI().appendChild(ui.videoDeviceList.wrapper);
-            ui.videoDeviceList.select.focus();
-            ui.videoDeviceList.visible = true;
-        } else {
-            mkUI(true).removeChild(ui.videoDeviceList.wrapper);
-            ui.videoDeviceList.visible = false;
-            maybeShrinkUI();
-        }
-    }
-}
-
 // Create the output device list submenu
 function createOutputControlPanel() {
     if (!userMedia) {
@@ -742,35 +567,24 @@ function createOutputControlPanel() {
         return;
     }
 
-    // Make the main wrapper
-    ui.outputControlPanel = {};
-    var wrapper = ui.outputControlPanel.wrapper = dce("div");
-    wrapper.classList.add("panel");
-    ui.outputControlPanel.visible = false;
+    ui.outputControlPanel = {
+        selectWrapper: gebi("ecoutput-device-list-wrapper"),
+        select: gebi("ecoutput-device-list"),
+        volume: gebi("ecoutput-volume"),
+        volumeStatus: gebi("ecoutput-volume-status"),
+        compression: gebi("ecdynamic-range-compression")
+    };
 
     /*****
      * 1: Output device list
      *****/
 
-    // The output device list has its own wrapper, so we can hide it if there are no devices
-    var odl = dce("div");
-    odl.classList.add("row");
-    wrapper.appendChild(odl);
-
-    // The output device list
-    var lbl = dce("Label");
-    lbl.htmlFor = "output-device-list";
-    lbl.innerHTML = "Output:&nbsp;";
-    odl.appendChild(lbl);
-
-    var sel = ui.outputControlPanel.select = dce("select");
-    sel.id = "output-device-list";
-    odl.appendChild(sel);
+    var sel = ui.outputControlPanel.select;
 
     // When it's changed, start output
     sel.onchange = function() {
         if (sel.value === "-none") return;
-        toggleOutputControlPanel(false);
+        togglePanel("output-device", false);
         setOutputDevice(sel.value);
     };
 
@@ -805,29 +619,8 @@ function createOutputControlPanel() {
     /*****
      * 2: Master volume
      *****/
-    var volWrap = dce("div");
-    volWrap.classList.add("row");
-    volWrap.style.display = "flex";
-    wrapper.appendChild(volWrap);
-
-    lbl = dce("label");
-    lbl.htmlFor = "output-volume";
-    lbl.innerHTML = "Volume:&nbsp;";
-    volWrap.appendChild(lbl);
-
-    var vol = dce("input");
-    vol.id = "output-volume";
-    vol.type = "range";
-    vol.min = 0;
-    vol.max = 400;
-    vol.value = 100;
-    vol.style.flex = "auto";
-    vol.style.minWidth = "5em";
-    volWrap.appendChild(vol);
-
-    var volStatus = dce("span");
-    volStatus.innerHTML = "&nbsp;100%";
-    volWrap.appendChild(volStatus);
+    var vol = ui.outputControlPanel.volume;
+    var volStatus = ui.outputControlPanel.volumeStatus;
 
     // When we change the volume, pass that to the compressors
     vol.oninput = function() {
@@ -846,20 +639,8 @@ function createOutputControlPanel() {
     /*****
      * 3: Dynamic range compression (volume leveling)
      *****/
-    var compressionWrap = dce("div");
-    compressionWrap.classList.add("row");
-    wrapper.appendChild(compressionWrap);
-
-    var compression = dce("input");
-    compression.id = "dynamic-range-compression";
-    compression.type = "checkbox";
+    var compression = ui.outputControlPanel.compression;
     compression.checked = true;
-    compressionWrap.appendChild(compression);
-
-    lbl = dce("label");
-    lbl.htmlFor = "dynamic-range-compression";
-    lbl.innerHTML = "&nbsp;Level each speaker's volume";
-    compressionWrap.appendChild(lbl);
 
     // Swap on or off compression
     compression.onchange = function() {
@@ -874,22 +655,4 @@ function createOutputControlPanel() {
         }
         compressorChanged();
     };
-}
-
-// Toggle the visibility of the output device list submenu
-function toggleOutputControlPanel(to) {
-    if (typeof to === "undefined")
-        to = !ui.outputControlPanel.visible;
-
-    if (ui.outputControlPanel.visible !== to) {
-        if (to) {
-            mkUI().appendChild(ui.outputControlPanel.wrapper);
-            ui.outputControlPanel.select.focus();
-            ui.outputControlPanel.visible = true;
-        } else {
-            mkUI(true).removeChild(ui.outputControlPanel.wrapper);
-            ui.outputControlPanel.visible = false;
-            maybeShrinkUI();
-        }
-    }
 }

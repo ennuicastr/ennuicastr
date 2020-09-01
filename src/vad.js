@@ -85,8 +85,6 @@ function localProcessing() {
     // Now the display steps
 
     // Create a canvas for it
-    if (!ui.waveCanvas)
-        mkUI(true);
     var wc = ui.waveCanvas;
 
     // Now the background is nothing, so should just be grey
@@ -293,18 +291,11 @@ function updateWave(value) {
         pushStatus("notencoding", "Audio encoding is not functioning!");
 
     // Start from the element size
-    var w = Math.min(window.innerWidth, window.outerWidth);
-    var h = Math.min(window.innerHeight, window.outerHeight) -
-        (ui.menu?ui.menu.offsetHeight:0) -
-        log.offsetHeight;
-
-    // If we have any other modules open, shrink the waveform view
-    if (ui.video.main.style.display !== "none" ||
-        ui.postWrapper.childNodes.length)
-        h = 160;
+    var w = ui.waveWrapper.offsetWidth;
+    var h = ui.waveWrapper.offsetHeight;
 
     // Rotate if our view is vertical
-    if (h > w) {
+    if (w/h < 4/3) {
         if (!ui.waveRotate) {
             ui.waveWatcher.style.visibility = "hidden";
             ui.waveRotate = true;
@@ -314,8 +305,7 @@ function updateWave(value) {
             ui.waveWatcher.style.visibility = "";
             ui.waveRotate = false;
         }
-        ui.waveWatcher.style.top = ui.waveCanvas.offsetTop + "px";
-        if (h > w/2) h = Math.ceil(w/2);
+
     }
 
     // Make sure the canvases are correct
@@ -323,10 +313,6 @@ function updateWave(value) {
         wc.width = w;
     if (+wc.height !== h)
         wc.height = h;
-    if (wc.style.height !== h+"px")
-        wc.style.height = h+"px";
-    if (ui.waveWatcher.style.height !== h+"px")
-        ui.waveWatcher.style.height = h+"px";
 
     if (ui.waveRotate) {
         var tmp = w;
