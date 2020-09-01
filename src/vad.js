@@ -22,22 +22,10 @@ function localProcessing() {
         return;
     }
 
-    if (typeof NoiseRepellent === "undefined" ||
-        !NoiseRepellent.ready) {
+    if (typeof NoiseRepellent === "undefined") {
         // Load the library first
         NoiseRepellent = {base: "noise-repellent"};
-        var scr = dce("script");
-        scr.async = true;
-        scr.src = "noise-repellent/noise-repellent.js";
-
-        scr.onload = function() {
-            if (NoiseRepellent.ready)
-                localProcessing();
-            else
-                NoiseRepellent.onready = localProcessing;
-        };
-
-        document.body.appendChild(scr);
+        loadLibrary("noise-repellent/noise-repellent-m.js").then(localProcessing);
         return;
     }
 
@@ -75,10 +63,12 @@ function localProcessing() {
     // Now the noise repellent steps
     var nr = null;
     if (useRTC) {
-        nr = new NoiseRepellent.NoiseRepellent(ac.sampleRate);
-        nr.set(NoiseRepellent.N_ADAPTIVE, 1);
-        nr.set(NoiseRepellent.AMOUNT, 20);
-        nr.set(NoiseRepellent.WHITENING, 50);
+        NoiseRepellent.NoiseRepellent(ac.sampleRate).then(function(ret) {
+            nr = ret;
+            nr.set(NoiseRepellent.N_ADAPTIVE, 1);
+            nr.set(NoiseRepellent.AMOUNT, 20);
+            nr.set(NoiseRepellent.WHITENING, 50);
+        });
     }
 
 
