@@ -15,6 +15,7 @@ a {
 .rflex {
     display: flex;
     align-items: center;
+    overflow: auto;
 }
 
 .halfspan {
