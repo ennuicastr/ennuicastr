@@ -40,8 +40,6 @@ function createMasterInterface() {
     // FIXME: Better setup for this option
     if ((config.format&prot.flags.dataTypeMask) === prot.flags.dataType.flac) {
         inviteFlac.checked = true;
-        iob.appendChild(inviteFlac);
-        iob.appendChild(ifl);
     } else {
         gebi("ecmaster-invite-flac-wrapper").style.display = "none";
     }
@@ -50,8 +48,6 @@ function createMasterInterface() {
     var inviteContinuous = masterUI.inviteContinuous = gebi("ecmaster-invite-continuous");
     if (config.format & features.continuous) {
         inviteContinuous.checked = true;
-        iob.appendChild(inviteContinuous);
-        iob.appendChild(icl);
     } else {
         gebi("ecmaster-invite-continuous-wrapper").style.display = "none";
     }
