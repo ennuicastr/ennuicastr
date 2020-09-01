@@ -199,6 +199,9 @@ var ui = {
     // The menu
     menu: null,
 
+    // The mute button
+    muteB: null,
+
     /* If we're showing anything *other* than the wave display and menu, it
      * goes here (everything below this point) */
     postWrapper: null,

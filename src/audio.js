@@ -61,6 +61,8 @@ function userMediaSet() {
     if (!connected)
         return;
 
+    updateMuteButton();
+
     pushStatus("initenc", "Initializing encoder...");
     popStatus("getmic");
 
@@ -891,4 +893,12 @@ function adjustTime(packet) {
 
     // And adjust the time
     return Math.round(packet[0] + timeOffset*48 + startTime*48);
+}
+
+// Toggle the mute state of the input audio
+function toggleMute() {
+    if (!userMedia) return;
+    var track = userMedia.getAudioTracks()[0];
+    track.enabled = !track.enabled;
+    updateMuteButton();
 }

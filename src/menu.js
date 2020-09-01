@@ -124,7 +124,7 @@ function mkUI() {
     ui.waveCanvas = gebi("ecwaveform");
 
     // The menu
-    ui.menu = gebi("ecmenu");
+    ui.menu = {};
 
     // Move the status box
     var eclog = gebi("eclog");
@@ -363,8 +363,6 @@ function togglePanel(panel, to) {
 
 // Create the menu
 function createMenu() {
-    var menu = ui.menu;
-
     // Most buttons open or close a panel
     function toggleBtn(btn, panel) {
         btn = gebi("ecmenu-" + btn);
@@ -390,10 +388,30 @@ function createMenu() {
         });
     }
 
+    // Mute has its own action
+    var mute = ui.muteB = gebi("ecmenu-mute");
+    mute.onclick = toggleMute;
+
     // Video recording has its own action
     var rec = gebi("ecmenu-record");
     ui.recordVideoButton = rec;
     recordVideoButton();
+}
+
+// Update the mute button
+function updateMuteButton() {
+    if (!userMedia) return;
+    if (userMedia.getAudioTracks()[0].enabled) {
+        // It's unmuted
+        ui.muteB.innerHTML = '<i class="fas fa-volume-up"></i>';
+        ui.muteB.setAttribute("aria-label", "Mute");
+
+    } else {
+        // It's muted
+        ui.muteB.innerHTML = '<i class="fas fa-volume-mute"></i>';
+        ui.muteB.setAttribute("aria-label", "Unmute");
+
+    }
 }
 
 // Create the user list sub"menu"
