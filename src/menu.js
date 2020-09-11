@@ -20,6 +20,11 @@ function mkUI() {
         document.body.style.padding = "0";
     document.body.innerHTML = ui.code;
 
+    // If there was a pre-loaded display, such as a privacy policy, remove it
+    var preec = gebi("pre-ec");
+    if (preec)
+        preec.style.display = "none";
+
     // When we resize, we need to flex the UI
     var wrapper = ui.wrapper = gebi("ecouter");
     wrapper.style.minHeight = window.innerHeight + "px";
@@ -730,11 +735,17 @@ function createOutputControlPanel() {
             // 8-to-1 brings everything into 40-35dB, a 5dB range
             c.compressor.ratio = 8;
             c.gain.gain = null;
+
+            // Set the volume to 100% so it doesn't explode your ears
+            vol.value = 100;
         } else {
             c.compressor.ratio = 1;
             c.gain.gain = 1;
+
+            // Set the volume to 200% so it's audible
+            vol.value = 200;
         }
-        compressorChanged();
+        vol.oninput();
 
         // Remember the default
         if (typeof localStorage !== "undefined")
