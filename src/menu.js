@@ -21,9 +21,9 @@ function mkUI() {
     document.body.innerHTML = ui.code;
 
     // If there was a pre-loaded display, such as a privacy policy, remove it
-    var preec = gebi("pre-ec");
-    if (preec)
-        preec.style.display = "none";
+    var preecStyle = dce("style");
+    preecStyle.innerHTML = "#pre-ec { display: none; }";
+    document.head.appendChild(preecStyle);
 
     // When we resize, we need to flex the UI
     var wrapper = ui.wrapper = gebi("ecouter");
