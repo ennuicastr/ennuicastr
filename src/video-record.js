@@ -20,6 +20,9 @@ function recordVideo() {
     // Create a write stream early, so it's in response to the button click
     var fileStream = streamSaver.createWriteStream("video.webm"); // FIXME: name
     var fileWriter = fileStream.getWriter();
+    window.addEventListener("unload", function() {
+        fileWriter.close();
+    });
 
     if (recordVideoStop) {
         // Can't have two videos recording at once!
