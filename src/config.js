@@ -44,6 +44,9 @@ if (shortForm) {
     params.delete(shortForm);
 }
 
+// Get our target for initial login
+var loginTarget = gebi("login-ec") || document.body;
+
 // Read in our configuration
 config = {
     id: params.get("i"),
@@ -64,7 +67,7 @@ config.id = Number.parseInt(config.id, 36);
 if (config.key === null) {
     var div = dce("div");
     div.innerHTML = "Invalid key!";
-    document.body.appendChild(div);
+    loginTarget.appendChild(div);
     return;
 }
 config.key = Number.parseInt(config.key, 36);
@@ -82,7 +85,7 @@ config.format = Number.parseInt(config.format, 36);
 if (selector) {
     var div = dce("div");
     div.innerText = "Client links:";
-    document.body.appendChild(div);
+    loginTarget.appendChild(div);
 
     var sb = "?i=" + config.id.toString(36) + "&k=" + config.key.toString(36) + "&p=" + config.port.toString(36);
 
@@ -103,7 +106,7 @@ if (selector) {
             ((opt&features.continuous)?" continuous":"");
 
         div.appendChild(a);
-        document.body.appendChild(div);
+        loginTarget.appendChild(div);
     }
 
     return;
@@ -114,7 +117,7 @@ if (monitor) {
     var scr = dce("script");
     scr.src = "ennuicastr-monitor.js?v=1";
     scr.async = true;
-    document.body.appendChild(scr);
+    loginTarget.appendChild(scr);
     return;
 }
 
@@ -162,7 +165,12 @@ if (username === null || username === "") {
     };
 
     div.appendChild(form);
-    document.body.appendChild(div);
+    loginTarget.appendChild(div);
+
+    var nmBox = gebi("nm");
+    nmBox.focus();
+    nmBox.select();
+
     return;
 
 } else {
