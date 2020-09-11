@@ -45,9 +45,6 @@ function createCompressor(idx, ac, input) {
         // Interval to apply gating
         interval: null,
 
-        // Currently gating?
-        ducking: true,
-
         // Gain node
         gain: null
     };
@@ -114,6 +111,8 @@ function createCompressor(idx, ac, input) {
             if (gain > 10)
                 gain = 10;
             gain *= rtcCompression.gain.volume;
+            if (idx in rtcCompression.perUserVol)
+                gain *= rtcCompression.perUserVol[idx];
 
             // Now move the compression
             g.gain.setTargetAtTime(gain, 0, 0.003);
@@ -126,10 +125,12 @@ function createCompressor(idx, ac, input) {
     // Create our gain node
     var g = ret.gain = ac.createGain();
     if (typeof webkitAudioContext === "undefined") {
-        g.gain.value = rtcCompression.gain.volume;
+        g.gain.value = rtcCompression.gain.volume *
+            ((idx in rtcCompression.perUserVol) ? rtcCompression.perUserVol[idx] : 1);
         i.connect(g);
     } else {
-        g.gain.value = rtcCompression.gain.volume * rtcCompression.gain.gain * 0.01;
+        g.gain.value = rtcCompression.gain.volume * rtcCompression.gain.gain * 0.01 *
+            ((idx in rtcCompression.perUserVol) ? rtcCompression.perUserVol[idx] : 1);
         c.connect(g);
     }
 
@@ -192,21 +193,24 @@ function compressorCalculateGain() {
  * nodes */
 function compressorChanged() {
     var c = rtcCompression.compressor;
+    var cs = rtcCompression.compressors;
     var g = rtcCompression.gain;
+    var puv = rtcCompression.perUserVol;
 
     // Make sure we actually KNOW our target
     if (!g.gain)
         compressorCalculateGain();
 
     // Then apply it all
-    rtcCompression.compressors.forEach(function(co) {
+    for (var idx = 0; idx < cs.length; idx++) {
+        var co = cs[idx];
         if (!co) return;
         for (var k in c)
             co.compressor[k].setTargetAtTime(c[k], 0, 0.03);
 
         if (typeof webkitAudioContext !== "undefined") {
             // Gain handled directly
-            co.gain.gain.setTargetAtTime(g.volume * g.gain * 0.01, 0, 0.03);
+            co.gain.gain.setTargetAtTime(g.volume * g.gain * 0.01 * ((idx in puv) ? puv[idx] : 1), 0, 0.03);
         }
-    });
+    }
 }

@@ -417,8 +417,7 @@ function updateMuteButton() {
 // Create the user list sub"menu"
 function createUserList() {
     // All we care about is the left and right halves
-    ui.userList.left = gebi("ecuser-list-left");
-    ui.userList.right = gebi("ecuser-list-right");
+    ui.userList.wrapper = gebi("ecuser-list-wrapper");
 
     // Fill in the UI with any elements we already have
     for (var i = 0; i < ui.userList.els.length; i++) {
@@ -442,17 +441,68 @@ function userListAdd(idx, name) {
     el.innerText = name;
     el.setAttribute("aria-label", name + ": Not speaking");
 
-    if (!ui.userList.left) return;
+    if (!ui.userList.wrapper) return;
     ui.userList.button.style.display = "";
 
-    // Add it to one side or the other to balance
-    var addTo;
-    if (ui.userList.left.childNodes.length <=
-        ui.userList.right.childNodes.length)
-        addTo = ui.userList.left;
-    else
-        addTo = ui.userList.right;
-    addTo.appendChild(el);
+    /* It goes like this: <span halfspan-left><el></span><span
+     * halfspan-right><volume></span> */
+    var left = dce("span");
+    left.classList.add("halfspan");
+    left.classList.add("halfspan-left");
+    ui.userList.wrapper.appendChild(left);
+    var right = dce("span");
+    right.classList.add("halfspan");
+    right.classList.add("halfspan-right");
+    ui.userList.wrapper.appendChild(right);
+
+    // Left: The name
+    left.appendChild(el);
+
+    // Right: Volume control
+    right.classList.add("rflex");
+
+    var vol = dce("input");
+    vol.type = "range";
+    vol.min = 0;
+    vol.max = 400;
+    vol.value = 100;
+    vol.style.flex = "auto";
+    vol.style.minWidth = "5em";
+    vol.setAttribute("aria-label", "Volume for " + name);
+    right.appendChild(vol);
+
+    var volStatus = dce("span");
+    volStatus.innerHTML = "&nbsp;100%";
+    right.appendChild(volStatus);
+
+    // When we change the volume, pass that to the compressors
+    vol.oninput = function() {
+        // Snap to x00%
+        for (var i = 100; i <= 300; i += 100)
+            if (vol.value >= i - 10 && vol.value <= i + 10)
+                vol.value = i;
+
+        // Remember preferences
+        if (typeof localStorage !== "undefined")
+            localStorage.setItem("volume-user-" + name, vol.value);
+
+        // Show the status
+        volStatus.innerHTML = "&nbsp;" + vol.value + "%";
+
+        // Set it
+        rtcCompression.perUserVol[idx] = vol.value / 100;
+        compressorChanged();
+    };
+
+    // Get the saved value
+    if (typeof localStorage !== "undefined") {
+        var def = localStorage.getItem("volume-user-" + name);
+        if (def) {
+            vol.value = +def;
+            vol.oninput();
+        }
+    }
+
 }
 
 // Remove a user from the user list
@@ -642,9 +692,14 @@ function createOutputControlPanel() {
 
     // When we change the volume, pass that to the compressors
     vol.oninput = function() {
-        // Snap to 100%
-        if (vol.value >= 90 && vol.value <= 110)
-            vol.value = 100;
+        // Snap to x00%
+        for (var i = 100; i <= 300; i += 100)
+            if (vol.value >= i - 10 && vol.value <= i + 10)
+                vol.value = i;
+
+        // Remember preferences
+        if (typeof localStorage !== "undefined")
+            localStorage.setItem("volume-master", vol.value);
 
         // Show the status
         volStatus.innerHTML = "&nbsp;" + vol.value + "%";
@@ -654,17 +709,25 @@ function createOutputControlPanel() {
         compressorChanged();
     };
 
+    // Get the saved value
+    if (typeof localStorage !== "undefined") {
+        var def = localStorage.getItem("volume-master");
+        if (def) {
+            vol.value = +def;
+        }
+    }
+    vol.oninput();
+
     /*****
      * 3: Dynamic range compression (volume leveling)
      *****/
     var compression = ui.outputControlPanel.compression;
-    compression.checked = true;
 
     // Swap on or off compression
     compression.onchange = function() {
         var c = rtcCompression;
         if (compression.checked) {
-            // FIXME: Magic numbers
+            // 8-to-1 brings everything into 40-35dB, a 5dB range
             c.compressor.ratio = 8;
             c.gain.gain = null;
         } else {
@@ -672,5 +735,18 @@ function createOutputControlPanel() {
             c.gain.gain = 1;
         }
         compressorChanged();
+
+        // Remember the default
+        if (typeof localStorage !== "undefined")
+            localStorage.setItem("dynamic-range-compression", compression.checked?"1":"0");
     };
+
+    // Get the saved default
+    if (typeof localStorage !== "undefined") {
+        var def = localStorage.getItem("dynamic-range-compression");
+        if (def !== null)
+            compression.checked = !!~~def;
+    }
+    compression.onchange();
+
 }

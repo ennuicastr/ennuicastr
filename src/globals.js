@@ -88,6 +88,7 @@ var rtcConnections = {
 /* For RTC, we apply compression. Those properties are here, along with a
  * callback for when they change. */
 var rtcCompression = {
+    // Compressor stage (if used)
     compressor: {
         // Default settings suitable for most users
 
@@ -97,14 +98,15 @@ var rtcCompression = {
         // No need to knee in noise
         knee: 0,
 
-        // 8-to-1 brings everything into 40-35dB, a 5dB range
-        ratio: 8,
+        // Default to no compression
+        ratio: 1,
 
         // Standard attack and release times
         attack: 0.1,
         release: 0.25
     },
 
+    // General gain stage
     gain: {
         // Multiplier to the gain from below, our volume knob
         volume: 1,
@@ -117,6 +119,9 @@ var rtcCompression = {
          * recalculate. */
         target: -18
     },
+
+    // Per-user gain stage
+    perUserVol: {},
 
     // Our currently active compressors
     compressors: []
