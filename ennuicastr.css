@@ -1,5 +1,5 @@
 body {
-    background: #033;
+    background: #1a3333;
     color: #cff;
 }
 
@@ -57,7 +57,7 @@ a {
 }
 
 .invite {
-    background-color: #055;
+    background-color: #2b5555;
 }
 
 .status {
@@ -81,7 +81,7 @@ button:not(.plain), .button {
     -webkit-transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
     -ms-transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
     transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
-    background-color: #033;
+    background-color: #1a3333;
     color: #fff;
     border-radius: 0;
     border: 0;
@@ -96,7 +96,7 @@ button:not(.plain), .button {
 }
 
 button:not(.plain):hover, .button:hover {
-    background-color: #055;
+    background-color: #2b5555;
 }
 
 button.off, button.off:hover {
@@ -123,7 +123,7 @@ input[type="password"],
 input[type="email"],
 select,
 textarea {
-    background-color: #033;
+    background-color: #1a3333;
     color: #fff;
     border-radius: 0;
     border: none;

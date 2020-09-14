@@ -441,6 +441,7 @@ function userListAdd(idx, name) {
     var el = els[idx];
     if (!el) {
         el = els[idx] = dce("div");
+        el.style.paddingLeft = "0.25em";
         el.style.backgroundColor = "#000";
     }
     el.innerText = name;
@@ -524,7 +525,7 @@ function userListUpdate(idx, speaking) {
     var el = ui.userList.els[idx];
     if (!el) return;
 
-    el.style.backgroundColor = speaking?"#050":"#000";
+    el.style.backgroundColor = speaking?"#2b552b":"#000";
     el.setAttribute("aria-label", el.innerText + ": " + (speaking?"Speaking":"Not speaking"));
 }
 

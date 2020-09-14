@@ -248,6 +248,7 @@ function updateMasterSpeech() {
     for (var i = 0; i < masterUI.speech.length; i++) {
         if (masterUI.speech[i] && !masterUI.speechB[i]) {
             var div = masterUI.speechB[i] = dce("div");
+            div.style.paddingLeft = "0.25em";
             div.setAttribute("role", "status");
             div.setAttribute("aria-live", "polite");
             div.ecConnected = true; // So that we can adjust the aria-live setting usefully
@@ -267,7 +268,7 @@ function updateMasterSpeech() {
             color = "#333";
             aria = "Disconnected";
         } else if (status.speaking) {
-            color = "#050";
+            color = "#2b552b";
             aria = "Receiving";
         } else {
             color = "#000";
