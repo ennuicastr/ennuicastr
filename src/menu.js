@@ -212,8 +212,8 @@ function resizeUI() {
     if (ui.resizing)
         clearTimeout(ui.resizing);
     ui.resizing = setTimeout(function() { ui.resizing = null; }, 200);
-    //window.resizeTo(window.innerWidth, ui.autoSize + window.outerHeight - window.innerHeight);
-    window.resizeTo(window.innerWidth, ui.autoSize);
+    //window.resizeTo(window.outerWidth, ui.autoSize + window.outerHeight - window.innerHeight);
+    window.resizeTo(window.outerWidth, ui.autoSize);
 }
 
 // Update the video UI based on new information about this peer
