@@ -228,7 +228,9 @@ function dataSockMsg(msg) {
         case prot.ids.info:
             var p = prot.parts.info;
             var key = msg.getUint32(p.key, true);
-            var val = msg.getUint32(p.value, true);
+            var val = 0;
+            if (msg.byteLength >= p.length)
+                val = msg.getUint32(p.value, true);
             switch (key) {
                 case prot.info.id:
                     // Our own ID
@@ -283,6 +285,11 @@ function dataSockMsg(msg) {
 
                 case prot.info.startTime:
                     remoteBeginTime = msg.getFloat64(p.value, true);
+                    break;
+
+                case prot.info.recName:
+                    recName = decodeText(msg.buffer.slice(p.value));
+                    document.title = recName + " — Ennuicastr";
                     break;
 
                 case prot.info.ice:

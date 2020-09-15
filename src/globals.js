@@ -32,6 +32,9 @@ var zeroPacket = new Uint8Array([0xF8, 0xFF, 0xFE]);
 // Configuration, which will be filled in by loading code
 var config;
 
+// The name of this recording, which may never be set
+var recName = null;
+
 /* We have multiple connections to the server:
  * One for pings,
  * one to send data, and

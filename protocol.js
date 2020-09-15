@@ -190,6 +190,9 @@
              * recording formally began */
             "startTime": 0x15,
 
+            /* S->C, string: Inform the client of the name of this recording */
+            "recName": 0x16,
+
             /* S->C, 2xuint32: Inform the client of the current cost of the
              * recording in credits, and their rate of credit consumption per
              * minute. */

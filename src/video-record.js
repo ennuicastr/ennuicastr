@@ -17,8 +17,14 @@
 var recordVideoStop = null;
 
 function recordVideo() {
+    // Choose a name
+    var filename = "";
+    if (recName)
+        filename = recName + "-";
+    filename += username + "-video.webm";
+
     // Create a write stream early, so it's in response to the button click
-    var fileStream = streamSaver.createWriteStream("video.webm"); // FIXME: name
+    var fileStream = streamSaver.createWriteStream(filename);
     var fileWriter = fileStream.getWriter();
     window.addEventListener("unload", function() {
         fileWriter.close();
