@@ -1,6 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif&display=swap');
+
 body {
     background: #1a3333;
     color: #cff;
+    font-family: 'Noto Serif', sans-serif;
+    font-size: 1rem;
 }
 
 a {
@@ -77,9 +81,6 @@ a {
 }
 
 button:not(.plain), .button {
-    -moz-transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
-    -webkit-transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
-    -ms-transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
     transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
     background-color: #1a3333;
     color: #fff;
@@ -123,6 +124,7 @@ input[type="password"],
 input[type="email"],
 select,
 textarea {
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
     background-color: #1a3333;
     color: #fff;
     border-radius: 0;
@@ -131,4 +133,35 @@ textarea {
     outline: 0;
     padding: 0.5em;
     text-decoration: none;
+}
+
+select:hover {
+    background-color: #2b5555;
+}
+
+input[type="checkbox"] {
+    -webkit-appearance: none;
+    appearance: none;
+    position: relative;
+    display: inline-block;
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+    background-color: #1a3333;
+    border: 1px solid #fff;
+    padding: 0.6em;
+    margin: 0;
+}
+
+input[type="checkbox"]:hover {
+    background-color: #2b5555;
+}
+
+input[type="checkbox"]:checked:after {
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900;
+    color: #fff;
+    content: "\f00c";
+    position: absolute;
+    font-size: 0.9em;
+    left: 0.15em;
+    top: 0.1em;
 }
