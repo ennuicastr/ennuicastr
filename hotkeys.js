@@ -265,8 +265,7 @@
         while (target) {
             console.error(target);
             if (target.id &&
-                (target.nodeName === "BUTTON" || target.nodeName === "INPUT" ||
-                 target.nodeName === "SELECT" || target.nodeName === "A"))
+                (target.nodeName === "BUTTON" || target.nodeName === "A"))
                 break;
             target = target.parentElement;
         }
