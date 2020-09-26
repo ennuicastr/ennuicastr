@@ -19,7 +19,7 @@ SRC=src/head.js \
 	src/main.js \
 	src/tail.js
 
-all: ennuicastr.js ennuicastr.min.js protocol.min.js web-streams-ponyfill.js
+all: ennuicastr.js ennuicastr.min.js protocol.min.js hotkeys.min.js web-streams-ponyfill.js
 
 test: ennuicastr-test.js ennuicastr-test.min.js web-streams-ponyfill.js
 
@@ -36,6 +36,9 @@ ennuicastr-test.min.js: $(SRC)
 	cat $(SRC) | $(MINIFIER) | cat src/license.js - > $@
 
 protocol.min.js: protocol.js
+	cat $< | $(MINIFIER) | cat src/license.js - > $@
+
+hotkeys.min.js: hotkeys.js
 	cat $< | $(MINIFIER) | cat src/license.js - > $@
 
 web-streams-ponyfill.js:

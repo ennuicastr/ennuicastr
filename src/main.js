@@ -17,7 +17,14 @@
 // The main entry point
 function main() {
     return Promise.all([]).then(function() {
+        // Build the UI
         mkUI();
+
+        // This can be loaded lazily
+        ECDefaultHotkeys = {"0000c": "ecmenu-chat"};
+        loadLibrary("hotkeys.min.js");
+
+        // Now connect
         return connect();
     }).then(function() {
         return getMic();

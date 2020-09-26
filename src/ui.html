@@ -43,18 +43,18 @@
             <!-- Third panel: The menu -->
             <div id="ecmenu" class="rflex">
                 <span id="ecmenu-master-hider" style="display: none">
-                    <button id="ecmenu-master" class="menubutton" aria-label="Master interface"><i class="fas fa-cog"></i></button>
+                    <button id="ecmenu-master" class="menubutton hotkey-hidden" aria-label="Master interface"><i class="fas fa-cog"></i></button>
                 </span>
-                <button id="ecmenu-chat" class="menubutton" aria-label="Chat"><i class="fas fa-keyboard"></i></button>
+                <button id="ecmenu-chat" class="menubutton hotkey-hidden" aria-label="Chat"><i class="fas fa-keyboard"></i></button>
                 <span id="ecmenu-users-hider" style="display: none">
-                    <button id="ecmenu-users" class="menubutton" aria-label="User list"><i class="fas fa-users"></i></button>
+                    <button id="ecmenu-users" class="menubutton hotkey-hidden" aria-label="User list"><i class="fas fa-users"></i></button>
                 </span>
-                <button id="ecmenu-input-devices" class="menubutton" aria-label="Microphone selector"><i class="fas fa-microphone-alt"></i></button>
-                <button id="ecmenu-output-devices" class="menubutton" aria-label="Output selector"><i class="fas fa-headphones-alt"></i></button>
-                <button id="ecmenu-camera-devices" class="menubutton" aria-label="Camera selector"><i class="fas fa-video"></i></button>
+                <button id="ecmenu-input-devices" class="menubutton hotkey-hidden" aria-label="Microphone selector"><i class="fas fa-microphone-alt"></i></button>
+                <button id="ecmenu-output-devices" class="menubutton hotkey-hidden" aria-label="Output selector"><i class="fas fa-headphones-alt"></i></button>
+                <button id="ecmenu-camera-devices" class="menubutton hotkey-hidden" aria-label="Camera selector"><i class="fas fa-video"></i></button>
                 <span style="flex: auto;"></span>
-                <button id="ecmenu-record" class="menubutton" aria-label="Record video"><i class="fas fa-file-video"></i> <i class="fas fa-circle"></i></button>
-                <button id="ecmenu-mute" class="menubutton" style="margin-right: 0" aria-label="Mute"><i class="fas fa-volume-up"></i></button>
+                <button id="ecmenu-record" class="menubutton hotkey-hidden" aria-label="Record video"><i class="fas fa-file-video"></i> <i class="fas fa-circle"></i></button>
+                <button id="ecmenu-mute" class="menubutton hotkey-hidden" style="margin-right: 0" aria-label="Mute"><i class="fas fa-volume-up"></i></button>
             </div>
 
             <!-- The master interface -->
@@ -73,7 +73,7 @@
                         <div class="rflex">
                             <label for="ecmaster-invite-link">&nbsp;Invite:&nbsp;</label>
                             <input id="ecmaster-invite-link" type="text" readonly style="flex: auto; min-width: 1em;" />
-                            <button id="ecmaster-invite-link-copy" aria-label="Copy invite link"><i class="fas fa-clipboard"></i></button>
+                            <button id="ecmaster-invite-link-copy" class="hotkey-hidden" aria-label="Copy invite link"><i class="fas fa-clipboard"></i></button>
                         </div>
                         <div style="text-align: right;">
                             <span id="ecmaster-invite-flac-wrapper">
@@ -141,7 +141,8 @@
             <!-- Chat comes last -->
             <div id="ecchat-wrapper" class="cflex panel" style="flex: auto;">
                 <div id="ecchat-incoming" class="chat" style="flex: auto; padding: 0.5em; min-height: 2em; overflow: auto;" role="log" aria-live="polite"></div>
-                <input id="ecchat-outgoing" type="text" style="box-sizing: border-box; width: 100%;" />
+                <input id="ecchat-outgoing" type="text" style="box-sizing: border-box; width: 100%;" data-hotkey-enter="ecchat-outgoing-b" />
+                <input id="ecchat-outgoing-b" type="hidden" />
             </div>
 
             <!-- The status -->

@@ -43,27 +43,11 @@ function createChatBox() {
     var outgoing = chatBox.outgoing;
 
     // Make outgoing work
-    outgoing.onkeydown = function(ev) {
-        if (ev.keyCode !== 13 || outgoing.value.trim() === "")
-            return true;
-
+    function handleOutgoing() {
         // Send this message
         sendChat(outgoing.value);
         recvChat("You: " + outgoing.value);
         outgoing.value = "";
-
-        ev.preventDefault();
-        return false;
-    };
+    }
+    gebi("ecchat-outgoing-b").onclick = handleOutgoing;
 }
-
-// Add a keydown so you can instantly get to chat
-document.body.addEventListener("keydown", function(ev) {
-    if (ev.key !== "c" || ev.ctrlKey || ev.target.nodeName === "INPUT")
-        return true;
-
-    togglePanel("chat", true);
-
-    ev.preventDefault();
-    return false;
-});
