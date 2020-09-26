@@ -68,7 +68,7 @@
     kct.style.zIndex = "1000001";
     kct.style.alignItems = "center";
     kct.style.justifyContent = "center";
-    kct.innerText = "Please press a hotkey, or escape to cancel";
+    kct.innerText = "Please press a hotkey, or escape for none";
     kcw.appendChild(kct);
 
     var userKeyCallback = null;
@@ -150,6 +150,8 @@
 
         // Helper text
         var helper = ev.key.toUpperCase();
+        if (helper === " ")
+            helper = "_";
         if (ev.shiftKey)
             helper = "\u21e7" + helper;
         if (ev.metaKey)
