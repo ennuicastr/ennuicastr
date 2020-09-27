@@ -74,8 +74,12 @@ function createMasterInterface() {
 function configureMasterInterface() {
     var masterUI = ui.masterUI;
 
-    if (!masterUI.startStopB)
+    if (!ui.wrapper || !masterUI.startStopB)
         return;
+
+    pinUI();
+    // Except for the master panel itself
+    ui.panels.master.style.height = "";
 
     var pauseResume = masterUI.pauseResumeB;
     var startStop = masterUI.startStopB;
