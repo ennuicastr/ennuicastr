@@ -30,8 +30,11 @@ function mkUI() {
     wrapper.style.minHeight = window.innerHeight + "px";
     window.addEventListener("resize", function() {
         wrapper.style.minHeight = window.innerHeight + "px";
-        if (!ui.resizing)
+        checkMaximized();
+        if (!ui.resizing) {
             ui.manualSize = true;
+            reflexUI();
+        }
     });
 
     // A generic function to handle fullscreen buttons
@@ -76,7 +79,9 @@ function mkUI() {
     // The video has several elements
     ui.video = {
         els: [],
+        boxes: [],
         hasVideo: [],
+        wanted: false,
         speech: {},
         major: -1,
         selected: -1,
@@ -129,10 +134,12 @@ function mkUI() {
     ui.waveCanvas = gebi("ecwaveform");
 
     // The menu
-    ui.menu = {};
+    ui.menu = {
+        wrapper: gebi("ecmenu")
+    };
 
     // Move the status box
-    var eclog = gebi("eclog");
+    var eclog = ui.log = gebi("eclog");
     eclog.innerHTML = "";
     eclog.appendChild(log);
 
@@ -178,11 +185,82 @@ function mkUI() {
         ui.panels.master.style.display = "";
     }
 
+    checkMaximized();
     reflexUI();
+}
+
+var maximized = false;
+
+// Rearrange the UI based on whether we're maximized or not
+function checkMaximized() {
+    if (!ui.wrapper) return;
+
+    var nowMax = (window.outerHeight >= window.screen.availHeight * 0.9) &&
+                 (window.innerHeight >= 640 /* 4 160 pixel panels */);
+
+    if (nowMax !== maximized) {
+        maximized = nowMax;
+
+        // Change the layout
+        if (maximized) {
+            // Waveform at the bottom, menu above that, chat after video
+            ui.wrapper.insertBefore(ui.waveWrapper, ui.log);
+            ui.wrapper.insertBefore(ui.menu.wrapper, ui.waveWrapper);
+            ui.wrapper.insertBefore(ui.panels.chat, ui.video.wrapper.nextSibling);
+
+        } else {
+            // Waveform after video, menu after that, chat at the bottom
+            ui.wrapper.insertBefore(ui.menu.wrapper, ui.video.wrapper.nextSibling);
+            ui.wrapper.insertBefore(ui.waveWrapper, ui.menu.wrapper);
+            ui.wrapper.insertBefore(ui.panels.chat, ui.log);
+
+        }
+        document.documentElement.setAttribute("data-panel-alignment", maximized?"bottom":"");
+
+    }
+}
+
+var unpinUITimeout = null;
+
+/* Temporarily pin all flexible items to their current height, so things to
+ * blink weirdly when we resize the window */
+function pinUI() {
+    if (ui.manualSize)
+        return;
+
+    if (unpinUITimeout) {
+        clearTimeout(unpinUITimeout);
+        unpinUITimeout = null;
+    }
+
+    Array.prototype.slice.call(ui.wrapper.children, 0).forEach(function(el) {
+        if (el.style.display !== "none")
+            el.style.height = getComputedStyle(el).height;
+    });
+}
+
+// Unpin the UI
+function unpinUI() {
+    unpinUITimeout = null;
+    Array.prototype.slice.call(ui.wrapper.children, 0).forEach(function(el) {
+        el.style.height = "";
+    });
 }
 
 // Re-adjust the flex elements of our UI and resize if needed
 function reflexUI() {
+    // Prepare to unpin the UI
+    if (unpinUITimeout)
+        clearTimeout(unpinUITimeout);
+    unpinUITimeout = setTimeout(unpinUI, 100);
+
+    // Possibly force the video to be visible
+    if (useRTC && maximized && ui.panels.chat.style.display === "none") {
+        ui.video.wrapper.style.display = "";
+    } else {
+        ui.video.wrapper.style.display = (ui.video.wanted?"":"none");
+    }
+
     // Only two elements are meant to flex large: The video interface and chat
     if (ui.video.wrapper.style.display !== "none" || ui.panels.chat.style.display !== "none") {
         ui.waveWrapper.style.flex = "";
@@ -212,14 +290,20 @@ function resizeUI() {
     if (ui.resizing)
         clearTimeout(ui.resizing);
     ui.resizing = setTimeout(function() { ui.resizing = null; }, 200);
-    //window.resizeTo(window.outerWidth, ui.autoSize + window.outerHeight - window.innerHeight);
-    window.resizeTo(window.outerWidth, ui.autoSize);
+    window.resizeTo(window.outerWidth, ui.autoSize + window.outerHeight - window.innerHeight);
 }
 
 // Update the video UI based on new information about this peer
 function updateVideoUI(peer, neww) {
-    var el = ui.video.els[peer];
+    var el = ui.video.els[peer], box = ui.video.boxes[peer];
     var pi, prevMajor = ui.video.major;
+    var name = null;
+    if (peer === 0)
+        name = username;
+    else if (ui.userList.names[peer])
+        name = ui.userList.names[peer];
+
+    pinUI();
 
     if (neww) {
         function rbg() {
@@ -227,13 +311,23 @@ function updateVideoUI(peer, neww) {
         }
 
         // Totally new peer, set up their videobox
+        box = dce("div");
+        box.style.position = "relative";
+        box.style.display = "flex";
+        box.style.flexDirection = "column";
+        box.style.flex = "auto";
+        box.style.boxSizing = "border-box";
+        box.style.border = "4px solid #000";
+        while (ui.video.boxes.length <= peer)
+            ui.video.boxes.push(null);
+        ui.video.boxes[peer] = box;
+
         el.height = 0; // Use CSS for style
         el.style.backgroundColor = "#" + rbg() + rbg() + rbg();
         el.style.flex = "auto";
-        el.style.boxSizing = "border-box";
-        el.style.border = "4px solid #000";
         if (outputDeviceId)
             el.setSinkId(outputDeviceId);
+        box.appendChild(el);
 
         // When you click, they become the selected major
         el.onclick = function() {
@@ -244,9 +338,18 @@ function updateVideoUI(peer, neww) {
                     peer;
             updateVideoUI(peer, false);
         };
+
+        // And add their personal label
+        if (name) {
+            var nspan = dce("span");
+            nspan.classList.add("namelabel");
+            nspan.innerText = name;
+            box.appendChild(nspan);
+        }
     }
 
-    // We'll only display the video at all if *somebody* has video
+    /* We'll only display the video at all if *somebody* has video or we're
+     * maximized and have nothing else to take the space */
     var hasVideo = false;
     for (pi = 0; pi < ui.video.hasVideo.length; pi++) {
         if (ui.video.hasVideo[pi]) {
@@ -255,15 +358,17 @@ function updateVideoUI(peer, neww) {
         }
     }
 
-    if (!hasVideo) {
-        // Nope!
-        ui.video.wrapper.style.display = "none";
-        reflexUI();
-        return;
-    }
+    ui.video.wanted = hasVideo;
 
-    // Displaying video
-    ui.video.wrapper.style.display = "flex";
+    if (!hasVideo) {
+        // Not wanted, so default to off
+        ui.video.wrapper.style.display = "none";
+
+    } else {
+        // Displaying video
+        ui.video.wrapper.style.display = "flex";
+
+    }
 
     // Don't let them be the major if they're gone
     if (!el) {
@@ -309,25 +414,26 @@ function updateVideoUI(peer, neww) {
 
     // First rearrange them all in the side box
     for (pi = 0; pi < ui.video.els.length; pi++) {
-        el = ui.video.els[pi];
-        if (!el) continue;
+        box = ui.video.boxes[pi];
+        if (!box) continue;
 
         var selected = (ui.video.selected === pi);
         if (pi in ui.video.speech)
-            el.style.borderColor = selected?"#090":"#5e8f52";
+            box.style.borderColor = selected?"#090":"#5e8f52";
         else
-            el.style.borderColor = selected?"#999":"#000";
+            box.style.borderColor = selected?"#999":"#000";
 
         if (ui.video.major === pi) continue;
-        if (el.parentNode !== ui.video.side) {
-            ui.video.side.appendChild(el);
-            el.style.maxWidth = "214px";
-            el.style.height = "100%";
+        if (box.parentNode !== ui.video.side) {
+            ui.video.side.appendChild(box);
+            box.style.maxWidth = "214px";
+            box.style.height = "100%";
         }
     }
 
     if (ui.video.major === prevMajor) {
         // No need to change the major
+        reflexUI();
         return;
     }
 
@@ -336,11 +442,11 @@ function updateVideoUI(peer, neww) {
 
     // And highlight it
     if (ui.video.major !== -1) {
-        el = ui.video.els[ui.video.major];
-        ui.video.main.appendChild(el);
+        box = ui.video.boxes[ui.video.major];
+        ui.video.main.appendChild(box);
         ui.video.main.appendChild(ui.video.mainFullscreen);
-        el.style.maxWidth = "100%";
-        el.style.height = "";
+        box.style.maxWidth = "100%";
+        box.style.height = "";
     }
 
     reflexUI();
@@ -351,6 +457,8 @@ function togglePanel(panel, to) {
     var el = ui.panels[panel];
     if (typeof to === "undefined")
         to = (el.style.display === "none");
+
+    pinUI();
 
     // Don't allow multiple device panels to be visible at the same time
     if (/-device$/.test(panel)) {
@@ -385,6 +493,7 @@ function createMenu() {
 
     // The user list button only becomes visible if we actually have a user list, so we need to keep track of it
     ui.userList.button = gebi("ecmenu-users-hider");
+    ui.userList.names = {};
 
     // Hide irrelevant buttons
     if (!useRTC) {
@@ -434,6 +543,8 @@ function createUserList() {
 
 // Add a user to the user list
 function userListAdd(idx, name) {
+    ui.userList.names[idx] = name;
+
     // Create the node
     var els = ui.userList.els;
     while (els.length <= idx)
@@ -465,7 +576,9 @@ function userListAdd(idx, name) {
     left.appendChild(el);
 
     // Right: Volume control
-    right.classList.add("rflex");
+    var voldiv = dce("div");
+    voldiv.classList.add("rflex");
+    right.appendChild(voldiv);
 
     var vol = dce("input");
     vol.type = "range";
@@ -475,11 +588,11 @@ function userListAdd(idx, name) {
     vol.style.flex = "auto";
     vol.style.minWidth = "5em";
     vol.setAttribute("aria-label", "Volume for " + name);
-    right.appendChild(vol);
+    voldiv.appendChild(vol);
 
     var volStatus = dce("span");
     volStatus.innerHTML = "&nbsp;100%";
-    right.appendChild(volStatus);
+    voldiv.appendChild(volStatus);
 
     // When we change the volume, pass that to the compressors
     vol.oninput = function() {

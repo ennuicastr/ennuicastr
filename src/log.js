@@ -29,6 +29,12 @@ function popStatus(id) {
 }
 
 function updateStatus() {
+    if (ui.wrapper) {
+        pinUI();
+        // Except for the log itself!
+        ui.log.style.height = "";
+    }
+
     var txt = "";
     for (var id in curStatus) {
         txt += curStatus[id] + "\n";
@@ -37,6 +43,7 @@ function updateStatus() {
     if (txt === "")
         txt = "Capturing audio";
     log.innerText = txt;
+
     if (ui.wrapper)
         reflexUI();
 }

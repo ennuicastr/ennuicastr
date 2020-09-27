@@ -56,8 +56,35 @@ a {
     margin-bottom: 0.5em;
 }
 
+:root {
+    --panel-padding: 0.5em 0.5em 0.25em 0.5em;
+    --panel-border-top: none;
+    --panel-border-bottom: 2px solid #aaa;
+    --panel-border-top-radius: 0;
+    --panel-border-bottom-radius: 0.2em;
+}
+
+[data-panel-alignment="bottom"] {
+    --panel-padding: 0.25em 0.5em 0.5em 0.5em;
+    --panel-border-top: 2px solid #aaa;
+    --panel-border-bottom: none;
+    --panel-border-top-radius: 0.2em;
+    --panel-border-bottom-radius: 0;
+}
+
 .panel {
-    margin: 0.5em 0.5em 0 0.5em;
+    padding: var(--panel-padding);
+}
+
+.panel:not(.noborder) {
+    border-left: 2px solid #aaa;
+    border-right: 2px solid #aaa;
+    border-top: var(--panel-border-top);
+    border-bottom: var(--panel-border-bottom);
+    border-top-left-radius: var(--panel-border-top-radius);
+    border-top-right-radius: var(--panel-border-top-radius);
+    border-bottom-left-radius: var(--panel-border-bottom-radius);
+    border-bottom-right-radius: var(--panel-border-bottom-radius);
 }
 
 .invite {
@@ -74,6 +101,16 @@ a {
 
 .status > a {
     color: #00A;
+}
+
+.namelabel {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    padding: 0.2em;
+    border-top-right-radius: 0.2em;
+    background-color: rgba(170, 170, 170, 0.9);
+    color: #000;
 }
 
 .chat {
