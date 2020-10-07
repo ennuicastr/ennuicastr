@@ -504,7 +504,7 @@ function createMenu() {
 
     // Mute has its own action
     var mute = ui.muteB = gebi("ecmenu-mute");
-    mute.onclick = toggleMute;
+    mute.onclick = function() { toggleMute(); }
 
     // Video recording has its own action
     var rec = gebi("ecmenu-record");
@@ -652,6 +652,7 @@ function createDeviceList() {
 
     ui.deviceList = {
         select: gebi("ecinput-device-list"),
+        pttb: gebi("ecpttb"),
         noiserWrapper: gebi("ecnoise-reduction-wrapper"),
         noiser: gebi("ecnoise-reduction")
     };
@@ -685,6 +686,13 @@ function createDeviceList() {
         });
 
     }).catch(function() {}); // Nothing really to do here
+
+    // Gamepad PTT configuration
+    var pttb = ui.deviceList.pttb;
+    if (typeof Ennuiboard !== "undefined" && Ennuiboard.supported.gamepad) {
+        pttb.style.display = "";
+        pttb.onclick = userConfigurePTT;
+    }
 
     // And the selector for noise reduction
     var noiser = ui.deviceList.noiser;

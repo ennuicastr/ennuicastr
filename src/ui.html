@@ -108,10 +108,13 @@
                     <label for="ecinput-device-list">Input device:&nbsp;</label>
                     <select id="ecinput-device-list"></select>
                 </div>
-                <div id="ecnoise-reduction-wrapper">
+                <span class="halfspan halfspan-left">
+                    <button id="ecpttb" style="display: none"><i class="fas fa-gamepad"></i> Gamepad push-to-talk</button>
+                </span><span id="ecnoise-reduction-wrapper" class="halfspan halfspan-right">
+                    <span style="width: 2em;">&nbsp;</span>
                     <input id="ecnoise-reduction" type="checkbox" />
                     <label for="ecnoise-reduction">&nbsp;Apply noise reduction</label>
-                </div>
+                </span>
             </div>
             <div id="ecoutput-device-wrapper" class="panel">
                 <!-- The output device selector -->

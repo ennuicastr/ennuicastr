@@ -101,6 +101,9 @@ function localProcessing() {
 
     // The actual processing
     sp.onaudioprocess = function(ev) {
+        if (typeof Ennuiboard !== "undefined" && Ennuiboard.enabled.gamepad)
+            Ennuiboard.gamepad.poll();
+
         // Merge together the channels
         var ib = ev.inputBuffer.getChannelData(0);
         var cc = ev.inputBuffer.numberOfChannels;

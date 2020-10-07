@@ -62,6 +62,7 @@ function userMediaSet() {
         return;
 
     updateMuteButton();
+    loadPTT();
 
     pushStatus("initenc", "Initializing encoder...");
     popStatus("getmic");
@@ -896,9 +897,11 @@ function adjustTime(packet) {
 }
 
 // Toggle the mute state of the input audio
-function toggleMute() {
+function toggleMute(to) {
     if (!userMedia) return;
     var track = userMedia.getAudioTracks()[0];
-    track.enabled = !track.enabled;
+    if (typeof to === "undefined")
+        to = !track.enabled;
+    track.enabled = to;
     updateMuteButton();
 }

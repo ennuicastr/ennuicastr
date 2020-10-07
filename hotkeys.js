@@ -14,10 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-(function() {
+ECHotkeys = (function() {
+    var ech = {};
+
     // Our hotkeys are stored in localstorage
     if (typeof localStorage === "undefined")
-        return;
+        return ech;
 
     // Check for existing hotkeys
     var hotkeys = localStorage.getItem("hotkeys");
@@ -71,6 +73,33 @@
     kct.innerText = "Please press a hotkey, or escape for none";
     kcw.appendChild(kct);
 
+    // If we have Ennuiboard, use it too
+    if (typeof Ennuiboard !== "undefined" && Ennuiboard.supported.any) (function() {
+        var ebw = document.createElement("div");
+        ebw.style.position = "fixed";
+        ebw.style.display = "inline-block";
+        ebw.style.right = "0";
+        ebw.style.top = "0";
+        ebw.style.zIndex = "1000001";
+        kcw.appendChild(ebw);
+
+        Object.keys(Ennuiboard.supported).sort().forEach(function(t) {
+            if (t === "any" || !Ennuiboard.supported[t] ||
+                Ennuiboard.enabled[t] || Ennuiboard.enabling[t]) return;
+
+            // Add a button for this
+            var b = document.createElement("button");
+            b.style.fontSize = "0.65em";
+            b.innerText = "Enable " + t + " input";
+            b.onclick = function() {
+                b.style.display = "none";
+                Ennuiboard.enable(t, {auto: true});
+            };
+            ebw.appendChild(b);
+            ebw.appendChild(document.createElement("br"));
+        });
+    })();
+
     var userKeyCallback = null;
 
     // Our function for getting a key code
@@ -116,6 +145,7 @@
 
         });
     }
+    ech.getUserKey = getUserKey;
 
     // Save our hotkey state
     function saveHotkeys() {
@@ -280,4 +310,6 @@
         ev.stopPropagation();
         return false;
     }, true);
+
+    return ech;
 })();

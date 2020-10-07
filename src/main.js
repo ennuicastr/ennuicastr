@@ -17,12 +17,20 @@
 // The main entry point
 function main() {
     return Promise.all([]).then(function() {
+        // Load the keyboard indirection library
+        return loadLibrary("https://unpkg.com/ennuiboard@^1.0.0/ennuiboard.min.js");
+
+    }).catch(function(){}).then(function() {
+        // Gamepads can be supported by default
+        if (typeof Ennuiboard !== "undefined")
+            Ennuiboard.enable("gamepad", {auto: true, manualPoll: true});
+
         // Build the UI
         mkUI();
 
         // This can be loaded lazily
         ECDefaultHotkeys = {"0000c": "ecmenu-chat"};
-        loadLibrary("hotkeys.min.js");
+        loadLibrary("hotkeys.min.js?v=2");
 
         // Now connect
         return connect();

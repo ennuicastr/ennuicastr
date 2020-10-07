@@ -233,6 +233,13 @@ var ui = {
     // If we've received chat, the box for that
     chatBox: null,
 
+    // Push-to-talk settings
+    ptt: {
+        enabled: false,
+        hotkey: null,
+        muted: false
+    },
+
     // If we're in master mode, master UI elements
     masterUI: {},
 };

@@ -10,6 +10,7 @@ SRC=src/head.js \
 	src/master.js \
 	src/menu.js \
 	src/net.js \
+	src/ptt.js \
 	src/rtc.js \
 	src/safari.js \
 	src/ui.js \
