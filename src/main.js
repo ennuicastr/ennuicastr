@@ -30,7 +30,7 @@ function main() {
 
         // This can be loaded lazily
         ECDefaultHotkeys = {"0000c": "ecmenu-chat"};
-        loadLibrary("hotkeys.min.js?v=2");
+        loadLibrary("hotkeys.min.js?v=3");
 
         // Now connect
         return connect();

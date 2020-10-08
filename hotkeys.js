@@ -72,6 +72,13 @@ ECHotkeys = (function() {
     kct.style.justifyContent = "center";
     kct.innerText = "Please press a hotkey, or escape for none";
     kcw.appendChild(kct);
+    var kccancel = document.createElement("button");
+    kccancel.style.position = "fixed";
+    kccancel.style.right = "0";
+    kccancel.style.bottom = "0";
+    kccancel.style.zIndex = "1000001";
+    kccancel.innerText = "Cancel";
+    kcw.appendChild(kccancel);
 
     // If we have Ennuiboard, use it too
     if (typeof Ennuiboard !== "undefined" && Ennuiboard.supported.any) (function() {
@@ -127,13 +134,17 @@ ECHotkeys = (function() {
                     res(ev);
                     return false;
                 };
+
+                kccancel.onclick = function() {
+                    res(null);
+                };
             });
 
         }).then(function(ev) {
             document.body.removeChild(kcw);
             userKeyCallback = null;
 
-            if (ev.key === "Escape")
+            if (!ev || ev.key === "Escape")
                 return null;
             return {
                 key: ev.key,
