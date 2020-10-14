@@ -153,8 +153,8 @@ function mkUI() {
     }
     panel("master", "master-invite-link-copy");
     panel("user-list");
-    panel("input-device", "input-device-list");
-    panel("output-device", "output-device-list");
+    panel("sounds");
+    panel("audio-device", "input-device-list");
     panel("video-device", "video-device-list");
     panel("chat", "chat-outgoing");
 
@@ -462,7 +462,7 @@ function togglePanel(panel, to) {
 
     // Don't allow multiple device panels to be visible at the same time
     if (/-device$/.test(panel)) {
-        ["input", "output", "video"].forEach(function(nm) {
+        ["audio", "video"].forEach(function(nm) {
             ui.panels[nm + "-device"].style.display = "none";
         });
     }
@@ -487,8 +487,8 @@ function createMenu() {
     toggleBtn("master", "master");
     toggleBtn("chat", "chat");
     toggleBtn("users", "user-list");
-    toggleBtn("input-devices", "input-device");
-    toggleBtn("output-devices", "output-device");
+    toggleBtn("sounds", "sounds");
+    toggleBtn("audio-devices", "audio-device");
     toggleBtn("camera-devices", "video-device");
 
     // The user list button only becomes visible if we actually have a user list, so we need to keep track of it

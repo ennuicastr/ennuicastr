@@ -299,6 +299,13 @@ function dataSockMsg(msg) {
             }
             break;
 
+        case prot.ids.sound:
+            p = prot.parts.sound.sc;
+            var status = msg.getUint8(p.status);
+            var url = decodeText(msg.buffer.slice(p.url));
+            playStopSound(url, status);
+            break;
+
         case prot.ids.user:
             p = prot.parts.user;
             var index = msg.getUint32(p.index, true);
@@ -390,7 +397,9 @@ function masterSockMsg(msg) {
         case prot.ids.info:
             p = prot.parts.info;
             var key = msg.getUint32(p.key, true);
-            var val = msg.getUint32(p.value, true);
+            var val = 0;
+            if (msg.byteLength >= p.length)
+                val = msg.getUint32(p.value, true);
             switch (key) {
                 case prot.info.creditCost:
                     // Informing us of the cost of credits
@@ -406,6 +415,12 @@ function masterSockMsg(msg) {
                     var v2 = msg.getUint32(p.value + 4, true);
                     ui.masterUI.creditRate = [val, v2];
                     masterUpdateCreditCost();
+                    break;
+
+                case prot.info.sounds:
+                    // Soundboard items
+                    val = decodeText(msg.buffer.slice(p.value));
+                    addSoundButtons(JSON.parse(val));
                     break;
             }
             break;

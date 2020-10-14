@@ -49,8 +49,10 @@
                 <span id="ecmenu-users-hider" style="display: none">
                     <button id="ecmenu-users" class="menubutton hotkey-hidden" aria-label="User list"><i class="fas fa-users"></i></button>
                 </span>
-                <button id="ecmenu-input-devices" class="menubutton hotkey-hidden" aria-label="Microphone selector"><i class="fas fa-microphone-alt"></i></button>
-                <button id="ecmenu-output-devices" class="menubutton hotkey-hidden" aria-label="Output selector"><i class="fas fa-headphones-alt"></i></button>
+                <span id="ecmenu-sounds-hider" style="display: none">
+                    <button id="ecmenu-sounds" class="menubutton hotkey-hidden" aria-label="Soundboard"><i class="fas fa-music"></i></button>
+                </span>
+                <button id="ecmenu-audio-devices" class="menubutton hotkey-hidden" aria-label="Audio device selector"><i class="fas fa-microphone-alt"></i></button>
                 <button id="ecmenu-camera-devices" class="menubutton hotkey-hidden" aria-label="Camera selector"><i class="fas fa-video"></i></button>
                 <span style="flex: auto;"></span>
                 <button id="ecmenu-record" class="menubutton hotkey-hidden" aria-label="Record video"><i class="fas fa-file-video"></i> <i class="fas fa-circle"></i></button>
@@ -102,8 +104,13 @@
             <div id="ecuser-list-wrapper" class="panel">
             </div>
 
+            <!-- The soundboard -->
+            <div id="ecsounds-wrapper" class="panel">
+            </div>
+
             <!-- The device selector panels -->
-            <div id="ecinput-device-wrapper" class="panel">
+            <div id="ecaudio-device-wrapper" class="panel">
+                <!-- Input device info -->
                 <div class="row">
                     <label for="ecinput-device-list">Input device:&nbsp;</label>
                     <select id="ecinput-device-list"></select>
@@ -115,8 +122,9 @@
                     <input id="ecnoise-reduction" type="checkbox" />
                     <label for="ecnoise-reduction">&nbsp;Apply noise reduction</label>
                 </span>
-            </div>
-            <div id="ecoutput-device-wrapper" class="panel">
+
+                <hr/>
+
                 <!-- The output device selector -->
                 <div id="ecoutput-device-list-wrapper" class="row">
                     <label for="ecoutput-device-list">Output:&nbsp;</label>
@@ -189,6 +197,7 @@
 
             geid("ecmenu-master-hider").style.display = "";
             geid("ecmenu-users-hider").style.display = "";
+            geid("ecmenu-sounds-hider").style.display = "";
             var bigflex = [
                 geid("ecvideo-wrapper"),
                 geid("ecchat-wrapper")
@@ -228,8 +237,8 @@
             toggler("master-wrapper", "master");
             toggler("chat-wrapper", "chat");
             toggler("user-list-wrapper", "users");
-            toggler("input-device-wrapper", "input-devices");
-            toggler("output-device-wrapper", "output-devices");
+            toggler("sounds-wrapper", "sounds");
+            toggler("audio-device-wrapper", "audio-devices");
             toggler("video-device-wrapper", "camera-devices");
             toggler("video-wrapper", "record");
         })();</script>

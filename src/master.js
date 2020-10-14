@@ -66,6 +66,14 @@ function createMasterInterface() {
     // The right side is for user status
     masterUI.userStatusB = right;
 
+    // And separately, there's the sound list
+    masterUI.sounds = {
+        wrapper: gebi("ecsounds-wrapper"),
+        bwrapper: gebi("ecmenu-sounds-hider"),
+        buttons: {},
+        url2sid: {}
+    };
+
     configureMasterInterface();
     updateMasterSpeech();
 }
@@ -290,5 +298,86 @@ function updateMasterSpeech() {
             div.setAttribute("aria-live", "off");
         }
         div.setAttribute("aria-label", status.nick + ": " + aria);
+    }
+}
+
+// Add a soundboard button
+function addSoundButton(sid, url, name) {
+    var masterUI = ui.masterUI;
+
+    if (sid in masterUI.sounds.buttons)
+        return;
+    masterUI.sounds.url2sid[url] = sid;
+
+    // Make the button
+    var b = masterUI.sounds.buttons[sid] = {
+        b: dce("button")
+    };
+    b.b.classList.add("nouppercase");
+    b.b.id = "ec-sound-" + sid;
+    b.i = dce("i");
+    b.i.classList.add("fas");
+    b.i.classList.add("fa-play");
+    b.b.appendChild(b.i);
+    b.n = dce("span");
+    b.n.innerText = " " + name;
+    b.b.appendChild(b.n);
+
+    var spacer = dce("span");
+    spacer.innerHTML = "&nbsp;";
+
+    b.b.onclick = function() {
+        var play = true;
+        if (url in ui.sounds)
+            play = ui.sounds[url].el.paused;
+        masterPlayStopSound(b.b, sid, play);
+    };
+
+    masterUI.sounds.wrapper.appendChild(b.b);
+    masterUI.sounds.wrapper.appendChild(spacer);
+    masterUI.sounds.bwrapper.style.display = "";
+}
+
+// Add many soundboard buttons
+function addSoundButtons(arr) {
+    arr.forEach(function(s) {
+        addSoundButton(s.i, s.u, s.n);
+    });
+}
+
+// Request a sound be played or stopped
+function masterPlayStopSound(b, sid, play) {
+    b.disabled = true;
+    b.classList.add("off");
+    var p = prot.parts.sound.cs;
+    var sidBuf = encodeText(sid);
+    var msg = new DataView(new ArrayBuffer(p.length + sidBuf.length));
+    msg.setUint32(0, prot.ids.sound, true);
+    msg.setUint8(p.status, play?1:0, true);
+    new Uint8Array(msg.buffer).set(sidBuf, p.id);
+    masterSock.send(msg);
+}
+
+// Update the state of a playback button
+function masterSoundButtonUpdate(url, play, el) {
+    var masterUI = ui.masterUI;
+    var sid = masterUI.sounds.url2sid[url];
+    if (!sid)
+        return;
+    var b = masterUI.sounds.buttons[sid];
+
+    // Un-disable the button
+    b.b.disabled = false;
+    b.b.classList.remove("off");
+
+    // And update the icon
+    b.i.classList.remove("fa-play");
+    b.i.classList.remove("fa-stop");
+    b.i.classList.add(play?"fa-stop":"fa-play");
+
+    if (play) {
+        el.addEventListener("ended", function() {
+            masterSoundButtonUpdate(url, false, el);
+        }, {once: true});
     }
 }

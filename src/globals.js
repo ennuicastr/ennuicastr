@@ -242,6 +242,9 @@ var ui = {
 
     // If we're in master mode, master UI elements
     masterUI: {},
+
+    // Sound elements
+    sounds: {}
 };
 
 // Our start time is in local ticks, and our offset is updated every so often

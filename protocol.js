@@ -42,6 +42,9 @@
             // Text chat
             "text": 0x31,
 
+            // Soundboard request or response
+            "sound": 0x32,
+
             // Monitoring
             "user": 0x40,
             "speech": 0x41,
@@ -102,6 +105,20 @@
                 "length": 8,
                 "reserved": 4,
                 "text": 8
+            },
+
+            "sound": {
+                "cs": { // C->S: Sound request
+                    "length": 5, // really, + length of sound ID
+                    "status": 4, // 1 to play, 0 to stop
+                    "id": 5 // ID of sound to play
+                },
+                "sc": { // S->C: Play this sound
+                    "length": 13, // really, + length of URL
+                    "time": 4, // Server time when this event should have occurred
+                    "status": 12,
+                    "url": 13
+                }
             },
 
             "user": {
@@ -202,6 +219,11 @@
              * First int is units of currency (typically cents), second int is
              * units of credits, so they form a ratio. */
             "creditCost": 0x21,
+
+            /* S->C: Inform the master of what soundboard audio is available.
+             * JSON array of objects with i (ID), u (playback URL), and n
+             * (name) fields. */
+            "sounds": 0x22,
 
             // S->C, JSON: Give an eligible ICE server for RTC
             "ice": 0x50

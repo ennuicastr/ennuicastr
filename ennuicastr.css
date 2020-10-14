@@ -133,6 +133,10 @@ button:not(.plain), .button {
     white-space: nowrap;
 }
 
+button.nouppercase, .button.nouppercase {
+    text-transform: none;
+}
+
 button:not(.plain):hover, .button:hover {
     background-color: #2b5555;
 }

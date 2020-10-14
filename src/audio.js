@@ -905,3 +905,30 @@ function toggleMute(to) {
     track.enabled = to;
     updateMuteButton();
 }
+
+// Play or stop a sound
+function playStopSound(url, status) {
+    var sound = ui.sounds[url];
+    if (!sound) {
+        // Create an element for it
+        sound = ui.sounds[url] = {};
+        sound.el = document.createElement("audio");
+
+        // Choose a format
+        var format = "m4a";
+        if (typeof MediaSource !== "undefined" && MediaSource.isTypeSupported("audio/webm; codecs=opus"))
+            format = "webm"
+
+        sound.el.src = url + "." + format;
+    }
+
+    // Play or stop playing
+    sound.el.pause();
+    if (status) {
+        sound.el.currentTime = 0;
+        sound.el.play();
+    }
+
+    if ("master" in config)
+        masterSoundButtonUpdate(url, status, sound.el);
+}
