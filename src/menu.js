@@ -497,7 +497,7 @@ function createMenu() {
 
     // Hide irrelevant buttons
     if (!useRTC) {
-        ["output-devices", "camera-devices", "record"].forEach(function(btn) {
+        ["camera-devices", "record"].forEach(function(btn) {
             gebi("ecmenu-" + btn).style.display = "none";
         });
     }
@@ -665,7 +665,7 @@ function createDeviceList() {
 
     // When it's changed, reselect the mic
     sel.onchange = function() {
-        togglePanel("input-device", false);
+        togglePanel("audio-device", false);
         getMic(sel.value);
     };
 
@@ -779,7 +779,7 @@ function createOutputControlPanel() {
     // When it's changed, start output
     sel.onchange = function() {
         if (sel.value === "-none") return;
-        togglePanel("output-device", false);
+        togglePanel("audio-device", false);
         setOutputDevice(sel.value);
     };
 
