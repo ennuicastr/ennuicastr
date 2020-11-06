@@ -40,7 +40,7 @@ function getMic(deviceId) {
         audio: {
             deviceId: deviceId,
             autoGainControl: plzno,
-            echoCancellation: plzno,
+            echoCancellation: {ideal: ui.deviceList.ec.checked},
             noiseSuppression: plzno,
             sampleRate: {ideal: 48000},
             sampleSize: {ideal: 24}

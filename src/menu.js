@@ -644,18 +644,26 @@ function userListUpdate(idx, speaking) {
 
 // Create the (input) device list submenu
 function createDeviceList() {
+    ui.deviceList = {
+        select: gebi("ecinput-device-list"),
+        pttb: gebi("ecpttb"),
+        optionsWrapper: gebi("ecinput-options-wrapper"),
+        noiser: gebi("ecnoise-reduction"),
+        ec: gebi("ececho-cancellation")
+    };
+
+    // Remember echo cancellation early so that the first user media setup knows it
+    if (typeof localStorage !== "undefined") {
+        var ecDef = localStorage.getItem("echo-cancellation");
+        if (ecDef)
+            ui.deviceList.ec.checked = JSON.parse(ecDef);
+    }
+
     if (!userMedia) {
         // Wait until we can know what device we selected
         userMediaAvailableEvent.addEventListener("usermediaready", createDeviceList, {once: true});
         return;
     }
-
-    ui.deviceList = {
-        select: gebi("ecinput-device-list"),
-        pttb: gebi("ecpttb"),
-        noiserWrapper: gebi("ecnoise-reduction-wrapper"),
-        noiser: gebi("ecnoise-reduction")
-    };
 
     var sel = ui.deviceList.select;
     var selected = null;
@@ -694,15 +702,30 @@ function createDeviceList() {
         pttb.onclick = userConfigurePTT;
     }
 
-    // And the selector for noise reduction
+    // The selector for noise reduction
     var noiser = ui.deviceList.noiser;
     noiser.checked = useNR;
     noiser.onchange = function() {
         userNR = noiser.checked;
     };
 
+    // And for echo cancellation, which resets the mic
+    var ec = ui.deviceList.ec;
+    ec.onchange = function() {
+        if (typeof localStorage !== "undefined")
+            localStorage.setItem("echo-cancellation", JSON.stringify(ec.checked));
+        if (ec.checked) {
+            pushStatus("echo-cancellation", "WARNING: Digital echo cancellation is usually effective in cancelling echo, but will SEVERELY impact the quality of your audio. If possible, find a way to reduce echo physically.");
+            setTimeout(function() {
+                popStatus("echo-cancellation");
+            }, 10000);
+        }
+        togglePanel("audio-device", false);
+        getMic(sel.value);
+    };
+
     if (!useRTC)
-        ui.deviceList.noiserWrapper.style.display = "none";
+        ui.deviceList.optionsWrapper.style.display = "none";
 }
 
 // Create the video device list submenu
