@@ -275,9 +275,7 @@ function playRTCEl(el) {
         return;
     }
 
-    el.play().catch(function(ex) {
-        pushStatus("rtc", "Failed to play remote audio!");
-    });
+    el.play();
 }
 
 // Receive a data channel message from an RTC peer
