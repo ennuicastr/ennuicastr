@@ -290,7 +290,13 @@ function resizeUI() {
     if (ui.resizing)
         clearTimeout(ui.resizing);
     ui.resizing = setTimeout(function() { ui.resizing = null; }, 200);
-    window.resizeTo(window.outerWidth, ui.autoSize + window.outerHeight - window.innerHeight);
+
+    var maxHeight = Math.floor(window.screen.availHeight * 0.9) - 1;
+    var height = ui.autoSize + window.outerHeight - window.innerHeight;
+    if (height > maxHeight)
+        height = maxHeight;
+
+    window.resizeTo(window.outerWidth, height);
 }
 
 // Update the video UI based on new information about this peer
