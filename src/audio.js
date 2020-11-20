@@ -334,7 +334,11 @@ function libavStart() {
     var libavAC = needCustomAC ? new AudioContext({sampleRate: umSampleRate}) : ac;
 
     // Begin initializing the encoder
-    libavEncoder = {ac: libavAC, input_channel_layout: channelLayout};
+    libavEncoder = {
+        ac: libavAC,
+        input_channels: channelCount,
+        input_channel_layout: channelLayout
+    };
     return libav.ff_init_encoder(useFlac?"flac":"libopus", encOptions, 1, sampleRate).then(function(ret) {
 
         libavEncoder.codec = ret[0];
@@ -347,6 +351,7 @@ function libavStart() {
         return libav.ff_init_filter_graph("aresample", {
             sample_rate: libavAC.sampleRate,
             sample_fmt: libav.AV_SAMPLE_FMT_FLTP,
+            channels: channelCount,
             channel_layout: channelLayout
         }, {
             sample_rate: encOptions.sample_rate,
@@ -456,8 +461,13 @@ function libavProcess() {
         }
 
         // Put it in libav's format
+        while (libavEncoder.input_channels > ib.length) {
+            // Channel count changed???
+            ib = ib.concat(ib);
+        }
         var frames = [{
             data: ib,
+            channels: libavEncoder.input_channels,
             channel_layout: libavEncoder.input_channel_layout,
             format: libav.AV_SAMPLE_FMT_FLTP,
             pts: pts,
