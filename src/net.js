@@ -384,6 +384,18 @@ function dataSockMsg(msg) {
             var text = decodeText(msg.buffer.slice(p.text));
             recvChat(text);
             break;
+
+        case prot.ids.admin:
+            var p = prot.parts.admin;
+            var acts = prot.flags.admin.actions;
+            var action = msg.getUint32(p.action, true);
+            if (action === acts.mute) {
+                toggleMute(false);
+            } else if (action === acts.echoCancel) {
+                ui.deviceList.ec.ecAdmin = true;
+                ui.deviceList.ec.checked = true;
+            }
+            break;
     }
 }
 

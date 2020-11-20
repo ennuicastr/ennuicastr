@@ -718,14 +718,24 @@ function createDeviceList() {
     // And for echo cancellation, which resets the mic
     var ec = ui.deviceList.ec;
     ec.onchange = function() {
-        if (typeof localStorage !== "undefined")
-            localStorage.setItem("echo-cancellation", JSON.stringify(ec.checked));
-        if (ec.checked) {
-            pushStatus("echo-cancellation", "WARNING: Digital echo cancellation is usually effective in cancelling echo, but will SEVERELY impact the quality of your audio. If possible, find a way to reduce echo physically.");
-            setTimeout(function() {
-                popStatus("echo-cancellation");
-            }, 10000);
+        var admin = false;
+        if (ec.ecAdmin) {
+            // Don't record an admin-enforced change
+            ec.ecAdmin = false;
+
+        } else {
+            if (typeof localStorage !== "undefined")
+                localStorage.setItem("echo-cancellation", JSON.stringify(ec.checked));
+
+            if (ec.checked) {
+                pushStatus("echo-cancellation", "WARNING: Digital echo cancellation is usually effective in cancelling echo, but will SEVERELY impact the quality of your audio. If possible, find a way to reduce echo physically.");
+                setTimeout(function() {
+                    popStatus("echo-cancellation");
+                }, 10000);
+            }
+
         }
+
         togglePanel("audio-device", false);
         getMic(sel.value);
     };

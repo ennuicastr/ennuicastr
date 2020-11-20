@@ -54,6 +54,7 @@
 
             // Master
             "mode": 0x60,
+            "admin": 0x61,
         },
 
         "parts": {
@@ -143,6 +144,12 @@
             "mode": {
                 "length": 8,
                 "mode": 4
+            },
+
+            "admin": {
+                "length": 12,
+                "target": 4,
+                "action": 8
             }
         },
 
@@ -179,6 +186,14 @@
             "features": {
                 "continuous": 0x100,
                 "rtc": 0x200
+            },
+
+            "admin": {
+                "actions": {
+                    "kick": 0,
+                    "mute": 1,
+                    "echoCancel": 2
+                }
             }
         },
 

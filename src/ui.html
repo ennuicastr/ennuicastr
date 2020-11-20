@@ -97,6 +97,16 @@
                         <input id="ecmaster-recording-rate" type="text" readonly style="flex: auto; min-width: 1em;" />
                     </div>
                 </span><span id="ecmaster-right" class="halfspan halfspan-right">
+                    <div class="rflex" style="padding-left: 0.25em">
+                        <!-- Hidden so that everything lines up, but still present -->
+                        <span style="visibility: hidden; flex: auto; min-width: 10em;">&nbsp;</span>
+                        <button style="visibility: hidden"><i class="fas fa-user-slash"></i></button>
+                        <!-- Applicable to all -->
+                        <button id="ecmaster-mute-all" class="hotkey-hidden" title="Mute all users" aria-label="Mute all users"><i class="fas fa-microphone-alt-slash"></i></button>
+                        <button id="ecmaster-echo-all" class="hotkey-hidden" title="Force echo cancellation on all users" aria-label="Force echo cancellation on all users">
+                        <span style="display: inline-flex; align-self: center;"><img src="images/no-echo-white.svg" style="position: relative; top: 0.3em; height: 1.5em; width: 1.5em;" /></span>
+                        </button>
+                    </div>
                 </span>
             </div>
 

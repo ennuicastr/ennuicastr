@@ -66,6 +66,18 @@ function createMasterInterface() {
     // The right side is for user status
     masterUI.userStatusB = right;
 
+    // Including global mute/echo-cancel
+    var gabs = masterUI.globalAdminBs = {
+        mute: gebi("ecmaster-mute-all"),
+        echo: gebi("ecmaster-echo-all")
+    };
+    gabs.mute.onclick = function() {
+        masterAdminAction(-1, prot.flags.admin.actions.mute);
+    };
+    gabs.echo.onclick = function() {
+        masterAdminAction(-1, prot.flags.admin.actions.echoCancel);
+    };
+
     // And separately, there's the sound list
     masterUI.sounds = {
         wrapper: gebi("ecsounds-wrapper"),
@@ -259,13 +271,39 @@ function updateMasterSpeech() {
 
     for (var i = 0; i < masterUI.speech.length; i++) {
         if (masterUI.speech[i] && !masterUI.speechB[i]) {
-            var div = masterUI.speechB[i] = dce("div");
+            var nick = masterUI.speech[i].nick;
+
+            var div = dce("div");
+            div.classList.add("rflex");
             div.style.paddingLeft = "0.25em";
-            div.setAttribute("role", "status");
-            div.setAttribute("aria-live", "polite");
-            div.ecConnected = true; // So that we can adjust the aria-live setting usefully
-            div.innerText = masterUI.speech[i].nick;
             masterUI.userStatusB.appendChild(div);
+
+            // Status display
+            var span = masterUI.speechB[i] = dce("span");
+            span.style.flex = "auto";
+            span.style.minWidth = "10em";
+            span.setAttribute("role", "status");
+            span.setAttribute("aria-live", "polite");
+            span.ecConnected = true; // So that we can adjust the aria-live setting usefully
+            span.innerText = nick;
+            div.appendChild(span);
+
+            // Admin buttons
+            function mkButton(i, act, txt, lbl) {
+                var b = dce("button");
+                b.id = "ecmaster-" + act + "-" + nick;
+                b.title = txt + " " + nick;
+                b.setAttribute("aria-label", txt + " " + nick);
+                b.innerHTML = '<i class="fas fa-' + lbl + '"></i>';
+                b.onclick = function() {
+                    masterAdminAction(i, prot.flags.admin.actions[act]);
+                };
+                div.appendChild(b);
+                return b;
+            }
+            mkButton(i, "kick", "Kick", "user-slash");
+            mkButton(i, "mute", "Mute", "microphone-alt-slash");
+            mkButton(i, "echoCancel", "Force echo cancellation on", "").innerHTML = masterUI.globalAdminBs.echo.innerHTML;
         }
     }
 
@@ -380,4 +418,14 @@ function masterSoundButtonUpdate(url, play, el) {
             masterSoundButtonUpdate(url, false, el);
         }, {once: true});
     }
+}
+
+// Admin actions
+function masterAdminAction(target, action) {
+    var p = prot.parts.admin;
+    var out = new DataView(new ArrayBuffer(p.length));
+    out.setUint32(0, prot.ids.admin, true);
+    out.setUint32(p.target, target, true);
+    out.setUint32(p.action, action, true);
+    masterSock.send(out.buffer);
 }
