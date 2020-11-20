@@ -282,6 +282,9 @@ function updateMasterSpeech() {
             var span = masterUI.speechB[i] = dce("span");
             span.style.flex = "auto";
             span.style.minWidth = "10em";
+            span.style.height = span.style.lineHeight = "2em";
+            span.style.padding = "0 0.25em 0 0.25em";
+            span.style.verticalAlign = "middle";
             span.setAttribute("role", "status");
             span.setAttribute("aria-live", "polite");
             span.ecConnected = true; // So that we can adjust the aria-live setting usefully
