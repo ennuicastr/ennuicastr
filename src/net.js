@@ -392,8 +392,11 @@ function dataSockMsg(msg) {
             if (action === acts.mute) {
                 toggleMute(false);
             } else if (action === acts.echoCancel) {
-                ui.deviceList.ec.ecAdmin = true;
-                ui.deviceList.ec.checked = true;
+                if (!ui.deviceList.ec.checked) {
+                    ui.deviceList.ec.ecAdmin = true;
+                    ui.deviceList.ec.checked = true;
+                    ui.deviceList.ec.onchange();
+                }
             }
             break;
     }
