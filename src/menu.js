@@ -806,6 +806,9 @@ function createOutputControlPanel() {
         select: gebi("ecoutput-device-list"),
         volume: gebi("ecoutput-volume"),
         volumeStatus: gebi("ecoutput-volume-status"),
+        sfxVolume: gebi("ecsfx-volume"),
+        sfxVolumeStatus: gebi("ecsfx-volume-status"),
+        sfxVolumeHider: gebi("ecsfx-volume-hider"),
         compression: gebi("ecdynamic-range-compression")
     };
 
@@ -885,7 +888,37 @@ function createOutputControlPanel() {
     vol.oninput();
 
     /*****
-     * 3: Dynamic range compression (volume leveling)
+     * 3: SFX volume
+     *****/
+    var sfxVol = ui.outputControlPanel.sfxVolume;
+    var sfxVolStatus = ui.outputControlPanel.sfxVolumeStatus;
+
+    // When we change the volume, pass that to sfx
+    sfxVol.oninput = function() {
+        // Remember preferences
+        if (typeof localStorage !== "undefined")
+            localStorage.setItem("sfx-volume", sfxVol.value);
+
+        // Show the status
+        sfxVolStatus.innerHTML = "&nbsp;" + sfxVol.value + "%";
+
+        // Set it
+        for (var url in ui.sounds) {
+            var sound = ui.sounds[url];
+            sound.el.volume = sfxVol.value / 100;
+        }
+    };
+
+    // Get the saved value
+    if (typeof localStorage !== "undefined") {
+        var def = localStorage.getItem("sfx-volume");
+        if (def)
+            sfxVol.value = +def;
+    }
+    sfxVol.oninput();
+
+    /*****
+     * 4: Dynamic range compression (volume leveling)
      *****/
     var compression = ui.outputControlPanel.compression;
 

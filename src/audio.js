@@ -930,6 +930,8 @@ function playStopSound(url, status) {
             format = "webm"
 
         sound.el.src = url + "." + format;
+        sound.el.volume = ui.outputControlPanel.sfxVolume.value / 100;
+        ui.outputControlPanel.sfxVolumeHider.style.display = "";
     }
 
     // Play or stop playing

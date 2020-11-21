@@ -144,9 +144,16 @@
 
                 <!-- Master volume -->
                 <div class="rflex row">
-                    <label for="ecoutput-volume">Volume:&nbsp;</label>
+                    <label for="ecoutput-volume" style="min-width: 8em; text-align: right;">Volume:&nbsp;</label>
                     <input id="ecoutput-volume" type="range" min=0 max=400 value=200 style="flex: auto; min-width: 5em;" />
                     <span id="ecoutput-volume-status">&nbsp;100%</span>
+                </div>
+
+                <!-- SFX volume -->
+                <div class="rflex row" id="ecsfx-volume-hider" style="display: none">
+                    <label for="ecsfx-volume" style="min-width: 8em; text-align: right;">SFX volume:&nbsp;</label>
+                    <input id="ecsfx-volume" type="range" min=0 max=100 value=100 style="flex: auto; min-width: 5em;" />
+                    <span id="ecsfx-volume-status">&nbsp;100%</span>
                 </div>
 
                 <!-- And dynamic range compression -->
@@ -209,6 +216,7 @@
             geid("ecmenu-master-hider").style.display = "";
             geid("ecmenu-users-hider").style.display = "";
             geid("ecmenu-sounds-hider").style.display = "";
+            geid("ecsfx-volume-hider").style.display = "";
             var bigflex = [
                 geid("ecvideo-wrapper"),
                 geid("ecchat-wrapper")
