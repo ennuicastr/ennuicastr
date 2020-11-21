@@ -49,8 +49,9 @@
             "user": 0x40,
             "speech": 0x41,
 
-            // WebRTC signaling info
+            // WebRTC signaling info and inter-client RTC messages
             "rtc": 0x50,
+            "videoRec": 0x51,
 
             // Master
             "mode": 0x60,
@@ -139,6 +140,11 @@
                 "peer": 4,
                 "type": 8, // High bit is outgoing
                 "value": 12
+            },
+
+            "videoRec": {
+                "length": 8, // More for added arguments
+                "cmd": 4
             },
 
             "mode": {
@@ -256,6 +262,24 @@
             // C->S: Give RTC answer to another peer {id, answer JSON}
             // S->C: Relay, id replaced by source
             "answer": 0x2
+        },
+
+        "videoRec": {
+            /* uint32: Inform of our willingness (1) or otherwise (0) to host
+             * video recordings */
+            "videoRecHost": 0x60,
+
+            /* JSON: Request to start sending video recording data. JSON
+             * argument is an optional object with optional arguments, in
+             * particular "ext", for the format/extension for the created file */
+            "startVideoRecReq": 0x61,
+
+            /* uint32: Accept or reject (1 or 0) a video recording send
+             * request. Actual file data is sent in data packets. */
+            "startVideoRecRes": 0x62,
+
+            // C->C: End video data
+            "endVideoRec": 0x63
         },
 
         "mode": {

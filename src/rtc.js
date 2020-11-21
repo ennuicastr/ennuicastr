@@ -205,6 +205,8 @@ function initRTC(peer, outgoing) {
         chan.binaryType = "arraybuffer";
         chan.onopen = function() {
             rtcSpeech(vadOn, peer);
+            if ("master" in config)
+                rtcVideoRecSend(void 0, prot.videoRec.videoRecHost, ~~ui.masterUI.acceptRemoteVideo.checked);
         };
 
     } else {
@@ -282,14 +284,79 @@ function playRTCEl(el) {
 function rtcMessage(peer, msg) {
     if (msg.byteLength < 4) return;
     var cmd = msg.getUint32(0, true);
+    console.log("Command " + cmd.toString(16) + " from " + peer);
 
     switch (cmd) {
+        case prot.ids.data:
+            console.error("Received " + (msg.byteLength-4));
+            try {
+                rtcConnections.incoming[peer].ecVideoRecord.write((new Uint8Array(msg.buffer)).subarray(4));
+            } catch (ex) {
+                console.error(ex);
+            }
+            break;
+
         case prot.ids.speech:
             // User speech status
             var p = prot.parts.speech;
             if (msg.byteLength < p.length) return;
             var status = !!msg.getUint32(p.indexStatus, true);
             updateSpeech(peer, status);
+            break;
+
+        case prot.ids.videoRec:
+            // Video recording related messages
+            var p = prot.parts.videoRec;
+            var pv = prot.videoRec;
+            if (msg.byteLength < p.length) return;
+            var cmd = msg.getUint32(p.cmd, true);
+
+            switch (cmd) {
+                case pv.videoRecHost:
+                    var accept = 0;
+                    try {
+                        accept = msg.getUint32(p.length, true);
+                    } catch (ex) {}
+                    if (accept)
+                        rtcConnections.videoRecHost = peer; // FIXME: Deal with disconnections
+                    else if (rtcConnections.videoRecHost === peer)
+                        rtcConnections.videoRecHost = -1;
+                    break;
+
+                case pv.startVideoRecReq:
+                    if ("master" in config &&
+                        ui.masterUI.acceptRemoteVideo.checked &&
+                        rtcConnections.incoming[peer]) {
+
+                        recordVideoRemoteIncoming(peer).then(function(fileWriter) {
+                            rtcVideoRecSend(peer, prot.videoRec.startVideoRecRes, 1);
+                            if (rtcConnections.incoming[peer])
+                                rtcConnections.incoming[peer].ecVideoRecord = fileWriter;
+                            else
+                                fileWriter.close();
+                        });
+
+                    } else {
+                        rtcVideoRecSend(peer, prot.videoRec.startVideoRecRes, 0);
+
+                    }
+                    break;
+
+                case pv.startVideoRecRes:
+                    // Only if we actually *wanted* them to accept video!
+                    if (recordVideoRemoteOK && peer === rtcConnections.videoRecHost)
+                        recordVideoRemoteOK(peer);
+                    break;
+
+                case pv.endVideoRec:
+                    try {
+                        rtcConnections.incoming[peer].ecVideoRecord.close();
+                        delete rtcConnections.incoming[peer].ecVideoRecord;
+                    } catch (ex) {
+                        console.error(ex);
+                    }
+                    break;
+            }
             break;
     }
 }
@@ -318,6 +385,66 @@ function rtcSpeech(status, peer) {
         try {
             rtcConnections.outgoing[peer].ecDataChannel.send(msg);
         } catch (ex) {}
+    }
+}
+
+// Send an RTC video recording message
+function rtcVideoRecSend(peer, cmd, payloadData) {
+    if (!useRTC) return;
+
+    // Build the payload
+    var payload;
+    if (typeof payloadData === "number") {
+        payload = new DataView(new ArrayBuffer(4));
+        payload.setUint32(0, payloadData, true);
+
+    } else if (typeof payloadData === "object") {
+        payload = encodeText(JSON.stringify(payload));
+
+    } else {
+        payload = new Uint8Array(0);
+
+    }
+
+    // Build the message
+    var p = prot.parts.videoRec;
+    var msg = new DataView(new ArrayBuffer(p.length + payload.byteLength));
+    msg.setUint32(0, prot.ids.videoRec, true);
+    msg.setUint32(p.cmd, cmd, true);
+    new Uint8Array(msg.buffer).set(new Uint8Array(payload.buffer), p.length);
+
+    // And send it
+    if (typeof peer !== "undefined") {
+        try {
+            rtcConnections.outgoing[peer].ecDataChannel.send(msg);
+        } catch (ex) {}
+        return;
+    }
+
+    for (peer in rtcConnections.outgoing) {
+        try {
+            rtcConnections.outgoing[peer].ecDataChannel.send(msg);
+        } catch (ex) {}
+    }
+}
+
+// Send data to an RTC peer
+function rtcDataSend(peer, buf) {
+    var p = prot.parts.data;
+
+    // Send 16k at a time
+    for (var start = 0; start < buf.length; start += 16380) {
+        var part = buf.subarray(start, start + 16380);
+        var msg = new DataView(new ArrayBuffer(4 + part.length));
+        msg.setUint32(0, prot.ids.data, true);
+        new Uint8Array(msg.buffer).set(part, 4);
+        console.error("Actually sending " + msg.byteLength);
+
+        try {
+            rtcConnections.outgoing[peer].ecDataChannel.send(msg);
+        } catch (ex) {
+            console.error(ex);
+        }
     }
 }
 

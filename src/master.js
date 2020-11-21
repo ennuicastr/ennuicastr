@@ -29,6 +29,15 @@ function createMasterInterface() {
     var ssy = masterUI.startStopYesB = gebi("ecmaster-yes");
     var ssn = masterUI.startStopNoB = gebi("ecmaster-no");
 
+    // The option to accept or refuse remote video recordings
+    var arv = masterUI.acceptRemoteVideo = gebi("ecmaster-video-record-host");
+    if (typeof localStorage !== "undefined") {
+        var val = localStorage.getItem("ecmaster-video-record-host");
+        if (val)
+            arv.checked = JSON.parse(val);
+    }
+    arv.onchange = masterAcceptRemoteVideoChange;
+
     // The invitation link
     var invite = masterUI.invite = gebi("ecmaster-invite-link");
     var ilc = masterUI.inviteCopy = gebi("ecmaster-invite-link-copy");
@@ -78,7 +87,7 @@ function createMasterInterface() {
         masterAdminAction(-1, prot.flags.admin.actions.echoCancel);
     };
 
-    // And separately, there's the sound list
+    // Separately, there's the sound list
     masterUI.sounds = {
         wrapper: gebi("ecsounds-wrapper"),
         bwrapper: gebi("ecmenu-sounds-hider"),
@@ -431,4 +440,12 @@ function masterAdminAction(target, action) {
     out.setUint32(p.target, target, true);
     out.setUint32(p.action, action, true);
     masterSock.send(out.buffer);
+}
+
+// The change handler for accepting remote video
+function masterAcceptRemoteVideoChange() {
+    var arv = ui.masterUI.acceptRemoteVideo;
+    if (typeof localStorage !== "undefined")
+        localStorage.setItem("ecmaster-video-record-host", JSON.stringify(arv.checked));
+    rtcVideoRecSend(void 0, prot.videoRec.videoRecHost, ~~arv.checked);
 }

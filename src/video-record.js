@@ -14,9 +14,17 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+// Function to stop the current video recording, or null if there is none
 var recordVideoStop = null;
 
-function recordVideo() {
+// Function to call to verify remote willingness to accept video data
+var recordVideoRemoteOK = null;
+var recordVideoRemoteOKTimeout = null;
+
+// Record video
+function recordVideo(opts) {
+    recordVideoButton(true);
+
     // Choose a name
     var filename = "";
     if (recName)
@@ -24,17 +32,61 @@ function recordVideo() {
     filename += username + "-video.webm";
 
     // Create a write stream early, so it's in response to the button click
-    var fileStream = streamSaver.createWriteStream(filename);
-    var fileWriter = fileStream.getWriter();
-    window.addEventListener("unload", function() {
-        fileWriter.close();
-    });
+    var localWriter = null, remoteWriter = null;
+    if (opts.local) {
+        if (opts.localWriter) {
+            localWriter = opts.localWriter;
+        } else {
+            var fileStream = streamSaver.createWriteStream(filename);
+            localWriter = fileStream.getWriter();
+            window.addEventListener("unload", function() {
+                localWriter.close();
+            });
+            opts.localWriter = localWriter;
+        }
+    }
+
+    if (opts.remote) {
+        if (!("remotePeer" in opts)) {
+            // Verify first!
+            rtcVideoRecSend(rtcConnections.videoRecHost, prot.videoRec.startVideoRecReq);
+
+            recordVideoRemoteOK = function(peer) {
+                opts.remotePeer = peer;
+                recordVideo(opts);
+            };
+
+            recordVideoRemoteOKTimeout = setTimeout(function() {
+                recordVideoRemoteOK = null;
+                if (localWriter)
+                    localWriter.close();
+                recordVideoButton();
+            }, 5000);
+            return;
+
+        } else {
+            recordVideoRemoteOK = null;
+            if (recordVideoRemoteOKTimeout) {
+                clearTimeout(recordVideoRemoteOKTimeout);
+                recordVideoRemoteOKTimeout = null;
+            }
+
+            remoteWriter = {
+                write: function(chunk) { recordVideoRemoteWrite(opts.remotePeer, chunk); },
+                close: function() {
+                    this.write = function() {};
+                    recordVideoRemoteClose(opts.remotePeer);
+                }
+            };
+
+        }
+
+    }
 
     if (recordVideoStop) {
         // Can't have two videos recording at once!
         recordVideoStop();
     }
-    recordVideoButton(true);
 
     // Make sure they know what's what
     pushStatus("video-beta", "Video recording is an ALPHA feature in early testing.");
@@ -70,7 +122,10 @@ function recordVideo() {
             if (pos !== transtate.written)
                 return; // Ignore patches
             buf = new Uint8Array(buf.buffer);
-            fileWriter.write(buf);
+            if (localWriter)
+                localWriter.write(buf);
+            if (remoteWriter)
+                remoteWriter.write(buf);
             transtate.written += buf.length;
         };
 
@@ -265,7 +320,10 @@ function recordVideo() {
 
         }).then(function() {
             // And close writing
-            fileWriter.close();
+            if (localWriter)
+                localWriter.close();
+            if (remoteWriter)
+                remoteWriter.close();
 
         }).catch(function(err) {
             console.error(err);
@@ -301,7 +359,10 @@ function recordVideo() {
         // Set up a way to stop it
         recordVideoStop = function() {
             // Stop writing the file immediately
-            fileWriter.close();
+            if (localWriter)
+                localWriter.close();
+            if (remoteWriter)
+                remoteWriter.close();
 
             // And end the translation
             if (transtate.write) {
@@ -317,6 +378,34 @@ function recordVideo() {
         recordVideoButton();
 
     });
+}
+
+// Receive a remote video recording
+function recordVideoRemoteIncoming(peer) {
+    // Choose a name
+    var filename = "";
+    if (recName)
+        filename = recName + "-";
+    var remoteName = ui.userList.names[peer];
+    if (remoteName)
+        filename += remoteName + "-";
+    filename += "video.webm";
+
+    // Create a write stream
+    return loadStreamSaver().then(function() {
+        var fileStream = streamSaver.createWriteStream(filename);
+        fileWriter = fileStream.getWriter();
+        window.addEventListener("unload", function() {
+            fileWriter.close();
+        });
+
+        return fileWriter;
+    });
+}
+
+// Show the video recording panel if we need to, or just start recording
+function recordVideoPanel() {
+    togglePanel("video-record");
 }
 
 // Input handler for video recording
@@ -369,6 +458,17 @@ function recordVideoInput(transtate) {
     }
 }
 
+// Write data to an RTC peer
+function recordVideoRemoteWrite(peer, buf) {
+    console.log("Sending " + buf.length);
+    rtcDataSend(peer, buf);
+}
+
+// Stop sending video data to a peer
+function recordVideoRemoteClose(peer) {
+    rtcVideoRecSend(peer, prot.videoRec.endVideoRec);
+}
+
 // Configure the video recording button based on the current state
 function recordVideoButton(loading) {
     var btn = ui.recordVideoButton;
@@ -407,19 +507,36 @@ function recordVideoButton(loading) {
             // Make sure we've loaded StreamSaver
             if (typeof streamSaver === "undefined") {
                 disabled(true);
-                loadLibrary("web-streams-ponyfill.js").then(function() {
-                    return loadLibrary("StreamSaver.js?v=5");
-                }).then(function() {
+                loadStreamSaver().then(function() {
                     disabled(false);
-                    streamSaver.mitm = "StreamSaver/mitm.html";
                 });
             } else {
                 disabled(false);
             }
 
             btn.onclick = function() {
-                disabled(true);
-                recordVideo();
+                if (rtcConnections.videoRecHost >= 0) {
+                    disabled(false);
+                    recordVideoPanel();
+                } else {
+                    disabled(true);
+                    recordVideo({local: true});
+                }
+            };
+
+            gebi("ecvideo-record-local").onclick = function() {
+                togglePanel("video-record", false);
+                recordVideo({local: true});
+            };
+
+            gebi("ecvideo-record-remote").onclick = function() {
+                togglePanel("video-record", false);
+                recordVideo({remote: true});
+            };
+
+            gebi("ecvideo-record-local-remote").onclick = function() {
+                togglePanel("video-record", false);
+                recordVideo({local: true, remote: true});
             };
 
         } else {
@@ -429,6 +546,18 @@ function recordVideoButton(loading) {
         }
 
     }
+}
+
+// Load the StreamSaver library, needed only for video recording
+function loadStreamSaver() {
+    if (typeof streamSaver === "undefined") {
+        return loadLibrary("web-streams-ponyfill.js").then(function() {
+            return loadLibrary("StreamSaver.js?v=5");
+        }).then(function() {
+            streamSaver.mitm = "StreamSaver/mitm.html";
+        });
+    }
+    return Promise.all([]);
 }
 
 // Make sure the record button updates when the video state updates

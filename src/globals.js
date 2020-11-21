@@ -85,7 +85,8 @@ var sampleRate = 48000;
 // Our RTC peer connections
 var rtcConnections = {
     outgoing: {},
-    incoming: {}
+    incoming: {},
+    videoRecHost: -1
 };
 
 /* For RTC, we apply compression. Those properties are here, along with a

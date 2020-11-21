@@ -98,8 +98,11 @@
                     </div>
                 </span><span id="ecmaster-right" class="halfspan halfspan-right">
                     <div class="rflex" style="padding-left: 0.25em">
+                        <span style="flex: auto; min-width: 10em;">
+                            <input id="ecmaster-video-record-host" type="checkbox" />
+                            <label for="ecmaster-video-record-host">&nbsp;Accept video recordings from guests
+                        </span>
                         <!-- Hidden so that everything lines up, but still present -->
-                        <span style="visibility: hidden; flex: auto; min-width: 10em;">&nbsp;</span>
                         <button style="visibility: hidden"><i class="fas fa-user-slash"></i></button>
                         <!-- Applicable to all -->
                         <button id="ecmaster-mute-all" class="hotkey-hidden" title="Mute all users" aria-label="Mute all users"><i class="fas fa-microphone-alt-slash"></i></button>
@@ -116,6 +119,13 @@
 
             <!-- The soundboard -->
             <div id="ecsounds-wrapper" class="panel">
+            </div>
+
+            <!-- Video recording -->
+            <div id="ecvideo-record-wrapper" class="panel" style="text-align: right">
+                <button id="ecvideo-record-local">Record locally</button>&nbsp;
+                <button id="ecvideo-record-remote">Record and send to host</button>&nbsp;
+                <button id="ecvideo-record-local-remote">Both</button>
             </div>
 
             <!-- The device selector panels -->
@@ -259,7 +269,8 @@
             toggler("sounds-wrapper", "sounds");
             toggler("audio-device-wrapper", "audio-devices");
             toggler("video-device-wrapper", "camera-devices");
-            toggler("video-wrapper", "record");
+            toggler("video-record-wrapper", "record");
+            toggler("video-wrapper", "mute");
         })();</script>
     </body>
 </html>

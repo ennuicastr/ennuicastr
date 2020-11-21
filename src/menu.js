@@ -154,6 +154,7 @@ function mkUI() {
     panel("master", "master-invite-link-copy");
     panel("user-list");
     panel("sounds");
+    panel("video-record");
     panel("audio-device", "input-device-list");
     panel("video-device", "video-device-list");
     panel("chat", "chat-outgoing");
