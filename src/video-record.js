@@ -408,7 +408,7 @@ function recordVideoButton(loading) {
             if (typeof streamSaver === "undefined") {
                 disabled(true);
                 loadLibrary("web-streams-ponyfill.js").then(function() {
-                    return loadLibrary("StreamSaver.js?v=4");
+                    return loadLibrary("StreamSaver.js?v=5");
                 }).then(function() {
                     disabled(false);
                     streamSaver.mitm = "StreamSaver/mitm.html";
