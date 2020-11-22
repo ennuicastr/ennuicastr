@@ -45,6 +45,7 @@ if (shortForm) {
 }
 
 // Get our target for initial login
+var preEc = gebi("pre-ec");
 var loginTarget = gebi("login-ec") || document.body;
 
 // Read in our configuration
@@ -68,6 +69,7 @@ if (config.key === null) {
     var div = dce("div");
     div.innerHTML = "Invalid key!";
     loginTarget.appendChild(div);
+    if (preEc) preEc.style.display = "";
     return;
 }
 config.key = Number.parseInt(config.key, 36);
@@ -86,6 +88,7 @@ if (selector) {
     var div = dce("div");
     div.innerText = "Client links:";
     loginTarget.appendChild(div);
+    if (preEc) preEc.style.display = "";
 
     var sb = "?i=" + config.id.toString(36) + "&k=" + config.key.toString(36) + "&p=" + config.port.toString(36);
 
@@ -118,6 +121,7 @@ if (monitor) {
     scr.src = "ennuicastr-monitor.js?v=1";
     scr.async = true;
     loginTarget.appendChild(scr);
+    if (preEc) preEc.style.display = "";
     return;
 }
 
@@ -166,6 +170,7 @@ if (username === null || username === "") {
 
     div.appendChild(form);
     loginTarget.appendChild(div);
+    if (preEc) preEc.style.display = "";
 
     var nmBox = gebi("nm");
     nmBox.focus();
