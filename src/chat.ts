@@ -21,7 +21,7 @@ import * as util from "./util";
 import { dce, gebi } from "./util";
 
 // Receive a chat message
-export function recvChat(text) {
+export function recvChat(text: string) {
     ui.togglePanel("chat", true);
     var line = dce("div");
     line.innerText = text;
@@ -30,7 +30,7 @@ export function recvChat(text) {
 }
 
 // Send a chat message
-function sendChat(text) {
+function sendChat(text: string) {
     var textBuf = util.encodeText(text);
     var p = prot.parts.text;
     var out = new DataView(new ArrayBuffer(p.length + textBuf.length));
