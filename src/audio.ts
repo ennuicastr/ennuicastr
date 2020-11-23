@@ -50,7 +50,7 @@ export var userMedia: MediaStream = null;
 
 // The pseudodevice as processed to reduce noise, for RTC
 export var userMediaRTC: MediaStream = null;
-export function setUserMediaRTC(to) { userMediaRTC = to; }
+export function setUserMediaRTC(to: MediaStream) { userMediaRTC = to; }
 
 // Audio context
 export var ac: AudioContext = null;
@@ -68,13 +68,13 @@ var fileReader: FileReader = null;
 var mediaRecorder: any = null;
 
 // The current blobs waiting to be read from MediaRecorder
-var blobs = [];
+var blobs: Blob[] = [];
 
 // The current ArrayBuffers of data to be handled from MediaRecorder
-var data = [];
+var data: ArrayBuffer[] = [];
 
 // The Opus or FLAC packets to be handled. Format: [granulePos, data]
-var packets = [];
+var packets: any[] = [];
 
 // Opus zero packet, will be replaced with FLAC's version if needed
 var zeroPacket = new Uint8Array([0xF8, 0xFF, 0xFE]);
@@ -82,7 +82,7 @@ var zeroPacket = new Uint8Array([0xF8, 0xFF, 0xFE]);
 // Our start time is in local ticks, and our offset is updated every so often
 var startTime = 0;
 export var timeOffset: null|number = null;
-export function setFirstTimeOffset(to) { if (timeOffset === null) timeOffset = to; }
+export function setFirstTimeOffset(to: number) { if (timeOffset === null) timeOffset = to; }
 
 // And this is the amount to adjust it per frame (1%)
 const timeOffsetAdjPerFrame = 0.0002;
@@ -97,7 +97,7 @@ var sentZeroes = 999;
 /* We keep track of the last time we successfully encoded data for
  * transfer, to determine if anything's gone wrong */
 export var lastSentTime = 0;
-export function setLastSentTime(to) { lastSentTime = to; }
+export function setLastSentTime(to: number) { lastSentTime = to; }
 
 // Features to use or not use
 var useLibAV = false;
@@ -302,7 +302,7 @@ function encoderLoaded() {
 
     /* We're ready to record, but need a handler for the Blob->ArrayBuffer
      * conversion if we're not using libav */
-    function postBlob(ab) {
+    function postBlob(ab: ArrayBuffer) {
         blobs.shift();
         if (blobs.length)
             blobs[0].arrayBuffer().then(postBlob);
@@ -325,7 +325,7 @@ function encoderLoaded() {
             mimeType: "audio/" + format + "; codecs=opus",
             audioBitsPerSecond: 128000
         });
-        mediaRecorder.addEventListener("dataavailable", function(chunk) {
+        mediaRecorder.addEventListener("dataavailable", function(chunk: {data: Blob}) {
             blobs.push(chunk.data);
             if (blobs.length === 1)
                 chunk.data.arrayBuffer().then(postBlob);
@@ -410,7 +410,7 @@ function libavStart() {
         input_channels: channelCount,
         input_channel_layout: channelLayout
     };
-    return libav.ff_init_encoder(config.useFlac?"flac":"libopus", encOptions, 1, sampleRate).then(function(ret) {
+    return libav.ff_init_encoder(config.useFlac?"flac":"libopus", encOptions, 1, sampleRate).then(function(ret: any) {
 
         libavEncoder.codec = ret[0];
         libavEncoder.c = ret[1];
@@ -431,7 +431,7 @@ function libavStart() {
             frame_size: libavEncoder.frame_size
         });
 
-    }).then(function(ret) {
+    }).then(function(ret: any) {
         libavEncoder.filter_graph = ret[0];
         libavEncoder.buffersrc_ctx = ret[1];
         libavEncoder.buffersink_ctx = ret[2];
@@ -444,7 +444,7 @@ function libavStart() {
         // Start processing in the background
         libavProcess();
 
-    }).catch(function(ex) {
+    }).catch(function(ex: any) {
         log.pushStatus("libaverr", "Encoding error: " + ex);
         net.errorHandler(ex);
 
@@ -462,7 +462,7 @@ function libavProcess() {
 
     // Keep track of how much data we've received to see if it's too little
     var dataReceived = 0;
-    var pktCounter = [];
+    var pktCounter: any[] = [];
     var tooLittle = inSampleRate * 0.9;
 
     // And if our latency is too high
@@ -475,7 +475,7 @@ function libavProcess() {
     // Don't try to process that last sip of data after termination
     var dead = false;
 
-    sp.onaudioprocess = function(ev) {
+    sp.onaudioprocess = function(ev: AudioProcessingEvent) {
         if (dead)
             return;
 
@@ -552,11 +552,11 @@ function libavProcess() {
             // Filter
             return libav.ff_filter_multi(enc.buffersrc_ctx, enc.buffersink_ctx, enc.frame, frames);
 
-        }).then(function(frames) {
+        }).then(function(frames: any) {
             // Encode
             return libav.ff_encode_multi(enc.c, enc.frame, enc.pkt, frames);
 
-        }).then(function(encPackets) {
+        }).then(function(encPackets: any) {
             // Now write these packets out
             for (var pi = 0; pi < encPackets.length; pi++) {
                 packets.push([pktTime, new DataView(encPackets[pi].data.buffer)])
@@ -567,7 +567,7 @@ function libavProcess() {
             // Look for latency problems
             enc.latency = performance.now() - now;
 
-        }).catch(function(ex) {
+        }).catch(function(ex: any) {
             log.pushStatus("libaverr", "Encoding error: " + ex);
             net.errorHandler(ex);
 
@@ -604,7 +604,7 @@ function libavProcess() {
 }
 
 // Shift a chunk of blob from MediaRecorder
-function shift(amt) {
+function shift(amt: number) {
     if (data.length === 0) return null;
     var chunk = data.shift();
     if (chunk.byteLength <= amt) return new DataView(chunk);
@@ -617,13 +617,13 @@ function shift(amt) {
 }
 
 // Unshift one or more chunks of blob from MediaRecorder
-function unshift(...args) {
+function unshift(...args: any[]) {
     for (var i = arguments.length - 1; i >= 0; i--)
         data.unshift(arguments[i].buffer);
 }
 
 // Get the granule position from an Ogg header
-function granulePosOf(header) {
+function granulePosOf(header: DataView) {
     var granulePos =
         (header.getUint16(10, true) * 0x100000000) +
         (header.getUint32(6, true));
@@ -631,21 +631,21 @@ function granulePosOf(header) {
 }
 
 // Set the granule position in a header
-function granulePosSet(header, to) {
+function granulePosSet(header: DataView, to: number) {
     header.setUint16(10, (to / 0x100000000) & 0xFFFF, true);
     header.setUint32(6, to & 0xFFFFFFFF, true);
 }
 
 // "Demux" a single Opus frame that might be in multiple parts into multiple frames
-function opusDemux(opusFrame) {
-    var toc = opusFrame.getUint8(0);
+function opusDemux(opusFrameDV: DataView) {
+    var toc = opusFrameDV.getUint8(0);
     var ct = (toc & 0x3);
     toc &= 0xfc;
     if (ct === 0) {
         // No demuxing needed!
         return null;
     }
-    opusFrame = new Uint8Array(opusFrame.buffer);
+    var opusFrame = new Uint8Array(opusFrameDV.buffer);
 
     // Reader for frame length coding
     var p = 1;
@@ -749,8 +749,8 @@ function opusDemux(opusFrame) {
 }
 
 // Handle input Ogg data, splitting Ogg packets so we can fine-tune the granule position
-function handleOggData(endTime) {
-    var splitPackets = [];
+function handleOggData(endTime: number) {
+    var splitPackets: any[] = [];
 
     // First split the data into separate packets
     while (true) {
@@ -906,7 +906,7 @@ function handlePackets() {
 }
 
 // Send an audio packet
-function sendPacket(granulePos, data, vadVal) {
+function sendPacket(granulePos: number, data: Uint8Array, vadVal: number) {
     var p = prot.parts.data;
     var msg = new DataView(new ArrayBuffer(p.length + (config.useContinuous?1:0) + data.buffer.byteLength));
     msg.setUint32(0, prot.ids.data, true);
@@ -920,7 +920,7 @@ function sendPacket(granulePos, data, vadVal) {
 }
 
 // Adjust the time for a packet, and adjust the time-adjustment parameters
-function adjustTime(packet) {
+function adjustTime(packet: any) {
     // Adjust our offsets
     if (net.targetTimeOffset > timeOffset) {
         if (net.targetTimeOffset > timeOffset + timeOffsetAdjPerFrame)
@@ -949,7 +949,7 @@ export function toggleMute(to?: boolean) {
 }
 
 // Play or stop a sound
-export function playStopSound(url, status) {
+export function playStopSound(url: string, status: number) {
     var sound = ui.ui.sounds[url];
     if (!sound) {
         // Create an element for it
