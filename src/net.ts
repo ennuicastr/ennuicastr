@@ -14,35 +14,94 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+// extern
+declare var EnnuiCastrProtocol: any;
+
+import * as audio from "./audio";
+import * as chat from "./chat";
+import * as config from "./config";
+import * as log from "./log";
+import * as master from "./master";
+import * as rtc from "./rtc";
+import * as util from "./util";
+import * as ui from "./ui";
+import { dce } from "./util";
+import * as video from "./video";
+
+// Short name for our protocol
+export const prot = EnnuiCastrProtocol;
+
+/* We have multiple connections to the server:
+ * One for pings,
+ * one to send data, and
+ * if we're the master, one for master communication */
+export var pingSock: WebSocket = null;
+export var dataSock: WebSocket = null;
+export var masterSock: WebSocket = null;
+
+// Global connection state
+export var connected = false;
+export var transmitting = false;
+export function setTransmitting(to) { transmitting = to; }
+
+// Our own ID
+export var selfId = 0;
+
+// The name of this recording, which may never be set
+export var recName = null;
+
+// We connect assuming our mode is not-yet-recording
+export var mode = prot.mode.init;
+
+// ICE servers for RTC
+export var iceServers = [
+    {
+        urls: "stun:stun.l.google.com:19302"
+    }
+];
+
+// The delays on the pongs we've received back
+var pongs = [];
+
+/* So that the time offset doesn't jump all over the place, we adjust it
+ * *slowly*. This is the target time offset */
+export var targetTimeOffset: null|number = null;
+
+// The remote start time, i.e., when recording began
+export var remoteBeginTime: null|number = null;
+
+// If we're flushing our buffers, this will be a timeout to re-check
+var flushTimeout: null|number = null;
+
 // Connect to the server (our first step)
-function connect() {
+export function connect() {
     // Our connection message, which is largely the same for all three
     var p, f, out, flags;
 
     return Promise.all([]).then(function() {
         // (1) The ping socket
         connected = true;
-        pushStatus("conn", "Connecting...");
+        log.pushStatus("conn", "Connecting...");
 
         return new Promise(function(res, rej) {
-            pingSock = new WebSocket(wsUrl);
+            pingSock = new WebSocket(config.wsUrl);
             pingSock.binaryType = "arraybuffer";
 
             pingSock.addEventListener("open", function() {
-                var nickBuf = encodeText(username);
+                var nickBuf = util.encodeText(config.username);
 
                 p = prot.parts.login;
                 out = new DataView(new ArrayBuffer(p.length + nickBuf.length));
                 out.setUint32(0, prot.ids.login, true);
                 f = prot.flags;
-                flags = (useFlac?f.dataType.flac:0) | (useContinuous?f.features.continuous:0);
-                out.setUint32(p.id, config.id, true);
-                out.setUint32(p.key, config.key, true);
+                flags = (config.useFlac?f.dataType.flac:0) | (config.useContinuous?f.features.continuous:0);
+                out.setUint32(p.id, config.config.id, true);
+                out.setUint32(p.key, config.config.key, true);
                 out.setUint32(p.flags, f.connectionType.ping | flags, true);
                 new Uint8Array(out.buffer).set(nickBuf, 16);
                 pingSock.send(out.buffer);
 
-                res();
+                res(void 0);
             });
 
             pingSock.addEventListener("message", pingSockMsg);
@@ -53,14 +112,14 @@ function connect() {
     }).then(function() {
         // (2) The data socket
         return new Promise(function(res, rej) {
-            dataSock = new WebSocket(wsUrl);
+            dataSock = new WebSocket(config.wsUrl);
             dataSock.binaryType = "arraybuffer";
 
             dataSock.addEventListener("open", function() {
                 out.setUint32(p.flags, f.connectionType.data | flags, true);
                 dataSock.send(out.buffer);
 
-                res();
+                res(void 0);
             });
 
             dataSock.addEventListener("message", dataSockMsg);
@@ -70,16 +129,16 @@ function connect() {
 
     }).then(function() {
         // (3) The master socket
-        if ("master" in config) return new Promise(function(res, rej) {
-            masterSock = new WebSocket(wsUrl);
+        if ("master" in config.config) return new Promise(function(res, rej) {
+            masterSock = new WebSocket(config.wsUrl);
             masterSock.binaryType = "arraybuffer";
 
             masterSock.addEventListener("open", function() {
-                out.setUint32(p.key, config.master, true);
+                out.setUint32(p.key, config.config.master, true);
                 out.setUint32(p.flags, f.connectionType.master | flags, true);
                 masterSock.send(out.buffer);
 
-                res();
+                res(void 0);
             });
 
             masterSock.addEventListener("message", masterSockMsg);
@@ -91,23 +150,23 @@ function connect() {
 }
 
 // Called to disconnect explicitly, or implicitly on error
-function disconnect(ev) {
+export function disconnect(ev?: Event) {
     if (!connected)
         return;
     connected = false;
 
-    log.innerHTML = "";
+    log.log.innerHTML = "";
     var sp = dce("span");
     sp.innerText = "Disconnected! ";
-    log.appendChild(sp);
+    log.log.appendChild(sp);
     var a = dce("a");
     var href = "?";
     for (var key in config)
         href += key[0] + "=" + config[key].toString(36) + "&";
-    href += "nm=" + encodeURIComponent(username);
+    href += "nm=" + encodeURIComponent(config.username);
     a.href = href;
     a.innerText = "Attempt reconnection";
-    log.appendChild(a);
+    log.log.appendChild(a);
 
     var target = null;
     if (ev && ev.target)
@@ -122,52 +181,16 @@ function disconnect(ev) {
     dataSock = close(dataSock);
     masterSock = close(masterSock);
 
-    if (ac) {
-        try {
-            ac.dispatchEvent(new CustomEvent("disconnected", {}));
-        } catch (ex) {}
-        ac.close();
-        ac = null;
-    }
-
-    if (mediaRecorder) {
-        mediaRecorder.stop();
-        mediaRecorder = null;
-    }
-
-    fileReader = null;
-
-    if (userMedia) {
-        userMedia.getTracks().forEach(function (track) {
-            track.stop();
-        });
-        userMedia = null;
-    }
-
-    if (userMediaVideo) {
-        userMediaVideo.getTracks().forEach(function(track) {
-            track.stop();
-        });
-        userMediaVideo = null;
-    }
-
-    for (var id in rtcConnections.outgoing) {
-        try {
-            rtcConnections.outgoing[id].close();
-        } catch (ex) {}
-    }
-    for (var id in rtcConnections.incoming) {
-        try {
-            rtcConnections.incoming[id].close();
-        } catch (ex) {}
-    }
+    audio.disconnect();
+    video.disconnect();
+    rtc.disconnect();
 }
 
 // Ping the ping socket
 function ping() {
     var p = prot.parts.ping;
     var msg = new DataView(new ArrayBuffer(p.length));
-    msg.setUint32(0, prot.ids.ping, 4);
+    msg.setUint32(0, prot.ids.ping, true);
     msg.setFloat64(p.clientTime, performance.now(), true);
     pingSock.send(msg);
 }
@@ -205,7 +228,7 @@ function pingSockMsg(msg) {
                 var latency = pongs.reduce(function(a,b){return a+b;})/10;
                 var remoteTime = msg.getFloat64(p.serverTime, true) + latency;
                 targetTimeOffset = remoteTime - recvd;
-                if (timeOffset === null) timeOffset = targetTimeOffset;
+                if (audio.timeOffset === null) audio.setFirstTimeOffset(targetTimeOffset);
             }
             break;
     }
@@ -220,9 +243,9 @@ function dataSockMsg(msg) {
         case prot.ids.nack:
             // Just tell the user
             var p = prot.parts.nack;
-            var text = decodeText(msg.buffer.slice(p.msg));
+            var text = util.decodeText(msg.buffer.slice(p.msg));
             alert(text);
-            pushStatus("nack", text);
+            log.pushStatus("nack", text);
             break;
 
         case prot.ids.info:
@@ -240,15 +263,15 @@ function dataSockMsg(msg) {
                 case prot.info.peerInitial:
                 case prot.info.peerContinuing:
                     // We may need to start an RTC connection
-                    if (useRTC) {
-                        initRTC(val, false);
-                        initRTC(val, true);
+                    if (config.useRTC) {
+                        rtc.initRTC(val, false);
+                        rtc.initRTC(val, true);
                     }
                     break;
 
                 case prot.info.peerLost:
-                    if (useRTC)
-                        closeRTC(val);
+                    if (config.useRTC)
+                        rtc.closeRTC(val);
                     break;
 
                 case prot.info.mode:
@@ -257,17 +280,17 @@ function dataSockMsg(msg) {
 
                     // Make it visible in the waveform
                     var wvms = ((val === prot.mode.rec) ? "r" : "s") +
-                               (useContinuous ? "c" : "v");
-                    waveVADColors = waveVADColorSets[wvms];
+                               (config.useContinuous ? "c" : "v");
+                    config.setWaveVADColors(wvms);
 
                     // Update the status
-                    popStatus("mode");
+                    log.popStatus("mode");
                     if (mode < prot.mode.rec)
-                        pushStatus("mode", "Not yet recording");
+                        log.pushStatus("mode", "Not yet recording");
                     else if (mode === prot.mode.paused)
-                        pushStatus("mode", "Recording paused");
+                        log.pushStatus("mode", "Recording paused");
                     else if (mode > prot.mode.rec)
-                        pushStatus("mode", "Not recording");
+                        log.pushStatus("mode", "Not recording");
 
                     // Mention flushing buffers if we are
                     if (mode === prot.mode.buffering) {
@@ -278,8 +301,8 @@ function dataSockMsg(msg) {
                     }
 
                     // Update the master interface
-                    if ("master" in config)
-                        configureMasterInterface();
+                    if ("master" in config.config)
+                        master.configureMasterInterface();
 
                     break;
 
@@ -288,12 +311,12 @@ function dataSockMsg(msg) {
                     break;
 
                 case prot.info.recName:
-                    recName = decodeText(msg.buffer.slice(p.value));
+                    recName = util.decodeText(msg.buffer.slice(p.value));
                     document.title = recName + " — Ennuicastr";
                     break;
 
                 case prot.info.ice:
-                    var iceServer = JSON.parse(decodeText(msg.buffer.slice(p.value)));
+                    var iceServer = JSON.parse(util.decodeText(msg.buffer.slice(p.value)));
                     iceServers.push(iceServer);
                     break;
             }
@@ -302,34 +325,36 @@ function dataSockMsg(msg) {
         case prot.ids.sound:
             p = prot.parts.sound.sc;
             var status = msg.getUint8(p.status);
-            var url = decodeText(msg.buffer.slice(p.url));
-            playStopSound(url, status);
+            var url = util.decodeText(msg.buffer.slice(p.url));
+            audio.playStopSound(url, status);
             break;
 
         case prot.ids.user:
             p = prot.parts.user;
             var index = msg.getUint32(p.index, true);
             var status = msg.getUint32(p.status, true);
-            var nick = decodeText(msg.buffer.slice(p.nick));
+            var nick = util.decodeText(msg.buffer.slice(p.nick));
 
             // Add it to the UI
             if (status)
-                userListAdd(index, nick);
+                ui.userListAdd(index, nick);
             else
-                userListRemove(index, nick);
+                ui.userListRemove(index);
             break;
 
         case prot.ids.speech:
-            if (useRTC) {
+        {
+            if (config.useRTC) {
                 // Handled through RTC
                 break;
             }
             p = prot.parts.speech;
             var indexStatus = msg.getUint32(p.indexStatus, true);
-            var index = indexStatus>>>1;
-            var status = (indexStatus&1);
-            userListUpdate(index, !!status);
+            let index = indexStatus>>>1;
+            let status = (indexStatus&1);
+            ui.userListUpdate(index, !!status);
             break;
+        }
 
         case prot.ids.rtc:
             var p = prot.parts.rtc;
@@ -338,16 +363,16 @@ function dataSockMsg(msg) {
             var conn, outgoing;
             if (type & 0x80000000) {
                 // For *their* outgoing connection
-                conn = rtcConnections.incoming[peer];
+                conn = rtc.rtcConnections.incoming[peer];
                 outgoing = false;
             } else {
-                conn = rtcConnections.outgoing[peer];
+                conn = rtc.rtcConnections.outgoing[peer];
                 outgoing = true;
             }
             if (!conn)
                 break;
 
-            var value = JSON.parse(decodeText(msg.buffer.slice(p.value)));
+            var value = JSON.parse(util.decodeText(msg.buffer.slice(p.value)));
 
             switch (type&0x7F) {
                 case prot.rtc.candidate:
@@ -363,17 +388,17 @@ function dataSockMsg(msg) {
                         return conn.setLocalDescription(answer);
 
                     }).then(function() {
-                        rtcSignal(peer, outgoing, prot.rtc.answer, conn.localDescription);
+                        rtc.rtcSignal(peer, outgoing, prot.rtc.answer, conn.localDescription);
 
                     }).catch(function(ex) {
-                        pushStatus("rtc", "RTC connection failed!");
+                        log.pushStatus("rtc", "RTC connection failed!");
 
                     });
                     break;
 
                 case prot.rtc.answer:
                     conn.setRemoteDescription(value).catch(function(ex) {
-                        pushStatus("rtc", "RTC connection failed!");
+                        log.pushStatus("rtc", "RTC connection failed!");
                     });
                     break;
             }
@@ -381,8 +406,8 @@ function dataSockMsg(msg) {
 
         case prot.ids.text:
             var p = prot.parts.text;
-            var text = decodeText(msg.buffer.slice(p.text));
-            recvChat(text);
+            var text = util.decodeText(msg.buffer.slice(p.text));
+            chat.recvChat(text);
             break;
 
         case prot.ids.admin:
@@ -390,12 +415,12 @@ function dataSockMsg(msg) {
             var acts = prot.flags.admin.actions;
             var action = msg.getUint32(p.action, true);
             if (action === acts.mute) {
-                toggleMute(false);
+                audio.toggleMute(false);
             } else if (action === acts.echoCancel) {
-                if (!ui.deviceList.ec.checked) {
-                    ui.deviceList.ec.ecAdmin = true;
-                    ui.deviceList.ec.checked = true;
-                    ui.deviceList.ec.onchange();
+                if (!ui.ui.deviceList.ec.checked) {
+                    ui.ui.deviceList.ec.ecAdmin = true;
+                    ui.ui.deviceList.ec.checked = true;
+                    ui.ui.deviceList.ec.onchange();
                 }
             }
             break;
@@ -419,7 +444,7 @@ function masterSockMsg(msg) {
                 case prot.info.creditCost:
                     // Informing us of the cost of credits
                     var v2 = msg.getUint32(p.value + 4, true);
-                    ui.masterUI.creditCost = {
+                    ui.ui.masterUI.creditCost = {
                         currency: val,
                         credits: v2
                     };
@@ -428,14 +453,14 @@ function masterSockMsg(msg) {
                 case prot.info.creditRate:
                     // Informing us of the total cost and rate in credits
                     var v2 = msg.getUint32(p.value + 4, true);
-                    ui.masterUI.creditRate = [val, v2];
-                    masterUpdateCreditCost();
+                    ui.ui.masterUI.creditRate = [val, v2];
+                    master.masterUpdateCreditCost();
                     break;
 
                 case prot.info.sounds:
                     // Soundboard items
-                    val = decodeText(msg.buffer.slice(p.value));
-                    addSoundButtons(JSON.parse(val));
+                    var valS = util.decodeText(msg.buffer.slice(p.value));
+                    master.addSoundButtons(JSON.parse(valS));
                     break;
             }
             break;
@@ -444,10 +469,10 @@ function masterSockMsg(msg) {
             p = prot.parts.user;
             var index = msg.getUint32(p.index, true);
             var status = msg.getUint32(p.status, true);
-            var nick = decodeText(msg.buffer.slice(p.nick));
+            var nick = util.decodeText(msg.buffer.slice(p.nick));
 
             // Add it to the UI
-            var speech = ui.masterUI.speech = ui.masterUI.speech || [];
+            var speech = ui.ui.masterUI.speech = ui.ui.masterUI.speech || [];
             while (speech.length <= index)
                 speech.push(null);
             speech[index] = {
@@ -456,18 +481,20 @@ function masterSockMsg(msg) {
                 speaking: false
             };
 
-            updateMasterSpeech();
+            master.updateMasterSpeech();
             break;
 
         case prot.ids.speech:
+        {
             p = prot.parts.speech;
-            var indexStatus = msg.getUint32(p.indexStatus, true);
-            var index = indexStatus>>>1;
-            var status = (indexStatus&1);
-            if (!ui.masterUI.speech[index]) return;
-            ui.masterUI.speech[index].speaking = !!status;
-            updateMasterSpeech();
+            let indexStatus = msg.getUint32(p.indexStatus, true);
+            let index = indexStatus>>>1;
+            let status = (indexStatus&1);
+            if (!ui.ui.masterUI.speech[index]) return;
+            ui.ui.masterUI.speech[index].speaking = !!status;
+            master.updateMasterSpeech();
             break;
+        }
     }
 }
 
@@ -481,12 +508,21 @@ function flushBuffers() {
     if (!dataSock) return;
 
     if (dataSock.bufferedAmount)
-        pushStatus("buffering", "Sending audio to server (" + bytesToRepr(dataSock.bufferedAmount) + ")...");
+        log.pushStatus("buffering", "Sending audio to server (" + util.bytesToRepr(dataSock.bufferedAmount) + ")...");
     else
-        popStatus("buffering");
+        log.popStatus("buffering");
 
     flushTimeout = setTimeout(function() {
         flushTimeout = null;
         flushBuffers();
     }, 1000);
+}
+
+// Generic phone-home error handler
+export function errorHandler(error) {
+    var errBuf = util.encodeText(error + "\n\n" + navigator.userAgent);
+    var out = new DataView(new ArrayBuffer(4 + errBuf.length));
+    out.setUint32(0, prot.ids.error, true);
+    new Uint8Array(out.buffer).set(errBuf, 4);
+    dataSock.send(out.buffer);
 }

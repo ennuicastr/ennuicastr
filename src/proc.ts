@@ -14,23 +14,58 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+// extern
+declare var Ennuiboard: any, NoiseRepellent: any, WebRtcVad: any;
+
+import * as audio from "./audio";
+import * as config from "./config";
+import * as log from "./log";
+import * as net from "./net";
+import * as rtc from "./rtc";
+import * as safariWorkarounds from "./safari";
+import * as ui from "./ui";
+import * as util from "./util";
+
+// WebRTCVAD's raw output
+export var rawVadOn = false;
+
+// Recording VAD after warmup and cooldown
+export var vadOn = false;
+
+// RTC VAD after cooldown
+export var rtcVadOn = false;
+
+// Number of milliseconds to run the VAD for before/after talking
+export const vadExtension = 2000;
+
+// Similar, for RTC transmission
+const rtcVadExtension = 250;
+
+// The data used by both the level-based VAD and display
+var waveData = [];
+var waveVADs = [];
+
+// En/disable noise reduction
+export var useNR = false;
+export function setUseNR(to) { useNR = to; }
+
 // All local processing: The VAD, wave display, and noise reduction
-function localProcessing() {
-    if (!userMedia) {
+export function localProcessing() {
+    if (!audio.userMedia) {
         // Need our MediaSource first!
-        userMediaAvailableEvent.addEventListener("usermediaready", localProcessing, {once: true});
+        audio.userMediaAvailableEvent.addEventListener("usermediaready", localProcessing, {once: true});
         return;
     }
 
     if (typeof NoiseRepellent === "undefined") {
         // Load the library first
         NoiseRepellent = {base: "noise-repellent"};
-        loadLibrary("noise-repellent/noise-repellent-m.js").then(localProcessing);
+        util.loadLibrary("noise-repellent/noise-repellent-m.js").then(localProcessing);
         return;
     }
 
     // Set our lastSentTime now so that we don't immediately report a problem
-    lastSentTime = performance.now();
+    audio.setLastSentTime(performance.now());
 
 
     // First the WebRTC VAD steps
@@ -38,11 +73,11 @@ function localProcessing() {
 
     var handle = m.Create();
     if (handle === 0) {
-        pushStatus("failvad", "Failed to create VAD.");
+        log.pushStatus("failvad", "Failed to create VAD.");
         throw new Error();
     }
     if (m.Init(handle) < 0) {
-        pushStatus("failvad", "Failed to initialize VAD.");
+        log.pushStatus("failvad", "Failed to initialize VAD.");
         throw new Error();
     }
 
@@ -62,8 +97,8 @@ function localProcessing() {
 
     // Now the noise repellent steps
     var nr = null;
-    if (useRTC) {
-        NoiseRepellent.NoiseRepellent(ac.sampleRate).then(function(ret) {
+    if (config.useRTC) {
+        NoiseRepellent.NoiseRepellent(audio.ac.sampleRate).then(function(ret) {
             nr = ret;
             nr.set(NoiseRepellent.N_ADAPTIVE, 1);
             nr.set(NoiseRepellent.AMOUNT, 20);
@@ -75,18 +110,18 @@ function localProcessing() {
     // Now the display steps
 
     // Create a canvas for it
-    var wc = ui.waveCanvas;
+    var wc = ui.ui.waveCanvas;
 
     // Now the background is nothing, so should just be grey
     document.body.style.backgroundColor = "#111";
 
     // The VAD needs packets in odd intervals
-    var step = ac.sampleRate / 32000;
+    var step = audio.ac.sampleRate / 32000;
 
     // Create our script processor
-    var sp = createScriptProcessor(ac, userMedia, 1024);
-    var destination = sp.destination;
-    sp = sp.scriptProcessor;
+    var spW = safariWorkarounds.createScriptProcessor(audio.ac, audio.userMedia, 1024);
+    var destination = spW.destination;
+    var sp = spW.scriptProcessor;
 
     function rtcVad(to) {
         destination.getTracks().forEach(function(track) {
@@ -96,8 +131,8 @@ function localProcessing() {
     rtcVad(false);
 
     // Now anything that needs its output can get it
-    userMediaRTC = destination;
-    userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediartcready", {}));
+    audio.setUserMediaRTC(destination);
+    audio.userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediartcready", {}));
 
     // The actual processing
     sp.onaudioprocess = function(ev) {
@@ -238,7 +273,7 @@ function localProcessing() {
             }
 
             waveData.push(max);
-            if (!transmitting)
+            if (!net.transmitting)
                 waveVADs.push(0);
             else if (rawVadOn)
                 waveVADs.push(3);
@@ -252,7 +287,7 @@ function localProcessing() {
     };
 
     // Restart if we change devices
-    userMediaAvailableEvent.addEventListener("usermediastopped", function() {
+    audio.userMediaAvailableEvent.addEventListener("usermediastopped", function() {
         if (nr) {
             nr.cleanup();
             nr = null;
@@ -263,7 +298,7 @@ function localProcessing() {
 
 // Update the wave display when we retroactively promote VAD data
 function updateWaveRetroactive() {
-    var timeout = Math.ceil(sampleRate*vadExtension/1024000);
+    var timeout = Math.ceil(audio.ac.sampleRate*vadExtension/1024000);
     var i = Math.max(waveVADs.length - timeout, 0);
     for (; i < waveVADs.length; i++)
         waveVADs[i] = (waveVADs[i] === 1) ? 2 : waveVADs[i];
@@ -274,29 +309,29 @@ var e4 = Math.exp(4);
 
 // Update the wave display
 function updateWave(value) {
-    var wc = ui.waveCanvas;
+    var wc = ui.ui.waveCanvas;
 
     // Display an issue if we haven't sent recently
-    var sentRecently = (lastSentTime > performance.now()-1500);
+    var sentRecently = (audio.lastSentTime > performance.now()-1500);
     if (sentRecently)
-        popStatus("notencoding");
+        log.popStatus("notencoding");
     else
-        pushStatus("notencoding", "Audio encoding is not functioning!");
+        log.pushStatus("notencoding", "Audio encoding is not functioning!");
 
     // Start from the element size
-    var w = ui.waveWrapper.offsetWidth;
-    var h = ui.waveWrapper.offsetHeight;
+    var w = ui.ui.waveWrapper.offsetWidth;
+    var h = ui.ui.waveWrapper.offsetHeight;
 
     // Rotate if our view is vertical
     if (w/h < 4/3) {
-        if (!ui.waveRotate) {
-            ui.waveWatcher.style.visibility = "hidden";
-            ui.waveRotate = true;
+        if (!ui.ui.waveRotate) {
+            ui.ui.waveWatcher.style.visibility = "hidden";
+            ui.ui.waveRotate = true;
         }
     } else {
-        if (ui.waveRotate) {
-            ui.waveWatcher.style.visibility = "";
-            ui.waveRotate = false;
+        if (ui.ui.waveRotate) {
+            ui.ui.waveWatcher.style.visibility = "";
+            ui.ui.waveRotate = false;
         }
 
     }
@@ -307,7 +342,7 @@ function updateWave(value) {
     if (+wc.height !== h)
         wc.height = h;
 
-    if (ui.waveRotate) {
+    if (ui.ui.waveRotate) {
         var tmp = w;
         w = h;
         h = tmp;
@@ -335,13 +370,13 @@ function updateWave(value) {
     if (dh < 0.06) dh = 0.06; // Make sure the too-quiet bars are always visible
 
     // Figure out whether it should be colored at all
-    var good = connected && transmitting && timeOffset && sentRecently;
+    var good = net.connected && net.transmitting && audio.timeOffset && sentRecently;
 
     // And draw it
     var ctx = wc.getContext("2d");
     var i, p;
     ctx.save();
-    if (ui.waveRotate) {
+    if (ui.ui.waveRotate) {
         ctx.rotate(Math.PI/2);
         ctx.translate(0, -2*h);
     }
@@ -366,7 +401,7 @@ function updateWave(value) {
     for (i = 0, p = 0; i < dw; i++, p += sw) {
         var d = Math.max(Math.log((waveData[i] / dh) * e4) / 4, 0) * h;
         if (d === 0) d = 1;
-        ctx.fillStyle = good ? waveVADColors[waveVADs[i]] : "#000";
+        ctx.fillStyle = good ? config.waveVADColors[waveVADs[i]] : "#000";
         ctx.fillRect(p, h-d, sw, 2*d);
     }
 
@@ -374,4 +409,31 @@ function updateWave(value) {
     levelBar(0.9, "#700");
 
     ctx.restore();
+}
+
+// Update speech info everywhere that needs it. peer===null is self
+export function updateSpeech(peer, status) {
+    // In video, to avoid races, peer 0 is us, not selfId
+    var vpeer = peer;
+
+    if (peer === null) {
+        // Set the VAD
+        vadOn = status;
+
+        // Send the update to all RTC peers
+        rtc.rtcSpeech(status);
+        peer = net.selfId;
+        vpeer = 0;
+    }
+
+    // Update the user list
+    ui.userListUpdate(peer, status);
+
+    // Update video speech info
+    if (!ui.ui.video) return;
+    if (status)
+        ui.ui.video.speech[vpeer] = performance.now();
+    else
+        delete ui.ui.video.speech[vpeer];
+    ui.updateVideoUI(vpeer, false);
 }

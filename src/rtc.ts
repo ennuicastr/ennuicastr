@@ -14,20 +14,54 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+import * as audio from "./audio";
+import * as compression from "./compression";
+import * as config from "./config";
+import * as log from "./log";
+import * as net from "./net";
+import { prot } from "./net";
+import * as proc from "./proc";
+import * as ui from "./ui";
+import * as util from "./util";
+import { dce } from "./util";
+import * as video from "./video";
+import * as videoRecord from "./video-record";
+
+// Our RTC peer connections
+export var rtcConnections = {
+    outgoing: {},
+    incoming: {},
+    videoRecHost: -1
+};
+
+// Called on network disconnection
+export function disconnect() {
+    for (var id in rtcConnections.outgoing) {
+        try {
+            rtcConnections.outgoing[id].close();
+        } catch (ex) {}
+    }
+    for (var id in rtcConnections.incoming) {
+        try {
+            rtcConnections.incoming[id].close();
+        } catch (ex) {}
+    }
+}
+
 // Send an RTC signaling message
-function rtcSignal(peer, outgoing, type, value) {
-    var buf = encodeText(JSON.stringify(value));
+export function rtcSignal(peer, outgoing, type, value) {
+    var buf = util.encodeText(JSON.stringify(value));
     var p = prot.parts.rtc;
     var out = new DataView(new ArrayBuffer(p.length + buf.length));
     out.setUint32(0, prot.ids.rtc, true);
     out.setUint32(p.peer, peer, true);
     out.setUint32(p.type, (outgoing?0x80000000:0)|type, true);
     new Uint8Array(out.buffer).set(buf, p.value);
-    dataSock.send(out.buffer);
+    net.dataSock.send(out.buffer);
 }
 
 // Initialize a connection to an RTC peer
-function initRTC(peer, outgoing) {
+export function initRTC(peer, outgoing) {
     // Which set are we in?
     var group;
     if (outgoing)
@@ -38,8 +72,8 @@ function initRTC(peer, outgoing) {
     if (group[peer])
         group[peer].close();
 
-    var conn = group[peer] = new RTCPeerConnection({
-        iceServers: iceServers,
+    var conn = group[peer] = <RTCPeerConnection & {ecDataChannel: RTCDataChannel}> new RTCPeerConnection({
+        iceServers: net.iceServers,
         iceTransportPolicy: "all"
     });
     var videoEl = null, compressor = null;
@@ -52,8 +86,8 @@ function initRTC(peer, outgoing) {
     if (!outgoing)
     conn.ontrack = function(ev) {
         // If we haven't yet approved audio, then we're not ready for this track
-        if (!userMediaRTC) {
-            userMediaAvailableEvent.addEventListener("usermediartcready", function() {
+        if (!audio.userMediaRTC) {
+            audio.userMediaAvailableEvent.addEventListener("usermediartcready", function() {
                 conn.ontrack(ev);
             }, {once: true});
             return;
@@ -69,13 +103,13 @@ function initRTC(peer, outgoing) {
         // Check for a new stream
         if (compressor && compressor.inputStream !== stream) {
             // New stream for this user
-            destroyCompressor(peer);
+            compression.destroyCompressor(peer);
             compressor = null;
         }
 
         // Make the compressor
         if (!compressor)
-            compressor = createCompressor(peer, ac, stream);
+            compressor = compression.createCompressor(peer, audio.ac, stream);
 
         // Remove any existing tracks of the same kind
         stream.getTracks().forEach(function(otrack) {
@@ -96,9 +130,9 @@ function initRTC(peer, outgoing) {
             playRTCEl(videoEl);
 
             // Remember if it's a video track
-            if (isVideo && !ui.video.hasVideo[peer]) {
-                ui.video.hasVideo[peer] = true;
-                updateVideoUI(peer, false);
+            if (isVideo && !ui.ui.video.hasVideo[peer]) {
+                ui.ui.video.hasVideo[peer] = true;
+                ui.updateVideoUI(peer, false);
             }
             return;
         }
@@ -114,15 +148,15 @@ function initRTC(peer, outgoing) {
         videoEl.srcObject = stream;
 
         // Add it to the UI
-        var els = ui.video.els;
-        var hasVideo = ui.video.hasVideo;
+        var els = ui.ui.video.els;
+        var hasVideo = ui.ui.video.hasVideo;
         while (els.length <= peer) {
             els.push(null);
             hasVideo.push(false);
         }
         els[peer] = videoEl;
         hasVideo[peer] = isVideo;
-        updateVideoUI(peer, true);
+        ui.updateVideoUI(peer, true);
 
         // Then play it
         playRTCEl(videoEl);
@@ -144,20 +178,20 @@ function initRTC(peer, outgoing) {
 
     // Add each track to the connection
     function addTracks() {
-        userMediaRTC.getTracks().forEach(function(track) {
-            conn.addTrack(track, userMediaRTC);
+        audio.userMediaRTC.getTracks().forEach(function(track) {
+            conn.addTrack(track, audio.userMediaRTC);
         });
     }
-    if (outgoing && userMediaRTC)
+    if (outgoing && audio.userMediaRTC)
         addTracks();
 
     // Add video tracks to the connection
     function addVideoTracks() {
-        userMediaVideo.getTracks().forEach(function(track) {
-            conn.addTrack(track, userMediaRTC);
+        video.userMediaVideo.getTracks().forEach(function(track) {
+            conn.addTrack(track, audio.userMediaRTC);
         });
     }
-    if (outgoing && userMediaVideo)
+    if (outgoing && video.userMediaVideo)
         addVideoTracks();
 
     // Remove any inactive tracks from the connection
@@ -169,8 +203,8 @@ function initRTC(peer, outgoing) {
                 tracks[track.id] = true;
             });
         }
-        if (userMediaRTC) listTracks(userMediaRTC);
-        if (userMediaVideo) listTracks(userMediaVideo);
+        if (audio.userMediaRTC) listTracks(audio.userMediaRTC);
+        if (video.userMediaVideo) listTracks(video.userMediaVideo);
 
         // Then remove any tracks that should go
         conn.getSenders().forEach(function(sender) {
@@ -183,18 +217,18 @@ function initRTC(peer, outgoing) {
 
     // If we switch UserMedia, we'll need to re-up
     if (outgoing) {
-        userMediaAvailableEvent.addEventListener("usermediartcready", addTracks);
-        userMediaAvailableEvent.addEventListener("usermediavideoready", addVideoTracks);
-        userMediaAvailableEvent.addEventListener("usermediastopped", removeTracks);
-        userMediaAvailableEvent.addEventListener("usermediavideostopped", removeTracks);
+        audio.userMediaAvailableEvent.addEventListener("usermediartcready", addTracks);
+        audio.userMediaAvailableEvent.addEventListener("usermediavideoready", addVideoTracks);
+        audio.userMediaAvailableEvent.addEventListener("usermediastopped", removeTracks);
+        audio.userMediaAvailableEvent.addEventListener("usermediavideostopped", removeTracks);
 
         conn.onsignalingstatechange = function() {
             if (conn.signalingState === "closed") {
                 // Don't send any new events
-                userMediaAvailableEvent.removeEventListener("usermediartcready", addTracks);
-                userMediaAvailableEvent.removeEventListener("usermediavideoready", addVideoTracks);
-                userMediaAvailableEvent.removeEventListener("usermediastopped", removeTracks);
-                userMediaAvailableEvent.removeEventListener("usermediavideostopped", removeTracks);
+                audio.userMediaAvailableEvent.removeEventListener("usermediartcready", addTracks);
+                audio.userMediaAvailableEvent.removeEventListener("usermediavideoready", addVideoTracks);
+                audio.userMediaAvailableEvent.removeEventListener("usermediastopped", removeTracks);
+                audio.userMediaAvailableEvent.removeEventListener("usermediavideostopped", removeTracks);
             }
         };
     }
@@ -204,16 +238,16 @@ function initRTC(peer, outgoing) {
         var chan = conn.ecDataChannel = conn.createDataChannel("ennuicastr");
         chan.binaryType = "arraybuffer";
         chan.onopen = function() {
-            rtcSpeech(vadOn, peer);
-            if ("master" in config)
-                rtcVideoRecSend(void 0, prot.videoRec.videoRecHost, ~~ui.masterUI.acceptRemoteVideo.checked);
+            rtcSpeech(proc.vadOn, peer);
+            if ("master" in config.config)
+                rtcVideoRecSend(void 0, prot.videoRec.videoRecHost, ~~ui.ui.masterUI.acceptRemoteVideo.checked);
         };
 
     } else {
         conn.ondatachannel = function(ev) {
             ev.channel.binaryType = "arraybuffer";
-            ev.channel.onmessage = function(msg) {
-                msg = new DataView(msg.data);
+            ev.channel.onmessage = function(ev) {
+                var msg = new DataView(ev.data);
                 rtcMessage(peer, msg);
             };
         };
@@ -237,7 +271,7 @@ function initRTC(peer, outgoing) {
 }
 
 // Close an RTC connection when a peer disconnects
-function closeRTC(peer) {
+export function closeRTC(peer) {
     ["outgoing", "incoming"].forEach(function(group) {
         var conn = rtcConnections[group][peer];
         if (!conn)
@@ -249,7 +283,7 @@ function closeRTC(peer) {
 
 // Reassess the properties of the RTC element for this peer
 function reassessRTCEl(peer, hasTracks, hasVideo) {
-    var el = ui.video.els[peer];
+    var el = ui.ui.video.els[peer];
     if (!el)
         return null;
 
@@ -259,19 +293,19 @@ function reassessRTCEl(peer, hasTracks, hasVideo) {
         try {
             el.parentNode.removeChild(el);
         } catch (ex) {}
-        el = ui.video.els[peer] = null;
+        el = ui.ui.video.els[peer] = null;
     }
-    ui.video.hasVideo[peer] = hasVideo;
-    updateVideoUI(peer, false);
+    ui.ui.video.hasVideo[peer] = hasVideo;
+    ui.updateVideoUI(peer, false);
     return el;
 }
 
 // Play an element used by RTC, once that's possible
 function playRTCEl(el) {
-    if (!userMediaRTC) {
+    if (!audio.userMediaRTC) {
         /* Although our own UserMedia isn't technically needed to play, it's
          * needed to *auto*play on many platforms, so wait for it. */
-        userMediaAvailableEvent.addEventListener("usermediartcready", function() {
+        audio.userMediaAvailableEvent.addEventListener("usermediartcready", function() {
             playRTCEl(el);
         }, {once: true});
         return;
@@ -301,7 +335,7 @@ function rtcMessage(peer, msg) {
             var p = prot.parts.speech;
             if (msg.byteLength < p.length) return;
             var status = !!msg.getUint32(p.indexStatus, true);
-            updateSpeech(peer, status);
+            proc.updateSpeech(peer, status);
             break;
 
         case prot.ids.videoRec:
@@ -324,11 +358,11 @@ function rtcMessage(peer, msg) {
                     break;
 
                 case pv.startVideoRecReq:
-                    if ("master" in config &&
-                        ui.masterUI.acceptRemoteVideo.checked &&
+                    if ("master" in config.config &&
+                        ui.ui.masterUI.acceptRemoteVideo.checked &&
                         rtcConnections.incoming[peer]) {
 
-                        recordVideoRemoteIncoming(peer).then(function(fileWriter) {
+                        videoRecord.recordVideoRemoteIncoming(peer).then(function(fileWriter) {
                             rtcVideoRecSend(peer, prot.videoRec.startVideoRecRes, 1);
                             if (rtcConnections.incoming[peer])
                                 rtcConnections.incoming[peer].ecVideoRecord = fileWriter;
@@ -344,8 +378,8 @@ function rtcMessage(peer, msg) {
 
                 case pv.startVideoRecRes:
                     // Only if we actually *wanted* them to accept video!
-                    if (recordVideoRemoteOK && peer === rtcConnections.videoRecHost)
-                        recordVideoRemoteOK(peer);
+                    if (videoRecord.recordVideoRemoteOK && peer === rtcConnections.videoRecHost)
+                        videoRecord.recordVideoRemoteOK(peer);
                     break;
 
                 case pv.endVideoRec:
@@ -362,15 +396,15 @@ function rtcMessage(peer, msg) {
 }
 
 // Send a speech message to every RTC peer, or a specific peer
-function rtcSpeech(status, peer) {
-    if (!useRTC) return;
+export function rtcSpeech(status, peer?: number) {
+    if (!config.useRTC) return;
 
     // Build the message
     var p = prot.parts.speech;
-    var msg = new DataView(new ArrayBuffer(p.length));
-    msg.setUint32(0, prot.ids.speech, true);
-    msg.setUint32(p.indexStatus, status?1:0, true);
-    msg = msg.buffer;
+    var msgv = new DataView(new ArrayBuffer(p.length));
+    msgv.setUint32(0, prot.ids.speech, true);
+    msgv.setUint32(p.indexStatus, status?1:0, true);
+    var msg = msgv.buffer;
 
     // Maybe just send it to the specified peer
     if (typeof peer !== "undefined") {
@@ -381,7 +415,7 @@ function rtcSpeech(status, peer) {
     }
 
     // Send it everywhere
-    for (peer in rtcConnections.outgoing) {
+    for (let peer in rtcConnections.outgoing) {
         try {
             rtcConnections.outgoing[peer].ecDataChannel.send(msg);
         } catch (ex) {}
@@ -389,8 +423,8 @@ function rtcSpeech(status, peer) {
 }
 
 // Send an RTC video recording message
-function rtcVideoRecSend(peer, cmd, payloadData) {
-    if (!useRTC) return;
+export function rtcVideoRecSend(peer, cmd, payloadData?: any) {
+    if (!config.useRTC) return;
 
     // Build the payload
     var payload;
@@ -399,7 +433,7 @@ function rtcVideoRecSend(peer, cmd, payloadData) {
         payload.setUint32(0, payloadData, true);
 
     } else if (typeof payloadData === "object") {
-        payload = encodeText(JSON.stringify(payload));
+        payload = util.encodeText(JSON.stringify(payload));
 
     } else {
         payload = new Uint8Array(0);
@@ -429,7 +463,7 @@ function rtcVideoRecSend(peer, cmd, payloadData) {
 }
 
 // Send data to an RTC peer
-function rtcDataSend(peer, buf) {
+export function rtcDataSend(peer, buf) {
     var p = prot.parts.data;
 
     // Send 16k at a time
@@ -448,82 +482,14 @@ function rtcDataSend(peer, buf) {
     }
 }
 
-// Create the RTC version of UserMedia, with noise suppression
-function createUserMediaRTC() {
-    if (typeof webkitAudioContext !== "undefined") {
-        // Safari gets angry if you ask for the same device twice
-        return new Promise(function(res) {
-            res(userMedia.clone());
-        });
-    }
-
-    /* Here's the big idea: We want a specialized version of our usermedia with
-     * two changed properties:
-     * (1) Noise suppression ON, and
-     * (2) A brief delay, to react properly to the VAD.
-     *
-     * We do this by requesting a new UserMedia, then feeding it through
-     * AudioContext's DelayNode.
-     */
-    var deviceId = userMedia.getTracks()[0].getSettings().deviceId;
-    console.log("Device ID: " + deviceId);
-
-    return navigator.mediaDevices.getUserMedia({
-        audio: {
-            deviceId: deviceId,
-            autoGainControl: plzno,
-            echoCancellation: plzno,
-            noiseSuppression: plzyes
-        }
-
-    }).then(function(um) {
-        // Make sure it actually gave us what we asked for
-        if (um.getTracks()[0].getSettings().deviceId !== deviceId) {
-            // Thanks for the lie!
-            um.getTracks().forEach(function(track) { track.stop(); });
-            um = userMedia.clone();
-        }
-
-        // Make the delay components
-        var stream = ac.createMediaStreamSource(um);
-        var delay = ac.createDelay();
-        delay.delayTime.value = 0.04;
-        var dest = ac.createMediaStreamDestination();
-        var output = dest.stream;
-
-        // Store all the context in the output for later destruction
-        output.ennuicastr = {
-            userMedia: um,
-            stream: stream,
-            delay: delay,
-            dest: dest
-        };
-
-        // Connect it up
-        stream.connect(delay);
-        delay.connect(dest);
-        return output;
-
-    });
-}
-
-// Destroy a UserMediaRTC
-function destroyUserMediaRTC(userMediaRTC) {
-    userMediaRTC.getTracks().forEach(function(track) { track.stop(); });
-    var ec = userMediaRTC.ennuicastr;
-    ec.userMedia.getTracks().forEach(function(track) { track.stop(); });
-    ec.stream.disconnect(ec.delay);
-    ec.delay.disconnect(ec.dest);
-}
-
 // Notify of a failed RTC connection
 function rtcFail() {
     if (rtcFailTimeout)
         clearTimeout(rtcFailTimeout);
-    pushStatus("rtc", "RTC connection failed!");
+    log.pushStatus("rtc", "RTC connection failed!");
     rtcFailTimeout = setTimeout(function() {
         rtcFailTimeout = null;
-        popStatus("rtc");
+        log.popStatus("rtc");
     }, 10000);
 }
 var rtcFailTimeout = null;

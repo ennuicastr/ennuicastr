@@ -16,8 +16,14 @@
 
 // Push to talk
 
+// extern
+declare var ECHotkeys: any;
+
+import * as audio from "./audio";
+import * as ui from "./ui";
+
 // Configure push-to-talk based on saved settings
-function loadPTT() {
+export function loadPTT() {
     if (typeof localStorage === "undefined")
         return;
     configurePTT(localStorage.getItem("ec-ptt"));
@@ -25,8 +31,8 @@ function loadPTT() {
 
 // Configure push-to-talk based on the given hotkey
 function configurePTT(hotkey) {
-    ui.ptt.enabled = !!hotkey;
-    ui.ptt.hotkey = hotkey;
+    ui.ui.ptt.enabled = !!hotkey;
+    ui.ui.ptt.hotkey = hotkey;
 
     // Remove any previously enabled event listeners
     document.body.removeEventListener("keydown", pttDown);
@@ -34,23 +40,23 @@ function configurePTT(hotkey) {
 
     if (hotkey) {
         // Push-to-talk enabled
-        toggleMute(false);
-        ui.ptt.muted = true;
+        audio.toggleMute(false);
+        ui.ui.ptt.muted = true;
         document.body.addEventListener("keydown", pttDown);
         document.body.addEventListener("keyup", pttUp);
         localStorage.setItem("ec-ptt", hotkey);
 
     } else {
         // Push-to-talk disabled
-        toggleMute(true);
-        ui.ptt.muted = false;
+        audio.toggleMute(true);
+        ui.ui.ptt.muted = false;
         localStorage.removeItem("ec-ptt");
 
     }
 }
 
 // Configure push-to-talk based on user selection
-function userConfigurePTT() {
+export function userConfigurePTT() {
     if (typeof ECHotkeys === "undefined")
         return;
     return ECHotkeys.getUserKey().then(function(key) {
@@ -67,14 +73,14 @@ function userConfigurePTT() {
 
 // PTT key pressed
 function pttDown(ev) {
-    if (ev.key !== ui.ptt.hotkey)
+    if (ev.key !== ui.ui.ptt.hotkey)
         return;
-    toggleMute(true);
+    audio.toggleMute(true);
 }
 
 // PTT key depressed
 function pttUp(ev) {
-    if (ev.key !== ui.ptt.hotkey)
+    if (ev.key !== ui.ui.ptt.hotkey)
         return;
-    toggleMute(false);
+    audio.toggleMute(false);
 }

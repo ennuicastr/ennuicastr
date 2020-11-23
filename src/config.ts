@@ -14,21 +14,24 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+import { prot } from "./net";
+import { dce, gebi } from "./util";
+
 /* These are the features selectable in the URL, not (necessarily) the
  * protocol */
 var featuresMask = 0xF;
-var features = {
+export var features = {
     "continuous": 0x1,
     "rtc": 0x2
 };
 
 // Configuration parameters come out of the URL search query
-var url = new URL(window.location);
+export var url = new URL(<any> window.location);
 var params = new URLSearchParams(url.search);
 
 // Convert short-form configuration into long-form
 var shortForm = null;
-Array.from(params.entries()).forEach(function(key) {
+Array.from((<any> params).entries()).forEach(function(key: string) {
     key = key[0];
     if (/-/.test(key))
         shortForm = key;
@@ -49,7 +52,7 @@ var preEc = gebi("pre-ec");
 var loginTarget = gebi("login-ec") || document.body;
 
 // Read in our configuration
-config = {
+export var config: any = {
     id: params.get("i"),
     key: params.get("k"),
     format: params.get("f"),
@@ -58,11 +61,11 @@ config = {
 var master = params.get("m");
 var selector = params.get("s");
 var monitor = params.get("mon");
-var username = params.get("nm");
+export var username = params.get("nm");
 if (config.id === null) {
     // Redirect to the homepage
-    window.location = "/home/";
-    return;
+    window.location = <any> "/home/";
+    throw new Error;
 }
 config.id = Number.parseInt(config.id, 36);
 if (config.key === null) {
@@ -70,7 +73,7 @@ if (config.key === null) {
     div.innerHTML = "Invalid key!";
     loginTarget.appendChild(div);
     if (preEc) preEc.style.display = "";
-    return;
+    throw new Error;
 }
 config.key = Number.parseInt(config.key, 36);
 if (master !== null)
@@ -112,7 +115,7 @@ if (selector) {
         loginTarget.appendChild(div);
     }
 
-    return;
+    throw new Error;
 }
 
 // If we're looking for the monitor, just do that
@@ -122,7 +125,7 @@ if (monitor) {
     scr.async = true;
     loginTarget.appendChild(scr);
     if (preEc) preEc.style.display = "";
-    return;
+    throw new Error;
 }
 
 // Hide the extraneous details
@@ -140,7 +143,7 @@ if (username === null || username === "") {
     form.action = "?";
     form.method = "GET";
     var def = "";
-    if (typeof localStorage !== "")
+    if (typeof localStorage !== "undefined")
         def = localStorage.getItem("username") || "";
     def = def.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     var html =
@@ -176,35 +179,36 @@ if (username === null || username === "") {
     nmBox.focus();
     nmBox.select();
 
-    return;
+    throw new Error;
 
 } else {
     // Remember the username
-    if (typeof localStorage !== "")
+    if (typeof localStorage !== "undefined")
         localStorage.setItem("username", username);
 
 }
 
 // Find the websock URL
-var wsUrl = (url.protocol==="http:"?"ws":"wss") + "://" + url.hostname + ":" + config.port;
-
-// Do we need to use libav.js?
-var useLibAV = false;
-var libavVersion = "2.0.4.3.1";
-
-// Do we need to use mkvdemux.js?
-var useMkvDemuxJS = false;
-
-// Do we support MediaRecorder with VP8 output?
-var mediaRecorderVP8 = (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("video/webm; codecs=vp8"));
+export const wsUrl = (url.protocol==="http:"?"ws":"wss") + "://" + url.hostname + ":" + config.port;
 
 // Should we be creating FLAC?
-var useFlac = ((config.format&prot.flags.dataTypeMask) === prot.flags.dataType.flac);
+export const useFlac = ((config.format&prot.flags.dataTypeMask) === prot.flags.dataType.flac);
 
 // Which features to use
-var useContinuous = !!(config.format&features.continuous);
-var useRTC = !!(config.format&features.rtc);
-var useNR = true;
+export const useContinuous = !!(config.format&features.continuous);
+export const useRTC = !!(config.format&features.rtc);
+
+// Color sets for wave vad colors
+const waveVADColorSets = {
+    "sv": ["#000", "#753", "#730", "#a30"],
+    "sc": ["#000", "#730", "#730", "#a30"],
+    "rv": ["#000", "#aaa", "#073", "#0a3"],
+    "rc": ["#000", "#073", "#073", "#0a3"]
+};
+
+// And the current colors
+export var waveVADColors = waveVADColorSets.sv;
+export function setWaveVADColors(to) { waveVADColors = waveVADColorSets[to]; }
 
 // If we're in continuous mode, we don't distinguish the degrees of VAD
 if (useContinuous) waveVADColors = waveVADColorSets.sc;

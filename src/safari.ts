@@ -14,8 +14,13 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+// extern
+declare var webkitAudioContext: any;
+
+import * as audio from "./audio";
+
 // Safari-specific workarounds for scriptProcessor
-function createScriptProcessor(ac, ms, bufferSize) {
+export function createScriptProcessor(ac, ms, bufferSize) {
     if (typeof webkitAudioContext !== "undefined")
         return createSafariScriptProcessor(ac, ms, bufferSize);
 
@@ -27,7 +32,7 @@ function createScriptProcessor(ac, ms, bufferSize) {
     ret.connect(destination);
 
     // Disconnect it when user media stops
-    userMediaAvailableEvent.addEventListener("usermediastopped", function() {
+    audio.userMediaAvailableEvent.addEventListener("usermediastopped", function() {
         mss.disconnect(ret);
         ret.disconnect(destination);
     }, {once: true});
@@ -74,7 +79,7 @@ function createSafariScriptProcessor(ac, ms, bufferSize) {
         sp.ecDestination = destination;
 
         // And disconnect it when user media stops
-        userMediaAvailableEvent.addEventListener("usermediastopped", function() {
+        audio.userMediaAvailableEvent.addEventListener("usermediastopped", function() {
             mss.disconnect(sp);
             sp.disconnect(destination);
             delete ac.ecSafariScriptProcessors[ms.id];

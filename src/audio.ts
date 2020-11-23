@@ -14,14 +14,126 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+// extern
+declare var LibAV: any, MediaRecorder: any, webkitAudioContext: any, WebRtcVad: any;
+
+import * as config from "./config";
+import * as log from "./log";
+import * as master from "./master";
+import * as net from "./net";
+import { prot } from "./net";
+import * as proc from "./proc";
+import * as ptt from "./ptt";
+import * as safariWorkarounds from "./safari";
+import * as ui from "./ui";
+import * as util from "./util";
+import { dce } from "./util";
+
+// libav version to load
+const libavVersion = "2.0.4.3.1";
+
+// The audio device being read
+export var userMedia: MediaStream = null;
+
+// The pseudodevice as processed to reduce noise, for RTC
+export var userMediaRTC: MediaStream = null;
+export function setUserMediaRTC(to) { userMediaRTC = to; }
+
+// Audio context
+export var ac: AudioContext = null;
+
+// Our libav instance if applicable
+export var libav: any = null;
+
+// Our libav encoder information
+var libavEncoder: any = null;
+
+// Used to transfer Opus data from the built-in encoder
+var fileReader: FileReader = null;
+
+// The built-in media recorder, on browsers which support encoding to Ogg Opus
+var mediaRecorder: any = null;
+
+// The current blobs waiting to be read from MediaRecorder
+var blobs = [];
+
+// The current ArrayBuffers of data to be handled from MediaRecorder
+var data = [];
+
+// The Opus or FLAC packets to be handled. Format: [granulePos, data]
+var packets = [];
+
+// Opus zero packet, will be replaced with FLAC's version if needed
+var zeroPacket = new Uint8Array([0xF8, 0xFF, 0xFE]);
+
+// Our start time is in local ticks, and our offset is updated every so often
+var startTime = 0;
+export var timeOffset: null|number = null;
+export function setFirstTimeOffset(to) { if (timeOffset === null) timeOffset = to; }
+
+// And this is the amount to adjust it per frame (1%)
+const timeOffsetAdjPerFrame = 0.0002;
+
+/* To help with editing by sending a clean silence sample, we send the
+ * first few (arbitrarily, 8) seconds of VAD-off silence */
+var sendSilence = 400;
+
+// When we're not sending real data, we have to send a few (arbitrarily, 3) empty frames
+var sentZeroes = 999;
+
+/* We keep track of the last time we successfully encoded data for
+ * transfer, to determine if anything's gone wrong */
+export var lastSentTime = 0;
+export function setLastSentTime(to) { lastSentTime = to; }
+
+/* We need an event target we can use. "usermediaready" fires when userMedia is
+ * ready. "usermediastopped" fires when it stops. "usermediavideoready" fires
+ * when video is ready. "spmediaready" fires when the media device that's
+ * processed through the ScriptProcessor is ready. */
+export var userMediaAvailableEvent: EventTarget;
+try {
+    userMediaAvailableEvent = new EventTarget();
+} catch (ex) {
+    // No EventTarget
+    userMediaAvailableEvent = window;
+}
+
+// Features to use or not use
+var useLibAV = false;
+
+// Called when the network is disconnection
+export function disconnect() {
+    if (ac) {
+        try {
+            ac.dispatchEvent(new CustomEvent("disconnected", {}));
+        } catch (ex) {}
+        ac.close();
+        ac = null;
+    }
+
+    if (mediaRecorder) {
+        mediaRecorder.stop();
+        mediaRecorder = null;
+    }
+
+    fileReader = null;
+
+    if (userMedia) {
+        userMedia.getTracks().forEach(function (track) {
+            track.stop();
+        });
+        userMedia = null;
+    }
+}
+
 /* The starting point for enabling encoding. Get our microphone input. Returns
  * a promise that resolves when encoding is active. */
-function getMic(deviceId) {
-    if (!connected)
+export function getMic(deviceId?: string) {
+    if (!net.connected)
         return;
 
-    pushStatus("getmic", "Asking for microphone permission...");
-    popStatus("conn");
+    log.pushStatus("getmic", "Asking for microphone permission...");
+    log.popStatus("conn");
 
     // First get rid of any active sources
     if (userMedia) {
@@ -39,9 +151,9 @@ function getMic(deviceId) {
     return navigator.mediaDevices.getUserMedia({
         audio: {
             deviceId: deviceId,
-            autoGainControl: plzno,
-            echoCancellation: {ideal: ui.deviceList.ec.checked},
-            noiseSuppression: plzno,
+            autoGainControl: {ideal: false},
+            echoCancellation: {ideal: ui.ui.deviceList.ec.checked},
+            noiseSuppression: {ideal: false},
             sampleRate: {ideal: 48000},
             sampleSize: {ideal: 24}
         }
@@ -49,29 +161,29 @@ function getMic(deviceId) {
         userMedia = userMediaIn;
         return userMediaSet();
     }).catch(function(err) {
-        disconnect();
-        pushStatus("fail", "Cannot get microphone: " + err);
-        popStatus("getmic");
+        net.disconnect();
+        log.pushStatus("fail", "Cannot get microphone: " + err);
+        log.popStatus("getmic");
     });
 }
 
 /* Called once we have mic access. Returns a promise that resolves once
  * encoding is active. */
 function userMediaSet() {
-    if (!connected)
+    if (!net.connected)
         return;
 
-    updateMuteButton();
-    loadPTT();
+    ui.updateMuteButton();
+    ptt.loadPTT();
 
-    pushStatus("initenc", "Initializing encoder...");
-    popStatus("getmic");
+    log.pushStatus("initenc", "Initializing encoder...");
+    log.popStatus("getmic");
 
     // Get the sample rate from the user media
     var sampleRate = userMedia.getAudioTracks()[0].getSettings().sampleRate;
 
     // Check whether we should be using WebAssembly
-    var wa = isWebAssemblySupported();
+    var wa = util.isWebAssemblySupported();
 
     // Create our AudioContext if needed
     if (!ac) {
@@ -117,61 +229,30 @@ function userMediaSet() {
             });
         }
 
-    }).then(function() {
+    }).then(<any> function() {
         if (ac.state !== "running")
-            pushStatus("audiocontext", "Cannot capture audio! State: " + ac.state);
+            log.pushStatus("audiocontext", "Cannot capture audio! State: " + ac.state);
 
         // Set up the VAD
         if (typeof WebRtcVad === "undefined") {
             WebRtcVad = {
-                onRuntimeInitialized: localProcessing
+                onRuntimeInitialized: proc.localProcessing
             };
-            loadLibrary("vad/vad" + (wa?".wasm":"") + ".js");
+            util.loadLibrary("vad/vad" + (wa?".wasm":"") + ".js");
         }
 
-        // Which solution we need depends on browser support
-        useLibAV = false;
-        useMkvDemux = false;
-        if (useFlac || !Blob.prototype.arrayBuffer) {
-            // Always need libav for this
-            useLibAV = true;
-
-        } else if (typeof MediaRecorder === "undefined") {
-            // No built-in encoding
-            useLibAV = true;
-
-        } else {
-            // We'll need resampling, but let's not trust the OS to do it
-            if (sampleRate !== 48000) {
-                useLibAV = true;
-
-            } else if (!MediaRecorder.isTypeSupported("audio/ogg; codecs=opus")) {
-                // We'll need at least demuxing
-                /* FIXME: This seems to be causing memory issues on Chrome, so use
-                 * libav */
-                /*if (MediaRecorder.isTypeSupported("audio/webm; codecs=opus")) {
-                    useMkvDemux = true;
-                } else {*/
-                    useLibAV = true;
-                //}
-
-            } else {
-                // No extras needed, raw ogg/opus extracting
-                useLibAV = true;
-
-            }
-
-        }
+        // Presently, only libav encoding is supported
+        useLibAV = true;
 
         // At this point, we want to start catching errors
         window.addEventListener("error", function(error) {
-            errorHandler(error.error + "\n\n" + error.error.stack);
+            net.errorHandler(error.error + "\n\n" + error.error.stack);
         });
 
         window.addEventListener("unhandledrejection", function(error) {
             error = error.reason;
             if (error instanceof Error) {
-                errorHandler(error + "\n\n" + error.stack);
+                net.errorHandler(error + "\n\n" + error.stack);
             } else {
                 var msg;
                 try {
@@ -180,24 +261,17 @@ function userMediaSet() {
                     msg = error+"";
                 }
                 msg += "\n\n" + new Error().stack;
-                errorHandler(msg);
+                net.errorHandler(msg);
             }
         });
 
         // Load anything we need
-        if (useLibAV) {
-            return loadLibAV();
-        } else if (useMkvDemux) {
-            if (typeof mkvdemuxjs === "undefined")
-                return loadLibrary("mkvdemux.min.js");
-        } else {
-            // Nothing to load!
-        }
+        return loadLibAV();
     }).then(encoderLoaded);
 }
 
 // Load LibAV if it's not already loaded
-function loadLibAV() {
+export function loadLibAV(): Promise<unknown> {
     if (libav) {
         // Already loaded
         return Promise.all([]);
@@ -207,7 +281,7 @@ function loadLibAV() {
         LibAV = {};
     LibAV.base = "libav";
 
-    return loadLibrary("libav/libav-" + libavVersion + "-webm-opus-flac.js").then(function() {
+    return util.loadLibrary("libav/libav-" + libavVersion + "-webm-opus-flac.js").then(function() {
         return LibAV.LibAV();
 
     }).then(function(ret) {
@@ -219,11 +293,23 @@ function loadLibAV() {
 /* Called once the specialized encoder is loaded, if it's needed. Returns a
  * promise that resolves once encoding is active. */
 function encoderLoaded() {
-    if (!connected)
+    if (!net.connected)
         return;
 
-    pushStatus("startenc", "Starting encoder...");
-    popStatus("initenc");
+    log.pushStatus("startenc", "Starting encoder...");
+    log.popStatus("initenc");
+
+    /* We're ready to record, but need a handler for the Blob->ArrayBuffer
+     * conversion if we're not using libav */
+    function postBlob(ab) {
+        blobs.shift();
+        if (blobs.length)
+            blobs[0].arrayBuffer().then(postBlob);
+        if (ab.byteLength !== 0) {
+            data.push(ab);
+            handler(performance.now());
+        }
+    }
 
     if (useLibAV) {
         return libavStart();
@@ -232,22 +318,6 @@ function encoderLoaded() {
         // We'll use the built-in encoder
         var format = "ogg";
         var handler = handleOggData;
-        if (useMkvDemux) {
-            format = "webm";
-            handler = handleMkvData;
-            mkvDemuxer = new mkvdemuxjs.MkvDemux();
-        }
-
-        // We're ready to record, but need a handler for the Blob->ArrayBuffer conversion
-        function postBlob(ab) {
-            blobs.shift();
-            if (blobs.length)
-                blobs[0].arrayBuffer().then(postBlob);
-            if (ab.byteLength !== 0) {
-                data.push(ab);
-                handler(performance.now());
-            }
-        }
 
         // MediaRecorder will do what we need
         mediaRecorder = new MediaRecorder(userMedia, {
@@ -270,8 +340,8 @@ function encoderLoaded() {
 // Start the libav encoder
 function libavStart() {
     // We need to choose our target sample rate based on the input sample rate and format
-    sampleRate = 48000;
-    if (useFlac && ac.sampleRate === 44100)
+    var sampleRate = 48000;
+    if (config.useFlac && ac.sampleRate === 44100)
         sampleRate = 44100;
 
     // Figure out if we need a custom AudioContext, due to sample rate differences
@@ -279,17 +349,17 @@ function libavStart() {
     var needCustomAC = (umSampleRate !== ac.sampleRate) && (typeof AudioContext !== "undefined");
 
     // The server needs to be informed of FLAC's sample rate
-    if (useFlac) {
+    if (config.useFlac) {
         var p = prot.parts.info;
         var info = new DataView(new ArrayBuffer(p.length));
         info.setUint32(0, prot.ids.info, true);
         info.setUint32(p.key, prot.info.sampleRate, true);
         info.setUint32(p.value, sampleRate, true);
-        dataSock.send(info.buffer);
+        net.dataSock.send(info.buffer);
     }
 
     // Set our zero packet as appropriate
-    if (useFlac) {
+    if (config.useFlac) {
         switch (sampleRate) {
             case 44100:
                 zeroPacket = new Uint8Array([0xFF, 0xF8, 0x79, 0x0C, 0x00, 0x03, 0x71, 0x56, 0x00, 0x00, 0x00, 0x00, 0x63, 0xC5]);
@@ -317,13 +387,13 @@ function libavStart() {
     }
 
     // Determine our encoder options
-    var encOptions = {
+    var encOptions: any = {
         sample_rate: sampleRate,
         frame_size: sampleRate * 20 / 1000,
         channel_layout: 4,
         channels: 1
     };
-    if (useFlac) {
+    if (config.useFlac) {
         encOptions.sample_fmt = libav.AV_SAMPLE_FMT_S32;
     } else {
         encOptions.sample_fmt = libav.AV_SAMPLE_FMT_FLT;
@@ -339,7 +409,7 @@ function libavStart() {
         input_channels: channelCount,
         input_channel_layout: channelLayout
     };
-    return libav.ff_init_encoder(useFlac?"flac":"libopus", encOptions, 1, sampleRate).then(function(ret) {
+    return libav.ff_init_encoder(config.useFlac?"flac":"libopus", encOptions, 1, sampleRate).then(function(ret) {
 
         libavEncoder.codec = ret[0];
         libavEncoder.c = ret[1];
@@ -374,11 +444,11 @@ function libavStart() {
         libavProcess();
 
     }).catch(function(ex) {
-        pushStatus("libaverr", "Encoding error: " + ex);
-        errorHandler(ex);
+        log.pushStatus("libaverr", "Encoding error: " + ex);
+        net.errorHandler(ex);
 
         // This is sufficiently catastrophic that we should disconnect if it happens
-        disconnect();
+        net.disconnect();
 
     });
 }
@@ -399,7 +469,7 @@ function libavProcess() {
     enc.latencyDump = false;
 
     // Start reading the input
-    var sp = createScriptProcessor(enc.ac, userMedia, 16384 /* Max: Latency doesn't actually matter in this context */).scriptProcessor;
+    var sp = safariWorkarounds.createScriptProcessor(enc.ac, userMedia, 16384 /* Max: Latency doesn't actually matter in this context */).scriptProcessor;
 
     // Don't try to process that last sip of data after termination
     var dead = false;
@@ -430,9 +500,9 @@ function libavProcess() {
                 pktCounter.shift();
             }
             if (dataReceived < tooLittle) {
-                pushStatus("toolittle", "Encoding is overloaded, incomplete audio data!");
+                log.pushStatus("toolittle", "Encoding is overloaded, incomplete audio data!");
             } else {
-                popStatus("toolittle");
+                log.popStatus("toolittle");
             }
         }
 
@@ -440,13 +510,13 @@ function libavProcess() {
         if (enc.latency > 1000) {
             // Maybe report it
             if (enc.latency > 2000)
-                pushStatus("latency", "Encoding is buffering. " + Math.ceil(enc.latency/1000) + " seconds of audio buffered.");
+                log.pushStatus("latency", "Encoding is buffering. " + Math.ceil(enc.latency/1000) + " seconds of audio buffered.");
 
             // Choose whether to dump audio
             if (!enc.latencyDump)
                 enc.latencyDump = (enc.latency > 1500);
 
-            if (!vadOn && enc.latencyDump) {
+            if (!proc.vadOn && enc.latencyDump) {
                 // VAD is off, so lose some data to try to eliminate latency
                 enc.latency -= (pktLen/48);
 
@@ -457,7 +527,7 @@ function libavProcess() {
         } else {
             if (enc.latencyDump)
                 enc.latencyDump = false;
-            popStatus("latency");
+            log.popStatus("latency");
         }
 
         // Put it in libav's format
@@ -497,11 +567,11 @@ function libavProcess() {
             enc.latency = performance.now() - now;
 
         }).catch(function(ex) {
-            pushStatus("libaverr", "Encoding error: " + ex);
-            errorHandler(ex);
+            log.pushStatus("libaverr", "Encoding error: " + ex);
+            net.errorHandler(ex);
 
             // This is sufficiently catastrophic that we should disconnect if it happens
-            disconnect();
+            net.disconnect();
 
         });
     }
@@ -546,7 +616,7 @@ function shift(amt) {
 }
 
 // Unshift one or more chunks of blob from MediaRecorder
-function unshift() {
+function unshift(...args) {
     for (var i = arguments.length - 1; i >= 0; i--)
         data.unshift(arguments[i].buffer);
 }
@@ -590,9 +660,10 @@ function opusDemux(opusFrame) {
     // Switch on the style of multi-frame
     switch (ct) {
         case 1:
+        {
             // Two equal-sized frames
-            var len = (opusFrame.byteLength - 1) / 2;
-            var ret = [
+            let len = (opusFrame.byteLength - 1) / 2;
+            let ret: any = [
                 new Uint8Array(len + 1),
                 new Uint8Array(len + 1)
             ];
@@ -603,12 +674,14 @@ function opusDemux(opusFrame) {
             ret[1].set(opusFrame.slice(1+len), 1);
             ret[1] = new DataView(ret[1].buffer);
             return ret;
+        }
 
         case 2:
+        {
             // Two variable-sized frames
-            var len = getFrameLen();
-            var len2 = opusFrame.length - len - p;
-            var ret = [
+            let len = getFrameLen();
+            let len2 = opusFrame.length - len - p;
+            let ret: any = [
                 new Uint8Array(len + 1),
                 new Uint8Array(len2 + 1)
             ];
@@ -619,12 +692,14 @@ function opusDemux(opusFrame) {
             ret[1].set(opusFrame.slice(p+len), 1);
             ret[1] = new DataView(ret[1].buffer);
             return ret;
+        }
 
         case 3:
+        {
             // Variable-number variable-sized frames
-            var frameCtB = opusFrame[p++];
-            var frameCt = frameCtB & 0x3f;
-            var padding = 0;
+            let frameCtB = opusFrame[p++];
+            let frameCt = frameCtB & 0x3f;
+            let padding = 0;
             if (frameCtB & 0x40) {
                 // There's padding. Skip the count.
                 while (true) {
@@ -639,7 +714,7 @@ function opusDemux(opusFrame) {
             }
 
             // Get the sizes of each
-            var sizes = [];
+            let sizes = [];
             if (frameCtB & 0x80) {
                 // Variable-sized
                 var tot = 0;
@@ -652,23 +727,23 @@ function opusDemux(opusFrame) {
                 sizes.push(opusFrame.length - padding - p - tot);
             } else {
                 // Constant-sized
-                // FIXME
-                var len = Math.floor((opusFrame.length - padding - p) / frameCt);
-                for (var i = 0; i < frameCt; i++)
+                let len = Math.floor((opusFrame.length - padding - p) / frameCt);
+                for (let i = 0; i < frameCt; i++)
                     sizes.push(len);
             }
 
             // Now make the output
-            var ret = [];
-            for (var i = 0; i < frameCt; i++) {
-                var len = sizes[i];
-                var part = new Uint8Array(len + 1);
+            let ret: any = [];
+            for (let i = 0; i < frameCt; i++) {
+                let len = sizes[i];
+                let part = new Uint8Array(len + 1);
                 part[0] = toc;
                 part.set(opusFrame.slice(p, p+len), 1);
                 p += len;
                 ret.push(new DataView(part.buffer));
             }
             return ret;
+        }
     }
 }
 
@@ -756,49 +831,6 @@ function handleOggData(endTime) {
     handlePackets();
 }
 
-// Handle input Matroska (WebM) data
-function handleMkvData(endTime) {
-    // Pass the data to mkvdemuxjs
-    while (data.length)
-        mkvDemuxer.push(data.shift());
-
-    // Demux it
-    var frames = [];
-    var el;
-    while ((el = mkvDemuxer.demux()) !== null) {
-        if (el.frames)
-            frames = frames.concat(el.frames);
-    }
-    if (frames.length === 0) return;
-
-    // Adjust the times and move them
-    var outEndGranule = (endTime - startTime) * 48;
-    var inEndGranule = frames[frames.length-1].timestamp * 48000;
-    var last = 0;
-    while (frames.length) {
-        var packet = frames.shift();
-        var ts = packet.timestamp * 48000 - inEndGranule + outEndGranule;
-        var pData = new DataView(packet.data);
-
-        // Split it if necessary
-        var multi = opusDemux(pData);
-        if (multi !== null) {
-            // It was a multi-part packet, so split it up
-            ts -= 960 * (multi.length - 1); // 20ms per packet
-            while (multi.length) {
-                packet = multi.shift();
-                packets.push([ts, packet]);
-                ts += 960; // 20ms
-            }
-        } else {
-            // Just one!
-            packets.push([ts, pData]);
-        }
-    }
-
-    handlePackets();
-}
-
 /* All of the above is to convert raw audio data into Opus or FLAC packets.
  * Below, we can actually do something with those packets. */
 
@@ -807,34 +839,34 @@ function handlePackets() {
     if (!packets.length || timeOffset === null) return;
 
     var curGranulePos = packets[packets.length-1][0];
-    transmitting = true;
+    net.setTransmitting(true);
 
     // We have *something* to handle
     lastSentTime = performance.now();
-    popStatus("startenc");
+    log.popStatus("startenc");
 
     // Don't actually *send* anything if we're not recording
-    if (mode !== prot.mode.rec) {
+    if (net.mode !== prot.mode.rec) {
         while (packets.length)
             packets.pop();
         return;
     }
 
     // Warn if we're buffering
-    if (dataSock.bufferedAmount > 1024*1024)
-        pushStatus("buffering", bytesToRepr(dataSock.bufferedAmount) + " audio data buffered");
+    if (net.dataSock.bufferedAmount > 1024*1024)
+        log.pushStatus("buffering", util.bytesToRepr(net.dataSock.bufferedAmount) + " audio data buffered");
     else
-        popStatus("buffering");
+        log.popStatus("buffering");
 
-    if (!vadOn) {
+    if (!proc.vadOn) {
         // Drop any sufficiently old packets, or send them marked as silence in continuous mode
-        var old = curGranulePos - vadExtension*48;
+        var old = curGranulePos - proc.vadExtension*48;
         while (packets[0][0] < old) {
             var packet = packets.shift();
             var granulePos = adjustTime(packet);
             if (granulePos < 0)
                 continue;
-            if (useContinuous || sendSilence > 0) {
+            if (config.useContinuous || sendSilence > 0) {
                 /* Send it in VAD-off mode */
                 sendPacket(granulePos, packet[1], 0);
                 sendSilence--;
@@ -849,7 +881,7 @@ function handlePackets() {
         }
 
     } else {
-        var vadVal = (rawVadOn?2:1);
+        var vadVal = (proc.rawVadOn?2:1);
 
         // VAD is on, so send packets
         packets.forEach(function (packet) {
@@ -875,31 +907,30 @@ function handlePackets() {
 // Send an audio packet
 function sendPacket(granulePos, data, vadVal) {
     var p = prot.parts.data;
-    var msg = new DataView(new ArrayBuffer(p.length + (useContinuous?1:0) + data.buffer.byteLength));
+    var msg = new DataView(new ArrayBuffer(p.length + (config.useContinuous?1:0) + data.buffer.byteLength));
     msg.setUint32(0, prot.ids.data, true);
     msg.setUint32(p.granulePos, granulePos & 0xFFFFFFFF, true);
     msg.setUint16(p.granulePos + 4, (granulePos / 0x100000000) & 0xFFFF, true);
-    if (useContinuous)
+    if (config.useContinuous)
         msg.setUint8(p.packet, vadVal);
-    msg = new Uint8Array(msg.buffer);
     data = new Uint8Array(data.buffer);
-    msg.set(data, p.packet + (useContinuous?1:0));
-    dataSock.send(msg.buffer);
+    (new Uint8Array(msg.buffer)).set(data, p.packet + (config.useContinuous?1:0));
+    net.dataSock.send(msg.buffer);
 }
 
 // Adjust the time for a packet, and adjust the time-adjustment parameters
 function adjustTime(packet) {
     // Adjust our offsets
-    if (targetTimeOffset > timeOffset) {
-        if (targetTimeOffset > timeOffset + timeOffsetAdjPerFrame)
+    if (net.targetTimeOffset > timeOffset) {
+        if (net.targetTimeOffset > timeOffset + timeOffsetAdjPerFrame)
             timeOffset += timeOffsetAdjPerFrame;
         else
-            timeOffset = targetTimeOffset;
-    } else if (targetTimeOffset < timeOffset) {
-        if (targetTimeOffset < timeOffset - timeOffsetAdjPerFrame)
+            timeOffset = net.targetTimeOffset;
+    } else if (net.targetTimeOffset < timeOffset) {
+        if (net.targetTimeOffset < timeOffset - timeOffsetAdjPerFrame)
             timeOffset -= timeOffsetAdjPerFrame;
         else
-            timeOffset = targetTimeOffset;
+            timeOffset = net.targetTimeOffset;
     }
 
     // And adjust the time
@@ -907,21 +938,21 @@ function adjustTime(packet) {
 }
 
 // Toggle the mute state of the input audio
-function toggleMute(to) {
+export function toggleMute(to?: boolean) {
     if (!userMedia) return;
     var track = userMedia.getAudioTracks()[0];
     if (typeof to === "undefined")
         to = !track.enabled;
     track.enabled = to;
-    updateMuteButton();
+    ui.updateMuteButton();
 }
 
 // Play or stop a sound
-function playStopSound(url, status) {
-    var sound = ui.sounds[url];
+export function playStopSound(url, status) {
+    var sound = ui.ui.sounds[url];
     if (!sound) {
         // Create an element for it
-        sound = ui.sounds[url] = {};
+        sound = ui.ui.sounds[url] = {};
         sound.el = document.createElement("audio");
 
         // Choose a format
@@ -930,8 +961,8 @@ function playStopSound(url, status) {
             format = "webm"
 
         sound.el.src = url + "." + format;
-        sound.el.volume = ui.outputControlPanel.sfxVolume.value / 100;
-        ui.outputControlPanel.sfxVolumeHider.style.display = "";
+        sound.el.volume = ui.ui.outputControlPanel.sfxVolume.value / 100;
+        ui.ui.outputControlPanel.sfxVolumeHider.style.display = "";
     }
 
     // Play or stop playing
@@ -941,6 +972,6 @@ function playStopSound(url, status) {
         sound.el.play();
     }
 
-    if ("master" in config)
-        masterSoundButtonUpdate(url, status, sound.el);
+    if ("master" in config.config)
+        master.masterSoundButtonUpdate(url, status, sound.el);
 }

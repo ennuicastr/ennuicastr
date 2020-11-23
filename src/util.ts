@@ -14,7 +14,11 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-function encodeText(text) {
+// Basic DOM stuff
+export const dce = document.createElement.bind(document);
+export const gebi = document.getElementById.bind(document);
+
+export function encodeText(text) {
     if (window.TextEncoder) {
         return new TextEncoder().encode(text);
     } else {
@@ -30,7 +34,7 @@ function encodeText(text) {
     }
 }
 
-function decodeText(text) {
+export function decodeText(text) {
     if (window.TextDecoder) {
         return new TextDecoder("utf-8").decode(text);
     } else {
@@ -43,7 +47,7 @@ function decodeText(text) {
     }
 }
 
-function bytesToRepr(x) {
+export function bytesToRepr(x) {
     var suffixes = ["B", "KiB", "MiB", "GiB"];
     while (suffixes.length > 1 && x >= 1024) {
         x /= 1024;
@@ -52,7 +56,7 @@ function bytesToRepr(x) {
     return Math.round(x) + suffixes[0];
 }
 
-function isWebAssemblySupported() {
+export function isWebAssemblySupported() {
     try {
         if (typeof WebAssembly === "object" &&
             typeof WebAssembly.instantiate === "function") {
@@ -64,4 +68,16 @@ function isWebAssemblySupported() {
     } catch (e) {
     }
     return false;
+}
+
+// Generic library loader
+export function loadLibrary(name) {
+    return new Promise(function(res, rej) {
+        var scr = dce("script");
+        scr.addEventListener("load", res);
+        scr.addEventListener("error", rej);
+        scr.src = name;
+        scr.async = true;
+        document.body.appendChild(scr);
+    });
 }

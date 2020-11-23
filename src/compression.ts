@@ -17,8 +17,53 @@
 /* NOTE: The functionality in this file relates to dynamic range compression,
  * NOT digital audio compression */
 
+// extern
+declare var webkitAudioContext: any;
+
+/* For RTC, we apply compression. Those properties are here, along with a
+ * callback for when they change. */
+export var rtcCompression = {
+    // Compressor stage (if used)
+    compressor: {
+        // Default settings suitable for most users
+
+        // Anything below -40dB is almost certainly noise
+        threshold: -40,
+
+        // No need to knee in noise
+        knee: 0,
+
+        // Default to no compression
+        ratio: 1,
+
+        // Standard attack and release times
+        attack: 0.1,
+        release: 0.25
+    },
+
+    // General gain stage
+    gain: {
+        // Multiplier to the gain from below, our volume knob
+        volume: 1,
+
+        /* Direct gain to apply. Reset to null to force recalculation from
+         * target. */
+        gain: null,
+
+        /* Target peak, based on compressor above. Reset gain to null to
+         * recalculate. */
+        target: -18
+    },
+
+    // Per-user gain stage
+    perUserVol: {},
+
+    // Our currently active compressors
+    compressors: []
+};
+
 // Create a compressor and gain node
-function createCompressor(idx, ac, input) {
+export function createCompressor(idx, ac, input) {
     // Destroy any previous compressor
     var cur = rtcCompression.compressors[idx];
     if (cur)
@@ -147,7 +192,7 @@ function createCompressor(idx, ac, input) {
 }
 
 // Destroy a compressor
-function destroyCompressor(idx) {
+export function destroyCompressor(idx) {
     var com = rtcCompression.compressors[idx];
     if (!com)
         return;
@@ -191,7 +236,7 @@ function compressorCalculateGain() {
 
 /* If we've changed the targets (e.g. to turn off compression), reset all the
  * nodes */
-function compressorChanged() {
+export function compressorChanged() {
     var c = rtcCompression.compressor;
     var cs = rtcCompression.compressors;
     var g = rtcCompression.gain;

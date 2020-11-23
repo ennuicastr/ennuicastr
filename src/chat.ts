@@ -14,29 +14,35 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+import * as net from "./net";
+import { prot } from "./net";
+import * as ui from "./ui";
+import * as util from "./util";
+import { dce, gebi } from "./util";
+
 // Receive a chat message
-function recvChat(text) {
-    togglePanel("chat", true);
+export function recvChat(text) {
+    ui.togglePanel("chat", true);
     var line = dce("div");
     line.innerText = text;
-    ui.chatBox.incoming.appendChild(line);
-    ui.chatBox.incoming.scroll(0, 1000000);
+    ui.ui.chatBox.incoming.appendChild(line);
+    ui.ui.chatBox.incoming.scroll(0, 1000000);
 }
 
 // Send a chat message
 function sendChat(text) {
-    var textBuf = encodeText(text);
+    var textBuf = util.encodeText(text);
     var p = prot.parts.text;
     var out = new DataView(new ArrayBuffer(p.length + textBuf.length));
     out.setUint32(0, prot.ids.text, true);
     out.setUint32(p.reserved, 0, true);
     new Uint8Array(out.buffer).set(textBuf, p.text);
-    dataSock.send(out.buffer);
+    net.dataSock.send(out.buffer);
 }
 
 // Build the chat box behavior
-function createChatBox() {
-    var chatBox = ui.chatBox = {
+export function createChatBox() {
+    var chatBox = ui.ui.chatBox = {
         incoming: gebi("ecchat-incoming"),
         outgoing: gebi("ecchat-outgoing")
     };

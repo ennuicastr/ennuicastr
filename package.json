@@ -1,0 +1,28 @@
+{
+  "name": "ennuicastr",
+  "version": "0.0.0",
+  "description": "EnnuiCastr is a system for recording multiple users distributed across the world in a well-synchronized way, without significant loss, over the web.",
+  "main": "src/main.ts",
+  "dependencies": {
+    "browserify": "^17.0.0",
+    "minify": "^6.0.1",
+    "tinyify": "^3.0.0",
+    "tsify": "^5.0.2",
+    "typescript": "^4.1.2",
+    "web-streams-polyfill": "^3.0.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Yahweasel/ennuicastr.git"
+  },
+  "author": "Yahweasel",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Yahweasel/ennuicastr/issues"
+  },
+  "homepage": "https://github.com/Yahweasel/ennuicastr#readme"
+}

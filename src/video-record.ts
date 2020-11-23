@@ -14,11 +14,28 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+// extern
+declare var MediaRecorder: any, streamSaver: any;
+
+import * as audio from "./audio";
+import * as config from "./config";
+import * as log from "./log";
+import * as net from "./net";
+import { prot } from "./net";
+import * as rtc from "./rtc";
+import * as ui from "./ui";
+import * as util from "./util";
+import { gebi } from "./util";
+import * as video from "./video";
+
+// Do we support MediaRecorder with VP8 output?
+const mediaRecorderVP8 = (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("video/webm; codecs=vp8"));
+
 // Function to stop the current video recording, or null if there is none
-var recordVideoStop = null;
+export var recordVideoStop: any = null;
 
 // Function to call to verify remote willingness to accept video data
-var recordVideoRemoteOK = null;
+export var recordVideoRemoteOK: any = null;
 var recordVideoRemoteOKTimeout = null;
 
 // Record video
@@ -27,9 +44,9 @@ function recordVideo(opts) {
 
     // Choose a name
     var filename = "";
-    if (recName)
-        filename = recName + "-";
-    filename += username + "-video.webm";
+    if (net.recName)
+        filename = net.recName + "-";
+    filename += config.username + "-video.webm";
 
     // Create a write stream early, so it's in response to the button click
     var localWriter = null, remoteWriter = null;
@@ -49,7 +66,7 @@ function recordVideo(opts) {
     if (opts.remote) {
         if (!("remotePeer" in opts)) {
             // Verify first!
-            rtcVideoRecSend(rtcConnections.videoRecHost, prot.videoRec.startVideoRecReq);
+            rtc.rtcVideoRecSend(rtc.rtcConnections.videoRecHost, prot.videoRec.startVideoRecReq);
 
             recordVideoRemoteOK = function(peer) {
                 opts.remotePeer = peer;
@@ -89,16 +106,18 @@ function recordVideo(opts) {
     }
 
     // Make sure they know what's what
-    pushStatus("video-beta", "Video recording is an ALPHA feature in early testing.");
-    setTimeout(function() { popStatus("video-beta"); }, 10000);
+    log.pushStatus("video-beta", "Video recording is an ALPHA feature in early testing.");
+    setTimeout(function() { log.popStatus("video-beta"); }, 10000);
 
     // We decide the bitrate based on the height (FIXME: Configurability)
-    var videoSettings = userMediaVideo.getVideoTracks()[0].getSettings();
+    var videoSettings = video.userMediaVideo.getVideoTracks()[0].getSettings();
     var bitrate = videoSettings.height * 5000;
     var globalFrameTime = 1/videoSettings.frameRate * 1000;
+    var libav;
 
-    return loadLibAV().then(function() {
+    return audio.loadLibAV().then(function() {
         // Set up our forwarder in LibAV
+        libav = audio.libav;
         if (!libav.onwrite) {
             libav.onwriteto = {};
             libav.onwrite = function(name, pos, buf) {
@@ -111,7 +130,7 @@ function recordVideo(opts) {
 
     }).then(function() {
         // Create our LibAV input
-        var transtate = {};
+        var transtate: any = {};
         transtate.inF = "in-" + Math.random() + ".webm";
         transtate.outF = "out-" + Math.random() + ".webm";
         recordVideoInput(transtate);
@@ -209,7 +228,7 @@ function recordVideo(opts) {
 
                         if (packets.length) {
                             // Update the timing
-                            if (remoteBeginTime && timeOffset) {
+                            if (net.remoteBeginTime && audio.timeOffset) {
                                 // The last packet tells us roughly when we are
                                 var lastPacket = packets[packets.length-1];
 
@@ -225,8 +244,8 @@ function recordVideo(opts) {
 
                                 // Figure out the ideal end time
                                 var endTimeDTS = endTimeReal // The real time when we received this packet
-                                    + timeOffset // Convert to remote time
-                                    - remoteBeginTime; // Base at recording start time
+                                    + audio.timeOffset // Convert to remote time
+                                    - net.remoteBeginTime; // Base at recording start time
 
                                 // Now figure out the practical range of times
                                 var startTimeDTS;
@@ -249,8 +268,8 @@ function recordVideo(opts) {
                                 var dts = startTimeDTS;
                                 for (var pi = 0; pi < packets.length; pi++) {
                                     var packet = packets[pi];
-                                    var pdts = timeFrom(packet.dtshi, packet.dts);
-                                    var ppts = timeFrom(packet.ptshi, packet.pts);
+                                    var pdts: any = timeFrom(packet.dtshi, packet.dts);
+                                    var ppts: any = timeFrom(packet.ptshi, packet.pts);
                                     ppts -= pdts;
                                     pdts = (dts < lastDTS) ? lastDTS : dts;
                                     ppts += pdts;
@@ -293,7 +312,7 @@ function recordVideo(opts) {
                     }).then(function() {
                         // Continue or end
                         if (readState === libav.AVERROR_EOF)
-                            res();
+                            res(void 0);
                         else if (readState === -libav.EAGAIN && packets.length === 0)
                             new Promise(function(res) { transtate.read = res; }).then(go);
                         else
@@ -331,7 +350,7 @@ function recordVideo(opts) {
         });
 
         // MediaRecorder produces a WebM file, and we have to correct its timestamps
-        mediaRecorder = new MediaRecorder(userMediaVideo, {
+        var mediaRecorder = new MediaRecorder(video.userMediaVideo, {
             mimeType: "video/webm; codecs=vp8",
             videoBitsPerSecond: bitrate
         });
@@ -381,12 +400,12 @@ function recordVideo(opts) {
 }
 
 // Receive a remote video recording
-function recordVideoRemoteIncoming(peer) {
+export function recordVideoRemoteIncoming(peer) {
     // Choose a name
     var filename = "";
-    if (recName)
-        filename = recName + "-";
-    var remoteName = ui.userList.names[peer];
+    if (net.recName)
+        filename = net.recName + "-";
+    var remoteName = ui.ui.userList.names[peer];
     if (remoteName)
         filename += remoteName + "-";
     filename += "video.webm";
@@ -394,7 +413,7 @@ function recordVideoRemoteIncoming(peer) {
     // Create a write stream
     return loadStreamSaver().then(function() {
         var fileStream = streamSaver.createWriteStream(filename);
-        fileWriter = fileStream.getWriter();
+        var fileWriter = fileStream.getWriter();
         window.addEventListener("unload", function() {
             fileWriter.close();
         });
@@ -405,12 +424,13 @@ function recordVideoRemoteIncoming(peer) {
 
 // Show the video recording panel if we need to, or just start recording
 function recordVideoPanel() {
-    togglePanel("video-record");
+    ui.togglePanel("video-record");
 }
 
 // Input handler for video recording
 function recordVideoInput(transtate) {
     var buf;
+    var libav = audio.libav;
 
     /* Create a promise for the start, because we have to buffer the header
      * before we can start real recording */
@@ -461,17 +481,17 @@ function recordVideoInput(transtate) {
 // Write data to an RTC peer
 function recordVideoRemoteWrite(peer, buf) {
     console.log("Sending " + buf.length);
-    rtcDataSend(peer, buf);
+    rtc.rtcDataSend(peer, buf);
 }
 
 // Stop sending video data to a peer
 function recordVideoRemoteClose(peer) {
-    rtcVideoRecSend(peer, prot.videoRec.endVideoRec);
+    rtc.rtcVideoRecSend(peer, prot.videoRec.endVideoRec);
 }
 
 // Configure the video recording button based on the current state
-function recordVideoButton(loading) {
-    var btn = ui.recordVideoButton;
+export function recordVideoButton(loading?: boolean) {
+    var btn = ui.ui.recordVideoButton;
     if (!btn) return;
 
     function disabled(to) {
@@ -501,7 +521,7 @@ function recordVideoButton(loading) {
     } else {
         // Not currently recording
         btn.innerHTML = start + '<i class="fas fa-circle"></i>';
-        if (mediaRecorderVP8 && userMediaVideo) {
+        if (mediaRecorderVP8 && video.userMediaVideo) {
             // But we could be!
 
             // Make sure we've loaded StreamSaver
@@ -515,7 +535,7 @@ function recordVideoButton(loading) {
             }
 
             btn.onclick = function() {
-                if (rtcConnections.videoRecHost >= 0) {
+                if (rtc.rtcConnections.videoRecHost >= 0) {
                     disabled(false);
                     recordVideoPanel();
                 } else {
@@ -525,17 +545,17 @@ function recordVideoButton(loading) {
             };
 
             gebi("ecvideo-record-local").onclick = function() {
-                togglePanel("video-record", false);
+                ui.togglePanel("video-record", false);
                 recordVideo({local: true});
             };
 
             gebi("ecvideo-record-remote").onclick = function() {
-                togglePanel("video-record", false);
+                ui.togglePanel("video-record", false);
                 recordVideo({remote: true});
             };
 
             gebi("ecvideo-record-local-remote").onclick = function() {
-                togglePanel("video-record", false);
+                ui.togglePanel("video-record", false);
                 recordVideo({local: true, remote: true});
             };
 
@@ -549,10 +569,10 @@ function recordVideoButton(loading) {
 }
 
 // Load the StreamSaver library, needed only for video recording
-function loadStreamSaver() {
+function loadStreamSaver(): Promise<unknown> {
     if (typeof streamSaver === "undefined") {
-        return loadLibrary("web-streams-ponyfill.js").then(function() {
-            return loadLibrary("StreamSaver.js?v=5");
+        return util.loadLibrary("web-streams-ponyfill.js").then(function() {
+            return util.loadLibrary("StreamSaver.js?v=5");
         }).then(function() {
             streamSaver.mitm = "StreamSaver/mitm.html";
         });
@@ -561,5 +581,5 @@ function loadStreamSaver() {
 }
 
 // Make sure the record button updates when the video state updates
-userMediaAvailableEvent.addEventListener("usermediavideoready", function() { recordVideoButton(); });
-userMediaAvailableEvent.addEventListener("usermediavideostopped", function() { recordVideoButton(); });
+audio.userMediaAvailableEvent.addEventListener("usermediavideoready", function() { recordVideoButton(); });
+audio.userMediaAvailableEvent.addEventListener("usermediavideostopped", function() { recordVideoButton(); });

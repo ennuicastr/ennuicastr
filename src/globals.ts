@@ -14,36 +14,11 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-// "Log" is really status (whoops), and in order to control that we keep a status index
-var curStatus = {};
-function pushStatus(id, text) {
-    if (id in curStatus && curStatus[id] === text) return;
-    curStatus[id] = text;
-    updateStatus();
-}
+// Configuration, which will be filled in by loading code
+var config;
 
-function popStatus(id) {
-    if (!(id in curStatus)) return;
-    delete curStatus[id];
-    updateStatus();
-}
+var mkvDemuxer = null; // If using mkvdemux.js to demux
 
-function updateStatus() {
-    if (ui.wrapper) {
-        pinUI();
-        // Except for the log itself!
-        ui.log.style.height = "";
-    }
+// Our input sample rate
+var sampleRate = 48000;
 
-    var txt = "";
-    for (var id in curStatus) {
-        txt += curStatus[id] + "\n";
-    }
-    txt = txt.trim();
-    if (txt === "")
-        txt = "Capturing audio";
-    log.innerText = txt;
-
-    if (ui.wrapper)
-        reflexUI();
-}

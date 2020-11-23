@@ -14,8 +14,102 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+// extern
+declare var Ennuiboard: any;
+
+import * as audio from "./audio";
+import * as chat from "./chat";
+import * as compression from "./compression";
+import * as config from "./config";
+import * as log from "./log";
+import * as master from "./master";
+import * as proc from "./proc";
+import * as ptt from "./ptt";
+import { dce, gebi } from "./util";
+import * as video from "./video";
+import * as videoRecord from "./video-record";
+
+// The entire user interface
+export var ui: any = {
+    // Has the user taken control of the window size?
+    manualSize: false,
+
+    // What is our desired automatic size?
+    autoSize: 0,
+
+    // Are we currently resizing?
+    resizing: null,
+
+    // The code for the entire UI
+    code: null,
+
+    // The outermost wrapper
+    wrapper: null,
+
+    // All of our panels
+    panels: {},
+
+    // The element to auto-focus when a panel is activated
+    panelAutos: {},
+
+    // The video canvas wrapper
+    video: null,
+
+    // The display canvas and data
+    waveWrapper: null,
+    waveCanvas: null,
+    waveWatcher: null,
+    waveRotate: false,
+
+    // The menu
+    menu: null,
+
+    // The mute button
+    muteB: null,
+
+    /* If we're showing anything *other* than the wave display and menu, it
+     * goes here (everything below this point) */
+    postWrapper: null,
+
+    // The user list and voice status
+    userList: {
+        left: null,
+        right: null,
+        els: []
+    },
+
+    // The wrapper for the device selector
+    deviceList: null,
+
+    // The wrapper for the output control panel
+    outputControlPanel: null,
+
+    // The wrapper for the video device selector, if applicable
+    videoDeviceList: null,
+
+    // If we've received chat, the box for that
+    chatBox: null,
+
+    // Push-to-talk settings
+    ptt: {
+        enabled: false,
+        hotkey: null,
+        muted: false
+    },
+
+    // If we're in master mode, master UI elements
+    masterUI: {},
+
+    // Sound elements
+    sounds: {}
+};
+
+/* Our output device, if it's been explicitly chosen. Feels not UI-ish, but it
+ * *is* user interface, after all. */
+export var outputDeviceId: null|string = null;
+
 // Make the overall UI
-function mkUI() {
+export function mkUI() {
     document.body.style.margin =
         document.body.style.padding = "0";
     document.body.innerHTML = ui.code;
@@ -141,10 +235,10 @@ function mkUI() {
     // Move the status box
     var eclog = ui.log = gebi("eclog");
     eclog.innerHTML = "";
-    eclog.appendChild(log);
+    eclog.appendChild(log.log);
 
     // Load all the panels
-    function panel(nm, auto) {
+    function panel(nm, auto?: string) {
         var p = ui.panels[nm] = gebi("ec" + nm + "-wrapper");
         p.style.display = "none";
 
@@ -166,7 +260,7 @@ function mkUI() {
     updateVideoUI(0, true);
 
     // The chat box
-    createChatBox();
+    chat.createChatBox();
 
     // The user list sub"menu"
     createUserList();
@@ -175,14 +269,14 @@ function mkUI() {
     createDeviceList();
 
     // The output and video device list submenu
-    if (useRTC) {
+    if (config.useRTC) {
         createOutputControlPanel();
         createVideoDeviceList();
     }
 
     // Set up the master interface
-    if ("master" in config) {
-        createMasterInterface();
+    if ("master" in config.config) {
+        master.createMasterInterface();
         ui.panels.master.style.display = "";
     }
 
@@ -225,7 +319,7 @@ var unpinUITimeout = null;
 
 /* Temporarily pin all flexible items to their current height, so things to
  * blink weirdly when we resize the window */
-function pinUI() {
+export function pinUI() {
     if (ui.manualSize)
         return;
 
@@ -241,7 +335,7 @@ function pinUI() {
 }
 
 // Unpin the UI
-function unpinUI() {
+export function unpinUI() {
     unpinUITimeout = null;
     Array.prototype.slice.call(ui.wrapper.children, 0).forEach(function(el) {
         el.style.height = "";
@@ -249,14 +343,14 @@ function unpinUI() {
 }
 
 // Re-adjust the flex elements of our UI and resize if needed
-function reflexUI() {
+export function reflexUI() {
     // Prepare to unpin the UI
     if (unpinUITimeout)
         clearTimeout(unpinUITimeout);
     unpinUITimeout = setTimeout(unpinUI, 100);
 
     // Possibly force the video to be visible
-    if (useRTC && maximized && ui.panels.chat.style.display === "none") {
+    if (config.useRTC && maximized && ui.panels.chat.style.display === "none") {
         ui.video.wrapper.style.display = "";
     } else {
         ui.video.wrapper.style.display = (ui.video.wanted?"":"none");
@@ -301,22 +395,22 @@ function resizeUI() {
 }
 
 // Update the video UI based on new information about this peer
-function updateVideoUI(peer, neww) {
+export function updateVideoUI(peer, neww) {
     var el = ui.video.els[peer], box = ui.video.boxes[peer];
     var pi, prevMajor = ui.video.major;
     var name = null;
     if (peer === 0)
-        name = username;
+        name = config.username;
     else if (ui.userList.names[peer])
         name = ui.userList.names[peer];
 
     pinUI();
 
-    if (neww) {
-        function rbg() {
-            return Math.round(Math.random()*0x4);
-        }
+    function rbg() {
+        return Math.round(Math.random()*0x4);
+    }
 
+    if (neww) {
         // Totally new peer, set up their videobox
         box = dce("div");
         box.style.position = "relative";
@@ -460,7 +554,7 @@ function updateVideoUI(peer, neww) {
 }
 
 // Toggle the visibility of a panel
-function togglePanel(panel, to) {
+export function togglePanel(panel, to?: boolean) {
     var el = ui.panels[panel];
     if (typeof to === "undefined")
         to = (el.style.display === "none");
@@ -503,7 +597,7 @@ function createMenu() {
     ui.userList.names = {};
 
     // Hide irrelevant buttons
-    if (!useRTC) {
+    if (!config.useRTC) {
         ["camera-devices", "record"].forEach(function(btn) {
             gebi("ecmenu-" + btn).style.display = "none";
         });
@@ -511,18 +605,18 @@ function createMenu() {
 
     // Mute has its own action
     var mute = ui.muteB = gebi("ecmenu-mute");
-    mute.onclick = function() { toggleMute(); }
+    mute.onclick = function() { audio.toggleMute(); }
 
     // Video recording has its own action
     var rec = gebi("ecmenu-record");
     ui.recordVideoButton = rec;
-    recordVideoButton();
+    videoRecord.recordVideoButton();
 }
 
 // Update the mute button
-function updateMuteButton() {
-    if (!userMedia) return;
-    if (userMedia.getAudioTracks()[0].enabled) {
+export function updateMuteButton() {
+    if (!audio.userMedia) return;
+    if (audio.userMedia.getAudioTracks()[0].enabled) {
         // It's unmuted
         ui.muteB.innerHTML = '<i class="fas fa-volume-up"></i>';
         ui.muteB.setAttribute("aria-label", "Mute");
@@ -549,7 +643,7 @@ function createUserList() {
 }
 
 // Add a user to the user list
-function userListAdd(idx, name) {
+export function userListAdd(idx, name) {
     ui.userList.names[idx] = name;
 
     // Create the node
@@ -616,8 +710,8 @@ function userListAdd(idx, name) {
         volStatus.innerHTML = "&nbsp;" + vol.value + "%";
 
         // Set it
-        rtcCompression.perUserVol[idx] = vol.value / 100;
-        compressorChanged();
+        compression.rtcCompression.perUserVol[idx] = vol.value / 100;
+        compression.compressorChanged();
     };
 
     // Get the saved value
@@ -632,16 +726,16 @@ function userListAdd(idx, name) {
 }
 
 // Remove a user from the user list
-function userListRemove(idx) {
+export function userListRemove(idx) {
     var el = ui.userList.els[idx];
     if (!el) return;
-    els[idx] = null;
+    ui.userList.els[idx] = null;
 
     el.parentNode.removeChild(el);
 }
 
 // Update the speaking status of an element in the user list
-function userListUpdate(idx, speaking) {
+export function userListUpdate(idx, speaking) {
     var el = ui.userList.els[idx];
     if (!el) return;
 
@@ -666,22 +760,22 @@ function createDeviceList() {
             ui.deviceList.ec.checked = JSON.parse(ecDef);
     }
 
-    if (!userMedia) {
+    if (!audio.userMedia) {
         // Wait until we can know what device we selected
-        userMediaAvailableEvent.addEventListener("usermediaready", createDeviceList, {once: true});
+        audio.userMediaAvailableEvent.addEventListener("usermediaready", createDeviceList, {once: true});
         return;
     }
 
     var sel = ui.deviceList.select;
     var selected = null;
     try {
-        selected = userMedia.getTracks()[0].getSettings().deviceId;
+        selected = audio.userMedia.getTracks()[0].getSettings().deviceId;
     } catch (ex) {}
 
     // When it's changed, reselect the mic
     sel.onchange = function() {
         togglePanel("audio-device", false);
-        getMic(sel.value);
+        audio.getMic(sel.value);
     };
 
     // Fill it with the available devices
@@ -706,14 +800,14 @@ function createDeviceList() {
     var pttb = ui.deviceList.pttb;
     if (typeof Ennuiboard !== "undefined" && Ennuiboard.supported.gamepad) {
         pttb.style.display = "";
-        pttb.onclick = userConfigurePTT;
+        pttb.onclick = ptt.userConfigurePTT;
     }
 
     // The selector for noise reduction
     var noiser = ui.deviceList.noiser;
-    noiser.checked = useNR;
+    noiser.checked = proc.useNR;
     noiser.onchange = function() {
-        userNR = noiser.checked;
+        proc.setUseNR(noiser.checked);
     };
 
     // And for echo cancellation, which resets the mic
@@ -729,27 +823,27 @@ function createDeviceList() {
                 localStorage.setItem("echo-cancellation", JSON.stringify(ec.checked));
 
             if (ec.checked) {
-                pushStatus("echo-cancellation", "WARNING: Digital echo cancellation is usually effective in cancelling echo, but will SEVERELY impact the quality of your audio. If possible, find a way to reduce echo physically.");
+                log.pushStatus("echo-cancellation", "WARNING: Digital echo cancellation is usually effective in cancelling echo, but will SEVERELY impact the quality of your audio. If possible, find a way to reduce echo physically.");
                 setTimeout(function() {
-                    popStatus("echo-cancellation");
+                    log.popStatus("echo-cancellation");
                 }, 10000);
             }
 
         }
 
         togglePanel("audio-device", false);
-        getMic(sel.value);
+        audio.getMic(sel.value);
     };
 
-    if (!useRTC)
+    if (!config.useRTC)
         ui.deviceList.optionsWrapper.style.display = "none";
 }
 
 // Create the video device list submenu
 function createVideoDeviceList() {
-    if (!userMedia) {
+    if (!audio.userMedia) {
         // Wait until we can know full names
-        userMediaAvailableEvent.addEventListener("usermediaready", createVideoDeviceList, {once: true});
+        audio.userMediaAvailableEvent.addEventListener("usermediaready", createVideoDeviceList, {once: true});
         return;
     }
 
@@ -762,7 +856,7 @@ function createVideoDeviceList() {
     // When it's changed, start video
     sel.onchange = function() {
         togglePanel("video-device", false);
-        getCamera(sel.value);
+        video.getCamera(sel.value);
     };
 
     // Add a pseudo-device so nothing is selected at first
@@ -796,9 +890,9 @@ function createVideoDeviceList() {
 
 // Create the output device list submenu
 function createOutputControlPanel() {
-    if (!userMedia) {
+    if (!audio.userMedia) {
         // Wait until we can know full names
-        userMediaAvailableEvent.addEventListener("usermediaready", createOutputControlPanel, {once: true});
+        audio.userMediaAvailableEvent.addEventListener("usermediaready", createOutputControlPanel, {once: true});
         return;
     }
 
@@ -847,11 +941,6 @@ function createOutputControlPanel() {
             sel.appendChild(opt);
         });
 
-        if (!hadOutputs) {
-            // This selector does nothing for us
-            odl.style.display = "none";
-        }
-
     }).catch(function() {}); // Nothing really to do here
 
     /*****
@@ -875,8 +964,8 @@ function createOutputControlPanel() {
         volStatus.innerHTML = "&nbsp;" + vol.value + "%";
 
         // Set it
-        rtcCompression.gain.volume = vol.value / 100;
-        compressorChanged();
+        compression.rtcCompression.gain.volume = vol.value / 100;
+        compression.compressorChanged();
     };
 
     // Get the saved value
@@ -921,12 +1010,12 @@ function createOutputControlPanel() {
     /*****
      * 4: Dynamic range compression (volume leveling)
      *****/
-    var compression = ui.outputControlPanel.compression;
+    var compCB = ui.outputControlPanel.compression;
 
     // Swap on or off compression
-    compression.onchange = function() {
-        var c = rtcCompression;
-        if (compression.checked) {
+    compCB.onchange = function() {
+        var c = compression.rtcCompression;
+        if (compCB.checked) {
             // 8-to-1 brings everything into 40-35dB, a 5dB range
             c.compressor.ratio = 8;
             c.gain.gain = null;
@@ -944,15 +1033,30 @@ function createOutputControlPanel() {
 
         // Remember the default
         if (typeof localStorage !== "undefined")
-            localStorage.setItem("dynamic-range-compression", compression.checked?"1":"0");
+            localStorage.setItem("dynamic-range-compression", compCB.checked?"1":"0");
     };
 
     // Get the saved default
     if (typeof localStorage !== "undefined") {
         var def = localStorage.getItem("dynamic-range-compression");
         if (def !== null)
-            compression.checked = !!~~def;
+            compCB.checked = !!~~def;
     }
-    compression.onchange();
+    compCB.onchange();
 
+}
+
+// Set the output device
+function setOutputDevice(deviceId) {
+    // Set it as the default
+    outputDeviceId = deviceId;
+
+    // Set it on all currently active outputs
+    var p = Promise.all([]);
+    ui.video.els.forEach(function(el) {
+        if (!el) return;
+        p = p.then(function() {
+            return el.setSinkId(deviceId);
+        });
+    });
 }
