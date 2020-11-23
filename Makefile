@@ -15,10 +15,10 @@ ennuicastr-test.min.js: src/*.ts node_modules/.bin/browserify
 	./src/build.js -m > $@
 
 protocol.min.js: protocol.js node_modules/.bin/minify
-	./node_modules/.bin/minify < $< | cat src/license.js - > $@
+	./node_modules/.bin/minify --js < $< | cat src/license.js - > $@
 
 hotkeys.min.js: hotkeys.js node_modules/.bin/minify
-	./node_modules/.bin/minify < $< | cat src/license.js - > $@
+	./node_modules/.bin/minify --js < $< | cat src/license.js - > $@
 
 node_modules/.bin/browserify:
 node_modules/.bin/minify:
