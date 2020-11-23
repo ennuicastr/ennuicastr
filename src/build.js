@@ -19,7 +19,8 @@ process.argv.slice(2).forEach((arg) => {
     }
 });
  
-process.stdout.write(fs.readFileSync("src/license.js", "utf8"));
+if (minify)
+    process.stdout.write(fs.readFileSync("src/license.js", "utf8"));
 browserify({standalone: "Ennuicastr"})
     .add("src/main.ts")
     .plugin(tsify, { noImplicitAny, files: [] })
