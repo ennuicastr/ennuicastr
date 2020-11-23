@@ -17,6 +17,19 @@
 // extern
 declare var LibAV: any, MediaRecorder: any, webkitAudioContext: any, WebRtcVad: any;
 
+/* We need an event target we can use. "usermediaready" fires when userMedia is
+ * ready. "usermediastopped" fires when it stops. "usermediavideoready" fires
+ * when video is ready. "spmediaready" fires when the media device that's
+ * processed through the ScriptProcessor is ready. */
+// FIXME: This is before all the imports because of some nasty dependencies
+export var userMediaAvailableEvent: EventTarget;
+try {
+    userMediaAvailableEvent = new EventTarget();
+} catch (ex) {
+    // No EventTarget
+    userMediaAvailableEvent = window;
+}
+
 import * as config from "./config";
 import * as log from "./log";
 import * as master from "./master";
@@ -85,18 +98,6 @@ var sentZeroes = 999;
  * transfer, to determine if anything's gone wrong */
 export var lastSentTime = 0;
 export function setLastSentTime(to) { lastSentTime = to; }
-
-/* We need an event target we can use. "usermediaready" fires when userMedia is
- * ready. "usermediastopped" fires when it stops. "usermediavideoready" fires
- * when video is ready. "spmediaready" fires when the media device that's
- * processed through the ScriptProcessor is ready. */
-export var userMediaAvailableEvent: EventTarget;
-try {
-    userMediaAvailableEvent = new EventTarget();
-} catch (ex) {
-    // No EventTarget
-    userMediaAvailableEvent = window;
-}
 
 // Features to use or not use
 var useLibAV = false;
@@ -235,7 +236,7 @@ function userMediaSet() {
 
         // Set up the VAD
         if (typeof WebRtcVad === "undefined") {
-            WebRtcVad = {
+            (<any> window).WebRtcVad = {
                 onRuntimeInitialized: proc.localProcessing
             };
             util.loadLibrary("vad/vad" + (wa?".wasm":"") + ".js");
@@ -278,7 +279,7 @@ export function loadLibAV(): Promise<unknown> {
     }
 
     if (typeof LibAV === "undefined")
-        LibAV = {};
+        (<any> window).LibAV = {};
     LibAV.base = "libav";
 
     return util.loadLibrary("libav/libav-" + libavVersion + "-webm-opus-flac.js").then(function() {

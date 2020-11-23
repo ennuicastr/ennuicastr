@@ -26,6 +26,7 @@ import * as master from "./master";
 import * as proc from "./proc";
 import * as ptt from "./ptt";
 import { dce, gebi } from "./util";
+import * as uiCode from "./uicode";
 import * as video from "./video";
 import * as videoRecord from "./video-record";
 
@@ -41,7 +42,7 @@ export var ui: any = {
     resizing: null,
 
     // The code for the entire UI
-    code: null,
+    code: uiCode.code,
 
     // The outermost wrapper
     wrapper: null,

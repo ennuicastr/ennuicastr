@@ -59,7 +59,7 @@ export function localProcessing() {
 
     if (typeof NoiseRepellent === "undefined") {
         // Load the library first
-        NoiseRepellent = {base: "noise-repellent"};
+        (<any> window).NoiseRepellent = {base: "noise-repellent"};
         util.loadLibrary("noise-repellent/noise-repellent-m.js").then(localProcessing);
         return;
     }
