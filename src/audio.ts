@@ -74,7 +74,8 @@ var blobs: Blob[] = [];
 var data: ArrayBuffer[] = [];
 
 // The Opus or FLAC packets to be handled. Format: [granulePos, data]
-var packets: any[] = [];
+type Packet = [number, DataView];
+var packets: Packet[] = [];
 
 // Opus zero packet, will be replaced with FLAC's version if needed
 var zeroPacket = new Uint8Array([0xF8, 0xFF, 0xFE]);
@@ -462,7 +463,7 @@ function libavProcess() {
 
     // Keep track of how much data we've received to see if it's too little
     var dataReceived = 0;
-    var pktCounter: any[] = [];
+    var pktCounter: [number, number][] = [];
     var tooLittle = inSampleRate * 0.9;
 
     // And if our latency is too high
@@ -750,7 +751,7 @@ function opusDemux(opusFrameDV: DataView) {
 
 // Handle input Ogg data, splitting Ogg packets so we can fine-tune the granule position
 function handleOggData(endTime: number) {
-    var splitPackets: any[] = [];
+    var splitPackets: Packet[] = [];
 
     // First split the data into separate packets
     while (true) {
@@ -906,7 +907,7 @@ function handlePackets() {
 }
 
 // Send an audio packet
-function sendPacket(granulePos: number, data: Uint8Array, vadVal: number) {
+function sendPacket(granulePos: number, data: {buffer: ArrayBuffer}, vadVal: number) {
     var p = prot.parts.data;
     var msg = new DataView(new ArrayBuffer(p.length + (config.useContinuous?1:0) + data.buffer.byteLength));
     msg.setUint32(0, prot.ids.data, true);
@@ -914,13 +915,13 @@ function sendPacket(granulePos: number, data: Uint8Array, vadVal: number) {
     msg.setUint16(p.granulePos + 4, (granulePos / 0x100000000) & 0xFFFF, true);
     if (config.useContinuous)
         msg.setUint8(p.packet, vadVal);
-    data = new Uint8Array(data.buffer);
-    (new Uint8Array(msg.buffer)).set(data, p.packet + (config.useContinuous?1:0));
+    var data8 = new Uint8Array(data.buffer);
+    (new Uint8Array(msg.buffer)).set(data8, p.packet + (config.useContinuous?1:0));
     net.dataSock.send(msg.buffer);
 }
 
 // Adjust the time for a packet, and adjust the time-adjustment parameters
-function adjustTime(packet: any) {
+function adjustTime(packet: Packet) {
     // Adjust our offsets
     if (net.targetTimeOffset > timeOffset) {
         if (net.targetTimeOffset > timeOffset + timeOffsetAdjPerFrame)
