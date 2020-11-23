@@ -27,10 +27,15 @@ import { dce } from "./util";
 import * as video from "./video";
 import * as videoRecord from "./video-record";
 
+type ECRTCPeerConnection = RTCPeerConnection & {
+    ecDataChannel: RTCDataChannel,
+    ecVideoRecord: WritableStreamDefaultWriter
+};
+
 // Our RTC peer connections
 export var rtcConnections = {
-    outgoing: <{[key: string]: RTCPeerConnection}> {},
-    incoming: <{[key: string]: RTCPeerConnection}> {},
+    outgoing: <{[key: string]: ECRTCPeerConnection}> {},
+    incoming: <{[key: string]: ECRTCPeerConnection}> {},
     videoRecHost: -1
 };
 
@@ -72,7 +77,7 @@ export function initRTC(peer, outgoing) {
     if (group[peer])
         group[peer].close();
 
-    var conn = group[peer] = <RTCPeerConnection & {ecDataChannel: RTCDataChannel}> new RTCPeerConnection({
+    var conn = group[peer] = <ECRTCPeerConnection> new RTCPeerConnection({
         iceServers: net.iceServers,
         iceTransportPolicy: "all"
     });
