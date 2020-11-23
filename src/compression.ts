@@ -20,6 +20,17 @@
 // extern
 declare var webkitAudioContext: any;
 
+interface Compressor {
+    ac: AudioContext;
+    inputStream: MediaStream;
+    input: MediaStreamAudioSourceNode;
+    compressor: DynamicsCompressorNode;
+    nullOutput: MediaStreamAudioDestinationNode;
+    compressedGain: number;
+    interval: null|number;
+    gain: GainNode;
+}
+
 /* For RTC, we apply compression. Those properties are here, along with a
  * callback for when they change. */
 export var rtcCompression = {
@@ -48,7 +59,7 @@ export var rtcCompression = {
 
         /* Direct gain to apply. Reset to null to force recalculation from
          * target. */
-        gain: null,
+        gain: <null|number> null,
 
         /* Target peak, based on compressor above. Reset gain to null to
          * recalculate. */
@@ -56,14 +67,14 @@ export var rtcCompression = {
     },
 
     // Per-user gain stage
-    perUserVol: {},
+    perUserVol: <{[key: number]: number}> {},
 
     // Our currently active compressors
-    compressors: []
+    compressors: <Compressor[]> []
 };
 
 // Create a compressor and gain node
-export function createCompressor(idx, ac, input) {
+export function createCompressor(idx: number, ac: AudioContext, input: MediaStream) {
     // Destroy any previous compressor
     var cur = rtcCompression.compressors[idx];
     if (cur)
@@ -73,7 +84,7 @@ export function createCompressor(idx, ac, input) {
     if (!rtcCompression.gain.gain)
         compressorCalculateGain();
 
-    var ret = {
+    var ret: Compressor = {
         ac: ac,
         inputStream: input,
         input: null,
@@ -94,8 +105,6 @@ export function createCompressor(idx, ac, input) {
         gain: null
     };
 
-    var c;
-
     // Create the input
     var i = ret.input = ac.createMediaStreamSource(input);
 
@@ -106,7 +115,7 @@ export function createCompressor(idx, ac, input) {
      * eager to increase it just because they're not talking. */
     var c = ret.compressor = ac.createDynamicsCompressor();
     for (var k in rtcCompression.compressor)
-        c[k].value = rtcCompression.compressor[k];
+        (<any> c)[k].value = (<any> rtcCompression.compressor)[k];
     i.connect(c);
 
     if (typeof webkitAudioContext === "undefined") {
@@ -192,7 +201,7 @@ export function createCompressor(idx, ac, input) {
 }
 
 // Destroy a compressor
-export function destroyCompressor(idx) {
+export function destroyCompressor(idx: number) {
     var com = rtcCompression.compressors[idx];
     if (!com)
         return;
@@ -251,7 +260,7 @@ export function compressorChanged() {
         var co = cs[idx];
         if (!co) return;
         for (var k in c)
-            co.compressor[k].setTargetAtTime(c[k], 0, 0.03);
+            (<any> co.compressor)[k].setTargetAtTime((<any> c)[k], 0, 0.03);
 
         if (typeof webkitAudioContext !== "undefined") {
             // Gain handled directly
