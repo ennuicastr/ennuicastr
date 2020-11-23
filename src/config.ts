@@ -30,7 +30,7 @@ export var url = new URL(<any> window.location);
 var params = new URLSearchParams(url.search);
 
 // Convert short-form configuration into long-form
-var shortForm = null;
+var shortForm: null|string = null;
 Array.from((<any> params).entries()).forEach(function(key: string) {
     key = key[0];
     if (/-/.test(key))
@@ -153,7 +153,7 @@ if (username === null || username === "") {
     html += "<input type=\"submit\" value=\"Join\" />";
     form.innerHTML = html;
 
-    form.onsubmit = function(ev) {
+    form.onsubmit = function(ev: Event) {
         // Try to do this in a new window
         var target = "?";
         for (var key in config)
@@ -208,7 +208,7 @@ const waveVADColorSets = {
 
 // And the current colors
 export var waveVADColors = waveVADColorSets.sv;
-export function setWaveVADColors(to) { waveVADColors = waveVADColorSets[to]; }
+export function setWaveVADColors(to: string) { waveVADColors = (<any> waveVADColorSets)[to]; }
 
 // If we're in continuous mode, we don't distinguish the degrees of VAD
 if (useContinuous) waveVADColors = waveVADColorSets.sc;

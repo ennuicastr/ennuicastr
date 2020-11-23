@@ -42,13 +42,13 @@ export var masterSock: WebSocket = null;
 // Global connection state
 export var connected = false;
 export var transmitting = false;
-export function setTransmitting(to) { transmitting = to; }
+export function setTransmitting(to: boolean) { transmitting = to; }
 
 // Our own ID
 export var selfId = 0;
 
 // The name of this recording, which may never be set
-export var recName = null;
+export var recName: null|string = null;
 
 // We connect assuming our mode is not-yet-recording
 export var mode = prot.mode.init;
@@ -61,7 +61,7 @@ export var iceServers = [
 ];
 
 // The delays on the pongs we've received back
-var pongs = [];
+var pongs: number[] = [];
 
 /* So that the time offset doesn't jump all over the place, we adjust it
  * *slowly*. This is the target time offset */
@@ -76,7 +76,7 @@ var flushTimeout: null|number = null;
 // Connect to the server (our first step)
 export function connect() {
     // Our connection message, which is largely the same for all three
-    var p, f, out, flags;
+    var p: any, f: any, out: DataView, flags: number;
 
     return Promise.all([]).then(function() {
         // (1) The ping socket
@@ -162,17 +162,17 @@ export function disconnect(ev?: Event) {
     var a = dce("a");
     var href = "?";
     for (var key in config)
-        href += key[0] + "=" + config[key].toString(36) + "&";
+        href += key[0] + "=" + (<any> config)[key].toString(36) + "&";
     href += "nm=" + encodeURIComponent(config.username);
     a.href = href;
     a.innerText = "Attempt reconnection";
     log.log.appendChild(a);
 
-    var target = null;
+    var target: Object = null;
     if (ev && ev.target)
         target = ev.target;
 
-    function close(sock) {
+    function close(sock: WebSocket): WebSocket {
         if (sock && sock !== target)
             sock.close();
         return null;
@@ -196,8 +196,8 @@ function ping() {
 }
 
 // Message from the ping socket
-function pingSockMsg(msg) {
-    msg = new DataView(msg.data);
+function pingSockMsg(ev: MessageEvent) {
+    var msg = new DataView(ev.data);
     var cmd = msg.getUint32(0, true);
 
     switch (cmd) {
@@ -235,8 +235,8 @@ function pingSockMsg(msg) {
 }
 
 // Message from the data socket
-function dataSockMsg(msg) {
-    msg = new DataView(msg.data);
+function dataSockMsg(ev: MessageEvent) {
+    var msg = new DataView(ev.data);
     var cmd = msg.getUint32(0, true);
 
     switch (cmd) {
@@ -360,7 +360,7 @@ function dataSockMsg(msg) {
             var p = prot.parts.rtc;
             var peer = msg.getUint32(p.peer, true);
             var type = msg.getUint32(p.type, true);
-            var conn, outgoing;
+            var conn: RTCPeerConnection, outgoing: boolean;
             if (type & 0x80000000) {
                 // For *their* outgoing connection
                 conn = rtc.rtcConnections.incoming[peer];
@@ -428,8 +428,8 @@ function dataSockMsg(msg) {
 }
 
 // Message from the master socket
-function masterSockMsg(msg) {
-    msg = new DataView(msg.data);
+function masterSockMsg(ev: MessageEvent) {
+    var msg = new DataView(ev.data);
     var cmd = msg.getUint32(0, true);
     var p;
 
@@ -519,7 +519,7 @@ function flushBuffers() {
 }
 
 // Generic phone-home error handler
-export function errorHandler(error) {
+export function errorHandler(error: any) {
     var errBuf = util.encodeText(error + "\n\n" + navigator.userAgent);
     var out = new DataView(new ArrayBuffer(4 + errBuf.length));
     out.setUint32(0, prot.ids.error, true);

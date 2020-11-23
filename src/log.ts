@@ -20,16 +20,16 @@ import * as util from "./util";
 export const log = util.gebi("log");
 
 // Current status messages
-var curStatus = {};
+var curStatus: {[key: string]: string} = {};
 
 // "Log" is really status (whoops), and in order to control that we keep a status index
-export function pushStatus(id, text) {
+export function pushStatus(id: string, text: string) {
     if (id in curStatus && curStatus[id] === text) return;
     curStatus[id] = text;
     updateStatus();
 }
 
-export function popStatus(id) {
+export function popStatus(id: string) {
     if (!(id in curStatus)) return;
     delete curStatus[id];
     updateStatus();

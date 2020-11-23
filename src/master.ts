@@ -160,7 +160,7 @@ export function configureMasterInterface() {
 }
 
 // Generic "send this mode change" function
-function masterSendMode(mode) {
+function masterSendMode(mode: number) {
     var p = prot.parts.mode;
     var out = new DataView(new ArrayBuffer(p.length));
     out.setUint32(0, prot.ids.mode, true);
@@ -258,7 +258,7 @@ export function masterUpdateCreditCost() {
 }
 
 // Convert a number of credits to dollars and cents
-function masterCreditsToDollars(c, creditCost) {
+function masterCreditsToDollars(c: number, creditCost: {currency: number, credits: number}) {
     c = Math.ceil(c * creditCost.currency / creditCost.credits);
 
     // Trivial cases
@@ -268,12 +268,12 @@ function masterCreditsToDollars(c, creditCost) {
         return c + "¢";
 
     var d = Math.floor(c / 100);
-    c = (c % 100)+"";
-    if (c === "0") {
+    var ce = (c % 100)+"";
+    if (ce === "0") {
         return "$" + d;
     } else {
-        if (c.length === 1) c = "0" + c;
-        return "$" + d + "." + c;
+        if (ce.length === 1) ce = "0" + ce;
+        return "$" + d + "." + ce;
     }
 }
 
@@ -311,7 +311,7 @@ export function updateMasterSpeech() {
             div.appendChild(span);
 
             // Admin buttons
-            let mkButton = function(i, act, txt, lbl) {
+            let mkButton = function(i: number, act: string, txt: string, lbl: string) {
                 var b = dce("button");
                 b.id = "ecmaster-" + act + "-" + nick;
                 b.title = txt + " " + nick;
@@ -362,7 +362,7 @@ export function updateMasterSpeech() {
 }
 
 // Add a soundboard button
-function addSoundButton(sid, url, name) {
+function addSoundButton(sid: string, url: string, name: string) {
     var masterUI = ui.ui.masterUI;
 
     if (sid in masterUI.sounds.buttons)
@@ -399,14 +399,14 @@ function addSoundButton(sid, url, name) {
 }
 
 // Add many soundboard buttons
-export function addSoundButtons(arr) {
+export function addSoundButtons(arr: {i: string, u: string, n: string}[]) {
     arr.forEach(function(s) {
         addSoundButton(s.i, s.u, s.n);
     });
 }
 
 // Request a sound be played or stopped
-function masterPlayStopSound(b, sid, play) {
+function masterPlayStopSound(b: HTMLButtonElement, sid: string, play: boolean) {
     b.disabled = true;
     b.classList.add("off");
     var p = prot.parts.sound.cs;
@@ -419,7 +419,7 @@ function masterPlayStopSound(b, sid, play) {
 }
 
 // Update the state of a playback button
-export function masterSoundButtonUpdate(url, play, el) {
+export function masterSoundButtonUpdate(url: string, play: unknown, el: HTMLAudioElement) {
     var masterUI = ui.ui.masterUI;
     var sid = masterUI.sounds.url2sid[url];
     if (!sid)
@@ -443,7 +443,7 @@ export function masterSoundButtonUpdate(url, play, el) {
 }
 
 // Admin actions
-function masterAdminAction(target, action) {
+function masterAdminAction(target: number, action: number) {
     var p = prot.parts.admin;
     var out = new DataView(new ArrayBuffer(p.length));
     out.setUint32(0, prot.ids.admin, true);

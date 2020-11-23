@@ -29,8 +29,8 @@ import * as videoRecord from "./video-record";
 
 // Our RTC peer connections
 export var rtcConnections = {
-    outgoing: {},
-    incoming: {},
+    outgoing: <{[key: string]: RTCPeerConnection}> {},
+    incoming: <{[key: string]: RTCPeerConnection}> {},
     videoRecHost: -1
 };
 
