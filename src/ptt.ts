@@ -30,7 +30,7 @@ export function loadPTT() {
 }
 
 // Configure push-to-talk based on the given hotkey
-function configurePTT(hotkey) {
+function configurePTT(hotkey: null|string) {
     ui.ui.ptt.enabled = !!hotkey;
     ui.ui.ptt.hotkey = hotkey;
 
@@ -59,7 +59,7 @@ function configurePTT(hotkey) {
 export function userConfigurePTT() {
     if (typeof ECHotkeys === "undefined")
         return;
-    return ECHotkeys.getUserKey().then(function(key) {
+    return ECHotkeys.getUserKey().then(function(key: {key: string}) {
         if (key) {
             if (/^eb:/.test(key.key))
                 configurePTT(key.key);
@@ -72,14 +72,14 @@ export function userConfigurePTT() {
 }
 
 // PTT key pressed
-function pttDown(ev) {
+function pttDown(ev: KeyboardEvent) {
     if (ev.key !== ui.ui.ptt.hotkey)
         return;
     audio.toggleMute(true);
 }
 
 // PTT key depressed
-function pttUp(ev) {
+function pttUp(ev: KeyboardEvent) {
     if (ev.key !== ui.ui.ptt.hotkey)
         return;
     audio.toggleMute(false);

@@ -19,7 +19,7 @@ import * as log from "./log";
 import * as ui from "./ui";
 
 // The video device being read
-export var userMediaVideo = null;
+export var userMediaVideo: MediaStream = null;
 
 // Called when there's a network disconnection
 export function disconnect() {

@@ -20,7 +20,7 @@
 // extern
 declare var webkitAudioContext: any;
 
-interface Compressor {
+export interface Compressor {
     ac: AudioContext;
     inputStream: MediaStream;
     input: MediaStreamAudioSourceNode;

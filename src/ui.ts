@@ -133,7 +133,7 @@ export function mkUI() {
     });
 
     // A generic function to handle fullscreen buttons
-    function fullscreen(el, btn) {
+    function fullscreen(el: HTMLElement, btn: HTMLButtonElement) {
         btn.innerHTML = '<i class="fas fa-expand"></i>';
 
         // Toggle based on what's fullscreen
@@ -153,7 +153,7 @@ export function mkUI() {
         });
 
         // But hide it when the mouse isn't in the right place
-        var timeout = null;
+        var timeout: null|number = null;
         el.style.cursor = "none";
         btn.style.display = "none";
         function mouseenter() {
@@ -239,7 +239,7 @@ export function mkUI() {
     eclog.appendChild(log.log);
 
     // Load all the panels
-    function panel(nm, auto?: string) {
+    function panel(nm: string, auto?: string) {
         var p = ui.panels[nm] = gebi("ec" + nm + "-wrapper");
         p.style.display = "none";
 
@@ -316,7 +316,7 @@ function checkMaximized() {
     }
 }
 
-var unpinUITimeout = null;
+var unpinUITimeout: null|number = null;
 
 /* Temporarily pin all flexible items to their current height, so things to
  * blink weirdly when we resize the window */
@@ -329,7 +329,7 @@ export function pinUI() {
         unpinUITimeout = null;
     }
 
-    Array.prototype.slice.call(ui.wrapper.children, 0).forEach(function(el) {
+    Array.prototype.slice.call(ui.wrapper.children, 0).forEach(function(el: HTMLElement) {
         if (el.style.display !== "none")
             el.style.height = getComputedStyle(el).height;
     });
@@ -338,7 +338,7 @@ export function pinUI() {
 // Unpin the UI
 export function unpinUI() {
     unpinUITimeout = null;
-    Array.prototype.slice.call(ui.wrapper.children, 0).forEach(function(el) {
+    Array.prototype.slice.call(ui.wrapper.children, 0).forEach(function(el: HTMLElement) {
         el.style.height = "";
     });
 }
@@ -396,7 +396,7 @@ function resizeUI() {
 }
 
 // Update the video UI based on new information about this peer
-export function updateVideoUI(peer, neww) {
+export function updateVideoUI(peer: number, neww: boolean) {
     var el = ui.video.els[peer], box = ui.video.boxes[peer];
     var pi, prevMajor = ui.video.major;
     var name = null;
@@ -555,7 +555,7 @@ export function updateVideoUI(peer, neww) {
 }
 
 // Toggle the visibility of a panel
-export function togglePanel(panel, to?: boolean) {
+export function togglePanel(panel: string, to?: boolean) {
     var el = ui.panels[panel];
     if (typeof to === "undefined")
         to = (el.style.display === "none");
@@ -579,8 +579,8 @@ export function togglePanel(panel, to?: boolean) {
 // Create the menu
 function createMenu() {
     // Most buttons open or close a panel
-    function toggleBtn(btn, panel) {
-        btn = gebi("ecmenu-" + btn);
+    function toggleBtn(btnId: string, panel: string) {
+        var btn = gebi("ecmenu-" + btnId);
         btn.onclick = function() {
             togglePanel(panel);
         };
@@ -644,7 +644,7 @@ function createUserList() {
 }
 
 // Add a user to the user list
-export function userListAdd(idx, name) {
+export function userListAdd(idx: number, name: string) {
     ui.userList.names[idx] = name;
 
     // Create the node
@@ -727,7 +727,7 @@ export function userListAdd(idx, name) {
 }
 
 // Remove a user from the user list
-export function userListRemove(idx) {
+export function userListRemove(idx: number) {
     var el = ui.userList.els[idx];
     if (!el) return;
     ui.userList.els[idx] = null;
@@ -736,7 +736,7 @@ export function userListRemove(idx) {
 }
 
 // Update the speaking status of an element in the user list
-export function userListUpdate(idx, speaking) {
+export function userListUpdate(idx: number, speaking: boolean) {
     var el = ui.userList.els[idx];
     if (!el) return;
 
@@ -768,7 +768,7 @@ function createDeviceList() {
     }
 
     var sel = ui.deviceList.select;
-    var selected = null;
+    var selected: null|string = null;
     try {
         selected = audio.userMedia.getTracks()[0].getSettings().deviceId;
     } catch (ex) {}
@@ -1048,13 +1048,13 @@ function createOutputControlPanel() {
 }
 
 // Set the output device
-function setOutputDevice(deviceId) {
+function setOutputDevice(deviceId: string) {
     // Set it as the default
     outputDeviceId = deviceId;
 
     // Set it on all currently active outputs
     var p = Promise.all([]);
-    ui.video.els.forEach(function(el) {
+    ui.video.els.forEach(function(el: any) {
         if (!el) return;
         p = p.then(function() {
             return el.setSinkId(deviceId);

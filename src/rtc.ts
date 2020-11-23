@@ -54,7 +54,7 @@ export function disconnect() {
 }
 
 // Send an RTC signaling message
-export function rtcSignal(peer, outgoing, type, value) {
+export function rtcSignal(peer: number, outgoing: boolean, type: number, value: unknown) {
     var buf = util.encodeText(JSON.stringify(value));
     var p = prot.parts.rtc;
     var out = new DataView(new ArrayBuffer(p.length + buf.length));
@@ -66,7 +66,7 @@ export function rtcSignal(peer, outgoing, type, value) {
 }
 
 // Initialize a connection to an RTC peer
-export function initRTC(peer, outgoing) {
+export function initRTC(peer: number, outgoing: boolean) {
     // Which set are we in?
     var group;
     if (outgoing)
@@ -81,7 +81,7 @@ export function initRTC(peer, outgoing) {
         iceServers: net.iceServers,
         iceTransportPolicy: "all"
     });
-    var videoEl = null, compressor = null;
+    var videoEl: HTMLVideoElement = null, compressor: compression.Compressor = null;
 
     conn.onicecandidate = function(c) {
         rtcSignal(peer, outgoing, prot.rtc.candidate, c.candidate);
@@ -202,8 +202,8 @@ export function initRTC(peer, outgoing) {
     // Remove any inactive tracks from the connection
     function removeTracks() {
         // Figure out which tracks should stay
-        var tracks = {};
-        function listTracks(from) {
+        var tracks: {[key: string]: boolean} = {};
+        function listTracks(from: MediaStream) {
             from.getTracks().forEach(function(track) {
                 tracks[track.id] = true;
             });
@@ -276,9 +276,9 @@ export function initRTC(peer, outgoing) {
 }
 
 // Close an RTC connection when a peer disconnects
-export function closeRTC(peer) {
+export function closeRTC(peer: number) {
     ["outgoing", "incoming"].forEach(function(group) {
-        var conn = rtcConnections[group][peer];
+        var conn: RTCPeerConnection = (<any> rtcConnections)[group][peer];
         if (!conn)
             return;
         conn.close();
@@ -287,7 +287,7 @@ export function closeRTC(peer) {
 }
 
 // Reassess the properties of the RTC element for this peer
-function reassessRTCEl(peer, hasTracks, hasVideo) {
+function reassessRTCEl(peer: number, hasTracks: boolean, hasVideo: boolean) {
     var el = ui.ui.video.els[peer];
     if (!el)
         return null;
@@ -306,7 +306,7 @@ function reassessRTCEl(peer, hasTracks, hasVideo) {
 }
 
 // Play an element used by RTC, once that's possible
-function playRTCEl(el) {
+function playRTCEl(el: HTMLVideoElement) {
     if (!audio.userMediaRTC) {
         /* Although our own UserMedia isn't technically needed to play, it's
          * needed to *auto*play on many platforms, so wait for it. */
@@ -320,7 +320,7 @@ function playRTCEl(el) {
 }
 
 // Receive a data channel message from an RTC peer
-function rtcMessage(peer, msg) {
+function rtcMessage(peer: number, msg: DataView) {
     if (msg.byteLength < 4) return;
     var cmd = msg.getUint32(0, true);
     console.log("Command " + cmd.toString(16) + " from " + peer);
@@ -401,7 +401,7 @@ function rtcMessage(peer, msg) {
 }
 
 // Send a speech message to every RTC peer, or a specific peer
-export function rtcSpeech(status, peer?: number) {
+export function rtcSpeech(status: boolean, peer?: number) {
     if (!config.useRTC) return;
 
     // Build the message
@@ -428,7 +428,7 @@ export function rtcSpeech(status, peer?: number) {
 }
 
 // Send an RTC video recording message
-export function rtcVideoRecSend(peer, cmd, payloadData?: any) {
+export function rtcVideoRecSend(peer: number, cmd: number, payloadData?: unknown) {
     if (!config.useRTC) return;
 
     // Build the payload
@@ -460,7 +460,7 @@ export function rtcVideoRecSend(peer, cmd, payloadData?: any) {
         return;
     }
 
-    for (peer in rtcConnections.outgoing) {
+    for (let peer in rtcConnections.outgoing) {
         try {
             rtcConnections.outgoing[peer].ecDataChannel.send(msg);
         } catch (ex) {}
@@ -468,7 +468,7 @@ export function rtcVideoRecSend(peer, cmd, payloadData?: any) {
 }
 
 // Send data to an RTC peer
-export function rtcDataSend(peer, buf) {
+export function rtcDataSend(peer: number, buf: Uint8Array) {
     var p = prot.parts.data;
 
     // Send 16k at a time
@@ -497,4 +497,4 @@ function rtcFail() {
         log.popStatus("rtc");
     }, 10000);
 }
-var rtcFailTimeout = null;
+var rtcFailTimeout: null|number = null;

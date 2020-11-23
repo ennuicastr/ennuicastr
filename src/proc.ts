@@ -42,12 +42,12 @@ export const vadExtension = 2000;
 const rtcVadExtension = 250;
 
 // The data used by both the level-based VAD and display
-var waveData = [];
-var waveVADs = [];
+var waveData: number[] = [];
+var waveVADs: number[] = [];
 
 // En/disable noise reduction
 export var useNR = false;
-export function setUseNR(to) { useNR = to; }
+export function setUseNR(to: boolean) { useNR = to; }
 
 // All local processing: The VAD, wave display, and noise reduction
 export function localProcessing() {
@@ -85,7 +85,7 @@ export function localProcessing() {
     var dataPtr = m.malloc(bufSz * 2);
     var buf = new Int16Array(m.heap.buffer, dataPtr, bufSz * 2);
     var bi = 0;
-    var timeout = null, rtcTimeout = null;
+    var timeout: null|number = null, rtcTimeout: null|number = null;
 
     /* WebRTC VAD is pretty finicky, so also keep track of volume as a
      * secondary gate */
@@ -96,9 +96,9 @@ export function localProcessing() {
 
 
     // Now the noise repellent steps
-    var nr = null;
+    var nr: any = null;
     if (config.useRTC) {
-        NoiseRepellent.NoiseRepellent(audio.ac.sampleRate).then(function(ret) {
+        NoiseRepellent.NoiseRepellent(audio.ac.sampleRate).then(function(ret: any) {
             nr = ret;
             nr.set(NoiseRepellent.N_ADAPTIVE, 1);
             nr.set(NoiseRepellent.AMOUNT, 20);
@@ -120,10 +120,10 @@ export function localProcessing() {
 
     // Create our script processor
     var spW = safariWorkarounds.createScriptProcessor(audio.ac, audio.userMedia, 1024);
-    var destination = spW.destination;
+    var destination: MediaStream = spW.destination;
     var sp = spW.scriptProcessor;
 
-    function rtcVad(to) {
+    function rtcVad(to: boolean) {
         destination.getTracks().forEach(function(track) {
             track.enabled = to;
         });
@@ -135,7 +135,7 @@ export function localProcessing() {
     audio.userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediartcready", {}));
 
     // The actual processing
-    sp.onaudioprocess = function(ev) {
+    sp.onaudioprocess = function(ev: AudioProcessingEvent) {
         if (typeof Ennuiboard !== "undefined" && Ennuiboard.enabled.gamepad)
             Ennuiboard.gamepad.poll();
 
@@ -308,7 +308,7 @@ function updateWaveRetroactive() {
 var e4 = Math.exp(4);
 
 // Update the wave display
-function updateWave(value) {
+function updateWave(value: number) {
     var wc = ui.ui.waveCanvas;
 
     // Display an issue if we haven't sent recently
@@ -382,7 +382,7 @@ function updateWave(value) {
     }
 
     // A function for drawing our level warning bars
-    function levelBar(at, color) {
+    function levelBar(at: number, color: string) {
         if (dh <= at) return;
         var y = Math.log(at/dh * e4) / 4 * h;
         ctx.fillStyle = color;
@@ -412,7 +412,7 @@ function updateWave(value) {
 }
 
 // Update speech info everywhere that needs it. peer===null is self
-export function updateSpeech(peer, status) {
+export function updateSpeech(peer: number, status: boolean) {
     // In video, to avoid races, peer 0 is us, not selfId
     var vpeer = peer;
 

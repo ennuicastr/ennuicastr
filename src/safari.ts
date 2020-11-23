@@ -20,7 +20,7 @@ declare var webkitAudioContext: any;
 import * as audio from "./audio";
 
 // Safari-specific workarounds for scriptProcessor
-export function createScriptProcessor(ac, ms, bufferSize) {
+export function createScriptProcessor(ac: AudioContext, ms: MediaStream, bufferSize: number) {
     if (typeof webkitAudioContext !== "undefined")
         return createSafariScriptProcessor(ac, ms, bufferSize);
 
@@ -44,7 +44,7 @@ export function createScriptProcessor(ac, ms, bufferSize) {
 }
 
 // Safari-specific
-function createSafariScriptProcessor(ac, ms, bufferSize) {
+function createSafariScriptProcessor(ac: any, ms: MediaStream, bufferSize: number) {
     /* Safari has major problems if you have more than one ScriptProcessor, so
      * we only allow one per MediaStream, and overload it. */
     if (!ac.ecSafariScriptProcessors)
@@ -54,7 +54,7 @@ function createSafariScriptProcessor(ac, ms, bufferSize) {
     if (!sp) {
         // Choose the older name if necessary
         var name = "createScriptProcessor";
-        if (!ac[name])
+        if (!(<any> ac)[name])
             name = "createJavaScriptNode";
 
         // Create our script processor with a compromise buffer size
@@ -65,8 +65,8 @@ function createSafariScriptProcessor(ac, ms, bufferSize) {
         sp.ecUsers = [];
 
         // And call all the users when we get data
-        sp.onaudioprocess = function(ev) {
-            sp.ecUsers.forEach(function(user) {
+        sp.onaudioprocess = function(ev: AudioProcessingEvent) {
+            sp.ecUsers.forEach(function(user: any) {
                 user.onaudioprocess(ev);
             });
         }
@@ -96,14 +96,5 @@ function createSafariScriptProcessor(ac, ms, bufferSize) {
     return {
         scriptProcessor: user,
         destination: sp.ecDestination.stream
-    };
-}
-
-// Safari-specific fake audio buffer
-function SafariFakeAudioBuffer(origBuffer, slice) {
-    return {
-        sampleRate: origBuffer.sampleRate,
-        numberOfChannels: 1,
-        getChannelData: function() { return slice; }
     };
 }
