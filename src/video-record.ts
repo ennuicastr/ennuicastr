@@ -36,10 +36,17 @@ export var recordVideoStop: any = null;
 
 // Function to call to verify remote willingness to accept video data
 export var recordVideoRemoteOK: any = null;
-var recordVideoRemoteOKTimeout = null;
+var recordVideoRemoteOKTimeout: null|number = null;
+
+interface RecordVideoOptions {
+    local?: boolean,
+    remote?: boolean,
+    remotePeer?: number,
+    localWriter?: WritableStreamDefaultWriter
+}
 
 // Record video
-function recordVideo(opts) {
+function recordVideo(opts: RecordVideoOptions) {
     recordVideoButton(true);
 
     // Choose a name
@@ -49,7 +56,8 @@ function recordVideo(opts) {
     filename += config.username + "-video.webm";
 
     // Create a write stream early, so it's in response to the button click
-    var localWriter = null, remoteWriter = null;
+    var localWriter: WritableStreamDefaultWriter = null,
+        remoteWriter: {write: (arg0:Uint8Array)=>void, close: ()=>void} = null;
     if (opts.local) {
         if (opts.localWriter) {
             localWriter = opts.localWriter;
@@ -68,7 +76,7 @@ function recordVideo(opts) {
             // Verify first!
             rtc.rtcVideoRecSend(rtc.rtcConnections.videoRecHost, prot.videoRec.startVideoRecReq);
 
-            recordVideoRemoteOK = function(peer) {
+            recordVideoRemoteOK = function(peer: number) {
                 opts.remotePeer = peer;
                 recordVideo(opts);
             };
@@ -113,14 +121,14 @@ function recordVideo(opts) {
     var videoSettings = video.userMediaVideo.getVideoTracks()[0].getSettings();
     var bitrate = videoSettings.height * 5000;
     var globalFrameTime = 1/videoSettings.frameRate * 1000;
-    var libav;
+    var libav: any;
 
     return audio.loadLibAV().then(function() {
         // Set up our forwarder in LibAV
         libav = audio.libav;
         if (!libav.onwrite) {
             libav.onwriteto = {};
-            libav.onwrite = function(name, pos, buf) {
+            libav.onwrite = function(name: string, pos: number, buf: Uint8Array) {
                 if (name in libav.onwriteto)
                     return libav.onwriteto[name](pos, buf);
                 else
@@ -137,7 +145,7 @@ function recordVideo(opts) {
 
         // And output
         transtate.written = 0;
-        libav.onwriteto[transtate.outF] = function(pos, buf) {
+        libav.onwriteto[transtate.outF] = function(pos: number, buf: Uint8Array) {
             if (pos !== transtate.written)
                 return; // Ignore patches
             buf = new Uint8Array(buf.buffer);
@@ -152,7 +160,7 @@ function recordVideo(opts) {
         transtate.startPromise.then(function() {
             return libav.ff_init_demuxer_file(transtate.inF);
 
-        }).then(function(ret) {
+        }).then(function(ret: any) {
             transtate.in_fmt_ctx = ret[0];
             var streams = transtate.in_streams = ret[1];
 
@@ -169,7 +177,7 @@ function recordVideo(opts) {
             transtate.in_stream = stream;
             return libav.ff_init_decoder(stream.codec_id);
 
-        }).then(function(ret) {
+        }).then(function(ret: any) {
             transtate.c = ret[1];
             transtate.pkt = ret[2];
             transtate.frame = ret[3];
@@ -180,8 +188,8 @@ function recordVideo(opts) {
             // Now read it in
             return new Promise(function(res, rej) {
                 function go() {
-                    var readState, packets, endTimeReal;
-                    return libav.ff_read_multi(transtate.in_fmt_ctx, transtate.pkt, transtate.inF).then(function(ret) {
+                    var readState: number, packets: any, endTimeReal: number;
+                    return libav.ff_read_multi(transtate.in_fmt_ctx, transtate.pkt, transtate.inF).then(function(ret: any) {
                         readState = ret[0];
                         if (readState !== 0 && readState !== -libav.EAGAIN && readState !== libav.AVERROR_EOF) {
                             // Weird error!
@@ -200,7 +208,7 @@ function recordVideo(opts) {
                                 // Initialize the muxer and output device
                                 return libav.ff_init_muxer({filename: transtate.outF, open: true, device: true},
                                     [[transtate.c, transtate.in_stream.time_base_num, transtate.in_stream.time_base_den]]);
-                            }).then(function(ret) {
+                            }).then(function(ret: any) {
                                 transtate.out_oc = ret[0];
                                 transtate.out_fmt = ret[1];
                                 transtate.out_pb = ret[2];
@@ -213,12 +221,12 @@ function recordVideo(opts) {
                         }
 
                     }).then(function() {
-                        function timeFrom(fromhi, from) {
+                        function timeFrom(fromhi: number, from: number) {
                             from += fromhi * 0x100000000;
                             return from * transtate.in_stream.time_base_num / transtate.in_stream.time_base_den * 1000;
                         }
 
-                        function timeTo(from) {
+                        function timeTo(from: number) {
                             var to = from * transtate.in_stream.time_base_den / transtate.in_stream.time_base_num / 1000;
                             return {
                                 hi: ~~(to / 0x100000000),
@@ -344,7 +352,7 @@ function recordVideo(opts) {
             if (remoteWriter)
                 remoteWriter.close();
 
-        }).catch(function(err) {
+        }).catch(function(err: any) {
             console.error(err);
 
         });
@@ -354,7 +362,7 @@ function recordVideo(opts) {
             mimeType: "video/webm; codecs=vp8",
             videoBitsPerSecond: bitrate
         });
-        mediaRecorder.addEventListener("dataavailable", function(chunk) {
+        mediaRecorder.addEventListener("dataavailable", function(chunk: {data: Blob}) {
             if (transtate.write) {
                 transtate.write(chunk.data);
                 if (transtate.read)
@@ -400,7 +408,7 @@ function recordVideo(opts) {
 }
 
 // Receive a remote video recording
-export function recordVideoRemoteIncoming(peer) {
+export function recordVideoRemoteIncoming(peer: number) {
     // Choose a name
     var filename = "";
     if (net.recName)
@@ -428,13 +436,13 @@ function recordVideoPanel() {
 }
 
 // Input handler for video recording
-function recordVideoInput(transtate) {
-    var buf;
+function recordVideoInput(transtate: any) {
+    var buf: Uint8Array;
     var libav = audio.libav;
 
     /* Create a promise for the start, because we have to buffer the header
      * before we can start real recording */
-    var startPromiseRes, startPromiseDone = false;
+    var startPromiseRes: any, startPromiseDone = false;
     var startSz = 0;
     transtate.startPromise = new Promise(function(res) {
         startPromiseRes = res;
@@ -447,7 +455,7 @@ function recordVideoInput(transtate) {
     var inputPromise = devicePromise;
 
     // Now create our input handler
-    transtate.write = function(blob) {
+    transtate.write = function(blob: Blob) {
         inputPromise = inputPromise.then(function() {
             // Convert to an ArrayBuffer
             if (blob)
@@ -455,7 +463,7 @@ function recordVideoInput(transtate) {
             else
                 return null;
 
-        }).then(function(sbuf) {
+        }).then(function(sbuf: ArrayBuffer) {
             // And then send it along
             if (sbuf)
                 buf = new Uint8Array(sbuf);
@@ -479,13 +487,12 @@ function recordVideoInput(transtate) {
 }
 
 // Write data to an RTC peer
-function recordVideoRemoteWrite(peer, buf) {
-    console.log("Sending " + buf.length);
+function recordVideoRemoteWrite(peer: number, buf: Uint8Array) {
     rtc.rtcDataSend(peer, buf);
 }
 
 // Stop sending video data to a peer
-function recordVideoRemoteClose(peer) {
+function recordVideoRemoteClose(peer: number) {
     rtc.rtcVideoRecSend(peer, prot.videoRec.endVideoRec);
 }
 
@@ -494,7 +501,7 @@ export function recordVideoButton(loading?: boolean) {
     var btn = ui.ui.recordVideoButton;
     if (!btn) return;
 
-    function disabled(to) {
+    function disabled(to: boolean) {
         btn.disabled = to;
         if (to)
             btn.classList.add("off");

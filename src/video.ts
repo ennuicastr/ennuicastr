@@ -32,7 +32,7 @@ export function disconnect() {
 }
 
 // Get a camera/video device
-export function getCamera(id) {
+export function getCamera(id: string) {
     return Promise.all([]).then(function() {
         // If we already have a video device, stop it first
         if (userMediaVideo) {

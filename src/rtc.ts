@@ -323,16 +323,12 @@ function playRTCEl(el: HTMLVideoElement) {
 function rtcMessage(peer: number, msg: DataView) {
     if (msg.byteLength < 4) return;
     var cmd = msg.getUint32(0, true);
-    console.log("Command " + cmd.toString(16) + " from " + peer);
 
     switch (cmd) {
         case prot.ids.data:
-            console.error("Received " + (msg.byteLength-4));
             try {
                 rtcConnections.incoming[peer].ecVideoRecord.write((new Uint8Array(msg.buffer)).subarray(4));
-            } catch (ex) {
-                console.error(ex);
-            }
+            } catch (ex) {}
             break;
 
         case prot.ids.speech:
@@ -391,9 +387,7 @@ function rtcMessage(peer: number, msg: DataView) {
                     try {
                         rtcConnections.incoming[peer].ecVideoRecord.close();
                         delete rtcConnections.incoming[peer].ecVideoRecord;
-                    } catch (ex) {
-                        console.error(ex);
-                    }
+                    } catch (ex) {}
                     break;
             }
             break;
@@ -477,13 +471,10 @@ export function rtcDataSend(peer: number, buf: Uint8Array) {
         var msg = new DataView(new ArrayBuffer(4 + part.length));
         msg.setUint32(0, prot.ids.data, true);
         new Uint8Array(msg.buffer).set(part, 4);
-        console.error("Actually sending " + msg.byteLength);
 
         try {
             rtcConnections.outgoing[peer].ecDataChannel.send(msg);
-        } catch (ex) {
-            console.error(ex);
-        }
+        } catch (ex) {}
     }
 }
 

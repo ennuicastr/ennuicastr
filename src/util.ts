@@ -18,7 +18,7 @@
 export const dce = document.createElement.bind(document);
 export const gebi = document.getElementById.bind(document);
 
-export function encodeText(text) {
+export function encodeText(text: string) {
     if (window.TextEncoder) {
         return new TextEncoder().encode(text);
     } else {
@@ -34,20 +34,20 @@ export function encodeText(text) {
     }
 }
 
-export function decodeText(text) {
+export function decodeText(text: ArrayBuffer) {
     if (window.TextDecoder) {
         return new TextDecoder("utf-8").decode(text);
     } else {
         var ret = "";
-        text = new Uint8Array(text);
-        for (var ni = 0; ni < text.length; ni++) {
-            ret += String.fromCharCode(text[ni]);
+        var t8 = new Uint8Array(text);
+        for (var ni = 0; ni < t8.length; ni++) {
+            ret += String.fromCharCode(t8[ni]);
         }
         return ret;
     }
 }
 
-export function bytesToRepr(x) {
+export function bytesToRepr(x: number) {
     var suffixes = ["B", "KiB", "MiB", "GiB"];
     while (suffixes.length > 1 && x >= 1024) {
         x /= 1024;
@@ -71,7 +71,7 @@ export function isWebAssemblySupported() {
 }
 
 // Generic library loader
-export function loadLibrary(name) {
+export function loadLibrary(name: string) {
     return new Promise(function(res, rej) {
         var scr = dce("script");
         scr.addEventListener("load", res);
