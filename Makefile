@@ -21,6 +21,8 @@ hotkeys.min.js: hotkeys.js node_modules/.bin/minify
 	./node_modules/.bin/minify --js < $< | cat src/license.js - > $@
 
 node_modules/.bin/browserify:
+	npm install
+
 node_modules/.bin/minify:
 	npm install
 
