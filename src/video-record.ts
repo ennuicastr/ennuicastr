@@ -31,6 +31,12 @@ import * as video from "./video";
 // Do we support MediaRecorder with VP8 output?
 const mediaRecorderVP8 = (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("video/webm; codecs=vp8"));
 
+// How about MPEG-4?
+const mediaRecorderMP4 = (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("video/mp4; codecs=avc1"));
+
+// The combination
+const mediaRecorderVideo = mediaRecorderVP8 || mediaRecorderMP4;
+
 // Function to stop the current video recording, or null if there is none
 export var recordVideoStop: any = null;
 
@@ -39,10 +45,32 @@ export var recordVideoRemoteOK: any = null;
 var recordVideoRemoteOKTimeout: null|number = null;
 
 interface RecordVideoOptions {
-    local?: boolean,
-    remote?: boolean,
-    remotePeer?: number,
-    localWriter?: WritableStreamDefaultWriter
+    local?: boolean;
+    remote?: boolean;
+    remotePeer?: number;
+    localWriter?: WritableStreamDefaultWriter;
+}
+
+interface TranscodeState {
+    format?: string;
+    bitrate?: number;
+    inF?: string;
+    outF?: string;
+    startPromise?: Promise<unknown>;
+    written?: number;
+    in_fmt_ctx?: number;
+    in_streams?: any[];
+    in_stream_idx?: number;
+    in_stream?: any;
+    c?: number;
+    pkt?: number;
+    frame?: number;
+    out_oc?: number;
+    out_fmt?: number;
+    out_pb?: number;
+    out_st?: number;
+    read?: (arg0:unknown)=>void;
+    write?: (arg0:Blob)=>void;
 }
 
 // Record video
@@ -117,11 +145,21 @@ function recordVideo(opts: RecordVideoOptions) {
     log.pushStatus("video-beta", "Video recording is an ALPHA feature in early testing.");
     setTimeout(function() { log.popStatus("video-beta"); }, 10000);
 
+    // Which format?
+    var format = "webm", outFormat = "webm";
+    var mimeType = "video/webm; codecs=vp8";
+    if (!mediaRecorderVP8) {
+        format = "mp4";
+        outFormat = "mkv";
+        mimeType = "video/mp4; codecs=avc1";
+    }
+
     // We decide the bitrate based on the height (FIXME: Configurability)
     var videoSettings = video.userMediaVideo.getVideoTracks()[0].getSettings();
     var bitrate = videoSettings.height * 5000;
     var globalFrameTime = 1/videoSettings.frameRate * 1000;
     var libav: any;
+    var transtate: TranscodeState = {};
 
     return audio.loadLibAV().then(function() {
         // Set up our forwarder in LibAV
@@ -138,11 +176,13 @@ function recordVideo(opts: RecordVideoOptions) {
 
     }).then(function() {
         // Create our LibAV input
-        var transtate: any = {};
-        transtate.inF = "in-" + Math.random() + ".webm";
-        transtate.outF = "out-" + Math.random() + ".webm";
-        recordVideoInput(transtate);
+        transtate.format = format;
+        transtate.bitrate = bitrate;
+        transtate.inF = "in-" + Math.random() + "." + format;
+        transtate.outF = "out-" + Math.random() + "." + outFormat;
+        return recordVideoInput(transtate);
 
+    }).then(function() {
         // And output
         transtate.written = 0;
         libav.onwriteto[transtate.outF] = function(pos: number, buf: Uint8Array) {
@@ -175,7 +215,7 @@ function recordVideo(opts: RecordVideoOptions) {
 
             transtate.in_stream_idx = si;
             transtate.in_stream = stream;
-            return libav.ff_init_decoder(stream.codec_id);
+            return libav.ff_init_decoder(stream.codec_id, stream.codecpar);
 
         }).then(function(ret: any) {
             transtate.c = ret[1];
@@ -313,11 +353,20 @@ function recordVideo(opts: RecordVideoOptions) {
                             }
 
                             // And write
+                            var wr = "";
+                            packets.forEach(packet => {
+                                var data = packet.data;
+                                packet.data = null;
+                                wr += "," + JSON.stringify(packet);
+                                packet.data = data;
+                            });
+                            log.pushStatus("mp4", "Pre-write-multi " + transtate.out_oc + " " + transtate.pkt);
                             return libav.ff_write_multi(transtate.out_oc, transtate.pkt, packets);
 
                         }
 
                     }).then(function() {
+                        log.pushStatus("mp4", "Post-write-multi " + readState);
                         // Continue or end
                         if (readState === libav.AVERROR_EOF)
                             res(void 0);
@@ -353,20 +402,21 @@ function recordVideo(opts: RecordVideoOptions) {
                 remoteWriter.close();
 
         }).catch(function(err: any) {
+            alert(err + "\n\n" + err.stack);
             console.error(err);
 
         });
 
         // MediaRecorder produces a WebM file, and we have to correct its timestamps
         var mediaRecorder = new MediaRecorder(video.userMediaVideo, {
-            mimeType: "video/webm; codecs=vp8",
+            mimeType: mimeType,
             videoBitsPerSecond: bitrate
         });
         mediaRecorder.addEventListener("dataavailable", function(chunk: {data: Blob}) {
             if (transtate.write) {
                 transtate.write(chunk.data);
                 if (transtate.read)
-                    transtate.read();
+                    transtate.read(void 0);
             }
         });
         mediaRecorder.addEventListener("stop", function() {
@@ -375,7 +425,7 @@ function recordVideo(opts: RecordVideoOptions) {
                 transtate.write = null;
 
                 if (transtate.read)
-                    transtate.read();
+                    transtate.read(void 0);
 
                 recordVideoStop = null;
                 recordVideoButton();
@@ -385,20 +435,15 @@ function recordVideo(opts: RecordVideoOptions) {
 
         // Set up a way to stop it
         recordVideoStop = function() {
-            // Stop writing the file immediately
-            if (localWriter)
-                localWriter.close();
-            if (remoteWriter)
-                remoteWriter.close();
-
             // And end the translation
             if (transtate.write) {
                 transtate.write(null);
                 transtate.write = null;
 
                 if (transtate.read)
-                    transtate.read();
+                    transtate.read(void 0);
             }
+            mediaRecorder.stop();
             recordVideoStop = null;
             recordVideoButton();
         };
@@ -436,54 +481,165 @@ function recordVideoPanel() {
 }
 
 // Input handler for video recording
-function recordVideoInput(transtate: any) {
-    var buf: Uint8Array;
+function recordVideoInput(transtate: TranscodeState) {
     var libav = audio.libav;
 
-    /* Create a promise for the start, because we have to buffer the header
-     * before we can start real recording */
-    var startPromiseRes: any, startPromiseDone = false;
-    var startSz = 0;
-    transtate.startPromise = new Promise(function(res) {
-        startPromiseRes = res;
-    });
+    return Promise.all([]).then(function() {
+        if (transtate.format === "mp4") {
+            /* Only MP4 is supported. We need one *complete* file to even start
+             * transcoding because the MOOV atom is in the wrong place. */
+            var mediaRecorder = new MediaRecorder(video.userMediaVideo, {
+                mimeType: "video/mp4; codecs=avc1",
+                videoBitsPerSecond: transtate.bitrate
+            });
+            var data = new Uint8Array(0);
+            var mp4PromiseRes, mp4PromiseRej, mp4Promise = new Promise(function(res, rej) {
+                mp4PromiseRes = res;
+                mp4PromiseRej = rej;
+            });
+            var p: Promise<unknown> = Promise.all([]);
+            mediaRecorder.addEventListener("dataavailable", function(chunk: {data: Blob}) {
+                p = p.then(function() {
+                    return chunk.data.arrayBuffer();
+                }).then(function(ab) {
+                    var chunk = new Uint8Array(ab);
+                    var newData = new Uint8Array(data.length + chunk.length);
+                    newData.set(data, 0);
+                    newData.set(chunk, data.length);
+                    var done = (data.length === 0);
+                    data = newData;
+                    if (done) {
+                        // We got all we need
+                        mediaRecorder.stop();
+                    }
+                }).catch(mp4PromiseRej);
+            });
+            mediaRecorder.addEventListener("stop", function() {
+                // Use this complete file to figure out the header for our eventual real file
+                var in_fmt_ctx, in_stream_idx, in_stream,
+                    c, pkt, frame;
 
-    // Create a promise for creating the input device
-    var devicePromise = libav.mkreaderdev(transtate.inF);
+                var tmpFile = transtate.inF + ".tmp.mp4";
 
-    // Create a promise so we can keep everything in order, starting with the device
-    var inputPromise = devicePromise;
+                p = p.then(function() {
+                    return libav.writeFile(tmpFile, data);
+                }).then(function() {
+                    return libav.ff_init_demuxer_file(tmpFile);
+                }).then(function(ret) {
+                    in_fmt_ctx = ret[0];
+                    var streams = ret[1];
 
-    // Now create our input handler
-    transtate.write = function(blob: Blob) {
-        inputPromise = inputPromise.then(function() {
-            // Convert to an ArrayBuffer
-            if (blob)
-                return blob.arrayBuffer();
-            else
-                return null;
+                    var si, stream;
+                    for (si = 0; si < streams.length; si++) {
+                        stream = streams[si];
+                        if (stream.codec_type === libav.AVMEDIA_TYPE_VIDEO)
+                            break;
+                    }
+                    if (si >= streams.length)
+                        throw new Error("MediaRecorder didn't produce a valid video file!");
 
-        }).then(function(sbuf: ArrayBuffer) {
-            // And then send it along
-            if (sbuf)
-                buf = new Uint8Array(sbuf);
-            else
-                buf = null;
-            return libav.ff_reader_dev_send(transtate.inF, buf);
+                    in_stream_idx = si;
+                    in_stream = stream;
+                    return libav.ff_init_decoder(stream.codec_id, stream.codecpar);
 
-        }).then(function() {
-            // Possibly wake up the transcoding
-            if (!startPromiseDone || !buf) {
-                if (buf)
-                    startSz += buf.length;
-                if (startSz >= 64 * 1024 || !buf) {
-                    startPromiseRes();
-                    startPromiseDone = true;
-                }
-            }
+                }).then(function(ret) {
+                    c = ret[1];
+                    pkt = ret[2];
+                    frame = ret[3];
+                    return libav.ff_read_multi(in_fmt_ctx, pkt);
 
+                }).then(function(ret: any) {
+                    // FIXME: Just assuming success here
+                    return libav.ff_decode_multi(c, pkt, frame, ret[1][in_stream_idx], true);
+
+                }).then(function() {
+                    // Now we have the codec info to create WebM's header
+                    return libav.ff_init_muxer({filename: transtate.outF, open: true, device: true},
+                        [[c, in_stream.time_base_num, in_stream.time_base_den]]);
+
+                }).then(function(ret) {
+                    transtate.out_oc = ret[0];
+                    transtate.out_fmt = ret[1];
+                    transtate.out_pb = ret[2];
+                    transtate.out_st = ret[3];
+
+                    // Write out the header
+                    return libav.avformat_write_header(transtate.out_oc, 0);
+
+                }).then(function() {
+                    // Clean up
+                    return Promise.all([
+                        libav.ff_free_decoder(c, pkt, frame),
+                        libav.avformat_close_input_js(in_fmt_ctx),
+                        libav.unlink(tmpFile)
+                    ]);
+
+                }).then(function() {
+                    // Now we can continue with the normal processing
+                    mp4PromiseRes();
+
+                }).catch(mp4PromiseRej);
+            });
+            mediaRecorder.start(200);
+
+            return mp4Promise;
+        }
+
+    }).then(function() {
+        /* Create a promise for the start, because we have to buffer the header
+         * before we can start real recording */
+        var startPromiseRes: any, startPromiseDone = false;
+        var startSz = 0;
+        var startPromise = new Promise(function(res) {
+            startPromiseRes = res;
         });
-    }
+
+        // Create a promise for creating the input device
+        var devicePromise = libav.mkreaderdev(transtate.inF);
+
+        // Create a promise so we can keep everything in order, starting with the device
+        var inputPromise = devicePromise;
+
+        // Now create our input handler
+        transtate.write = function(blob: Blob) {
+            var buf: Uint8Array;
+            inputPromise = inputPromise.then(function() {
+                // Convert to an ArrayBuffer
+                if (blob)
+                    return blob.arrayBuffer();
+                else
+                    return null;
+
+            }).then(function(sbuf: ArrayBuffer) {
+                // And then send it along
+                if (sbuf)
+                    buf = new Uint8Array(sbuf);
+                else
+                    buf = null;
+                if (buf === null)
+                    log.pushStatus("transtate end", "Transtate end");
+                return libav.ff_reader_dev_send(transtate.inF, buf);
+
+            }).then(function() {
+                // Possibly wake up the transcoding
+                if (!startPromiseDone || !buf) {
+                    if (buf)
+                        startSz += buf.length;
+                    if (startSz >= 64 * 1024 || !buf) {
+                        startPromiseRes();
+                        startPromiseDone = true;
+                    }
+                }
+
+            });
+        }
+
+        transtate.startPromise = startPromise;
+
+    }).catch(function(ex) {
+        alert(ex + "\n\n" + ex.stack);
+        throw ex;
+    });
 }
 
 // Write data to an RTC peer
@@ -528,7 +684,7 @@ export function recordVideoButton(loading?: boolean) {
     } else {
         // Not currently recording
         btn.innerHTML = start + '<i class="fas fa-circle"></i>';
-        if (mediaRecorderVP8 && video.userMediaVideo) {
+        if (mediaRecorderVideo && video.userMediaVideo) {
             // But we could be!
 
             // Make sure we've loaded StreamSaver

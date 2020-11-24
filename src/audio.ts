@@ -43,7 +43,7 @@ import * as util from "./util";
 import { dce } from "./util";
 
 // libav version to load
-const libavVersion = "2.0.4.3.1";
+const libavVersion = "2.2a.4.3.1";
 
 // The audio device being read
 export var userMedia: MediaStream = null;
@@ -283,8 +283,8 @@ export function loadLibAV(): Promise<unknown> {
         (<any> window).LibAV = {};
     LibAV.base = "libav";
 
-    return util.loadLibrary("libav/libav-" + libavVersion + "-webm-opus-flac.js").then(function() {
-        return LibAV.LibAV();
+    return util.loadLibrary("libav/libav-" + libavVersion + "-mediarecorder-transcoder.js").then(function() {
+        return LibAV.LibAV({nowasm: true});
 
     }).then(function(ret) {
         libav = ret;
