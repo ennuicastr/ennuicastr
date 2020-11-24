@@ -73,11 +73,20 @@ const fixedTimeBase = {
 function recordVideo(opts: RecordVideoOptions) {
     recordVideoButton(true);
 
+    // Which format?
+    var format = "webm", outFormat = "webm";
+    var mimeType = "video/webm; codecs=vp8";
+    if (!audio.mediaRecorderVP8) {
+        format = "mp4";
+        outFormat = "mkv";
+        mimeType = "video/mp4; codecs=avc1";
+    }
+
     // Choose a name
     var filename = "";
     if (net.recName)
         filename = net.recName + "-";
-    filename += config.username + "-video.webm";
+    filename += config.username + "-video." + outFormat;
 
     // Create a write stream early, so it's in response to the button click
     var localWriter: WritableStreamDefaultWriter = null,
@@ -98,7 +107,7 @@ function recordVideo(opts: RecordVideoOptions) {
     if (opts.remote) {
         if (!("remotePeer" in opts)) {
             // Verify first!
-            rtc.rtcVideoRecSend(rtc.rtcConnections.videoRecHost, prot.videoRec.startVideoRecReq);
+            rtc.rtcVideoRecSend(rtc.rtcConnections.videoRecHost, prot.videoRec.startVideoRecReq, {ext: outFormat});
 
             recordVideoRemoteOK = function(peer: number) {
                 opts.remotePeer = peer;
@@ -140,15 +149,6 @@ function recordVideo(opts: RecordVideoOptions) {
     // Make sure they know what's what
     log.pushStatus("video-beta", "Video recording is an ALPHA feature in early testing.");
     setTimeout(function() { log.popStatus("video-beta"); }, 10000);
-
-    // Which format?
-    var format = "webm", outFormat = "webm";
-    var mimeType = "video/webm; codecs=vp8";
-    if (!audio.mediaRecorderVP8) {
-        format = "mp4";
-        outFormat = "mkv";
-        mimeType = "video/mp4; codecs=avc1";
-    }
 
     // We decide the bitrate based on the height (FIXME: Configurability)
     var videoSettings = video.userMediaVideo.getVideoTracks()[0].getSettings();
@@ -447,7 +447,12 @@ function recordVideo(opts: RecordVideoOptions) {
 }
 
 // Receive a remote video recording
-export function recordVideoRemoteIncoming(peer: number) {
+export function recordVideoRemoteIncoming(peer: number, opts: any) {
+    // Handle remote options
+    var ext = "webm";
+    if (opts.ext === "mkv")
+        ext = "mkv";
+
     // Choose a name
     var filename = "";
     if (net.recName)
@@ -455,7 +460,7 @@ export function recordVideoRemoteIncoming(peer: number) {
     var remoteName = ui.ui.userList.names[peer];
     if (remoteName)
         filename += remoteName + "-";
-    filename += "video.webm";
+    filename += "video." + ext;
 
     // Create a write stream
     return loadStreamSaver().then(function() {

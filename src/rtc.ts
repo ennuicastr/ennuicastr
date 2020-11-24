@@ -363,7 +363,15 @@ function rtcMessage(peer: number, msg: DataView) {
                         ui.ui.masterUI.acceptRemoteVideo.checked &&
                         rtcConnections.incoming[peer]) {
 
-                        videoRecord.recordVideoRemoteIncoming(peer).then(function(fileWriter) {
+                        // Check for options
+                        var opts = {};
+                        if (msg.byteLength > p.length) {
+                            try {
+                                opts = JSON.parse(util.decodeText(new Uint8Array(msg.buffer).subarray(p.length)));
+                            } catch (ex) {}
+                        }
+
+                        videoRecord.recordVideoRemoteIncoming(peer, opts).then(function(fileWriter) {
                             rtcVideoRecSend(peer, prot.videoRec.startVideoRecRes, 1);
                             if (rtcConnections.incoming[peer])
                                 rtcConnections.incoming[peer].ecVideoRecord = fileWriter;
@@ -432,7 +440,7 @@ export function rtcVideoRecSend(peer: number, cmd: number, payloadData?: unknown
         payload.setUint32(0, payloadData, true);
 
     } else if (typeof payloadData === "object") {
-        payload = util.encodeText(JSON.stringify(payload));
+        payload = util.encodeText(JSON.stringify(payloadData));
 
     } else {
         payload = new Uint8Array(0);
