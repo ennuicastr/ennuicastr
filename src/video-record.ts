@@ -64,6 +64,11 @@ interface TranscodeState {
     write?: (arg0:Blob)=>void;
 }
 
+const fixedTimeBase = {
+    num: 1,
+    den: 1000
+};
+
 // Record video
 function recordVideo(opts: RecordVideoOptions) {
     recordVideoButton(true);
@@ -238,7 +243,7 @@ function recordVideo(opts: RecordVideoOptions) {
                             return libav.ff_decode_multi(transtate.c, transtate.pkt, transtate.frame, packets, true).then(function() {
                                 // Initialize the muxer and output device
                                 return libav.ff_init_muxer({filename: transtate.outF, open: true, device: true},
-                                    [[transtate.c, transtate.in_stream.time_base_num, transtate.in_stream.time_base_den]]);
+                                    [[transtate.c, fixedTimeBase.num, fixedTimeBase.den]]);
                             }).then(function(ret: any) {
                                 transtate.out_oc = ret[0];
                                 transtate.out_fmt = ret[1];
@@ -258,7 +263,7 @@ function recordVideo(opts: RecordVideoOptions) {
                         }
 
                         function timeTo(from: number) {
-                            var to = from * transtate.in_stream.time_base_den / transtate.in_stream.time_base_num / 1000;
+                            var to = from * fixedTimeBase.den / fixedTimeBase.num / 1000;
                             return {
                                 hi: ~~(to / 0x100000000),
                                 lo: ~~(to % 0x100000000)
@@ -544,7 +549,7 @@ function recordVideoInput(transtate: TranscodeState) {
                 }).then(function() {
                     // Now we have the codec info to create WebM's header
                     return libav.ff_init_muxer({filename: transtate.outF, open: true, device: true},
-                        [[c, in_stream.time_base_num, in_stream.time_base_den]]);
+                        [[c, fixedTimeBase.num, fixedTimeBase.den]]);
 
                 }).then(function(ret) {
                     transtate.out_oc = ret[0];
