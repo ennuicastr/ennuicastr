@@ -133,6 +133,7 @@ function recordVideo(opts: RecordVideoOptions) {
                 write: function(chunk) { recordVideoRemoteWrite(opts.remotePeer, chunk); },
                 close: function() {
                     this.write = function() {};
+                    this.close = function() {};
                     recordVideoRemoteClose(opts.remotePeer);
                 }
             };
@@ -224,6 +225,7 @@ function recordVideo(opts: RecordVideoOptions) {
             // Now read it in
             return new Promise(function(res, rej) {
                 function go() {
+                    var againPromise = new Promise(function(res) { transtate.read = res; });
                     var readState: number, packets: any, endTimeReal: number;
                     return libav.ff_read_multi(transtate.in_fmt_ctx, transtate.pkt, transtate.inF).then(function(ret: any) {
                         readState = ret[0];
@@ -365,7 +367,7 @@ function recordVideo(opts: RecordVideoOptions) {
                         if (readState === libav.AVERROR_EOF)
                             res(void 0);
                         else if (readState === -libav.EAGAIN && packets.length === 0)
-                            new Promise(function(res) { transtate.read = res; }).then(go);
+                            againPromise.then(go);
                         else
                             go();
 
@@ -407,20 +409,13 @@ function recordVideo(opts: RecordVideoOptions) {
             videoBitsPerSecond: bitrate
         });
         mediaRecorder.addEventListener("dataavailable", function(chunk: {data: Blob}) {
-            if (transtate.write) {
+            if (transtate.write)
                 transtate.write(chunk.data);
-                if (transtate.read)
-                    transtate.read(void 0);
-            }
         });
         mediaRecorder.addEventListener("stop", function() {
             if (transtate.write) {
                 transtate.write(null);
                 transtate.write = null;
-
-                if (transtate.read)
-                    transtate.read(void 0);
-
                 recordVideoStop = null;
                 recordVideoButton();
             }
@@ -433,9 +428,6 @@ function recordVideo(opts: RecordVideoOptions) {
             if (transtate.write) {
                 transtate.write(null);
                 transtate.write = null;
-
-                if (transtate.read)
-                    transtate.read(void 0);
             }
             mediaRecorder.stop();
             recordVideoStop = null;
@@ -627,6 +619,8 @@ function recordVideoInput(transtate: TranscodeState) {
                         startPromiseDone = true;
                     }
                 }
+                if (transtate.read)
+                    transtate.read(void 0);
 
             });
         }
