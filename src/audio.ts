@@ -43,7 +43,23 @@ import * as util from "./util";
 import { dce } from "./util";
 
 // libav version to load
-const libavVersion = "2.2a.4.3.1";
+const libavVersion = "2.2.4.3.1";
+
+/* Although it has nothing to do with audio, we check some MediaRecord
+ * capabilities here since it affects what version of libav we load */
+
+// Do we support MediaRecorder with VP8 output?
+export const mediaRecorderVP8 = (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("video/webm; codecs=vp8"));
+
+// How about MPEG-4?
+export const mediaRecorderMP4 = (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("video/mp4; codecs=avc1"));
+
+// The combination
+export const mediaRecorderVideo = mediaRecorderVP8 || mediaRecorderMP4;
+
+// Which libav package to load
+const libavPackage =
+    (mediaRecorderMP4 && !mediaRecorderVP8) ? "mediarecorder-transcoder" : "webm-opus-flac";
 
 // The audio device being read
 export var userMedia: MediaStream = null;
@@ -283,7 +299,7 @@ export function loadLibAV(): Promise<unknown> {
         (<any> window).LibAV = {};
     LibAV.base = "libav";
 
-    return util.loadLibrary("libav/libav-" + libavVersion + "-mediarecorder-transcoder.js").then(function() {
+    return util.loadLibrary("libav/libav-" + libavVersion + "-" + libavPackage + ".js").then(function() {
         return LibAV.LibAV({nowasm: true});
 
     }).then(function(ret) {

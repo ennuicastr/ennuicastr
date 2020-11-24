@@ -28,15 +28,6 @@ import * as util from "./util";
 import { gebi } from "./util";
 import * as video from "./video";
 
-// Do we support MediaRecorder with VP8 output?
-const mediaRecorderVP8 = (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("video/webm; codecs=vp8"));
-
-// How about MPEG-4?
-const mediaRecorderMP4 = (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("video/mp4; codecs=avc1"));
-
-// The combination
-const mediaRecorderVideo = mediaRecorderVP8 || mediaRecorderMP4;
-
 // Function to stop the current video recording, or null if there is none
 export var recordVideoStop: any = null;
 
@@ -148,7 +139,7 @@ function recordVideo(opts: RecordVideoOptions) {
     // Which format?
     var format = "webm", outFormat = "webm";
     var mimeType = "video/webm; codecs=vp8";
-    if (!mediaRecorderVP8) {
+    if (!audio.mediaRecorderVP8) {
         format = "mp4";
         outFormat = "mkv";
         mimeType = "video/mp4; codecs=avc1";
@@ -360,13 +351,11 @@ function recordVideo(opts: RecordVideoOptions) {
                                 wr += "," + JSON.stringify(packet);
                                 packet.data = data;
                             });
-                            log.pushStatus("mp4", "Pre-write-multi " + transtate.out_oc + " " + transtate.pkt);
                             return libav.ff_write_multi(transtate.out_oc, transtate.pkt, packets);
 
                         }
 
                     }).then(function() {
-                        log.pushStatus("mp4", "Post-write-multi " + readState);
                         // Continue or end
                         if (readState === libav.AVERROR_EOF)
                             res(void 0);
@@ -616,8 +605,6 @@ function recordVideoInput(transtate: TranscodeState) {
                     buf = new Uint8Array(sbuf);
                 else
                     buf = null;
-                if (buf === null)
-                    log.pushStatus("transtate end", "Transtate end");
                 return libav.ff_reader_dev_send(transtate.inF, buf);
 
             }).then(function() {
@@ -684,7 +671,7 @@ export function recordVideoButton(loading?: boolean) {
     } else {
         // Not currently recording
         btn.innerHTML = start + '<i class="fas fa-circle"></i>';
-        if (mediaRecorderVideo && video.userMediaVideo) {
+        if (audio.mediaRecorderVideo && video.userMediaVideo) {
             // But we could be!
 
             // Make sure we've loaded StreamSaver
