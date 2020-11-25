@@ -120,11 +120,18 @@ export const ui = {
 
     // The user list and voice status
     userList: {
+        // Main wrapper for the userlist
         wrapper: <HTMLElement> null,
+
+        // Userlist button (hidden if it's not public)
         button: <HTMLButtonElement> null,
-        left: <HTMLElement> null,
-        right: <HTMLElement> null,
-        els: <HTMLElement[]> [],
+
+        // Individual user wrappers
+        userWrappers: <HTMLElement[]> [],
+
+        // Individual user labels
+        userLabels: <HTMLElement[]> [],
+
         names: <{
             [index: string]: string
         }> {}
@@ -828,49 +835,62 @@ function createUserList() {
     // All we care about is the left and right halves
     ui.userList.wrapper = gebi("ecuser-list-wrapper");
 
+/*
     // Fill in the UI with any elements we already have
     for (var i = 0; i < ui.userList.els.length; i++) {
         var el = ui.userList.els[i];
         if (el)
             userListAdd(i, el.innerText);
     }
+    */
 }
 
 // Add a user to the user list
 export function userListAdd(idx: number, name: string) {
     ui.userList.names[idx] = name;
-
-    // Create the node
-    var els = ui.userList.els;
-    while (els.length <= idx)
-        els.push(null);
-    var el = els[idx];
-    if (!el) {
-        el = els[idx] = dce("div");
-        el.style.paddingLeft = "0.25em";
-        el.style.backgroundColor = "#000";
-    }
-    el.innerText = name;
-    el.setAttribute("aria-label", name + ": Not speaking");
-
-    if (!ui.userList.wrapper) return;
     ui.userList.button.style.display = "";
 
-    /* It goes like this: <span halfspan-left><el></span><span
-     * halfspan-right><volume></span> */
+    // Create the surrounding wrapper
+    var wrappers = ui.userList.userWrappers;
+    var els = ui.userList.userLabels;
+    while (wrappers.length <= idx) {
+        wrappers.push(null);
+        els.push(null);
+    }
+    var el = els[idx];
+
+    if (el) {
+        // Just update the name
+        el.innerText = name;
+        el.setAttribute("aria-label", name + ": Not speaking");
+        return;
+
+    }
+
+    /* It goes like this:
+     * <span wrapper><span halfspan-left><label></span><span halfspan-right><volume></span>
+     */
+    var wrapper = wrappers[idx] = dce("div");
+    ui.userList.wrapper.appendChild(wrapper);
+
     var left = dce("span");
     left.classList.add("halfspan");
     left.classList.add("halfspan-left");
-    ui.userList.wrapper.appendChild(left);
+    wrapper.appendChild(left);
+
+    el = els[idx] = dce("div");
+    el.style.paddingLeft = "0.25em";
+    el.style.backgroundColor = "#000";
+    el.innerText = name;
+    el.setAttribute("aria-label", name + ": Not speaking");
+    left.appendChild(el);
+
     var right = dce("span");
     right.classList.add("halfspan");
     right.classList.add("halfspan-right");
-    ui.userList.wrapper.appendChild(right);
+    wrapper.appendChild(right);
 
-    // Left: The name
-    left.appendChild(el);
-
-    // Right: Volume control
+    // Volume control
     var voldiv = dce("div");
     voldiv.classList.add("rflex");
     right.appendChild(voldiv);
@@ -921,16 +941,17 @@ export function userListAdd(idx: number, name: string) {
 
 // Remove a user from the user list
 export function userListRemove(idx: number) {
-    var el = ui.userList.els[idx];
-    if (!el) return;
-    ui.userList.els[idx] = null;
+    var wrapper = ui.userList.userWrappers[idx];
+    if (!wrapper) return;
+    ui.userList.userWrappers[idx] =
+        ui.userList.userLabels[idx] = null;
 
-    el.parentNode.removeChild(el);
+    wrapper.parentNode.removeChild(wrapper);
 }
 
 // Update the speaking status of an element in the user list
 export function userListUpdate(idx: number, speaking: boolean) {
-    var el = ui.userList.els[idx];
+    var el = ui.userList.userLabels[idx];
     if (!el) return;
 
     el.style.backgroundColor = speaking?"#2b552b":"#000";
