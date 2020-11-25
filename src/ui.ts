@@ -258,7 +258,7 @@ export function mkUI() {
     createMenu();
 
     // Set up the video UI
-    updateVideoUI(0, true);
+    updateVideoUI(0);
 
     // The chat box
     chat.createChatBox();
@@ -396,7 +396,7 @@ function resizeUI() {
 }
 
 // Update the video UI based on new information about this peer
-export function updateVideoUI(peer: number, neww: boolean) {
+export function updateVideoUI(peer: number) {
     var el = ui.video.els[peer], box = ui.video.boxes[peer];
     var pi, prevMajor = ui.video.major;
     var name = null;
@@ -411,7 +411,7 @@ export function updateVideoUI(peer: number, neww: boolean) {
         return Math.round(Math.random()*0x4);
     }
 
-    if (neww) {
+    if (el && !box) {
         // Totally new peer, set up their videobox
         box = dce("div");
         box.style.position = "relative";
@@ -436,9 +436,8 @@ export function updateVideoUI(peer: number, neww: boolean) {
             if (ui.video.selected === peer)
                 ui.video.selected = -1;
             else
-                ui.video.selected =
-                    peer;
-            updateVideoUI(peer, false);
+                ui.video.selected = peer;
+            updateVideoUI(peer);
         };
 
         // And add their personal label
@@ -448,6 +447,16 @@ export function updateVideoUI(peer: number, neww: boolean) {
             nspan.innerText = name;
             box.appendChild(nspan);
         }
+
+    } else if (!el) {
+        // The user is totally gone
+        if (box) {
+            try {
+                box.parentNode.removeChild(box);
+            } catch (ex) {}
+        }
+        box = ui.video.boxes[peer] = null;
+
     }
 
     /* We'll only display the video at all if *somebody* has video or we're
@@ -491,7 +500,7 @@ export function updateVideoUI(peer: number, neww: boolean) {
         var speech = ui.video.speech;
         var earliest = 0;
         for (pi = 1; pi < ui.video.els.length; pi++) {
-            if (pi in speech && (earliest === 0 || speech[pi] < speech[earliest]))
+            if (pi in speech && ui.video.els[pi] && (earliest === 0 || speech[pi] < speech[earliest]))
                 earliest = pi;
         }
         if (earliest !== 0)

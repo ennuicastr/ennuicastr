@@ -84,12 +84,14 @@ export function initRTC(peer: number, outgoing: boolean) {
     var videoEl: HTMLVideoElement = null, compressor: compression.Compressor = null;
 
     conn.onicecandidate = function(c) {
+        if (group[peer] !== conn) return;
         rtcSignal(peer, outgoing, prot.rtc.candidate, c.candidate);
     };
 
     // Called when we get a new track
     if (!outgoing)
     conn.ontrack = function(ev) {
+        if (group[peer] !== conn) return;
         // If we haven't yet approved audio, then we're not ready for this track
         if (!audio.userMediaRTC) {
             audio.userMediaAvailableEvent.addEventListener("usermediartcready", function() {
@@ -105,17 +107,6 @@ export function initRTC(peer: number, outgoing: boolean) {
 
         if (!stream) return;
 
-        // Check for a new stream
-        if (compressor && compressor.inputStream !== stream) {
-            // New stream for this user
-            compression.destroyCompressor(peer);
-            compressor = null;
-        }
-
-        // Make the compressor
-        if (!compressor)
-            compressor = compression.createCompressor(peer, audio.ac, stream);
-
         // Remove any existing tracks of the same kind
         stream.getTracks().forEach(function(otrack) {
             if (track !== otrack && track.kind === otrack.kind)
@@ -124,50 +115,37 @@ export function initRTC(peer: number, outgoing: boolean) {
 
         // Prepare for tracks to end
         stream.onremovetrack = function() {
-            videoEl.srcObject = stream;
-            playRTCEl(videoEl);
+            if (group[peer] !== conn) return;
             videoEl = reassessRTCEl(peer, !!stream.getTracks().length, !!stream.getVideoTracks().length);
         };
 
-        if (videoEl) {
-            // Reset the stream
-            videoEl.srcObject = stream;
-            playRTCEl(videoEl);
-
-            // Remember if it's a video track
-            if (isVideo && !ui.ui.video.hasVideo[peer]) {
-                ui.ui.video.hasVideo[peer] = true;
-                ui.updateVideoUI(peer, false);
-            }
-            return;
+        // Get our video element (even if there is no video)
+        videoEl = reassessRTCEl(peer, true, !!stream.getVideoTracks().length);
+        if (videoEl.srcObject !== null && videoEl.srcObject !== stream) {
+            reassessRTCEl(peer, false, false);
+            videoEl = reassessRTCEl(peer, false, !!stream.getVideoTracks().length);
         }
-
-        /* We have a separate video and audio element so that the audio can
-         * reliably go through AudioContext while the video is used directly. */
-
-        // Create the video element
-        videoEl = dce("video");
-        videoEl.height = 0; // Use CSS for sizing
-        videoEl.muted = true; // In the audio element
-        videoEl.style.maxWidth = "100%";
         videoEl.srcObject = stream;
+        videoEl.play().catch(console.error);
 
-        // Add it to the UI
-        var els = ui.ui.video.els;
-        var hasVideo = ui.ui.video.hasVideo;
-        while (els.length <= peer) {
-            els.push(null);
-            hasVideo.push(false);
+        if (!isVideo) {
+            // Audio streams go through a compressor
+
+            // Check for a new stream
+            if (compressor /* && compressor.inputStream !== stream*/) {
+                // New stream for this user
+                compression.destroyCompressor(peer);
+                compressor = null;
+            }
+
+            // Make the compressor
+            if (!compressor)
+                compressor = compression.createCompressor(peer, audio.ac, stream);
         }
-        els[peer] = videoEl;
-        hasVideo[peer] = isVideo;
-        ui.updateVideoUI(peer, true);
-
-        // Then play it
-        playRTCEl(videoEl);
     };
 
     conn.oniceconnectionstatechange = function(ev) {
+        if (group[peer] !== conn) return;
         switch (conn.iceConnectionState) {
             case "failed":
                 // report the failure
@@ -243,6 +221,7 @@ export function initRTC(peer: number, outgoing: boolean) {
         var chan = conn.ecDataChannel = conn.createDataChannel("ennuicastr");
         chan.binaryType = "arraybuffer";
         chan.onopen = function() {
+            if (group[peer] !== conn) return;
             rtcSpeech(proc.vadOn, peer);
             if ("master" in config.config)
                 rtcVideoRecSend(void 0, prot.videoRec.videoRecHost, ~~ui.ui.masterUI.acceptRemoteVideo.checked);
@@ -250,6 +229,7 @@ export function initRTC(peer: number, outgoing: boolean) {
 
     } else {
         conn.ondatachannel = function(ev) {
+            if (group[peer] !== conn) return;
             ev.channel.binaryType = "arraybuffer";
             ev.channel.onmessage = function(ev) {
                 var msg = new DataView(ev.data);
@@ -259,7 +239,8 @@ export function initRTC(peer: number, outgoing: boolean) {
     }
 
     // Outgoing negotiation function
-    function connect() {
+    conn.onnegotiationneeded = function() {
+        if (group[peer] !== conn) return;
         conn.createOffer({voiceActivityDetection: true}).then(function(offer) {
             return conn.setLocalDescription(offer);
 
@@ -271,8 +252,6 @@ export function initRTC(peer: number, outgoing: boolean) {
 
         });
     }
-
-    conn.onnegotiationneeded = connect;
 }
 
 // Close an RTC connection when a peer disconnects
@@ -289,34 +268,39 @@ export function closeRTC(peer: number) {
 // Reassess the properties of the RTC element for this peer
 function reassessRTCEl(peer: number, hasTracks: boolean, hasVideo: boolean) {
     var el = ui.ui.video.els[peer];
-    if (!el)
-        return null;
 
-    if (!hasTracks) {
+    if (hasTracks) {
+        if (!el) {
+            // Create the element
+            el = dce("video");
+            el.height = 0; // Use CSS for sizing
+            el.muted = true; // Audio is done separately
+            el.style.maxWidth = "100%";
+
+            // Add it to the UI
+            let els = ui.ui.video.els;
+            let hasVideo = ui.ui.video.hasVideo;
+            while (els.length <= peer) {
+                els.push(null);
+                hasVideo.push(false);
+            }
+            els[peer] = el;
+        }
+        ui.ui.video.hasVideo[peer] = hasVideo;
+
+    } else if (!hasTracks && el) {
         // Destroy it
         el.pause();
         try {
             el.parentNode.removeChild(el);
         } catch (ex) {}
         el = ui.ui.video.els[peer] = null;
+        ui.ui.video.hasVideo[peer] = false;
+
     }
-    ui.ui.video.hasVideo[peer] = hasVideo;
-    ui.updateVideoUI(peer, false);
+
+    ui.updateVideoUI(peer);
     return el;
-}
-
-// Play an element used by RTC, once that's possible
-function playRTCEl(el: HTMLVideoElement) {
-    if (!audio.userMediaRTC) {
-        /* Although our own UserMedia isn't technically needed to play, it's
-         * needed to *auto*play on many platforms, so wait for it. */
-        audio.userMediaAvailableEvent.addEventListener("usermediartcready", function() {
-            playRTCEl(el);
-        }, {once: true});
-        return;
-    }
-
-    el.play();
 }
 
 // Receive a data channel message from an RTC peer

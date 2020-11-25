@@ -83,7 +83,7 @@ export function getCamera(id: string) {
             ui.ui.video.hasVideo[0] = false;
 
         }
-        ui.updateVideoUI(0, false);
+        ui.updateVideoUI(0);
 
     }).catch(function(err) {
         log.pushStatus("video", "Failed to capture video!");

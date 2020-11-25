@@ -435,5 +435,5 @@ export function updateSpeech(peer: number, status: boolean) {
         ui.ui.video.speech[vpeer] = performance.now();
     else
         delete ui.ui.video.speech[vpeer];
-    ui.updateVideoUI(vpeer, false);
+    ui.updateVideoUI(vpeer);
 }
