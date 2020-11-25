@@ -420,7 +420,7 @@ function dataSockMsg(ev: MessageEvent) {
                 if (!ui.ui.deviceList.ec.checked) {
                     ui.ui.deviceList.ec.ecAdmin = true;
                     ui.ui.deviceList.ec.checked = true;
-                    ui.ui.deviceList.ec.onchange();
+                    ui.ui.deviceList.ec.onchange(null);
                 }
             }
             break;

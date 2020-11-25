@@ -26,7 +26,7 @@ import { dce, gebi } from "./util";
 // Set up the master interface
 export function createMasterInterface() {
     var masterUI = ui.ui.masterUI;
-    var right = masterUI.right = gebi("ecmaster-right");
+    var right = gebi("ecmaster-right");
     gebi("ecmenu-master-hider").style.display = "";
 
     // On the left, interface buttons
@@ -333,7 +333,7 @@ export function updateMasterSpeech() {
     for (var i = 0; i < masterUI.speech.length; i++) {
         var status = masterUI.speech[i];
         if (!status) continue;
-        var div = masterUI.speechB[i];
+        let div = masterUI.speechB[i];
 
         var color, aria;
         if (!status.online) {
@@ -370,7 +370,7 @@ function addSoundButton(sid: string, url: string, name: string) {
     masterUI.sounds.url2sid[url] = sid;
 
     // Make the button
-    var b: any = masterUI.sounds.buttons[sid] = {
+    var b = masterUI.sounds.buttons[sid] = <any> {
         b: dce("button")
     };
     b.b.classList.add("nouppercase");

@@ -970,8 +970,9 @@ export function playStopSound(url: string, status: number) {
     var sound = ui.ui.sounds[url];
     if (!sound) {
         // Create an element for it
-        sound = ui.ui.sounds[url] = {};
-        sound.el = document.createElement("audio");
+        sound = ui.ui.sounds[url] = {
+            el: document.createElement("audio")
+        };
 
         // Choose a format
         var format = "m4a";
@@ -979,7 +980,7 @@ export function playStopSound(url: string, status: number) {
             format = "webm"
 
         sound.el.src = url + "." + format;
-        sound.el.volume = ui.ui.outputControlPanel.sfxVolume.value / 100;
+        sound.el.volume = (+ui.ui.outputControlPanel.sfxVolume.value) / 100;
         ui.ui.outputControlPanel.sfxVolumeHider.style.display = "";
     }
 

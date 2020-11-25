@@ -31,83 +31,265 @@ import * as video from "./video";
 import * as videoRecord from "./video-record";
 
 // The entire user interface
-export var ui: any = {
+export const ui = {
     // Has the user taken control of the window size?
     manualSize: false,
 
     // What is our desired automatic size?
     autoSize: 0,
 
-    // Are we currently resizing?
-    resizing: null,
+    // Are we currently resizing (timeout)?
+    resizing: <null|number> null,
 
     // The code for the entire UI
     code: uiCode.code,
 
     // The outermost wrapper
-    wrapper: null,
+    wrapper: <HTMLElement> null,
 
     // All of our panels
-    panels: {},
+    panels: <{
+        [index: string]: HTMLElement
+    }> {},
 
     // The element to auto-focus when a panel is activated
-    panelAutos: {},
+    panelAutos: <{
+        [index: string]: HTMLElement
+    }> {},
 
-    // The video canvas wrapper
-    video: null,
+    // The video properties
+    video: <{
+        // Wrapper for all video elements
+        wrapper: HTMLElement,
+
+        // Video elements
+        els: HTMLVideoElement[],
+
+        // Boxes to contain video elements
+        boxes: HTMLElement[],
+
+        // Whether each user has incoming video
+        hasVideo: boolean[],
+
+        // Is video even wanted?
+        wanted: boolean,
+
+        // Who's the current major (main video view)
+        major: number,
+
+        // Who's been selected
+        selected: number,
+
+        // Our own video box
+        self: HTMLVideoElement,
+
+        // The main video box
+        main: HTMLElement,
+
+        // Main fullscreen button
+        mainFullscreen: HTMLButtonElement,
+
+        // The "side" video box (everybody else)
+        side: HTMLElement,
+
+        // Full fullscreen button
+        wrapperFullscreen: HTMLButtonElement,
+
+        /* For video selection and speech display, *when* the user last spoke
+         * (performance.now()) */
+        speech: number[]
+    }> null,
 
     // The display canvas and data
-    waveWrapper: null,
-    waveCanvas: null,
-    waveWatcher: null,
+    waveWrapper: <HTMLElement> null,
+    waveCanvas: <HTMLCanvasElement> null,
+    waveWatcher: <HTMLImageElement> null,
     waveRotate: false,
 
     // The menu
-    menu: null,
+    menu: <{
+        // Wrapper for the whole menu
+        wrapper: HTMLElement
+    }> null,
 
     // The mute button
-    muteB: null,
-
-    /* If we're showing anything *other* than the wave display and menu, it
-     * goes here (everything below this point) */
-    postWrapper: null,
+    muteB: <HTMLButtonElement> null,
 
     // The user list and voice status
     userList: {
-        left: null,
-        right: null,
-        els: []
+        wrapper: <HTMLElement> null,
+        button: <HTMLButtonElement> null,
+        left: <HTMLElement> null,
+        right: <HTMLElement> null,
+        els: <HTMLElement[]> [],
+        names: <{
+            [index: string]: string
+        }> {}
     },
 
     // The wrapper for the device selector
-    deviceList: null,
+    deviceList: <{
+        // Selector for input devices
+        select: HTMLSelectElement,
+
+        // Wrapper for options
+        optionsWrapper: HTMLElement,
+
+        // Push-to-talk button
+        pttb: HTMLButtonElement,
+
+        // Noise reduction
+        noiser: HTMLInputElement,
+
+        /* Echo cancellation checkbox, with information on whether this was
+         * administrative override */
+        ec: HTMLInputElement & {ecAdmin?: boolean}
+    }> null,
 
     // The wrapper for the output control panel
-    outputControlPanel: null,
+    outputControlPanel: <{
+        // Wrapper for the selector
+        selectWrapper: HTMLElement,
+
+        // Selector
+        select: HTMLSelectElement,
+
+        // Output volume
+        volume: HTMLInputElement,
+
+        // Status of volume
+        volumeStatus: HTMLSpanElement,
+
+        // Compression option
+        compression: HTMLInputElement,
+
+        // Sound FX volume
+        sfxVolume: HTMLInputElement,
+
+        // Sound FX volume status
+        sfxVolumeStatus: HTMLSpanElement,
+
+        // Wrapper to hide/show sound FX volume
+        sfxVolumeHider: HTMLElement
+    }> null,
 
     // The wrapper for the video device selector, if applicable
-    videoDeviceList: null,
+    videoDeviceList: <{
+        // Selector
+        select: HTMLSelectElement
+    }> null,
 
     // If we've received chat, the box for that
-    chatBox: null,
+    chatBox: <{
+        // Incoming chat
+        incoming: HTMLElement,
+
+        // Outgoing chat
+        outgoing: HTMLInputElement
+    }> null,
+
+    // The log element
+    log: <HTMLElement> null,
 
     // Push-to-talk settings
     ptt: {
         enabled: false,
-        hotkey: null,
+        hotkey: <null|string> null,
         muted: false
     },
 
     // If we're in master mode, master UI elements
-    masterUI: {},
+    masterUI: <{
+        // Pause/resume button
+        pauseResumeB: HTMLButtonElement,
+
+        // Start/stop button
+        startStopB: HTMLButtonElement,
+
+        // Wrapper for yes/no
+        startStopYesNo: HTMLElement,
+
+        // Yes button
+        startStopYesB: HTMLButtonElement,
+
+        // No button
+        startStopNoB: HTMLButtonElement,
+
+        // Invite link box
+        invite: HTMLInputElement,
+
+        // Invite copy button
+        inviteCopy: HTMLButtonElement,
+
+        // Invite option: FLAC
+        inviteFlac: HTMLInputElement,
+
+        // Invite option: Continuous
+        inviteContinuous: HTMLInputElement,
+
+        // Recording cost
+        recCost: HTMLInputElement,
+
+        // Recording rate
+        recRate: HTMLInputElement,
+
+        // Not actually part of the UI, but used by the UI to display recording rate
+        creditCost: {
+            currency: number,
+            credits: number
+        },
+        creditRate: [number, number],
+
+        // The right hand side is the user status box (users and user admin actions)
+        userStatusB: HTMLElement,
+
+        // Checkbox: Do we accept remote video?
+        acceptRemoteVideo: HTMLInputElement,
+
+        // Global administrative buttons
+        globalAdminBs: {
+            mute: HTMLButtonElement,
+            echo: HTMLButtonElement
+        },
+
+        // "Speech" (really, data receive) info
+        speech: {
+            nick: string,
+            online: boolean,
+            speaking: boolean
+        }[],
+
+        // Speech boxes
+        speechB: (HTMLElement & {ecConnected?: boolean})[],
+
+        // Soundboard
+        sounds: {
+            wrapper: HTMLElement,
+
+            // Hider for the button
+            bwrapper: HTMLElement,
+
+            buttons: {[index: string]: {
+                b: HTMLButtonElement,
+                i: HTMLElement, // start/stop label
+                n: HTMLElement // label
+            }},
+
+            // Mapping of URLs to SIDs
+            url2sid: {[index: string]: string}
+        }
+    }> null,
 
     // Sound elements
-    sounds: {}
-};
+    sounds: <{
+        [index: string]: {
+            el: HTMLAudioElement
+        }
+    }> {},
 
-/* Our output device, if it's been explicitly chosen. Feels not UI-ish, but it
- * *is* user interface, after all. */
-export var outputDeviceId: null|string = null;
+    // Button to record video. Here because video-record needs it
+    recordVideoButton: <HTMLButtonElement> null
+};
 
 // Make the overall UI
 export function mkUI() {
@@ -173,20 +355,22 @@ export function mkUI() {
 
     // The video has several elements
     ui.video = {
+        wrapper: gebi("ecvideo-wrapper"),
         els: [],
         boxes: [],
         hasVideo: [],
         wanted: false,
-        speech: {},
+        speech: <any> {},
         major: -1,
         selected: -1,
         self: null,
         main: null,
-        side: null
+        mainFullscreen: null,
+        side: null,
+        wrapperFullscreen: null
     };
 
     // A wrapper for *all* video
-    ui.video.wrapper = gebi("ecvideo-wrapper");
     ui.video.wrapper.style.display = "none";
 
     // A wrapper for the main video (if visible)
@@ -427,8 +611,6 @@ export function updateVideoUI(peer: number) {
         el.height = 0; // Use CSS for style
         el.style.backgroundColor = "#" + rbg() + rbg() + rbg();
         el.style.flex = "auto";
-        if (outputDeviceId)
-            el.setSinkId(outputDeviceId);
         box.appendChild(el);
 
         // When you click, they become the selected major
@@ -604,7 +786,6 @@ function createMenu() {
 
     // The user list button only becomes visible if we actually have a user list, so we need to keep track of it
     ui.userList.button = gebi("ecmenu-users-hider");
-    ui.userList.names = {};
 
     // Hide irrelevant buttons
     if (!config.useRTC) {
@@ -927,7 +1108,6 @@ function createOutputControlPanel() {
     sel.onchange = function() {
         if (sel.value === "-none") return;
         togglePanel("audio-device", false);
-        setOutputDevice(sel.value);
     };
 
     // Add a pseudo-device so nothing is selected at first
@@ -963,8 +1143,8 @@ function createOutputControlPanel() {
     vol.oninput = function() {
         // Snap to x00%
         for (var i = 100; i <= 300; i += 100)
-            if (vol.value >= i - 10 && vol.value <= i + 10)
-                vol.value = i;
+            if (+vol.value >= i - 10 && +vol.value <= i + 10)
+                vol.value = <any> i;
 
         // Remember preferences
         if (typeof localStorage !== "undefined")
@@ -974,18 +1154,17 @@ function createOutputControlPanel() {
         volStatus.innerHTML = "&nbsp;" + vol.value + "%";
 
         // Set it
-        compression.rtcCompression.gain.volume = vol.value / 100;
+        compression.rtcCompression.gain.volume = (+vol.value) / 100;
         compression.compressorChanged();
     };
 
     // Get the saved value
     if (typeof localStorage !== "undefined") {
         var def = localStorage.getItem("volume-master");
-        if (def) {
-            vol.value = +def;
-        }
+        if (def)
+            vol.value = <any> +def;
     }
-    vol.oninput();
+    vol.oninput(null);
 
     /*****
      * 3: SFX volume
@@ -1005,7 +1184,7 @@ function createOutputControlPanel() {
         // Set it
         for (var url in ui.sounds) {
             var sound = ui.sounds[url];
-            sound.el.volume = sfxVol.value / 100;
+            sound.el.volume = (+sfxVol.value) / 100;
         }
     };
 
@@ -1013,9 +1192,9 @@ function createOutputControlPanel() {
     if (typeof localStorage !== "undefined") {
         var def = localStorage.getItem("sfx-volume");
         if (def)
-            sfxVol.value = +def;
+            sfxVol.value = <any> +def;
     }
-    sfxVol.oninput();
+    sfxVol.oninput(null);
 
     /*****
      * 4: Dynamic range compression (volume leveling)
@@ -1031,15 +1210,15 @@ function createOutputControlPanel() {
             c.gain.gain = null;
 
             // Set the volume to 100% so it doesn't explode your ears
-            vol.value = 100;
+            vol.value = <any> 100;
         } else {
             c.compressor.ratio = 1;
             c.gain.gain = 1;
 
             // Set the volume to 200% so it's audible
-            vol.value = 200;
+            vol.value = <any> 200;
         }
-        vol.oninput();
+        vol.oninput(null);
 
         // Remember the default
         if (typeof localStorage !== "undefined")
@@ -1052,21 +1231,6 @@ function createOutputControlPanel() {
         if (def !== null)
             compCB.checked = !!~~def;
     }
-    compCB.onchange();
+    compCB.onchange(null);
 
-}
-
-// Set the output device
-function setOutputDevice(deviceId: string) {
-    // Set it as the default
-    outputDeviceId = deviceId;
-
-    // Set it on all currently active outputs
-    var p = Promise.all([]);
-    ui.video.els.forEach(function(el: any) {
-        if (!el) return;
-        p = p.then(function() {
-            return el.setSinkId(deviceId);
-        });
-    });
 }
