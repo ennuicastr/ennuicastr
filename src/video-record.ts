@@ -398,7 +398,6 @@ function recordVideo(opts: RecordVideoOptions) {
                 remoteWriter.close();
 
         }).catch(function(err: any) {
-            alert(err + "\n\n" + err.stack);
             console.error(err);
 
         });
