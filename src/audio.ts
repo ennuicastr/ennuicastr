@@ -211,6 +211,8 @@ function userMediaSet() {
             // Try Apple's, and if not that, nothing left to try, so crash
             ac = new webkitAudioContext({sampleRate: sampleRate});
         }
+
+        ui.setOutputAudioContext(ac);
     }
 
     // Now UserMedia and AudioContext are ready

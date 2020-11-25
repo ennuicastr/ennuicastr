@@ -44,6 +44,9 @@ export const ui = {
     // The code for the entire UI
     code: uiCode.code,
 
+    // The audio element used to actually play back sound
+    audioOutput: <HTMLAudioElement> null,
+
     // The outermost wrapper
     wrapper: <HTMLElement> null,
 
@@ -1104,10 +1107,16 @@ function createOutputControlPanel() {
 
     var sel = ui.outputControlPanel.select;
 
-    // When it's changed, start output
+    // When it's changed, set output
     sel.onchange = function() {
         if (sel.value === "-none") return;
         togglePanel("audio-device", false);
+        if (ui.audioOutput) {
+            (<any> ui.audioOutput).setSinkId(sel.value).catch(console.error);
+        } else {
+            // Just try again
+            setTimeout(sel.onchange, 100);
+        }
     };
 
     // Add a pseudo-device so nothing is selected at first
@@ -1233,4 +1242,30 @@ function createOutputControlPanel() {
     }
     compCB.onchange(null);
 
+}
+
+// Set the output audio context
+export function setOutputAudioContext(ac: AudioContext & {ecDestination?: MediaStreamAudioDestinationNode}) {
+    if (!ac.ecDestination) {
+        // Make its destination node
+        ac.ecDestination = ac.createMediaStreamDestination();
+    }
+
+    if (!audio.userMediaRTC) {
+        // We may not yet be allowed to play sound, so wait
+        audio.userMediaAvailableEvent.addEventListener("usermediartcready", function() {
+            setOutputAudioContext(ac);
+        }, {once: true});
+        return;
+    }
+
+    if (!ui.audioOutput) {
+        // Create the output audio device
+        var a = ui.audioOutput = dce("audio");
+        a.style.display = "none";
+        document.body.appendChild(a);
+    }
+
+    ui.audioOutput.srcObject = ac.ecDestination.stream;
+    ui.audioOutput.play().catch(console.error);
 }

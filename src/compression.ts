@@ -21,7 +21,7 @@
 declare var webkitAudioContext: any;
 
 export interface Compressor {
-    ac: AudioContext;
+    ac: AudioContext & {ecDestination?: MediaStreamAudioDestinationNode};
     inputStream: MediaStream;
     input: MediaStreamAudioSourceNode;
     compressor: DynamicsCompressorNode;
@@ -74,7 +74,7 @@ export var rtcCompression = {
 };
 
 // Create a compressor and gain node
-export function createCompressor(idx: number, ac: AudioContext, input: MediaStream) {
+export function createCompressor(idx: number, ac: AudioContext & {ecDestination?: MediaStreamAudioDestinationNode}, input: MediaStream) {
     // Destroy any previous compressor
     var cur = rtcCompression.compressors[idx];
     if (cur)
@@ -189,7 +189,7 @@ export function createCompressor(idx: number, ac: AudioContext, input: MediaStre
     }
 
     // Connect it to the destination
-    g.connect(ac.destination);
+    g.connect(ac.ecDestination);
 
     // And add it to the list
     var cs = rtcCompression.compressors;
@@ -216,13 +216,13 @@ export function destroyCompressor(idx: number) {
 
         // And the gain chain
         com.input.disconnect(com.gain);
-        com.gain.disconnect(com.ac.destination);
+        com.gain.disconnect(com.ac.ecDestination);
 
     } else {
         // Disconnect the whole chain
         com.input.disconnect(com.compressor);
         com.compressor.disconnect(com.gain);
-        com.gain.disconnect(com.ac.destination);
+        com.gain.disconnect(com.ac.ecDestination);
 
     }
 }
