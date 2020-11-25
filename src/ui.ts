@@ -278,7 +278,7 @@ export const ui = {
             // Mapping of URLs to SIDs
             url2sid: {[index: string]: string}
         }
-    }> null,
+    }> {},
 
     // Sound elements
     sounds: <{
