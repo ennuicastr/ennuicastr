@@ -148,7 +148,7 @@ function recordVideo(opts: RecordVideoOptions) {
     }
 
     // Make sure they know what's what
-    log.pushStatus("video-beta", "Video recording is an ALPHA feature in early testing.");
+    log.pushStatus("video-beta", "Video recording is a beta feature.");
     setTimeout(function() { log.popStatus("video-beta"); }, 10000);
 
     // We decide the bitrate based on the height (FIXME: Configurability)
