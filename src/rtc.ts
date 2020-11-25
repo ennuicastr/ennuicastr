@@ -68,11 +68,9 @@ export function rtcSignal(peer: number, outgoing: boolean, type: number, value: 
 // Initialize a connection to an RTC peer
 export function initRTC(peer: number, outgoing: boolean) {
     // Which set are we in?
-    var group;
+    var group = rtcConnections.incoming;
     if (outgoing)
         group = rtcConnections.outgoing;
-    else
-        group = rtcConnections.incoming;
 
     if (group[peer])
         group[peer].close();

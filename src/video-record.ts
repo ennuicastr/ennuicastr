@@ -351,13 +351,6 @@ function recordVideo(opts: RecordVideoOptions) {
                             }
 
                             // And write
-                            var wr = "";
-                            packets.forEach(packet => {
-                                var data = packet.data;
-                                packet.data = null;
-                                wr += "," + JSON.stringify(packet);
-                                packet.data = data;
-                            });
                             return libav.ff_write_multi(transtate.out_oc, transtate.pkt, packets);
 
                         }
@@ -483,7 +476,8 @@ function recordVideoInput(transtate: TranscodeState) {
                 videoBitsPerSecond: transtate.bitrate
             });
             var data = new Uint8Array(0);
-            var mp4PromiseRes, mp4PromiseRej, mp4Promise = new Promise(function(res, rej) {
+            var mp4PromiseRes: (arg0:unknown)=>void, mp4PromiseRej: (arg0:unknown)=>void,
+                mp4Promise = new Promise(function(res, rej) {
                 mp4PromiseRes = res;
                 mp4PromiseRej = rej;
             });
@@ -506,8 +500,8 @@ function recordVideoInput(transtate: TranscodeState) {
             });
             mediaRecorder.addEventListener("stop", function() {
                 // Use this complete file to figure out the header for our eventual real file
-                var in_fmt_ctx, in_stream_idx, in_stream,
-                    c, pkt, frame;
+                var in_fmt_ctx: number, in_stream_idx: number, in_stream: any,
+                    c: number, pkt: number, frame: number;
 
                 var tmpFile = transtate.inF + ".tmp.mp4";
 
@@ -566,7 +560,7 @@ function recordVideoInput(transtate: TranscodeState) {
 
                 }).then(function() {
                     // Now we can continue with the normal processing
-                    mp4PromiseRes();
+                    mp4PromiseRes(void 0);
 
                 }).catch(mp4PromiseRej);
             });
