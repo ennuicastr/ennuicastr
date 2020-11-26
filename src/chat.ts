@@ -15,7 +15,7 @@
  */
 
 import * as net from "./net";
-import { prot } from "./net";
+import { prot } from "./protocol";
 import * as ui from "./ui";
 import * as util from "./util";
 import { dce, gebi } from "./util";

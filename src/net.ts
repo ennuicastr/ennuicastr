@@ -14,22 +14,17 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-// extern
-declare var EnnuiCastrProtocol: any;
-
 import * as audio from "./audio";
 import * as chat from "./chat";
 import * as config from "./config";
 import * as log from "./log";
 import * as master from "./master";
+import { prot } from "./protocol";
 import * as rtc from "./rtc";
 import * as util from "./util";
 import * as ui from "./ui";
 import { dce } from "./util";
 import * as video from "./video";
-
-// Short name for our protocol
-export const prot = EnnuiCastrProtocol;
 
 /* We have multiple connections to the server:
  * One for pings,

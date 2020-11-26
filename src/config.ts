@@ -14,7 +14,7 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-import { prot } from "./net";
+import { prot } from "./protocol";
 import { dce, gebi } from "./util";
 
 /* These are the features selectable in the URL, not (necessarily) the

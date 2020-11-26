@@ -21,7 +21,7 @@ import * as audio from "./audio";
 import * as config from "./config";
 import * as log from "./log";
 import * as net from "./net";
-import { prot } from "./net";
+import { prot } from "./protocol";
 import * as rtc from "./rtc";
 import * as ui from "./ui";
 import * as util from "./util";

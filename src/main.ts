@@ -23,8 +23,8 @@ import "./config";
 import * as audio from "./audio";
 import * as log from "./log";
 import * as net from "./net";
-import { prot } from "./net";
 import * as proc from "./proc";
+import { prot } from "./protocol";
 import * as ui from "./ui";
 import * as util from "./util";
 
