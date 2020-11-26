@@ -5,7 +5,7 @@ EFLAGS=\
 	-s "EXPORT_NAME='WebRtcVad'" \
 	-s "EXPORTED_FUNCTIONS=['_WebRtcVad_Create', '_WebRtcVad_Init', '_WebRtcVad_Free', '_WebRtcVad_set_mode', '_WebRtcVad_Process', '_malloc', '_free']" \
 	-s "EXTRA_EXPORTED_RUNTIME_METHODS=['cwrap']" \
-	-s MODULARIZE_INSTANCE=1 \
+	-s MODULARIZE=1 \
 	-Iwebrtc \
 	-DWEBRTC_POSIX
 WEBRTC_SRC= \
@@ -28,17 +28,17 @@ WEBRTC_SRC= \
 	webrtc/common_audio/vad/vad_gmm.c
 META=license.js post.js
 
-all: vad.js vad.wasm.js
+all: vad-m.js vad-m.wasm.js
 
-vad.js: $(WEBRTC_SRC) $(META)
+vad-m.js: $(WEBRTC_SRC) $(META)
 	$(CC) $(CFLAGS) $(EFLAGS) $(WEBRTC_SRC) -s WASM=0 -o $@
 	cat license.js $@ > $@.tmp
 	mv $@.tmp $@
 
-vad.wasm.js: $(WEBRTC_SRC) $(META)
+vad-m.wasm.js: $(WEBRTC_SRC) $(META)
 	$(CC) $(CFLAGS) $(EFLAGS) $(WEBRTC_SRC) -o $@
 	cat license.js $@ > $@.tmp
 	mv $@.tmp $@
 
 clean:
-	rm -f vad.js vad.wasm.js vad.wasm.wasm
+	rm -f vad-m.js vad-m.wasm.js vad-m.wasm.wasm
