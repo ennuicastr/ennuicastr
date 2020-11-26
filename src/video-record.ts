@@ -220,7 +220,7 @@ function recordVideo(opts: RecordVideoOptions) {
             transtate.frame = ret[3];
 
             var sentFirst = false;
-            var starterPackets = [];
+            var starterPackets: any[] = [];
             var lastDTS = 0;
 
             // Now read it in
