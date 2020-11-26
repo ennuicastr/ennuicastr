@@ -255,10 +255,9 @@ function userMediaSet() {
 
         // Set up the VAD
         if (typeof WebRtcVad === "undefined") {
-            (<any> window).WebRtcVad = {
-                onRuntimeInitialized: proc.localProcessing
-            };
-            util.loadLibrary("vad/vad" + (wa?".wasm":"") + ".js");
+            util.loadLibrary("vad/vad-m" + (wa?".wasm":"") + ".js").then(function() {
+                return WebRtcVad();
+            }).then(proc.localProcessing);
         }
 
         // Presently, only libav encoding is supported

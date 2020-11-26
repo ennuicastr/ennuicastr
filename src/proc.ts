@@ -15,7 +15,7 @@
  */
 
 // extern
-declare var Ennuiboard: any, NoiseRepellent: any, WebRtcVad: any;
+declare var Ennuiboard: any, NoiseRepellent: any;
 
 import * as audio from "./audio";
 import * as config from "./config";
@@ -50,17 +50,21 @@ export var useNR = false;
 export function setUseNR(to: boolean) { useNR = to; }
 
 // All local processing: The VAD, wave display, and noise reduction
-export function localProcessing() {
+export function localProcessing(m: any /* WebRtcVad */) {
     if (!audio.userMedia) {
         // Need our MediaSource first!
-        audio.userMediaAvailableEvent.addEventListener("usermediaready", localProcessing, {once: true});
+        audio.userMediaAvailableEvent.addEventListener("usermediaready", function() {
+            localProcessing(m);
+        }, {once: true});
         return;
     }
 
     if (typeof NoiseRepellent === "undefined") {
         // Load the library first
         (<any> window).NoiseRepellent = {base: "noise-repellent"};
-        util.loadLibrary("noise-repellent/noise-repellent-m.js").then(localProcessing);
+        util.loadLibrary("noise-repellent/noise-repellent-m.js").then(function() {
+            localProcessing(m);
+        });
         return;
     }
 
@@ -69,8 +73,6 @@ export function localProcessing() {
 
 
     // First the WebRTC VAD steps
-    var m = WebRtcVad;
-
     var handle = m.Create();
     if (handle === 0) {
         log.pushStatus("failvad", "Failed to create VAD.");
@@ -292,7 +294,7 @@ export function localProcessing() {
             nr.cleanup();
             nr = null;
         }
-        localProcessing();
+        localProcessing(m);
     }, {once: true});
 }
 
