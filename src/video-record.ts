@@ -220,6 +220,7 @@ function recordVideo(opts: RecordVideoOptions) {
             transtate.frame = ret[3];
 
             var sentFirst = false;
+            var starterPackets = [];
             var lastDTS = 0;
 
             // Now read it in
@@ -331,25 +332,36 @@ function recordVideo(opts: RecordVideoOptions) {
 
                                 lastDTS = dts;
 
+                                // If we haven't sent the starter packets, do so
+                                if (!sentFirst) {
+                                    if (starterPackets.length) {
+                                        // Use them to make sure we have an I-frame
+                                        packets = starterPackets.concat(packets);
+                                    } else {
+                                        // We definitely have an I-frame, but fix timing
+                                        let packet = packets[0];
+                                        packet.dtshi = packet.dts = packet.ptshi = packet.pts = 0;
+                                    }
+                                    starterPackets = null;
+                                    sentFirst = true;
+                                }
+
                             } else {
-                                /* No starting time yet, so either send only
-                                 * one packet (to get the timestamps right) or
-                                 * nothing */
-                                if (!sentFirst)
-                                    packets = [packets[0]];
-                                else
-                                    packets = [];
+                                /* No starting time yet, so just collect packets, making sure we keep a keyframe */
+                                for (var pi = 0; pi < packets.length; pi++) {
+                                    var packet = packets[pi];
+                                    packet.dtshi = packet.dts = packet.ptshi = packet.pts = 0;
+                                    if (packet.flags & 1 /* KEY */)
+                                        starterPackets = [packet];
+                                    else
+                                        starterPackets.push(packet);
+                                }
+                                packets = [];
 
                             }
                         }
 
                         if (packets.length) {
-                            if (!sentFirst) {
-                                // Make sure the first packet has timestamp 0 so that all the other timestamps are right
-                                packets[0].dtshi = packets[0].dts = packets[0].ptshi = packets[0].pts = 0;
-                                sentFirst = true;
-                            }
-
                             // And write
                             return libav.ff_write_multi(transtate.out_oc, transtate.pkt, packets);
 
