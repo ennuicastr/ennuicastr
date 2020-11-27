@@ -156,8 +156,8 @@ export function disconnect(ev?: Event) {
     log.log.appendChild(sp);
     var a = dce("a");
     var href = "?";
-    for (var key in config)
-        href += key[0] + "=" + (<any> config)[key].toString(36) + "&";
+    for (var key in config.config)
+        href += key[0] + "=" + (<any> config.config)[key].toString(36) + "&";
     href += "nm=" + encodeURIComponent(config.username);
     a.href = href;
     a.innerText = "Attempt reconnection";
