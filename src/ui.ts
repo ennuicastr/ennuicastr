@@ -316,12 +316,14 @@ export function mkUI() {
     var wrapper = ui.wrapper = gebi("ecouter");
     wrapper.style.minHeight = window.innerHeight + "px";
     window.addEventListener("resize", function() {
-        wrapper.style.minHeight = window.innerHeight + "px";
-        checkMaximized();
-        if (!ui.resizing) {
-            ui.manualSize = true;
-            reflexUI();
-        }
+        setTimeout(function() {
+            wrapper.style.minHeight = window.innerHeight + "px";
+            checkMaximized();
+            if (!ui.resizing) {
+                ui.manualSize = true;
+                reflexUI();
+            }
+        }, 100);
     });
 
     // A generic function to handle fullscreen buttons
@@ -477,6 +479,12 @@ export function mkUI() {
 
     checkMaximized();
     reflexUI();
+
+    // Some browsers need a tick to make the UI really exist
+    setTimeout(function() {
+        checkMaximized();
+        reflexUI();
+    }, 100);
 }
 
 var maximized = false;
@@ -485,8 +493,8 @@ var maximized = false;
 function checkMaximized() {
     if (!ui.wrapper) return;
 
-    var nowMax = (window.outerHeight >= window.screen.availHeight * 0.9) &&
-                 (window.innerHeight >= 640 /* 4 160 pixel panels */);
+    var nowMax = (window.outerWidth >= window.screen.availWidth * 0.9) &&
+                 (window.outerHeight >= window.screen.availHeight * 0.9);
 
     if (nowMax !== maximized) {
         maximized = nowMax;
@@ -497,12 +505,14 @@ function checkMaximized() {
             ui.wrapper.insertBefore(ui.waveWrapper, ui.log);
             ui.wrapper.insertBefore(ui.menu.wrapper, ui.waveWrapper);
             ui.wrapper.insertBefore(ui.panels.chat, ui.video.wrapper.nextSibling);
+            ui.log.style.marginTop = "0";
 
         } else {
             // Waveform after video, menu after that, chat at the bottom
             ui.wrapper.insertBefore(ui.menu.wrapper, ui.video.wrapper.nextSibling);
             ui.wrapper.insertBefore(ui.waveWrapper, ui.menu.wrapper);
             ui.wrapper.insertBefore(ui.panels.chat, ui.log);
+            ui.log.style.marginTop = "0.5em";
 
         }
         document.documentElement.setAttribute("data-panel-alignment", maximized?"bottom":"");
@@ -515,7 +525,7 @@ var unpinUITimeout: null|number = null;
 /* Temporarily pin all flexible items to their current height, so things to
  * blink weirdly when we resize the window */
 export function pinUI() {
-    if (ui.manualSize)
+    if (maximized || ui.manualSize)
         return;
 
     if (unpinUITimeout) {
@@ -530,7 +540,7 @@ export function pinUI() {
 }
 
 // Unpin the UI
-export function unpinUI() {
+function unpinUI() {
     unpinUITimeout = null;
     Array.prototype.slice.call(ui.wrapper.children, 0).forEach(function(el: HTMLElement) {
         el.style.height = "";
@@ -554,7 +564,7 @@ export function reflexUI() {
     // Only two elements are meant to flex large: The video interface and chat
     if (ui.video.wrapper.style.display !== "none" || ui.panels.chat.style.display !== "none") {
         ui.waveWrapper.style.flex = "";
-        ui.waveWrapper.style.minHeight = "160px";
+        ui.waveWrapper.style.minHeight = maximized ? "160px" : "40px";
 
         // Just make sure it's large enough
         if (window.innerHeight < 640) {
@@ -663,7 +673,7 @@ export function updateVideoUI(peer: number) {
 
     ui.video.wanted = hasVideo;
 
-    if (!hasVideo) {
+    if (!maximized && !hasVideo) {
         // Not wanted, so default to off
         ui.video.wrapper.style.display = "none";
 
@@ -763,12 +773,11 @@ export function togglePanel(panel: string, to?: boolean) {
 
     pinUI();
 
-    // Don't allow multiple device panels to be visible at the same time
-    if (/-device$/.test(panel)) {
-        ["audio", "video"].forEach(function(nm) {
-            ui.panels[nm + "-device"].style.display = "none";
-        });
-    }
+    // Only show one panel at a time (except chat)
+    Object.keys(ui.panels).forEach(function(nm) {
+        if (nm !== "chat" && nm !== panel)
+            ui.panels[nm].style.display = "none";
+    });
 
     // Then switch the desired one
     el.style.display = to?"":"none";
