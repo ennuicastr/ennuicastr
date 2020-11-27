@@ -15,7 +15,7 @@
  */
 
 // extern
-declare var Ennuiboard: any, NoiseRepellent: any;
+declare var Ennuiboard: any, NoiseRepellent: any, WebRtcVad: any;
 
 import * as audio from "./audio";
 import * as config from "./config";
@@ -50,252 +50,272 @@ export var useNR = false;
 export function setUseNR(to: boolean) { useNR = to; }
 
 // All local processing: The VAD, wave display, and noise reduction
-export function localProcessing(m: any /* WebRtcVad */) {
-    if (!audio.userMedia) {
-        // Need our MediaSource first!
-        audio.userMediaAvailableEvent.addEventListener("usermediaready", function() {
-            localProcessing(m);
-        }, {once: true});
-        return;
-    }
+export function localProcessing() {
+    var m: any /* WebRtcVad */;
 
-    if (typeof NoiseRepellent === "undefined") {
-        // Load the library first
-        (<any> window).NoiseRepellent = {base: "noise-repellent"};
-        util.loadLibrary("noise-repellent/noise-repellent-m.js").then(function() {
-            localProcessing(m);
-        });
-        return;
-    }
-
-    // Set our lastSentTime now so that we don't immediately report a problem
-    audio.setLastSentTime(performance.now());
-
-
-    // First the WebRTC VAD steps
-    var handle = m.Create();
-    if (handle === 0) {
-        log.pushStatus("failvad", "Failed to create VAD.");
-        throw new Error();
-    }
-    if (m.Init(handle) < 0) {
-        log.pushStatus("failvad", "Failed to initialize VAD.");
-        throw new Error();
-    }
-
-    var bufSz = 640 /* 20ms at 32000Hz */;
-    var dataPtr = m.malloc(bufSz * 2);
-    var buf = new Int16Array(m.heap.buffer, dataPtr, bufSz * 2);
-    var bi = 0;
-    var timeout: null|number = null, rtcTimeout: null|number = null;
-
-    /* WebRTC VAD is pretty finicky, so also keep track of volume as a
-     * secondary gate */
-    var triggerVadVolume = 0;
-    var curVadVolume = 0;
-
-    m.set_mode(3);
-
-
-    // Now the noise repellent steps
-    var nr: any = null;
-    if (config.useRTC) {
-        NoiseRepellent.NoiseRepellent(audio.ac.sampleRate).then(function(ret: any) {
-            nr = ret;
-            nr.set(NoiseRepellent.N_ADAPTIVE, 1);
-            nr.set(NoiseRepellent.AMOUNT, 20);
-            nr.set(NoiseRepellent.WHITENING, 50);
-        });
-    }
-
-
-    // Now the display steps
-
-    // Create a canvas for it
-    var wc = ui.ui.waveCanvas;
-
-    // Now the background is nothing, so should just be grey
-    document.body.style.backgroundColor = "#111";
-
-    // The VAD needs packets in odd intervals
-    var step = audio.ac.sampleRate / 32000;
-
-    // Create our script processor
-    var spW = safariWorkarounds.createScriptProcessor(audio.ac, audio.userMedia, 1024);
-    var destination: MediaStream = spW.destination;
-    var sp = spW.scriptProcessor;
-
-    function rtcVad(to: boolean) {
-        destination.getTracks().forEach(function(track) {
-            track.enabled = to;
-        });
-    }
-    rtcVad(false);
-
-    // Now anything that needs its output can get it
-    audio.setUserMediaRTC(destination);
-    audio.userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediartcready", {}));
-
-    // The actual processing
-    sp.onaudioprocess = function(ev: AudioProcessingEvent) {
-        if (typeof Ennuiboard !== "undefined" && Ennuiboard.enabled.gamepad)
-            Ennuiboard.gamepad.poll();
-
-        // Merge together the channels
-        var ib = ev.inputBuffer.getChannelData(0);
-        var cc = ev.inputBuffer.numberOfChannels;
-        if (cc !== 1) {
-            ib = ib.slice(0);
-
-            // Mix it
-            for (var i = 1; i < cc; i++) {
-                var ibc = ev.inputBuffer.getChannelData(i);
-                for (var j = 0; j < ib.length; j++)
-                    ib[j] += ibc[j];
-            }
-
-            // Then temper it
-            for (var i = 0; i < ib.length; i++)
-                ib[i] /= cc;
+    Promise.all([]).then(function() {
+        if (!audio.userMedia) {
+            // Need our MediaSource first!
+            return new Promise(function(res) {
+                audio.userMediaAvailableEvent.addEventListener("usermediaready", res, {once: true});
+            });
         }
 
-        // Transfer data for the VAD
-        var vadSet = rawVadOn;
-        var curVolume = 0;
-        for (var i = 0; i < ib.length; i += step) {
-            var v = ib[~~i];
-            var a = Math.abs(v);
-            curVolume += a;
-            curVadVolume += a;
+    }).then(function() {
+        // Load WebRtcVad
+        if (typeof WebRtcVad === "undefined") {
+            var wa = util.isWebAssemblySupported();
+            return util.loadLibrary("vad/vad-m" + (wa?".wasm":"") + ".js");
 
-            buf[bi++] = v * 0x7FFF;
-
-            if (bi == bufSz) {
-                // We have a complete packet
-                vadSet = !!m.Process(handle, 32000, dataPtr, bufSz);
-                bi = 0;
-
-                if (vadSet) {
-                    // Adjust the trigger value
-                    triggerVadVolume = (
-                            triggerVadVolume * 15 +
-                            curVadVolume/bufSz/2
-                        ) / 16;
-                    curVadVolume = 0;
-                }
-            }
         }
 
-        // Possibly swap the VAD mode
-        if (vadSet) {
-            // Our transmission VAD has a hair trigger
-            if (!rtcVadOn) {
-                rtcVadOn = true;
-                rtcVad(true);
-            } else if (rtcTimeout) {
-                clearTimeout(rtcTimeout);
-                rtcTimeout = null;
+    }).then(function() {
+        return WebRtcVad();
+
+    }).then(function(ret) {
+        m = ret;
+
+        // Load NoiseRepellent
+        if (typeof NoiseRepellent === "undefined") {
+            (<any> window).NoiseRepellent = {base: "noise-repellent"};
+            return util.loadLibrary("noise-repellent/noise-repellent-m.js");
+        }
+
+    }).then(function() {
+        // This is the main audio processing function
+
+        // Set our lastSentTime now so that we don't immediately report a problem
+        audio.setLastSentTime(performance.now());
+
+
+        // First the WebRTC VAD steps
+        var handle = m.Create();
+        if (handle === 0) {
+            log.pushStatus("failvad", "Failed to create VAD.");
+            throw new Error();
+        }
+        if (m.Init(handle) < 0) {
+            log.pushStatus("failvad", "Failed to initialize VAD.");
+            throw new Error();
+        }
+
+        var bufSz = 640 /* 20ms at 32000Hz */;
+        var dataPtr = m.malloc(bufSz * 2);
+        var buf = new Int16Array(m.heap.buffer, dataPtr, bufSz * 2);
+        var bi = 0;
+        var timeout: null|number = null, rtcTimeout: null|number = null;
+
+        /* WebRTC VAD is pretty finicky, so also keep track of volume as a
+         * secondary gate */
+        var triggerVadVolume = 0;
+        var curVadVolume = 0;
+
+        m.set_mode(3);
+
+
+        // Now the noise repellent steps
+        var nr: any = null;
+        if (config.useRTC) {
+            // This can happen whenever
+            NoiseRepellent.NoiseRepellent(audio.ac.sampleRate).then(function(ret: any) {
+                nr = ret;
+                nr.set(NoiseRepellent.N_ADAPTIVE, 1);
+                nr.set(NoiseRepellent.AMOUNT, 20);
+                nr.set(NoiseRepellent.WHITENING, 50);
+            });
+        }
+
+
+        // Now the display steps
+
+        // Create a canvas for it
+        var wc = ui.ui.waveCanvas;
+
+        // Now the background is nothing, so should just be grey
+        document.body.style.backgroundColor = "#111";
+
+        // The VAD needs packets in odd intervals
+        var step = audio.ac.sampleRate / 32000;
+
+        // Create our script processor
+        var spW = safariWorkarounds.createScriptProcessor(audio.ac, audio.userMedia, 1024);
+        var destination: MediaStream = spW.destination;
+        var sp = spW.scriptProcessor;
+
+        function rtcVad(to: boolean) {
+            destination.getTracks().forEach(function(track) {
+                track.enabled = to;
+            });
+        }
+        rtcVad(false);
+
+        // Now anything that needs its output can get it
+        audio.setUserMediaRTC(destination);
+        audio.userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediartcready", {}));
+
+        // The actual processing
+        sp.onaudioprocess = function(ev: AudioProcessingEvent) {
+            if (typeof Ennuiboard !== "undefined" && Ennuiboard.enabled.gamepad)
+                Ennuiboard.gamepad.poll();
+
+            // Merge together the channels
+            var ib = ev.inputBuffer.getChannelData(0);
+            var cc = ev.inputBuffer.numberOfChannels;
+            if (cc !== 1) {
+                ib = ib.slice(0);
+
+                // Mix it
+                for (var i = 1; i < cc; i++) {
+                    var ibc = ev.inputBuffer.getChannelData(i);
+                    for (var j = 0; j < ib.length; j++)
+                        ib[j] += ibc[j];
+                }
+
+                // Then temper it
+                for (var i = 0; i < ib.length; i++)
+                    ib[i] /= cc;
             }
 
-            // Gate the normal VAD by volume
-            if (curVolume/ib.length >= triggerVadVolume) {
-                if (timeout) {
-                    clearTimeout(timeout);
-                    timeout = null;
-                }
-                if (!rawVadOn) {
-                    // We flipped on
-                    if (!vadOn) {
-                        updateWaveRetroactive();
-                        updateSpeech(null, true);
+            // Transfer data for the VAD
+            var vadSet = rawVadOn;
+            var curVolume = 0;
+            for (var i = 0; i < ib.length; i += step) {
+                var v = ib[~~i];
+                var a = Math.abs(v);
+                curVolume += a;
+                curVadVolume += a;
+
+                buf[bi++] = v * 0x7FFF;
+
+                if (bi == bufSz) {
+                    // We have a complete packet
+                    vadSet = !!m.Process(handle, 32000, dataPtr, bufSz);
+                    bi = 0;
+
+                    if (vadSet) {
+                        // Adjust the trigger value
+                        triggerVadVolume = (
+                                triggerVadVolume * 15 +
+                                curVadVolume/bufSz/2
+                            ) / 16;
+                        curVadVolume = 0;
                     }
-                    rawVadOn = true;
-                    curVadVolume = 0;
                 }
             }
 
-        } else {
-            if (rtcVadOn) {
-                // Flip off after a second
-                if (!rtcTimeout) {
-                    rtcTimeout = setTimeout(function() {
-                        rtcTimeout = null;
-                        rtcVadOn = false;
-                        rtcVad(false);
-                    }, rtcVadExtension);
+            // Possibly swap the VAD mode
+            if (vadSet) {
+                // Our transmission VAD has a hair trigger
+                if (!rtcVadOn) {
+                    rtcVadOn = true;
+                    rtcVad(true);
+                } else if (rtcTimeout) {
+                    clearTimeout(rtcTimeout);
+                    rtcTimeout = null;
                 }
-            }
 
-            if (rawVadOn) {
-                // Flip off after a while
-                rawVadOn = false;
-                if (!timeout) {
-                    timeout = setTimeout(function() {
+                // Gate the normal VAD by volume
+                if (curVolume/ib.length >= triggerVadVolume) {
+                    if (timeout) {
+                        clearTimeout(timeout);
                         timeout = null;
-                        updateSpeech(null, false);
-                    }, vadExtension);
+                    }
+                    if (!rawVadOn) {
+                        // We flipped on
+                        if (!vadOn) {
+                            updateWaveRetroactive();
+                            updateSpeech(null, true);
+                        }
+                        rawVadOn = true;
+                        curVadVolume = 0;
+                    }
+                }
+
+            } else {
+                if (rtcVadOn) {
+                    // Flip off after a second
+                    if (!rtcTimeout) {
+                        rtcTimeout = setTimeout(function() {
+                            rtcTimeout = null;
+                            rtcVadOn = false;
+                            rtcVad(false);
+                        }, rtcVadExtension);
+                    }
+                }
+
+                if (rawVadOn) {
+                    // Flip off after a while
+                    rawVadOn = false;
+                    if (!timeout) {
+                        timeout = setTimeout(function() {
+                            timeout = null;
+                            updateSpeech(null, false);
+                        }, vadExtension);
+                    }
                 }
             }
-        }
 
 
-        /* Our actual script processing step: noise reduction, only for RTC
-         * (live voice chat) */
-        if (nr) {
-            var ob;
-            if (useNR)
-                ob = nr.run(ib);
-            else
-                ob = ib;
-            var cc = ev.outputBuffer.numberOfChannels;
-            for (var oi = 0; oi < cc; oi++)
-                ev.outputBuffer.getChannelData(oi).set(ob);
-        }
-
-
-        // And display
-        for (var part = 0; part < ib.length; part += 1024) {
-            // Find the max for this range
-            var max = 0;
-            var end = part + 1024;
-            for (var i = part; i < end; i++) {
-                var v = ib[i];
-                if (v < 0) v = -v;
-                if (v > max) max = v;
-            }
-
-            // Bump up surrounding ones to make the wave look nicer
-            if (waveData.length > 0) {
-                var last = waveData.pop();
-                if (last < max)
-                    last = (last+max)/2;
+            /* Our actual script processing step: noise reduction, only for RTC
+             * (live voice chat) */
+            if (nr) {
+                var ob;
+                if (useNR)
+                    ob = nr.run(ib);
                 else
-                    max = (last+max)/2;
-                waveData.push(last);
+                    ob = ib;
+                var cc = ev.outputBuffer.numberOfChannels;
+                for (var oi = 0; oi < cc; oi++)
+                    ev.outputBuffer.getChannelData(oi).set(ob);
             }
 
-            waveData.push(max);
-            if (!net.transmitting)
-                waveVADs.push(0);
-            else if (rawVadOn)
-                waveVADs.push(3);
-            else if (vadOn)
-                waveVADs.push(2);
-            else
-                waveVADs.push(1);
-        }
 
-        updateWave(max);
-    };
+            // And display
+            for (var part = 0; part < ib.length; part += 1024) {
+                // Find the max for this range
+                var max = 0;
+                var end = part + 1024;
+                for (var i = part; i < end; i++) {
+                    var v = ib[i];
+                    if (v < 0) v = -v;
+                    if (v > max) max = v;
+                }
 
-    // Restart if we change devices
-    audio.userMediaAvailableEvent.addEventListener("usermediastopped", function() {
-        if (nr) {
-            nr.cleanup();
-            nr = null;
-        }
-        localProcessing(m);
-    }, {once: true});
+                // Bump up surrounding ones to make the wave look nicer
+                if (waveData.length > 0) {
+                    var last = waveData.pop();
+                    if (last < max)
+                        last = (last+max)/2;
+                    else
+                        max = (last+max)/2;
+                    waveData.push(last);
+                }
+
+                waveData.push(max);
+                if (!net.transmitting)
+                    waveVADs.push(0);
+                else if (rawVadOn)
+                    waveVADs.push(3);
+                else if (vadOn)
+                    waveVADs.push(2);
+                else
+                    waveVADs.push(1);
+            }
+
+            updateWave(max);
+        };
+
+        // Restart if we change devices
+        audio.userMediaAvailableEvent.addEventListener("usermediastopped", function() {
+            m.Free(handle);
+            if (nr) {
+                nr.cleanup();
+                nr = null;
+            }
+            localProcessing();
+        }, {once: true});
+
+    }).catch(console.error);
 }
 
 // Update the wave display when we retroactively promote VAD data

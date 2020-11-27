@@ -15,7 +15,7 @@
  */
 
 // extern
-declare var LibAV: any, MediaRecorder: any, webkitAudioContext: any, WebRtcVad: any;
+declare var LibAV: any, MediaRecorder: any, webkitAudioContext: any;
 
 /* We need an event target we can use. "usermediaready" fires when userMedia is
  * ready. "usermediastopped" fires when it stops. "usermediavideoready" fires
@@ -200,9 +200,6 @@ function userMediaSet() {
     // Get the sample rate from the user media
     var sampleRate = userMedia.getAudioTracks()[0].getSettings().sampleRate;
 
-    // Check whether we should be using WebAssembly
-    var wa = util.isWebAssemblySupported();
-
     // Create our AudioContext if needed
     if (!ac) {
         try {
@@ -253,13 +250,6 @@ function userMediaSet() {
         if (ac.state !== "running")
             log.pushStatus("audiocontext", "Cannot capture audio! State: " + ac.state);
 
-        // Set up the VAD
-        if (typeof WebRtcVad === "undefined") {
-            util.loadLibrary("vad/vad-m" + (wa?".wasm":"") + ".js").then(function() {
-                return WebRtcVad();
-            }).then(proc.localProcessing);
-        }
-
         // Presently, only libav encoding is supported
         useLibAV = true;
 
@@ -301,7 +291,7 @@ export function loadLibAV(): Promise<unknown> {
     LibAV.base = "libav";
 
     return util.loadLibrary("libav/libav-" + libavVersion + "-" + libavPackage + ".js").then(function() {
-        return LibAV.LibAV({nowasm: true});
+        return LibAV.LibAV();
 
     }).then(function(ret) {
         libav = ret;
