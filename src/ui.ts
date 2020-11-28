@@ -334,7 +334,7 @@ export function mkUI() {
     // When we resize, we need to flex the UI
     var wrapper = ui.wrapper = gebi("ecouter");
     wrapper.style.minHeight = window.innerHeight + "px";
-    var resizeTimer = null;
+    var resizeTimer: null|number = null;
     window.addEventListener("resize", function() {
         if (!ui.resizing)
             ui.manualSize = true;
@@ -611,7 +611,7 @@ function reflexUI() {
     });
 
     // Now, distribute the remaining height among visible flexible elements
-    function assignHeight(to, amt) {
+    function assignHeight(to: HTMLElement, amt: number) {
         to.style.height = amt + "px";
         to.style.flex = "";
         heightForFlexible -= amt;
