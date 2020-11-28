@@ -306,7 +306,7 @@ export const ui = {
     // Sound elements
     sounds: <{
         [index: string]: {
-            el: HTMLAudioElement
+            el: HTMLAudioElement & {ecStartTime?: number}
         }
     }> {},
 

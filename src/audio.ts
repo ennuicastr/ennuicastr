@@ -957,7 +957,7 @@ export function toggleMute(to?: boolean) {
 }
 
 // Play or stop a sound
-export function playStopSound(url: string, status: number) {
+export function playStopSound(url: string, status: number, time: number) {
     var sound = ui.ui.sounds[url];
     if (!sound) {
         // Create an element for it
@@ -974,14 +974,35 @@ export function playStopSound(url: string, status: number) {
         sound.el.volume = (+ui.ui.outputControlPanel.sfxVolume.value) / 100;
         ui.ui.outputControlPanel.sfxVolumeHider.style.display = "";
     }
+    var el = sound.el;
 
     // Play or stop playing
-    sound.el.pause();
+    el.pause();
+    el.playbackRate = 1;
+    el.ecStartTime = time;
     if (status) {
-        sound.el.currentTime = 0;
-        sound.el.play();
+        el.currentTime = 0;
+        el.play().then(catchup);
+    }
+
+    function catchup() {
+        // Try to catch up if it's long enough to be worthwhile
+        if (el.duration < 10 ||
+            !timeOffset) return;
+
+        // OK, it might be worth catching up. Figure out our time.
+        var elCurTime = el.ecStartTime + el.currentTime * 1000;
+        var realCurTime = performance.now() + timeOffset;
+        if (elCurTime < realCurTime) {
+            // Adjust our time so that we catch up in exactly one second
+            el.playbackRate = 1 + (realCurTime - elCurTime) / 1000;
+            setTimeout(function() {
+                if (el.ecStartTime !== time) return;
+                el.playbackRate = 1;
+            }, 1000);
+        }
     }
 
     if ("master" in config.config)
-        master.masterSoundButtonUpdate(url, status, sound.el);
+        master.masterSoundButtonUpdate(url, status, el);
 }

@@ -319,9 +319,10 @@ function dataSockMsg(ev: MessageEvent) {
 
         case prot.ids.sound:
             p = prot.parts.sound.sc;
+            var time = msg.getFloat64(p.time, true);
             var status = msg.getUint8(p.status);
             var url = util.decodeText(msg.buffer.slice(p.url));
-            audio.playStopSound(url, status);
+            audio.playStopSound(url, status, time);
             break;
 
         case prot.ids.user:
