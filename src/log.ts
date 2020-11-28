@@ -41,10 +41,10 @@ function updateStatus() {
         txt += curStatus[id] + "\n";
     }
     txt = txt.trim();
-    if (txt === "")
-        txt = "Capturing audio";
     log.innerText = txt;
 
-    if (ui.ui.wrapper)
+    if (ui.ui.wrapper) {
+        ui.ui.log.style.display = (txt === "") ? "none" : "";
         ui.resizeUI();
+    }
 }

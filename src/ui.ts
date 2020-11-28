@@ -493,6 +493,8 @@ export function mkUI() {
         master.createMasterInterface();
         ui.panels.master.style.display = "";
     }
+
+    checkMaximized();
 }
 
 var maximized = false;
