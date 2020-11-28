@@ -38,6 +38,10 @@ export const ui = {
     // What is our desired automatic size?
     autoSize: 0,
 
+    /* What is the difference between outerHeight and innerHeight? Cached
+     * because some browsers (Chrome) get very confused about it mid-resizing */
+    outerInnerHeightDiff: 0,
+
     // Are we currently resizing (timeout)?
     resizing: <null|number> null,
 
@@ -198,6 +202,9 @@ export const ui = {
         outgoing: HTMLInputElement
     }> null,
 
+    // Spacer that comes before the log (except when it doesn't)
+    spacer: <HTMLElement> null,
+
     // The log element
     log: <HTMLElement> null,
 
@@ -315,14 +322,20 @@ export function mkUI() {
     // When we resize, we need to flex the UI
     var wrapper = ui.wrapper = gebi("ecouter");
     wrapper.style.minHeight = window.innerHeight + "px";
+    var resizeTimer = null;
     window.addEventListener("resize", function() {
-        setTimeout(function() {
+        if (!ui.resizing)
+            ui.manualSize = true;
+        if (resizeTimer)
+            clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function() {
+            resizeTimer = null;
             wrapper.style.minHeight = window.innerHeight + "px";
             checkMaximized();
-            if (!ui.resizing) {
-                ui.manualSize = true;
+            if (ui.manualSize)
+                resizeUI();
+            else
                 reflexUI();
-            }
         }, 100);
     });
 
@@ -429,6 +442,9 @@ export function mkUI() {
         wrapper: gebi("ecmenu")
     };
 
+    // Spacer
+    ui.spacer = gebi("ecprelog-spacer");
+
     // Move the status box
     var eclog = ui.log = gebi("eclog");
     eclog.innerHTML = "";
@@ -446,7 +462,8 @@ export function mkUI() {
     panel("user-list");
     panel("sounds");
     panel("video-record");
-    panel("audio-device", "input-device-list");
+    panel("input-device", "input-device-list");
+    panel("output-device", "output-device-list");
     panel("video-device", "video-device-list");
     panel("chat", "chat-outgoing");
 
@@ -476,15 +493,6 @@ export function mkUI() {
         master.createMasterInterface();
         ui.panels.master.style.display = "";
     }
-
-    checkMaximized();
-    reflexUI();
-
-    // Some browsers need a tick to make the UI really exist
-    setTimeout(function() {
-        checkMaximized();
-        reflexUI();
-    }, 100);
 }
 
 var maximized = false;
@@ -501,18 +509,18 @@ function checkMaximized() {
 
         // Change the layout
         if (maximized) {
-            // Waveform at the bottom, menu above that, chat after video
+            // Waveform at the bottom, menu above that, chat after video, then spacer
             ui.wrapper.insertBefore(ui.waveWrapper, ui.log);
             ui.wrapper.insertBefore(ui.menu.wrapper, ui.waveWrapper);
-            ui.wrapper.insertBefore(ui.panels.chat, ui.video.wrapper.nextSibling);
-            ui.log.style.marginTop = "0";
+            ui.wrapper.insertBefore(ui.spacer, ui.video.wrapper.nextSibling);
+            ui.wrapper.insertBefore(ui.panels.chat, ui.spacer);
 
         } else {
             // Waveform after video, menu after that, chat at the bottom
             ui.wrapper.insertBefore(ui.menu.wrapper, ui.video.wrapper.nextSibling);
             ui.wrapper.insertBefore(ui.waveWrapper, ui.menu.wrapper);
-            ui.wrapper.insertBefore(ui.panels.chat, ui.log);
-            ui.log.style.marginTop = "0.5em";
+            ui.wrapper.insertBefore(ui.spacer, ui.log);
+            ui.wrapper.insertBefore(ui.panels.chat, ui.spacer);
 
         }
         document.documentElement.setAttribute("data-panel-alignment", maximized?"bottom":"");
@@ -520,83 +528,101 @@ function checkMaximized() {
     }
 }
 
-var unpinUITimeout: null|number = null;
-
-/* Temporarily pin all flexible items to their current height, so things to
- * blink weirdly when we resize the window */
-export function pinUI() {
-    if (maximized || ui.manualSize)
-        return;
-
-    if (unpinUITimeout) {
-        clearTimeout(unpinUITimeout);
-        unpinUITimeout = null;
-    }
-
-    Array.prototype.slice.call(ui.wrapper.children, 0).forEach(function(el: HTMLElement) {
-        if (el.style.display !== "none")
-            el.style.height = getComputedStyle(el).height;
-    });
-}
-
-// Unpin the UI
-function unpinUI() {
-    unpinUITimeout = null;
-    Array.prototype.slice.call(ui.wrapper.children, 0).forEach(function(el: HTMLElement) {
-        el.style.height = "";
-    });
-}
-
-// Re-adjust the flex elements of our UI and resize if needed
-export function reflexUI() {
-    // Prepare to unpin the UI
-    if (unpinUITimeout)
-        clearTimeout(unpinUITimeout);
-    unpinUITimeout = setTimeout(unpinUI, 100);
-
-    // Possibly force the video to be visible
-    if (config.useRTC && maximized && ui.panels.chat.style.display === "none") {
+// Figure out our ideal size and resize to it
+export function resizeUI() {
+    // Choose whether the video should be visible
+    if ((config.useRTC && maximized && ui.panels.chat.style.display === "none") ||
+        ui.video.wanted)
         ui.video.wrapper.style.display = "";
-    } else {
-        ui.video.wrapper.style.display = (ui.video.wanted?"":"none");
-    }
+    else
+        ui.video.wrapper.style.display = "none";
 
-    // Only two elements are meant to flex large: The video interface and chat
-    if (ui.video.wrapper.style.display !== "none" || ui.panels.chat.style.display !== "none") {
-        ui.waveWrapper.style.flex = "";
-        ui.waveWrapper.style.minHeight = maximized ? "160px" : "40px";
-
-        // Just make sure it's large enough
-        if (window.innerHeight < 640) {
-            ui.autoSize = 640;
-            resizeUI();
-        }
-        return;
-    }
-
-    /* There's nothing flexing large, so make the waveform flex large and
-     * calculate the correct height directly */
-    ui.waveWrapper.style.flex = "auto";
-    ui.waveWrapper.style.minHeight = "";
-    ui.autoSize = ui.wrapper.offsetHeight - ui.waveWrapper.offsetHeight + 160;
-    resizeUI();
-}
-
-// Resize the UI if the user hasn't taken control
-function resizeUI() {
-    if (ui.manualSize && (window.innerHeight >= 640 || window.innerHeight >= ui.autoSize))
-        return;
+    // If we're maximized or manually resized, we don't get to choose a size
+    if ((ui.manualSize && window.innerHeight >= 320) || maximized)
+        return reflexUI();
     ui.manualSize = false;
+
+    // Go through the elements to get the ideal height
+    var idealHeight = 0;
+    Array.prototype.slice.call(ui.wrapper.children, 0).forEach(function(el: HTMLElement) {
+        if (el.style.display === "none") return;
+        // Special cases for elements that flex large
+        if (el === ui.video.wrapper)
+            idealHeight += 320;
+        else if (el === ui.panels.chat)
+            idealHeight += 320;
+        else if (el === ui.waveWrapper)
+            idealHeight += 160;
+        else
+            idealHeight += el.offsetHeight;
+    });
+
+    // But, don't maximize
+    var maxHeight = Math.floor(window.screen.availHeight * 0.9) - 1;
+    if (idealHeight > maxHeight)
+        idealHeight = maxHeight;
+
+    // Now, resize to it
+    ui.autoSize = idealHeight;
+    console.log("Ideal height: " + idealHeight);
     if (ui.resizing)
         clearTimeout(ui.resizing);
-    ui.resizing = setTimeout(function() { ui.resizing = null; }, 200);
+    else
+        ui.outerInnerHeightDiff = window.outerHeight - window.innerHeight;
+    ui.resizing = setTimeout(reflexUI, 200);
+    document.documentElement.style.overflow = "hidden";
+    window.resizeTo(window.outerWidth, ui.outerInnerHeightDiff + idealHeight + 1);
+}
 
-    var maxHeight = Math.floor(window.screen.availHeight * 0.9) - 1;
-    var height = ui.autoSize + window.outerHeight - window.innerHeight;
-    if (height > maxHeight)
-        height = maxHeight;
+// Re-flex the UI based on the actual height of all the elements
+function reflexUI() {
+    if (ui.resizing) {
+        clearTimeout(ui.resizing);
+        ui.resizing = null;
+    }
 
-    window.resizeTo(window.outerWidth, height);
+    // First, find how much height we have leftover for flexible elements
+    var flexible: any = {};
+    var heightForFlexible = window.innerHeight;
+    Array.prototype.slice.call(ui.wrapper.children, 0).forEach(function(el: HTMLElement) {
+        if (el.style.display === "none") return;
+
+        if (el === ui.video.wrapper)
+            flexible.video = true;
+        else if (el === ui.panels.chat)
+            flexible.chat = true;
+        else if (el === ui.waveWrapper)
+            flexible.wave = true;
+        else
+            heightForFlexible -= el.offsetHeight;
+    });
+
+    // Now, distribute the remaining height among visible flexible elements
+    function assignHeight(to, amt) {
+        to.style.height = amt + "px";
+        to.style.flex = "";
+        heightForFlexible -= amt;
+    }
+
+    // First fix the smaller elements
+    if (flexible.chat && flexible.video) {
+        // Assign some remaining space for video, 320+320+160 is large space, 200+320+40 is small space
+        assignHeight(ui.video.wrapper, (heightForFlexible < 800) ? 200 : 320);
+    }
+    if (flexible.chat || flexible.video) {
+        // Assign some remaining space for the waveform, 320+160 is large space, 320+40 is small space
+        assignHeight(ui.waveWrapper, (heightForFlexible < 480) ? 40 : 160);
+    }
+
+    // Then assign the rest to the larger element
+    if (flexible.chat)
+        assignHeight(ui.panels.chat, Math.max(heightForFlexible, 320));
+    else if (flexible.video)
+        assignHeight(ui.video.wrapper, Math.max(heightForFlexible, 320));
+    else
+        assignHeight(ui.waveWrapper, Math.max(heightForFlexible, 160));
+
+    document.documentElement.style.overflow = "";
 }
 
 // Update the video UI based on new information about this peer
@@ -608,8 +634,6 @@ export function updateVideoUI(peer: number) {
         name = config.username;
     else if (ui.userList.names[peer])
         name = ui.userList.names[peer];
-
-    pinUI();
 
     function rbg() {
         return Math.round(Math.random()*0x4);
@@ -746,7 +770,7 @@ export function updateVideoUI(peer: number) {
 
     if (ui.video.major === prevMajor) {
         // No need to change the major
-        reflexUI();
+        resizeUI();
         return;
     }
 
@@ -762,7 +786,7 @@ export function updateVideoUI(peer: number) {
         box.style.height = "";
     }
 
-    reflexUI();
+    resizeUI();
 }
 
 // Toggle the visibility of a panel
@@ -771,19 +795,19 @@ export function togglePanel(panel: string, to?: boolean) {
     if (typeof to === "undefined")
         to = (el.style.display === "none");
 
-    pinUI();
-
     // Only show one panel at a time (except chat)
-    Object.keys(ui.panels).forEach(function(nm) {
-        if (nm !== "chat" && nm !== panel)
-            ui.panels[nm].style.display = "none";
-    });
+    if (to) {
+        Object.keys(ui.panels).forEach(function(nm) {
+            if (nm !== "chat" && nm !== panel)
+                ui.panels[nm].style.display = "none";
+        });
+    }
 
     // Then switch the desired one
     el.style.display = to?"":"none";
-    if (ui.panelAutos[panel])
+    if (to && ui.panelAutos[panel])
         ui.panelAutos[panel].focus();
-    reflexUI();
+    resizeUI();
 }
 
 // Create the menu
@@ -800,7 +824,8 @@ function createMenu() {
     toggleBtn("chat", "chat");
     toggleBtn("users", "user-list");
     toggleBtn("sounds", "sounds");
-    toggleBtn("audio-devices", "audio-device");
+    toggleBtn("input-devices", "input-device");
+    toggleBtn("output-devices", "output-device");
     toggleBtn("camera-devices", "video-device");
 
     // The user list button only becomes visible if we actually have a user list, so we need to keep track of it
@@ -843,15 +868,6 @@ export function updateMuteButton() {
 function createUserList() {
     // All we care about is the left and right halves
     ui.userList.wrapper = gebi("ecuser-list-wrapper");
-
-/*
-    // Fill in the UI with any elements we already have
-    for (var i = 0; i < ui.userList.els.length; i++) {
-        var el = ui.userList.els[i];
-        if (el)
-            userListAdd(i, el.innerText);
-    }
-    */
 }
 
 // Add a user to the user list
@@ -998,7 +1014,7 @@ function createDeviceList() {
 
     // When it's changed, reselect the mic
     sel.onchange = function() {
-        togglePanel("audio-device", false);
+        togglePanel("input-device", false);
         audio.getMic(sel.value);
     };
 
@@ -1055,7 +1071,7 @@ function createDeviceList() {
 
         }
 
-        togglePanel("audio-device", false);
+        togglePanel("input-device", false);
         audio.getMic(sel.value);
     };
 
@@ -1140,7 +1156,7 @@ function createOutputControlPanel() {
     // When it's changed, set output
     sel.onchange = function() {
         if (sel.value === "-none") return;
-        togglePanel("audio-device", false);
+        togglePanel("output-device", false);
         if (ui.audioOutput) {
             (<any> ui.audioOutput).setSinkId(sel.value).catch(console.error);
         } else {

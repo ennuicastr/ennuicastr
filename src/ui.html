@@ -26,7 +26,7 @@
 <!--START-->
         <div id="ecouter" class="cflex" style="min-height: 100%; overflow: hidden;">
             <!-- First panel: Video -->
-            <div id="ecvideo-wrapper" class="cflex" style="position: relative; flex: auto;">
+            <div id="ecvideo-wrapper" class="cflex" style="position: relative;">
                 <div id="ecvideo-main" class="cflex" style="position: relative; flex: auto; min-height: 160px; text-align: center;">
                     <button id="ecvideo-main-fs" class="fsbutton" title="Fullscreen (single video)" aria-label="Fullscreen (single video)"><i class="fas fa-expand"></i></button>
                 </div>
@@ -35,7 +35,7 @@
             </div>
 
             <!-- Second panel: The audio stream -->
-            <div id="ecwaveform-wrapper" style="position: relative; flex: auto;">
+            <div id="ecwaveform-wrapper" style="position: relative;">
                 <canvas id="ecwaveform" style="position: absolute; left: 0px; top: 0px;"></canvas>
                 <img id="ecwave-watcher" src="images/watcher.webp" style="position: absolute; left: 0px; top: 0px; height: 100%;" />
             </div>
@@ -52,7 +52,8 @@
                 <span id="ecmenu-sounds-hider" style="display: none">
                     <button id="ecmenu-sounds" class="menubutton hotkey-hidden" title="Soundboard" aria-label="Soundboard"><i class="fas fa-music"></i></button>
                 </span>
-                <button id="ecmenu-audio-devices" class="menubutton hotkey-hidden" title="Audio configuration" aria-label="Audio configuration"><i class="fas fa-microphone-alt"></i></button>
+                <button id="ecmenu-input-devices" class="menubutton hotkey-hidden" title="Input configuration" aria-label="Input configuration"><i class="fas fa-microphone-alt"></i></button>
+                <button id="ecmenu-output-devices" class="menubutton hotkey-hidden" title="Output configuration" aria-label="Output configuration"><i class="fas fa-headphones-alt"></i></button>
                 <button id="ecmenu-camera-devices" class="menubutton hotkey-hidden" title="Camera selector" aria-label="Camera selector"><i class="fas fa-video"></i></button>
                 <span style="flex: auto;"></span>
                 <button id="ecmenu-record" class="menubutton hotkey-hidden" title="Record video" aria-label="Record video"><i class="fas fa-file-video"></i> <i class="fas fa-circle"></i></button>
@@ -128,13 +129,15 @@
                 <button id="ecvideo-record-local-remote">Both</button>
             </div>
 
-            <!-- The device selector panels -->
-            <div id="ecaudio-device-wrapper" class="panel">
-                <!-- Input device info -->
+            <!-- The input device selector -->
+            <div id="ecinput-device-wrapper" class="panel">
+                <!-- Input device -->
                 <div class="row">
                     <label for="ecinput-device-list">Input device:&nbsp;</label>
                     <select id="ecinput-device-list"></select>
                 </div>
+
+                <!-- And options -->
                 <span class="halfspan halfspan-left">
                     <button id="ecpttb" style=""><i class="fas fa-gamepad"></i> Gamepad push-to-talk</button>
                 </span><span id="ecinput-options-wrapper" class="halfspan halfspan-right">
@@ -143,9 +146,10 @@
                     <input id="ececho-cancellation" type="checkbox" />
                     <label for="ececho-cancellation">&nbsp;Apply echo cancellation</label>
                 </span>
+            </div>
 
-                <hr/>
-
+            <!-- The output device selector -->
+            <div id="ecoutput-device-wrapper" class="panel">
                 <!-- The output device selector -->
                 <div id="ecoutput-device-list-wrapper" class="row">
                     <label for="ecoutput-device-list">Output:&nbsp;</label>
@@ -172,17 +176,22 @@
                     <label for="ecdynamic-range-compression">&nbsp;Auto-level everyone's volume</label>
                 </div>
             </div>
+
+            <!-- And video device -->
             <div id="ecvideo-device-wrapper" class="panel">
                 <label for="ecvideo-device-list">Camera:&nbsp;</label>
                 <select id="ecvideo-device-list"></select>
             </div>
 
             <!-- Chat comes last -->
-            <div id="ecchat-wrapper" class="cflex panel noborder" style="flex: auto;">
+            <div id="ecchat-wrapper" class="cflex panel noborder">
                 <div id="ecchat-incoming" class="chat" style="flex: auto; padding: 0.5em; min-height: 2em; overflow: auto;" role="log" aria-live="polite"></div>
                 <input id="ecchat-outgoing" type="text" style="box-sizing: border-box; width: 100%;" data-hotkey-enter="ecchat-outgoing-b" />
                 <input id="ecchat-outgoing-b" type="hidden" />
             </div>
+
+            <!-- A spacer for the status -->
+            <div id="ecprelog-spacer" style="height: 0.5em"></div>
 
             <!-- The status -->
             <div id="eclog" class="status">

@@ -36,12 +36,6 @@ export function popStatus(id: string) {
 }
 
 function updateStatus() {
-    if (ui.ui.wrapper) {
-        ui.pinUI();
-        // Except for the log itself!
-        ui.ui.log.style.height = "";
-    }
-
     var txt = "";
     for (var id in curStatus) {
         txt += curStatus[id] + "\n";
@@ -52,5 +46,5 @@ function updateStatus() {
     log.innerText = txt;
 
     if (ui.ui.wrapper)
-        ui.reflexUI();
+        ui.resizeUI();
 }

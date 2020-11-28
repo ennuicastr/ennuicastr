@@ -115,10 +115,6 @@ export function configureMasterInterface() {
     if (!ui.ui.wrapper || !masterUI.startStopB)
         return;
 
-    ui.pinUI();
-    // Except for the master panel itself
-    ui.ui.panels.master.style.height = "";
-
     var pauseResume = masterUI.pauseResumeB;
     var startStop = masterUI.startStopB;
     masterUI.startStopYesNo.style.display = "none";
@@ -156,7 +152,7 @@ export function configureMasterInterface() {
     }
 
     masterUpdateCreditCost();
-    ui.reflexUI();
+    ui.resizeUI();
 }
 
 // Generic "send this mode change" function
@@ -197,7 +193,7 @@ function masterStopRecording() {
     ui.ui.masterUI.startStopYesB.onclick = masterStopRecordingYes;
     ui.ui.masterUI.startStopNoB.onclick = masterStopRecordingNo;
 
-    ui.reflexUI();
+    ui.resizeUI();
 }
 
 function masterStopRecordingYes() {
@@ -205,7 +201,7 @@ function masterStopRecordingYes() {
 
     // Send out the stop request
     masterSendMode(prot.mode.finished);
-    ui.reflexUI();
+    ui.resizeUI();
 }
 
 function masterStopRecordingNo() {
