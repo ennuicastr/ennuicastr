@@ -123,7 +123,7 @@
             </div>
 
             <!-- Video recording -->
-            <div id="ecvideo-record-wrapper" class="panel" style="text-align: right">
+            <div id="ecvideo-record-wrapper" class="panel" style="text-align: right;">
                 <button id="ecvideo-record-local">Record locally</button>&nbsp;
                 <button id="ecvideo-record-remote">Record and send to host</button>&nbsp;
                 <button id="ecvideo-record-local-remote">Both</button>
@@ -141,10 +141,14 @@
                 <span class="halfspan halfspan-left">
                     <button id="ecpttb" style=""><i class="fas fa-gamepad"></i> Gamepad push-to-talk</button>
                 </span><span id="ecinput-options-wrapper" class="halfspan halfspan-right">
-                    <input id="ecnoise-reduction" type="checkbox" />
+                    <input id="ecnoise-reduction" type="checkbox" checked />
                     <label for="ecnoise-reduction">&nbsp;Apply noise reduction</label><br/>
                     <input id="ececho-cancellation" type="checkbox" />
                     <label for="ececho-cancellation">&nbsp;Apply echo cancellation</label>
+                    <span id="ecagc-hider" style="display: none;"><br/>
+                    <input id="ecagc" type="checkbox" />
+                    <label for="ecagc">&nbsp;Automatic gain control</label>
+                    </span>
                 </span>
             </div>
 

@@ -157,7 +157,13 @@ export const ui = {
 
         /* Echo cancellation checkbox, with information on whether this was
          * administrative override */
-        ec: HTMLInputElement & {ecAdmin?: boolean}
+        ec: HTMLInputElement & {ecAdmin?: boolean},
+
+        // Hider for AGC, since it's only on mobile
+        agcHider: HTMLElement,
+
+        // Automatic gain control
+        agc: HTMLInputElement
     }> null,
 
     // The wrapper for the output control panel
@@ -307,6 +313,12 @@ export const ui = {
     // Button to record video. Here because video-record needs it
     recordVideoButton: <HTMLButtonElement> null
 };
+
+// Certain options are only shown on mobile
+const ua = navigator.userAgent.toLowerCase();
+const mobile = (ua.indexOf("android") >= 0) ||
+               (ua.indexOf("iphone") >= 0) ||
+               (ua.indexOf("ipad") >= 0);
 
 // Make the overall UI
 export function mkUI() {
@@ -566,7 +578,6 @@ export function resizeUI() {
 
     // Now, resize to it
     ui.autoSize = idealHeight;
-    console.log("Ideal height: " + idealHeight);
     if (ui.resizing)
         clearTimeout(ui.resizing);
     else
@@ -944,8 +955,7 @@ export function userListAdd(idx: number, name: string) {
                 vol.value = i;
 
         // Remember preferences
-        if (typeof localStorage !== "undefined")
-            localStorage.setItem("volume-user-" + name, vol.value);
+        localStorage.setItem("volume-user-" + name, vol.value);
 
         // Show the status
         volStatus.innerHTML = "&nbsp;" + vol.value + "%";
@@ -956,12 +966,10 @@ export function userListAdd(idx: number, name: string) {
     };
 
     // Get the saved value
-    if (typeof localStorage !== "undefined") {
-        var def = localStorage.getItem("volume-user-" + name);
-        if (def) {
-            vol.value = +def;
-            vol.oninput();
-        }
+    var def = localStorage.getItem("volume-user-" + name);
+    if (def) {
+        vol.value = +def;
+        vol.oninput();
     }
 
 }
@@ -992,15 +1000,22 @@ function createDeviceList() {
         pttb: gebi("ecpttb"),
         optionsWrapper: gebi("ecinput-options-wrapper"),
         noiser: gebi("ecnoise-reduction"),
-        ec: gebi("ececho-cancellation")
+        ec: gebi("ececho-cancellation"),
+        agcHider: gebi("ecagc-hider"),
+        agc: gebi("ecagc")
     };
 
-    // Remember echo cancellation early so that the first user media setup knows it
-    if (typeof localStorage !== "undefined") {
-        var ecDef = localStorage.getItem("echo-cancellation");
-        if (ecDef)
-            ui.deviceList.ec.checked = JSON.parse(ecDef);
-    }
+    // Remember echo cancellation and AGC early so that the first user media setup knows it
+    var ecDef = localStorage.getItem("echo-cancellation2");
+    if (ecDef)
+        ui.deviceList.ec.checked = !!~~ecDef;
+    else if (mobile)
+        ui.deviceList.ec.checked = true;
+    var agcDef = localStorage.getItem("agc");
+    if (agcDef)
+        ui.deviceList.agc.checked = !!~~agcDef;
+    else if (mobile)
+        ui.deviceList.agc.checked = true;
 
     if (!audio.userMedia) {
         // Wait until we can know what device we selected
@@ -1047,22 +1062,24 @@ function createDeviceList() {
 
     // The selector for noise reduction
     var noiser = ui.deviceList.noiser;
-    noiser.checked = proc.useNR;
     noiser.onchange = function() {
+        localStorage.setItem("noise-reduction", noiser.checked?"1":"0");
         proc.setUseNR(noiser.checked);
     };
+    var noiserDef = localStorage.getItem("noise-reduction");
+    if (noiserDef)
+        noiser.checked = !!~~noiserDef;
+    noiser.onchange(null);
 
-    // And for echo cancellation, which resets the mic
+    // For echo cancellation, which resets the mic
     var ec = ui.deviceList.ec;
     ec.onchange = function() {
-        var admin = false;
         if (ec.ecAdmin) {
             // Don't record an admin-enforced change
             ec.ecAdmin = false;
 
         } else {
-            if (typeof localStorage !== "undefined")
-                localStorage.setItem("echo-cancellation", JSON.stringify(ec.checked));
+            localStorage.setItem("echo-cancellation2", ec.checked?"1":"0");
 
             if (ec.checked) {
                 log.pushStatus("echo-cancellation", "WARNING: Digital echo cancellation is usually effective in cancelling echo, but will SEVERELY impact the quality of your audio. If possible, find a way to reduce echo physically.");
@@ -1073,6 +1090,16 @@ function createDeviceList() {
 
         }
 
+        togglePanel("input-device", false);
+        audio.getMic(sel.value);
+    };
+
+    // And for AGC, which also resets the mic
+    if (mobile)
+        ui.deviceList.agcHider.style.display = "";
+    var agc = ui.deviceList.agc;
+    agc.onchange = function() {
+        localStorage.setItem("agc", agc.checked?"1":"0");
         togglePanel("input-device", false);
         audio.getMic(sel.value);
     };

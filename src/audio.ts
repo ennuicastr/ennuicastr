@@ -169,7 +169,7 @@ export function getMic(deviceId?: string) {
     return navigator.mediaDevices.getUserMedia({
         audio: {
             deviceId: deviceId,
-            autoGainControl: {ideal: false},
+            autoGainControl: {ideal: ui.ui.deviceList.agc.checked},
             echoCancellation: {ideal: ui.ui.deviceList.ec.checked},
             noiseSuppression: {ideal: false},
             sampleRate: {ideal: 48000},
