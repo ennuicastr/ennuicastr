@@ -205,7 +205,6 @@ export function setCompressing(to: boolean) {
 
 // Change the global gain
 export function setGlobalGain(to: number) {
-    console.log("Setting global gain to " + to);
     rtcCompression.gain = to;
 
     // Update all the gain nodes
@@ -214,7 +213,6 @@ export function setGlobalGain(to: number) {
         if (!com) continue;
         var target = to *
             ((idx in rtcCompression.perUserGain) ? rtcCompression.perUserGain[idx] : 1);
-        console.log("Setting local gain to " + target);
         com.gain.gain.setTargetAtTime(target, 0, 0.003);
     }
 }

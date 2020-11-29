@@ -258,10 +258,8 @@ function dataSockMsg(ev: MessageEvent) {
                 case prot.info.peerInitial:
                 case prot.info.peerContinuing:
                     // We may need to start an RTC connection
-                    if (config.useRTC) {
-                        rtc.initRTC(val, false);
-                        rtc.initRTC(val, true);
-                    }
+                    if (config.useRTC)
+                        rtc.initRTC(val);
                     break;
 
                 case prot.info.peerLost:
@@ -357,12 +355,13 @@ function dataSockMsg(ev: MessageEvent) {
             var peer = msg.getUint32(p.peer, true);
             var type = msg.getUint32(p.type, true);
             var conn: RTCPeerConnection, outgoing: boolean;
+            var outgoing: boolean;
             if (type & 0x80000000) {
                 // For *their* outgoing connection
-                conn = rtc.rtcConnections.incoming[peer];
+                conn = rtc.rtcConnections.peers[peer].incoming;
                 outgoing = false;
             } else {
-                conn = rtc.rtcConnections.outgoing[peer];
+                conn = rtc.rtcConnections.peers[peer].outgoing;
                 outgoing = true;
             }
             if (!conn)

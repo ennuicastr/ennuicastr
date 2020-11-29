@@ -28,28 +28,28 @@ import * as video from "./video";
 import * as videoRecord from "./video-record";
 
 type ECRTCPeerConnection = RTCPeerConnection & {
-    ecDataChannel: RTCDataChannel,
-    ecVideoRecord: WritableStreamDefaultWriter
+    ecDataChannel?: RTCDataChannel,
+    ecVideoRecord?: WritableStreamDefaultWriter,
+    ecOnclose?: ()=>void
 };
+
+interface ECRPCPair {
+    incoming: ECRTCPeerConnection;
+    outgoing: ECRTCPeerConnection;
+}
 
 // Our RTC peer connections
 export var rtcConnections = {
-    outgoing: <{[key: string]: ECRTCPeerConnection}> {},
-    incoming: <{[key: string]: ECRTCPeerConnection}> {},
+    peers: <Record<number, ECRPCPair>> {},
     videoRecHost: -1
 };
 
 // Called on network disconnection
 export function disconnect() {
-    for (var id in rtcConnections.outgoing) {
-        try {
-            rtcConnections.outgoing[id].close();
-        } catch (ex) {}
-    }
-    for (var id in rtcConnections.incoming) {
-        try {
-            rtcConnections.incoming[id].close();
-        } catch (ex) {}
+    for (var peer in rtcConnections.peers) {
+        var poi = rtcConnections.peers[peer];
+        poi.incoming.close();
+        poi.outgoing.close();
     }
 }
 
@@ -66,37 +66,49 @@ export function rtcSignal(peer: number, outgoing: boolean, type: number, value: 
 }
 
 // Initialize a connection to an RTC peer
-export function initRTC(peer: number, outgoing: boolean) {
-    // Which set are we in?
-    var group = rtcConnections.incoming;
-    if (outgoing)
-        group = rtcConnections.outgoing;
+export function initRTC(peer: number) {
+    if (peer in rtcConnections.peers) {
+        // Just try reconnecting
+        rtcConnections.peers[peer].outgoing.onnegotiationneeded(null);
+        return;
+    }
 
-    var prev = group[peer];
-
-    var conn = group[peer] = <ECRTCPeerConnection> new RTCPeerConnection({
-        iceServers: net.iceServers,
-        iceTransportPolicy: "all"
-    });
-
-    if (prev)
-        prev.close();
+    // Otherwise, make the connections
+    var conn = rtcConnections.peers[peer] = <ECRPCPair> {
+        incoming: new RTCPeerConnection({iceServers: net.iceServers, iceTransportPolicy: "all"}),
+        outgoing: new RTCPeerConnection({iceServers: net.iceServers, iceTransportPolicy: "all"})
+    };
 
     var videoEl: HTMLVideoElement = null;
 
-    conn.onicecandidate = function(c) {
-        if (group[peer] !== conn) return;
-        rtcSignal(peer, outgoing, prot.rtc.candidate, c.candidate);
+    conn.incoming.onicecandidate = function(c) {
+        rtcSignal(peer, false, prot.rtc.candidate, c.candidate);
+    };
+    conn.outgoing.onicecandidate = function(c) {
+        rtcSignal(peer, true, prot.rtc.candidate, c.candidate);
     };
 
+    // Outgoing connection negotiation function
+    conn.outgoing.onnegotiationneeded = function() {
+        console.log("Negotiation?");
+        conn.outgoing.createOffer({voiceActivityDetection: true}).then(function(offer) {
+            return conn.outgoing.setLocalDescription(offer);
+
+        }).then(function() {
+            rtcSignal(peer, true, prot.rtc.offer, conn.outgoing.localDescription);
+
+        }).catch(function(ex) {
+            rtcFail();
+
+        });
+    }
+
     // Called when we get a new track
-    if (!outgoing)
-    conn.ontrack = function(ev) {
-        if (group[peer] !== conn) return;
+    conn.incoming.ontrack = function(ev) {
         // If we haven't yet approved audio, then we're not ready for this track
         if (!audio.userMediaRTC) {
             audio.userMediaAvailableEvent.addEventListener("usermediartcready", function() {
-                conn.ontrack(ev);
+                conn.incoming.ontrack(ev);
             }, {once: true});
             return;
         }
@@ -116,16 +128,11 @@ export function initRTC(peer: number, outgoing: boolean) {
 
         // Prepare for tracks to end
         stream.onremovetrack = function() {
-            if (group[peer] !== conn) return;
             videoEl = reassessRTCEl(peer, !!stream.getTracks().length, !!stream.getVideoTracks().length);
         };
 
         // Get our video element (even if there is no video)
         videoEl = reassessRTCEl(peer, true, !!stream.getVideoTracks().length);
-        if (videoEl.srcObject !== null && videoEl.srcObject !== stream) {
-            reassessRTCEl(peer, false, false);
-            videoEl = reassessRTCEl(peer, false, !!stream.getVideoTracks().length);
-        }
         videoEl.srcObject = stream;
         videoEl.play().catch(console.error);
 
@@ -135,9 +142,9 @@ export function initRTC(peer: number, outgoing: boolean) {
         }
     };
 
-    conn.oniceconnectionstatechange = function(ev) {
-        if (group[peer] !== conn) return;
-        switch (conn.iceConnectionState) {
+    // Called when the ICE connection state changes
+    conn.outgoing.oniceconnectionstatechange = function(ev) {
+        switch (conn.outgoing.iceConnectionState) {
             case "failed":
                 // report the failure
                 rtcFail();
@@ -145,42 +152,31 @@ export function initRTC(peer: number, outgoing: boolean) {
 
             case "closed":
                 // attempt reconnection
-                initRTC(peer, outgoing);
+                conn.outgoing.onnegotiationneeded(null);
                 break;
         }
     };
 
-    conn.onconnectionstatechange = function(ev) {
-        if (group[peer] !== conn) return;
-        if (conn.connectionState === "closed")
-            initRTC(peer, outgoing);
-    };
-
-
     // Add each track to the connection
     function addTracks() {
-        if (group[peer] !== conn) return;
         audio.userMediaRTC.getTracks().forEach(function(track) {
-            conn.addTrack(track, audio.userMediaRTC);
+            conn.outgoing.addTrack(track, audio.userMediaRTC);
         });
     }
-    if (outgoing && audio.userMediaRTC)
+    if (audio.userMediaRTC)
         addTracks();
 
     // Add video tracks to the connection
     function addVideoTracks() {
-        if (group[peer] !== conn) return;
         video.userMediaVideo.getTracks().forEach(function(track) {
-            conn.addTrack(track, audio.userMediaRTC);
+            conn.outgoing.addTrack(track, audio.userMediaRTC);
         });
     }
-    if (outgoing && video.userMediaVideo)
+    if (video.userMediaVideo)
         addVideoTracks();
 
     // Remove any inactive tracks from the connection
     function removeTracks() {
-        if (group[peer] !== conn) return;
-
         // Figure out which tracks should stay
         var tracks: {[key: string]: boolean} = {};
         function listTracks(from: MediaStream) {
@@ -192,81 +188,54 @@ export function initRTC(peer: number, outgoing: boolean) {
         if (video.userMediaVideo) listTracks(video.userMediaVideo);
 
         // Then remove any tracks that should go
-        conn.getSenders().forEach(function(sender) {
+        conn.outgoing.getSenders().forEach(function(sender) {
             var track = sender.track;
             if (!track) return;
             if (!tracks[track.id])
-                conn.removeTrack(sender);
+                conn.outgoing.removeTrack(sender);
         });
     }
 
     // If we switch UserMedia, we'll need to re-up
-    if (outgoing) {
-        audio.userMediaAvailableEvent.addEventListener("usermediartcready", addTracks);
-        audio.userMediaAvailableEvent.addEventListener("usermediavideoready", addVideoTracks);
-        audio.userMediaAvailableEvent.addEventListener("usermediastopped", removeTracks);
-        audio.userMediaAvailableEvent.addEventListener("usermediavideostopped", removeTracks);
-
-/*
-FIXME
-        conn.addEventListener("connectionstatechange", function() {
-            if (conn.connectionState === "closed") {
-                // Don't send any new events
-                audio.userMediaAvailableEvent.removeEventListener("usermediartcready", addTracks);
-                audio.userMediaAvailableEvent.removeEventListener("usermediavideoready", addVideoTracks);
-                audio.userMediaAvailableEvent.removeEventListener("usermediastopped", removeTracks);
-                audio.userMediaAvailableEvent.removeEventListener("usermediavideostopped", removeTracks);
-            }
-        });
-*/
-    }
+    var umae = audio.userMediaAvailableEvent;
+    umae.addEventListener("usermediartcready", addTracks);
+    umae.addEventListener("usermediavideoready", addVideoTracks);
+    umae.addEventListener("usermediastopped", removeTracks);
+    umae.addEventListener("usermediavideostopped", removeTracks);
+    conn.outgoing.ecOnclose = function() {
+        umae.removeEventListener("usermediartcready", addTracks);
+        umae.removeEventListener("usermediavideoready", addVideoTracks);
+        umae.removeEventListener("usermediastopped", removeTracks);
+        umae.removeEventListener("usermediavideostopped", removeTracks);
+    };
 
     // Make a data channel for speech status
-    if (outgoing) {
-        var chan = conn.ecDataChannel = conn.createDataChannel("ennuicastr");
-        chan.binaryType = "arraybuffer";
-        chan.onopen = function() {
-            if (group[peer] !== conn) return;
-            rtcSpeech(proc.vadOn, peer);
-            if ("master" in config.config)
-                rtcVideoRecSend(void 0, prot.videoRec.videoRecHost, ~~ui.ui.masterUI.acceptRemoteVideo.checked);
+    var chan = conn.outgoing.ecDataChannel = conn.outgoing.createDataChannel("ennuicastr");
+    chan.binaryType = "arraybuffer";
+    chan.onopen = function() {
+        rtcSpeech(proc.vadOn, peer);
+        if ("master" in config.config)
+            rtcVideoRecSend(void 0, prot.videoRec.videoRecHost, ~~ui.ui.masterUI.acceptRemoteVideo.checked);
+    };
+
+    conn.incoming.ondatachannel = function(ev) {
+        ev.channel.binaryType = "arraybuffer";
+        ev.channel.onmessage = function(ev) {
+            var msg = new DataView(ev.data);
+            rtcMessage(peer, msg);
         };
-
-    } else {
-        conn.ondatachannel = function(ev) {
-            if (group[peer] !== conn) return;
-            ev.channel.binaryType = "arraybuffer";
-            ev.channel.onmessage = function(ev) {
-                var msg = new DataView(ev.data);
-                rtcMessage(peer, msg);
-            };
-        };
-    }
-
-    // Outgoing negotiation function
-    conn.onnegotiationneeded = function() {
-        if (group[peer] !== conn) return;
-        conn.createOffer({voiceActivityDetection: true}).then(function(offer) {
-            return conn.setLocalDescription(offer);
-
-        }).then(function() {
-            rtcSignal(peer, outgoing, prot.rtc.offer, conn.localDescription);
-
-        }).catch(function(ex) {
-            rtcFail();
-
-        });
-    }
+    };
 }
 
 // Close an RTC connection when a peer disconnects
 export function closeRTC(peer: number) {
-    ["outgoing", "incoming"].forEach(function(group) {
-        var conn: RTCPeerConnection = (<any> rtcConnections)[group][peer];
-        if (!conn)
-            return;
-        conn.close();
-    });
+    var conn = rtcConnections.peers[peer];
+    if (!conn) return;
+    delete rtcConnections.peers[peer];
+    conn.incoming.close();
+    if (conn.outgoing.ecOnclose)
+        conn.outgoing.ecOnclose();
+    conn.outgoing.close();
     reassessRTCEl(peer, false, false);
 }
 
@@ -316,7 +285,7 @@ function rtcMessage(peer: number, msg: DataView) {
     switch (cmd) {
         case prot.ids.data:
             try {
-                rtcConnections.incoming[peer].ecVideoRecord.write((new Uint8Array(msg.buffer)).subarray(4));
+                rtcConnections.peers[peer].incoming.ecVideoRecord.write((new Uint8Array(msg.buffer)).subarray(4));
             } catch (ex) {}
             break;
 
@@ -350,7 +319,7 @@ function rtcMessage(peer: number, msg: DataView) {
                 case pv.startVideoRecReq:
                     if ("master" in config.config &&
                         ui.ui.masterUI.acceptRemoteVideo.checked &&
-                        rtcConnections.incoming[peer]) {
+                        rtcConnections.peers[peer]) {
 
                         // Check for options
                         var opts = {};
@@ -362,8 +331,8 @@ function rtcMessage(peer: number, msg: DataView) {
 
                         videoRecord.recordVideoRemoteIncoming(peer, opts).then(function(fileWriter) {
                             rtcVideoRecSend(peer, prot.videoRec.startVideoRecRes, 1);
-                            if (rtcConnections.incoming[peer])
-                                rtcConnections.incoming[peer].ecVideoRecord = fileWriter;
+                            if (rtcConnections.peers[peer])
+                                rtcConnections.peers[peer].incoming.ecVideoRecord = fileWriter;
                             else
                                 fileWriter.close();
                         });
@@ -382,8 +351,8 @@ function rtcMessage(peer: number, msg: DataView) {
 
                 case pv.endVideoRec:
                     try {
-                        rtcConnections.incoming[peer].ecVideoRecord.close();
-                        delete rtcConnections.incoming[peer].ecVideoRecord;
+                        rtcConnections.peers[peer].incoming.ecVideoRecord.close();
+                        delete rtcConnections.peers[peer].incoming.ecVideoRecord;
                     } catch (ex) {}
                     break;
             }
@@ -405,15 +374,15 @@ export function rtcSpeech(status: boolean, peer?: number) {
     // Maybe just send it to the specified peer
     if (typeof peer !== "undefined") {
         try {
-            rtcConnections.outgoing[peer].ecDataChannel.send(msg);
+            rtcConnections.peers[peer].outgoing.ecDataChannel.send(msg);
         } catch (ex) {}
         return;
     }
 
     // Send it everywhere
-    for (let peer in rtcConnections.outgoing) {
+    for (let peer in rtcConnections.peers) {
         try {
-            rtcConnections.outgoing[peer].ecDataChannel.send(msg);
+            rtcConnections.peers[peer].outgoing.ecDataChannel.send(msg);
         } catch (ex) {}
     }
 }
@@ -446,14 +415,14 @@ export function rtcVideoRecSend(peer: number, cmd: number, payloadData?: unknown
     // And send it
     if (typeof peer !== "undefined") {
         try {
-            rtcConnections.outgoing[peer].ecDataChannel.send(msg);
+            rtcConnections.peers[peer].outgoing.ecDataChannel.send(msg);
         } catch (ex) {}
         return;
     }
 
-    for (let peer in rtcConnections.outgoing) {
+    for (let peer in rtcConnections.peers) {
         try {
-            rtcConnections.outgoing[peer].ecDataChannel.send(msg);
+            rtcConnections.peers[peer].outgoing.ecDataChannel.send(msg);
         } catch (ex) {}
     }
 }
@@ -470,7 +439,7 @@ export function rtcDataSend(peer: number, buf: Uint8Array) {
         new Uint8Array(msg.buffer).set(part, 4);
 
         try {
-            rtcConnections.outgoing[peer].ecDataChannel.send(msg);
+            rtcConnections.peers[peer].outgoing.ecDataChannel.send(msg);
         } catch (ex) {}
     }
 }
