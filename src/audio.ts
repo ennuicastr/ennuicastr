@@ -971,8 +971,10 @@ export function playStopSound(url: string, status: number, time: number) {
             format = "webm"
 
         sound.el.src = url + "." + format;
-        sound.el.volume = (+ui.ui.outputControlPanel.sfxVolume.value) / 100;
-        ui.ui.outputControlPanel.sfxVolumeHider.style.display = "";
+        if (ui.ui.outputControlPanel) {
+            sound.el.volume = (+ui.ui.outputControlPanel.sfxVolume.value) / 100;
+            ui.ui.outputControlPanel.sfxVolumeHider.style.display = "";
+        }
     }
     var el = sound.el;
 
