@@ -72,13 +72,16 @@ export function initRTC(peer: number, outgoing: boolean) {
     if (outgoing)
         group = rtcConnections.outgoing;
 
-    if (group[peer])
-        group[peer].close();
+    var prev = group[peer];
 
     var conn = group[peer] = <ECRTCPeerConnection> new RTCPeerConnection({
         iceServers: net.iceServers,
         iceTransportPolicy: "all"
     });
+
+    if (prev)
+        prev.close();
+
     var videoEl: HTMLVideoElement = null;
 
     conn.onicecandidate = function(c) {
@@ -147,9 +150,16 @@ export function initRTC(peer: number, outgoing: boolean) {
         }
     };
 
+    conn.onconnectionstatechange = function(ev) {
+        if (group[peer] !== conn) return;
+        if (conn.connectionState === "closed")
+            initRTC(peer, outgoing);
+    };
+
 
     // Add each track to the connection
     function addTracks() {
+        if (group[peer] !== conn) return;
         audio.userMediaRTC.getTracks().forEach(function(track) {
             conn.addTrack(track, audio.userMediaRTC);
         });
@@ -159,6 +169,7 @@ export function initRTC(peer: number, outgoing: boolean) {
 
     // Add video tracks to the connection
     function addVideoTracks() {
+        if (group[peer] !== conn) return;
         video.userMediaVideo.getTracks().forEach(function(track) {
             conn.addTrack(track, audio.userMediaRTC);
         });
@@ -168,6 +179,8 @@ export function initRTC(peer: number, outgoing: boolean) {
 
     // Remove any inactive tracks from the connection
     function removeTracks() {
+        if (group[peer] !== conn) return;
+
         // Figure out which tracks should stay
         var tracks: {[key: string]: boolean} = {};
         function listTracks(from: MediaStream) {
@@ -194,15 +207,18 @@ export function initRTC(peer: number, outgoing: boolean) {
         audio.userMediaAvailableEvent.addEventListener("usermediastopped", removeTracks);
         audio.userMediaAvailableEvent.addEventListener("usermediavideostopped", removeTracks);
 
-        conn.onsignalingstatechange = function() {
-            if (conn.signalingState === "closed") {
+/*
+FIXME
+        conn.addEventListener("connectionstatechange", function() {
+            if (conn.connectionState === "closed") {
                 // Don't send any new events
                 audio.userMediaAvailableEvent.removeEventListener("usermediartcready", addTracks);
                 audio.userMediaAvailableEvent.removeEventListener("usermediavideoready", addVideoTracks);
                 audio.userMediaAvailableEvent.removeEventListener("usermediastopped", removeTracks);
                 audio.userMediaAvailableEvent.removeEventListener("usermediavideostopped", removeTracks);
             }
-        };
+        });
+*/
     }
 
     // Make a data channel for speech status
