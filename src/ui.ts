@@ -183,6 +183,9 @@ export const ui = {
         // Compression option
         compression: HTMLInputElement,
 
+        // Hider for compression option
+        compressionHider: HTMLElement,
+
         // Sound FX volume
         sfxVolume: HTMLInputElement,
 
@@ -961,8 +964,7 @@ export function userListAdd(idx: number, name: string) {
         volStatus.innerHTML = "&nbsp;" + vol.value + "%";
 
         // Set it
-        compression.rtcCompression.perUserVol[idx] = vol.value / 100;
-        compression.compressorChanged();
+        compression.setPerUserGain(idx, vol.value / 100);
     };
 
     // Get the saved value
@@ -1173,6 +1175,7 @@ function createOutputControlPanel() {
         sfxVolume: gebi("ecsfx-volume"),
         sfxVolumeStatus: gebi("ecsfx-volume-status"),
         sfxVolumeHider: gebi("ecsfx-volume-hider"),
+        compressionHider: gebi("ecdynamic-range-compression-hider"),
         compression: gebi("ecdynamic-range-compression")
     };
 
@@ -1232,23 +1235,19 @@ function createOutputControlPanel() {
                 vol.value = <any> i;
 
         // Remember preferences
-        if (typeof localStorage !== "undefined")
-            localStorage.setItem("volume-master", vol.value);
+        localStorage.setItem("volume-master", vol.value);
 
         // Show the status
         volStatus.innerHTML = "&nbsp;" + vol.value + "%";
 
         // Set it
-        compression.rtcCompression.gain.volume = (+vol.value) / 100;
-        compression.compressorChanged();
+        compression.setGlobalGain((+vol.value) / 100);
     };
 
     // Get the saved value
-    if (typeof localStorage !== "undefined") {
-        var def = localStorage.getItem("volume-master");
-        if (def)
-            vol.value = <any> +def;
-    }
+    var def = localStorage.getItem("volume-master");
+    if (def)
+        vol.value = <any> +def;
     vol.oninput(null);
 
     /*****
@@ -1284,39 +1283,38 @@ function createOutputControlPanel() {
     /*****
      * 4: Dynamic range compression (volume leveling)
      *****/
+    var compCBHider = ui.outputControlPanel.compressionHider;
     var compCB = ui.outputControlPanel.compression;
 
     // Swap on or off compression
     compCB.onchange = function() {
-        var c = compression.rtcCompression;
-        if (compCB.checked) {
-            // 8-to-1 brings everything into 40-35dB, a 5dB range
-            c.compressor.ratio = 8;
-            c.gain.gain = null;
+        compression.setCompressing(compCB.checked);
 
+        if (compCB.checked) {
             // Set the volume to 100% so it doesn't explode your ears
             vol.value = <any> 100;
         } else {
-            c.compressor.ratio = 1;
-            c.gain.gain = 1;
-
             // Set the volume to 200% so it's audible
             vol.value = <any> 200;
         }
         vol.oninput(null);
 
         // Remember the default
-        if (typeof localStorage !== "undefined")
-            localStorage.setItem("dynamic-range-compression", compCB.checked?"1":"0");
+        localStorage.setItem("dynamic-range-compression2", compCB.checked?"1":"0");
     };
 
     // Get the saved default
-    if (typeof localStorage !== "undefined") {
-        var def = localStorage.getItem("dynamic-range-compression");
-        if (def !== null)
-            compCB.checked = !!~~def;
+    var def = localStorage.getItem("dynamic-range-compression2");
+    if (def !== null) {
+        compCB.checked = !!~~def;
+        compression.setCompressing(compCB.checked);
+    } else {
+        compCB.checked = compression.supported;
+        compCB.onchange(null);
     }
-    compCB.onchange(null);
+
+    if (!compression.supported)
+        compCBHider.style.display = "none";
 
 }
 

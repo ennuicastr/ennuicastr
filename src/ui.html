@@ -163,7 +163,7 @@
                 <!-- Master volume -->
                 <div class="rflex row">
                     <label for="ecoutput-volume" style="min-width: 8em; text-align: right;">Volume:&nbsp;</label>
-                    <input id="ecoutput-volume" type="range" min=0 max=400 value=200 style="flex: auto; min-width: 5em;" />
+                    <input id="ecoutput-volume" type="range" min=0 max=400 value=100 style="flex: auto; min-width: 5em;" />
                     <span id="ecoutput-volume-status">&nbsp;100%</span>
                 </div>
 
@@ -175,8 +175,8 @@
                 </div>
 
                 <!-- And dynamic range compression -->
-                <div>
-                    <input id="ecdynamic-range-compression" type="checkbox" />
+                <div id="ecdynamic-range-compression-hider">
+                    <input id="ecdynamic-range-compression" type="checkbox" checked />
                     <label for="ecdynamic-range-compression">&nbsp;Auto-level everyone's volume</label>
                 </div>
             </div>

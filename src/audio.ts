@@ -59,7 +59,7 @@ export const mediaRecorderVideo = mediaRecorderVP8 || mediaRecorderMP4;
 
 // Which libav package to load
 const libavPackage =
-    (mediaRecorderMP4 && !mediaRecorderVP8) ? "mediarecorder-transcoder" : "webm-opus-flac";
+    (mediaRecorderMP4 && !mediaRecorderVP8) ? "ennuicastr-mp4" : "ennuicastr-webm";
 
 // The audio device being read
 export var userMedia: MediaStream = null;
@@ -280,23 +280,25 @@ function userMediaSet() {
 }
 
 // Load LibAV if it's not already loaded
+var loadLibAVPromise: Promise<unknown> = null;
 export function loadLibAV(): Promise<unknown> {
-    if (libav) {
-        // Already loaded
-        return Promise.all([]);
+    if (loadLibAVPromise) {
+        // Already loading or loaded
+        return loadLibAVPromise;
     }
 
     if (typeof LibAV === "undefined")
         (<any> window).LibAV = {};
     LibAV.base = "libav";
 
-    return util.loadLibrary("libav/libav-" + libavVersion + "-" + libavPackage + ".js").then(function() {
+    loadLibAVPromise = util.loadLibrary("libav/libav-" + libavVersion + "-" + libavPackage + ".js").then(function() {
         return LibAV.LibAV();
 
     }).then(function(ret) {
         libav = ret;
 
     });
+    return loadLibAVPromise;
 }
 
 /* Called once the specialized encoder is loaded, if it's needed. Returns a

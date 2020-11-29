@@ -1,0 +1,19 @@
+--enable-libopus
+--enable-decoder=flac --enable-decoder=libopus
+--enable-decoder=aac
+--enable-decoder=vp8 --enable-decoder=h264
+--enable-encoder=flac --enable-encoder=libopus
+--enable-encoder=aac
+--enable-encoder=vp8
+--enable-demuxer=matroska --enable-demuxer=mov --enable-demuxer=flac
+--enable-demuxer=ogg
+--enable-muxer=matroska --enable-muxer=webm --enable-muxer=ipod
+--enable-muxer=flac --enable-muxer=ogg
+--enable-protocol=data --enable-protocol=file --enable-protocol=pipe
+--enable-filter=acompressor --enable-filter=adeclick --enable-filter=adeclip
+--enable-filter=aecho --enable-filter=afade --enable-filter=aformat
+--enable-filter=agate --enable-filter=alimiter --enable-filter=amix
+--enable-filter=aresample --enable-filter=atempo --enable-filter=bandpass
+--enable-filter=bandreject --enable-filter=dynaudnorm --enable-filter=equalizer
+--enable-filter=loudnorm --enable-filter=pan --enable-filter=amix
+--enable-filter=volume

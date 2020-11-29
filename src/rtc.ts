@@ -79,7 +79,7 @@ export function initRTC(peer: number, outgoing: boolean) {
         iceServers: net.iceServers,
         iceTransportPolicy: "all"
     });
-    var videoEl: HTMLVideoElement = null, compressor: compression.Compressor = null;
+    var videoEl: HTMLVideoElement = null;
 
     conn.onicecandidate = function(c) {
         if (group[peer] !== conn) return;
@@ -128,17 +128,7 @@ export function initRTC(peer: number, outgoing: boolean) {
 
         if (!isVideo) {
             // Audio streams go through a compressor
-
-            // Check for a new stream
-            if (compressor /* && compressor.inputStream !== stream*/) {
-                // New stream for this user
-                compression.destroyCompressor(peer);
-                compressor = null;
-            }
-
-            // Make the compressor
-            if (!compressor)
-                compressor = compression.createCompressor(peer, audio.ac, stream);
+            compression.createCompressor(peer, audio.ac, stream);
         }
     };
 
@@ -156,6 +146,7 @@ export function initRTC(peer: number, outgoing: boolean) {
                 break;
         }
     };
+
 
     // Add each track to the connection
     function addTracks() {
