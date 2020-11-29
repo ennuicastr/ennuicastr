@@ -1159,12 +1159,6 @@ function createVideoDeviceList() {
 
 // Create the output device list submenu
 function createOutputControlPanel() {
-    if (!audio.userMedia) {
-        // Wait until we can know full names
-        audio.userMediaAvailableEvent.addEventListener("usermediaready", createOutputControlPanel, {once: true});
-        return;
-    }
-
     ui.outputControlPanel = {
         selectWrapper: gebi("ecoutput-device-list-wrapper"),
         select: gebi("ecoutput-device-list"),
@@ -1175,6 +1169,12 @@ function createOutputControlPanel() {
         sfxVolumeHider: gebi("ecsfx-volume-hider"),
         compression: gebi("ecdynamic-range-compression")
     };
+
+    if (!audio.userMedia) {
+        // Wait until we can know full names
+        audio.userMediaAvailableEvent.addEventListener("usermediaready", createOutputControlPanel, {once: true});
+        return;
+    }
 
     /*****
      * 1: Output device list
