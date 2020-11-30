@@ -104,6 +104,7 @@ export function localProcessing() {
         var buf = new Int16Array(m.heap.buffer, dataPtr, bufSz * 2);
         var bi = 0;
         var timeout: null|number = null, rtcTimeout: null|number = null;
+        var rtcVadOnTime: null|number = null;
 
         /* WebRTC VAD is pretty finicky, so also keep track of volume as a
          * secondary gate */
@@ -143,6 +144,11 @@ export function localProcessing() {
         var sp = spW.scriptProcessor;
 
         function rtcVad(to: boolean) {
+            rtcVadOn = to;
+            if (to)
+                rtcVadOnTime = performance.now();
+            else
+                rtcVadOnTime = null;
             destination.getTracks().forEach(function(track) {
                 track.enabled = to;
             });
@@ -156,7 +162,8 @@ export function localProcessing() {
         // The actual processing
         sp.onaudioprocess = function(ev: AudioProcessingEvent) {
             // Display an issue if we haven't sent recently
-            var sentRecently = (audio.lastSentTime > performance.now()-1500);
+            var now = performance.now();
+            var sentRecently = (audio.lastSentTime > now-1500);
             if (sentRecently)
                 log.popStatus("notencoding");
             else
@@ -214,15 +221,15 @@ export function localProcessing() {
             if (vadSet) {
                 // Our transmission VAD has a hair trigger
                 if (!rtcVadOn) {
-                    rtcVadOn = true;
                     rtcVad(true);
                 } else if (rtcTimeout) {
                     clearTimeout(rtcTimeout);
                     rtcTimeout = null;
                 }
 
-                // Gate the normal VAD by volume
-                if (curVolume/ib.length >= triggerVadVolume) {
+                // Gate the normal VAD by volume, or if the RTC VAD has been on for a while
+                if (curVolume/ib.length >= triggerVadVolume ||
+                    now - rtcVadOnTime > 750) {
                     if (timeout) {
                         clearTimeout(timeout);
                         timeout = null;
@@ -244,7 +251,6 @@ export function localProcessing() {
                     if (!rtcTimeout) {
                         rtcTimeout = setTimeout(function() {
                             rtcTimeout = null;
-                            rtcVadOn = false;
                             rtcVad(false);
                         }, rtcVadExtension);
                     }
