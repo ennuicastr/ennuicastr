@@ -90,7 +90,6 @@ export function initRTC(peer: number) {
 
     // Outgoing connection negotiation function
     conn.outgoing.onnegotiationneeded = function() {
-        console.log("Negotiation?");
         conn.outgoing.createOffer({voiceActivityDetection: true}).then(function(offer) {
             return conn.outgoing.setLocalDescription(offer);
 
