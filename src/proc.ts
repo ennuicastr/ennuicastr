@@ -155,6 +155,13 @@ export function localProcessing() {
 
         // The actual processing
         sp.onaudioprocess = function(ev: AudioProcessingEvent) {
+            // Display an issue if we haven't sent recently
+            var sentRecently = (audio.lastSentTime > performance.now()-1500);
+            if (sentRecently)
+                log.popStatus("notencoding");
+            else
+                log.pushStatus("notencoding", "Audio encoding is not functioning!");
+
             if (typeof Ennuiboard !== "undefined" && Ennuiboard.enabled.gamepad)
                 Ennuiboard.gamepad.poll();
 
@@ -257,7 +264,8 @@ export function localProcessing() {
 
 
             /* Our actual script processing step: noise reduction, only for RTC
-             * (live voice chat) */
+             * (live voice chat). Do not send audio if encoding isn't working,
+             * so that your silence will be a hint that something is wrong. */
             if (nr) {
                 var ob;
                 if (useNR)
@@ -265,8 +273,13 @@ export function localProcessing() {
                 else
                     ob = ib;
                 var cc = ev.outputBuffer.numberOfChannels;
-                for (var oi = 0; oi < cc; oi++)
-                    ev.outputBuffer.getChannelData(oi).set(ob);
+                if (sentRecently) {
+                    for (var oi = 0; oi < cc; oi++)
+                        ev.outputBuffer.getChannelData(oi).set(ob);
+                } else {
+                    for (var oi = 0; oi < cc; oi++)
+                        ev.outputBuffer.getChannelData(oi).fill(0);
+                }
             }
 
 
@@ -302,7 +315,7 @@ export function localProcessing() {
                     waveVADs.push(1);
             }
 
-            updateWave(max);
+            updateWave(max, sentRecently);
         };
 
         // Restart if we change devices
@@ -330,15 +343,8 @@ function updateWaveRetroactive() {
 var e4 = Math.exp(4);
 
 // Update the wave display
-function updateWave(value: number) {
+function updateWave(value: number, sentRecently: boolean) {
     var wc = ui.ui.waveCanvas;
-
-    // Display an issue if we haven't sent recently
-    var sentRecently = (audio.lastSentTime > performance.now()-1500);
-    if (sentRecently)
-        log.popStatus("notencoding");
-    else
-        log.pushStatus("notencoding", "Audio encoding is not functioning!");
 
     // Start from the element size
     var w = ui.ui.waveWrapper.offsetWidth;
