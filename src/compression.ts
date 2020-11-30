@@ -136,6 +136,8 @@ export function createCompressor(idx: number, ac: AudioContext & {ecDestination?
                     for (var ci = 1; ci < ev.outputBuffer.numberOfChannels; ci++)
                         ev.outputBuffer.getChannelData(ci).set(ob);
                 }
+                if (com.buffer.length > 2048)
+                    com.buffer = com.buffer.slice(com.buffer.length - 2048);
             };
 
         }).catch(console.error);
