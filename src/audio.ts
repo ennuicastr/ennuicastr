@@ -104,8 +104,11 @@ var sentZeroes = 999;
 export var lastSentTime = 0;
 export function setLastSentTime(to: number) { lastSentTime = to; }
 
-// Features to use or not use
+// Shall we use direct libav encoding?
 var useLibAV = false;
+
+// Shall we use an AudioWorkletProcessor for encoding?
+var useAWP = false;
 
 // Called when the network is disconnection
 export function disconnect() {
@@ -231,8 +234,15 @@ function userMediaSet() {
         if (ac.state !== "running")
             log.pushStatus("audiocontext", "Cannot capture audio! State: " + ac.state);
 
-        // Presently, only libav encoding is supported
-        useLibAV = true;
+        if (ac.audioWorklet && typeof AudioWorkletNode !== "undefined") {
+            // Use a worklet
+            useAWP = true;
+
+        } else {
+            // Direct libav
+            useLibAV = true;
+
+        }
 
         // At this point, we want to start catching errors
         window.addEventListener("error", function(error) {
@@ -256,8 +266,16 @@ function userMediaSet() {
         });
 
         // Load anything we need
-        return loadLibAV();
+        if (useLibAV)
+            return loadLibAV();
     }).then(encoderLoaded);
+}
+
+// Load our worklet into an AudioContext
+export function loadAWP(ac: AudioContext & {ecAWPP?: Promise<unknown>}) {
+    if (!ac.ecAWPP)
+        ac.ecAWPP = ac.audioWorklet.addModule("awp/ennuicastr-awp.js");
+    return ac.ecAWPP;
 }
 
 // Load LibAV if it's not already loaded
@@ -291,7 +309,104 @@ function encoderLoaded() {
     log.pushStatus("startenc", "Starting encoder...");
     log.popStatus("initenc");
 
-    return libavStart();
+    if (useAWP)
+        return awpStart();
+    else
+        return libavStart();
+}
+
+// Start our AWP encoder
+function awpStart() {
+    // FIXME: Massive duplication
+    // We need to choose our target sample rate based on the input sample rate and format
+    var sampleRate = 48000;
+    if (config.useFlac && ac.sampleRate === 44100)
+        sampleRate = 44100;
+
+    // Figure out if we need a custom AudioContext, due to sample rate differences
+    var umSampleRate = userMedia.getAudioTracks()[0].getSettings().sampleRate;
+    var needCustomAC = umSampleRate !== ac.sampleRate;
+    var awpAC = needCustomAC ? new AudioContext({sampleRate: umSampleRate}) : ac;
+
+    // The server needs to be informed of FLAC's sample rate
+    if (config.useFlac) {
+        var p = prot.parts.info;
+        var info = new DataView(new ArrayBuffer(p.length));
+        info.setUint32(0, prot.ids.info, true);
+        info.setUint32(p.key, prot.info.sampleRate, true);
+        info.setUint32(p.value, sampleRate, true);
+        net.dataSock.send(info.buffer);
+    }
+
+    // Set our zero packet as appropriate
+    if (config.useFlac) {
+        switch (sampleRate) {
+            case 44100:
+                zeroPacket = new Uint8Array([0xFF, 0xF8, 0x79, 0x0C, 0x00, 0x03, 0x71, 0x56, 0x00, 0x00, 0x00, 0x00, 0x63, 0xC5]);
+                break;
+            default:
+                zeroPacket = new Uint8Array([0xFF, 0xF8, 0x7A, 0x0C, 0x00, 0x03, 0xBF, 0x94, 0x00, 0x00, 0x00, 0x00, 0xB1, 0xCA]);
+        }
+    }
+
+    // Figure out our channel layout based on the number of channels
+    var channelLayout = 4;
+    var channelCount = ~~(userMedia.getAudioTracks()[0].getSettings().channelCount);
+    if (channelCount > 1)
+        channelLayout = Math.pow(2, channelCount) - 1;
+
+    // Load the worklet processor into our audio context
+    return loadAWP(awpAC).then(() => {
+
+        /* Here's how the whole setup works:
+         * input ->
+         * AudioWorkletNode in awp.js ->
+         * Worker in worker.js ->
+         * back to us */
+        var awn = new AudioWorkletNode(awpAC, "worker-processor");
+        var worker = new Worker("awp/ennuicastr-worker.js");
+
+        // Need a channel for them to communicate
+        var mc = new MessageChannel();
+        awn.port.postMessage({c: "workerPort", p: mc.port1}, [mc.port1]);
+        worker.postMessage({
+            c: "encoder",
+            port: mc.port2,
+            inSampleRate: awpAC.sampleRate,
+            outSampleRate: sampleRate,
+            format: config.useFlac ? "flac" : "opus",
+            channelLayout: channelLayout,
+            channelCount: channelCount
+        }, [mc.port2]);
+
+        // Accept encoded packets
+        worker.onmessage = ev => {
+            var msg = ev.data;
+            if (msg.c !== "packets") return;
+
+            // Figure out the packet start time
+            var p = msg.d;
+            var now = performance.now() - msg.t;
+            var pktTime = Math.round(
+                (now - startTime) * 48 -
+                p.length * 960
+            );
+
+            // Add them to our own packet buffer
+            for (var pi = 0; pi < p.length; pi++) {
+                packets.push([pktTime, new DataView(p[pi].buffer)]);
+                pktTime += 960;
+            }
+
+            handlePackets();
+        };
+
+        // Now hook everything up
+        var mss = awpAC.createMediaStreamSource(userMedia);
+        mss.connect(awn);
+        awn.connect(awpAC.destination);
+    });
+
 }
 
 // Start the libav encoder
