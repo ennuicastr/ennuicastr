@@ -1,6 +1,11 @@
-all: ennuicastr.js ennuicastr.min.js protocol.min.js hotkeys.min.js web-streams-ponyfill.js
+all: ennuicastr.js ennuicastr.min.js \
+     protocol.min.js \
+     awp/ennuicastr-awp.js awp/ennuicastr-worker.js \
+     hotkeys.min.js web-streams-ponyfill.js
 
-test: ennuicastr-test.js ennuicastr-test.min.js web-streams-ponyfill.js
+test: ennuicastr-test.js ennuicastr-test.min.js \
+      awp/ennuicastr-awp.js awp/ennuicastr-worker.js \
+      hotkeys.min.js web-streams-ponyfill.js
 
 ennuicastr.js: src/*.ts node_modules/.bin/browserify
 	./src/build.js > $@.tmp
@@ -16,6 +21,12 @@ ennuicastr-test.js: src/*.ts node_modules/.bin/browserify
 ennuicastr-test.min.js: src/*.ts node_modules/.bin/browserify
 	./src/build.js -m > $@
 
+awp/ennuicastr-awp.js: awp/ennuicastr-awp.ts node_modules/.bin/tsc
+	./node_modules/.bin/tsc -t es2015 --lib es2015,dom $<
+
+awp/ennuicastr-worker.js: awp/ennuicastr-worker.ts node_modules/.bin/tsc
+	./node_modules/.bin/tsc -t es2015 --lib es2015,webworker $<
+
 protocol.min.js: protocol.js node_modules/.bin/minify
 	./node_modules/.bin/minify --js < $< | cat src/license.js - > $@
 
@@ -26,6 +37,8 @@ node_modules/.bin/browserify:
 	npm install
 
 node_modules/.bin/minify: node_modules/.bin/browserify
+
+node_modules/.bin/tsc: node_modules/.bin/browserify
 
 web-streams-ponyfill.js: node_modules/.bin/browserify
 	cp node_modules/web-streams-polyfill/dist/ponyfill.js $@
