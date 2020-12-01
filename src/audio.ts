@@ -440,7 +440,7 @@ function libavProcess() {
         var channelCount = ev.inputBuffer.numberOfChannels;
         var ib = new Array(channelCount);
         for (var ci = 0; ci < channelCount; ci++)
-            ib[ci] = ev.inputBuffer.getChannelData(ci);
+            ib[ci] = ev.inputBuffer.getChannelData(ci).slice(0);
         var pktLen = (ib[0].length * 48000 / inSampleRate);
         var pktTime = Math.round(
             (now - startTime) * 48 -
