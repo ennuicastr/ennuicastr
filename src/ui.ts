@@ -17,6 +17,743 @@
 // extern
 declare var Ennuiboard: any;
 
+import * as chat from "./chat";
+import * as uiCode from "./uicode";
+import { gebi } from "./util";
+
+// The entire user interface
+export const ui = {
+    // Video interface
+    video: <{
+        // Main wrapper
+        wrapper: HTMLElement,
+
+        // Side wrapper
+        side: HTMLElement,
+
+        // Side fullscreen button
+        sideFS: HTMLButtonElement,
+
+        // Main wrapper
+        main: HTMLElement,
+
+        // Main fullscreen button
+        mainFS: HTMLButtonElement
+    }> null,
+
+    // Chat interface
+    chat: <{
+        wrapper: HTMLElement,
+        incoming: HTMLElement,
+        outgoing: HTMLInputElement,
+        outgoingB: HTMLButtonElement
+    }> null,
+
+    // Live waveform
+    wave: <{
+        wrapper: HTMLElement,
+        canvas: HTMLCanvasElement,
+        watcher: HTMLImageElement
+    }> null,
+
+    // Status
+    log: <{
+        wrapper: HTMLElement,
+        log: HTMLElement
+    }> null,
+
+    // The persistent menu
+    persistent: <{
+        masterHider: HTMLElement,
+        master: HTMLButtonElement,
+        soundsHider: HTMLElement,
+        sounds: HTMLButtonElement,
+        main: HTMLButtonElement,
+        chat: HTMLButtonElement,
+        mute: HTMLButtonElement
+    }> null,
+
+    // The separator for panel layering
+    layerSeparator: <HTMLElement> null,
+
+    // The panels
+    panels: {
+        // Main (settings) menu
+        main: <{
+            wrapper: HTMLElement,
+            inputB: HTMLButtonElement,
+            outputB: HTMLButtonElement,
+            videoB: HTMLButtonElement,
+            videoRecordB: HTMLButtonElement,
+            userListB: HTMLButtonElement
+        }> null,
+
+        // Master interface
+        master: <{
+            wrapper: HTMLElement,
+
+            // Pause or resume
+            pauseResumeB: HTMLButtonElement,
+
+            // Start or stop
+            startStopB: HTMLButtonElement,
+
+            // Acknowledgement
+            yesNo: HTMLElement,
+            yesB: HTMLButtonElement,
+            noB: HTMLButtonElement,
+
+            // Invite
+            inviteLink: HTMLInputElement,
+            inviteCopyB: HTMLButtonElement,
+            inviteFLACWrapper: HTMLElement,
+            inviteFLAC: HTMLInputElement,
+            inviteContinuousWrapper: HTMLElement,
+            inviteContinuous: HTMLInputElement,
+
+            // User administration button
+            userAdminB: HTMLButtonElement,
+
+            // Recording cost/rate
+            recordingCost: HTMLInputElement,
+            recordingRate: HTMLInputElement
+        }> null,
+
+        // User administration interface
+        userAdmin: <{
+            wrapper: HTMLElement,
+
+            // Administration for *all* users
+            allB: HTMLButtonElement,
+
+            // Buttons for *each* user
+            buttons: HTMLButtonElement[]
+        }> null,
+
+        // User administration for a particular user
+        userAdminUser: <{
+            wrapper: HTMLElement,
+
+            // Which user are we administrating?
+            user: number,
+
+            // Box for this user's name
+            name: HTMLElement,
+
+            // Actions
+            kick: HTMLButtonElement,
+            mute: HTMLButtonElement,
+            echo: HTMLButtonElement
+        }> null,
+
+        // Soundboard
+        soundboard: <{
+            wrapper: HTMLElement,
+
+            // Popout button
+            popout: HTMLButtonElement,
+
+            // Popout-able wrapper
+            popoutWrapper: HTMLElement,
+
+            // Wrapper for the actual sounds
+            soundsWrapper: HTMLElement,
+
+            // And finally, the sounds
+            sounds: Record<string, HTMLButtonElement>
+        }> null,
+
+        // Input device selection
+        inputConfig: <{
+            wrapper: HTMLElement,
+
+            // Device selection
+            device: HTMLSelectElement,
+
+            // PTT button
+            ptt: HTMLButtonElement,
+
+            // Options
+            noiser: HTMLInputElement,
+            echo: HTMLInputElement,
+            agcHider: HTMLElement,
+            agc: HTMLInputElement
+        }> null,
+
+        // Output device selection
+        outputConfig: <{
+            wrapper: HTMLElement,
+
+            // Device selection
+            deviceHider: HTMLElement,
+            device: HTMLSelectElement,
+
+            // Master volume
+            volume: HTMLInputElement,
+            volumeStatus: HTMLElement,
+
+            // SFX volume
+            sfxVolumeHider: HTMLElement,
+            sfxVolume: HTMLInputElement,
+            sfxVolumeStatus: HTMLElement,
+
+            // Options
+            compressionHider: HTMLElement,
+            compression: HTMLInputElement,
+            muteInterface: HTMLInputElement
+        }> null,
+
+        // Video device
+        videoConfig: <{
+            wrapper: HTMLElement,
+
+            // Device selection
+            device: HTMLSelectElement
+        }> null,
+
+        // Video recording
+        videoRecord: <{
+            wrapper: HTMLElement,
+
+            // Options
+            local: HTMLButtonElement,
+            remote: HTMLButtonElement,
+            both: HTMLButtonElement
+        }> null,
+
+        // User list
+        userList: <{
+            wrapper: HTMLElement,
+
+            // Popout button
+            popout: HTMLButtonElement,
+
+            // Popout-able wrapper
+            popoutWrapper: HTMLElement,
+
+            // User list elements
+            users: {
+                wrapper: HTMLElement,
+                name: HTMLElement,
+                volume: HTMLInputElement
+            }[]
+        }> null
+    },
+
+    // Interface and soundboard sounds
+    sounds: <{
+        chimeUp: HTMLAudioElement,
+        chimeDown: HTMLAudioElement,
+        soundboard: Record<string, {
+            el: HTMLAudioElement & {ecStartTime?: number}
+        }>
+    }> null,
+
+    // Audio output, thru an HTMLAudioElement so it's switchable
+    audioOutput: <HTMLAudioElement> null
+};
+
+// Certain options are only shown on mobile
+const ua = navigator.userAgent.toLowerCase();
+const mobile = (ua.indexOf("android") >= 0) ||
+               (ua.indexOf("iphone") >= 0) ||
+               (ua.indexOf("ipad") >= 0);
+
+// Show the given panel, or none
+function showPanel(panel: HTMLElement|string) {
+    if (typeof panel === "string")
+        panel = gebi(panel);
+
+    // Hide all existing panels
+    for (var o in ui.panels) {
+        var op = ui.panels[o];
+        op.wrapper.style.display = "none";
+    }
+
+    // Show this one
+    if (panel) {
+        ui.layerSeparator.style.display = "";
+        panel.style.display = "";
+    } else {
+        ui.layerSeparator.style.display = "none";
+    }
+}
+
+// Saveable config for a box with a string value
+function saveConfigValue(sel, name, onchange) {
+    var cur = localStorage.getItem(name);
+    if (cur !== null)
+        sel.value = cur;
+    sel.onchange = function(ev) {
+        localStorage.setItem(name, sel.value);
+        if (onchange)
+            return onchange(ev);
+    };
+}
+
+// Saveable configuration for a checkbox
+function saveConfigCheckbox(cb, name, onchange) {
+    var cur = localStorage.getItem(name);
+    if (cur !== null)
+        cb.checked = !!~~cur;
+    cb.onchange = function(ev) {
+        localStorage.setItem(name, cb.checked?"1":"0");
+        if (onchange)
+            return onchange(ev);
+    };
+}
+
+// Saveable configuration for a slider
+function saveConfigSlider(sl, name, onchange) {
+    var cur = localStorage.getItem(name);
+    if (cur !== null)
+        sl.value = +cur;
+    cb.oninput = function(ev) {
+        localStorage.setItem(name, ""+sl.value);
+        if (onchange)
+            return onchange(ev);
+    };
+}
+
+// Make the UI
+export function mkUI() {
+    // Load in the UI
+    document.body.style.margin =
+        document.body.style.padding = "0";
+    document.body.innerHTML = uiCode;
+
+    // Load the components
+    loadVideo();
+    loadChat();
+    chat.mkChatBox();
+    loadWave();
+    loadLog();
+    ui.layerSeparator = gebi("eclayer-separator");
+    loadMainMenu();
+    loadMasterUI();
+    loadUserAdmin();
+    loadSoundboard();
+    loadInputConfig();
+    loadOutputConfig();
+    loadVideoConfig();
+    loadUserList();
+    loadInterfaceSounds();
+}
+
+function loadVideo() {
+    ui.video = {
+        wrapper: gebi("ecvideo-wrapper"),
+        side: gebi("ecvideo-side"),
+        sideFS: gebi("ecvideo-wrapper-fs"),
+        main: gebi("ecvideo-main"),
+        mainFS: gebi("ecvideo-main-fs")
+    };
+}
+
+function loadChat() {
+    ui.chat = {
+        wrapper: gebi("ecchat-wrapper"),
+        incoming: gebi("ecchat-incoming"),
+        outgoing: gebi("ecchat-outgoing"),
+        outgoingB: gebi("ecchat-outgoing-b")
+    };
+}
+
+function loadWave() {
+    ui.wave = {
+        wrapper: gebi("ecwaveform-wrapper"),
+        canvas: gebi("ecwaveform"),
+        watcher: gebi("ecwave-watcher")
+    };
+}
+
+function loadLog() {
+    ui.log = {
+        wrapper: gebi("eclog"),
+        log: gebi("log")
+    };
+}
+
+function loadMainMenu() {
+    ui.persistent = {
+        masterHider: gebi("ecmenu-master-hider"),
+        master: gebi("ecmenu-master"),
+        soundsHider: gebi("ecmenu-sounds-hider"),
+        sounds: gebi("ecmenu-sounds"),
+        main: gebi("ecmenu-main"),
+        chat: gebi("ecmenu-chat"),
+        mute: gebi("ecmenu-mute")
+    };
+
+    ui.panels.main = {
+        wrapper: gebi("ecmenu"),
+        inputB: gebi("ecmenu-input-devices"),
+        outputB: gebi("ecmenu-output-devices"),
+        videoB: gebi("ecmenu-video-devices"),
+        videoRecordB: gebi("ecmenu-record"),
+        userListB: gebi("ecmenu-user-list")
+    };
+}
+
+function loadMasterUI() {
+    ui.panels.master = {
+        wrapper: gebi("ecmaster-interface"),
+        pauseResumeB: gebi("ecmaster-pause-resume"),
+        startStopB: gebi("ecmaster-start-stop"),
+        yesNo: gebi("ecmaster-yes-no"),
+        yes: gebi("ecmaster-yes"),
+        no: gebi("ecmaster-no"),
+        inviteLink: gebi("ecmaster-invite-link"),
+        inviteCopyB: gebi("ecmaster-invite-link-copy"),
+        inviteFLACWrapper: gebi("ecmaster-invite-flac-wrapper"),
+        inviteFLAC: gebi("ecmaster-invite-flac"),
+        inviteContinuousWrapper: gebi("ecmaster-invite-continuous-wrapper"),
+        inviteContinuous: gebi("ecmaster-invite-continuous"),
+        userAdminB: gebi("ecmaster-admin"),
+        recordingCost: gebi("ecmaster-recording-cost"),
+        recordingRate: gebi("ecmaster-recording-rate")
+    };
+}
+
+function loadUserAdmin() {
+    ui.panels.userAdmin = {
+        wrapper: gebi("ecuser-admin-interface"),
+        allB: gebi("ecuser-admin-all-b"),
+        buttons: []
+    };
+
+    ui.panels.userAdminUser = {
+        wrapper: gebi("ecuser-admin-interface-user"),
+        user: -1,
+        name: gebi("ecuser-admin-interface-user-name"),
+        kick: gebi("ecuser-admin-kick"),
+        mute: gebi("ecuser-admin-mute"),
+        echo: gebi("ecuser-admin-echo")
+    };
+}
+
+function loadSoundboard() {
+    ui.panels.soundboard = {
+        wrapper: gebi("ecsounds-wrapper"),
+        popout: gebi("ecsounds-popout"),
+        popoutWrapper: gebi("ecsounds-popout-wrapper"),
+        soundsWrapper: gebi("ecsounds"),
+        sounds: {}
+    };
+}
+
+function loadInputConfig() {
+    ui.panels.inputConfig = {
+        wrapper: gebi("ecinput-device-wrapper"),
+        device: gebi("ecinput-device-list"),
+        ptt: gebi("ecpttb"),
+        noiser: gebi("ecnoise-reduction"),
+        echo: gebi("ececho-cancellation"),
+        agcHider: gebi("ecagc-hider"),
+        agc: gebi("ecagc")
+    };
+}
+
+function loadOutputConfig() {
+    ui.panels.outputConfig = {
+        wrapper: gebi("ecoutput-device-wrapper"),
+        deviceHider: gebi("ecoutput-device-list-hider"),
+        device: gebi("ecoutput-device-list"),
+        volume: gebi("ecoutput-volume"),
+        volumeStatus: gebi("ecoutput-volume-status"),
+        sfxVolumeHider: gebi("ecsfx-volume-hider"),
+        sfxVolume: gebi("ecsfx-volume"),
+        sfxVolumeStatus: gebi("ecsfx-volume-status"),
+        compressionHider: gebi("ecdynamic-range-compression-hider"),
+        compression: gebi("ecdynamic-range-compression"),
+        muteInterface: gebi("ecmute-interface-sounds")
+    };
+}
+
+function loadVideoConfig() {
+    ui.panels.videoConfig = {
+        wrapper: gebi("ecvideo-device-wrapper"),
+        device: gebi("ecvideo-device-list")
+    };
+
+    ui.panels.videoRecord = {
+        wrapper: gebi("ecvideo-record-wrapper"),
+        local: gebi("ecvideo-record-local"),
+        remote: gebi("ecvideo-record-remote"),
+        both: gebi("ecvideo-record-both")
+    };
+}
+
+function loadUserList() {
+    ui.panels.userList = {
+        wrapper: gebi("ecuser-list-wrapper"),
+        popout: gebi("ecuser-list-popout"),
+        popoutWrapper: gebi("ecuser-list-popout-wrapper"),
+        users: []
+    };
+}
+
+function loadInterfaceSounds() {
+    ui.sounds = {
+        chimeUp: gebi("ecaudio-chime-up"),
+        chimeDown: gebi("ecaudio-chime-down"),
+        soundboard: {}
+    };
+}
+
+// Load elements which require audio first
+export function mkAudioUI() {
+    var input = ui.panels.inputConfig,
+        output = ui.panels.outputConfig,
+        video = ui.panels.videoConfig;
+
+    /********************
+     * INPUT CONFIGURATION
+     *******************/
+    function inputChange() {
+        showPanel(null);
+        audio.getMic(input.device.value);
+    }
+
+    navigator.mediaDevices.enumerateDevices().then(function(devices) {
+        var ctr = 1;
+        devices.forEach(function(dev) {
+            if (dev.kind !== "audioinput") return;
+
+            // Create an option for this
+            var opt = dce("option");
+            var label = dev.label || ("Mic " + ctr++);
+            opt.innerText = label;
+            opt.value = dev.deviceId;
+            input.device.appendChild(opt);
+        });
+
+        saveConfigSelect(input.device, "input-device3", inputChange);
+
+    }).catch(function() {}); // Nothing really to do here
+
+    // Gamepad PTT configuration
+    if (typeof Ennuiboard !== "undefined" && Ennuiboard.supported.gamepad)
+        input.ptt.onclick = ptt.userConfigurePTT;
+    else
+        input.ptt.style.display = "none";
+
+    saveConfigCheckbox(input.noiser, "noise-reduction3", inputChange);
+    if (mobile) {
+        input.echo.checked = true;
+        input.agcHider.style.display = "";
+        input.agc.checked = true;
+    }
+    saveConfigCheckbox(input.echo, "echo-cancellation3", inputChange);
+    saveConfigCheckbox(input.agc, "agc3", inputConfig);
+
+
+    /********************
+     * OUTPUT CONFIGURATION
+     *******************/
+
+    // Add a pseudo-device so nothing is selected at first
+    var opt = dce("option");
+    opt.innerText = "-";
+    opt.value = "-none";
+    output.device.appendChild(opt);
+
+    function outputChange() {
+        if (output.device.value === "-none") return;
+        showPanel(null);
+
+        var v = output.device.value;
+
+        // Set the main audio output
+        if (ui.audioOutput) {
+            (<any> ui.audioOutput).setSinkId(v).catch(console.error);
+        } else {
+            // Just try again
+            setTimeout(outputChange, 100);
+            return;
+        }
+
+        // And all the sounds
+        // FIXME: soundboard sounds
+        ui.sounds.chimeUp.setSinkId(v).catch(console.error);
+        ui.sounds.chimeDown.setSinkId(v).catch(console.error);
+    }
+
+    // Fill it with the available devices
+    navigator.mediaDevices.enumerateDevices().then(function(devices) {
+        var ctr = 1;
+        devices.forEach(function(dev) {
+            if (dev.kind !== "audiooutput") return;
+
+            // Create an option for this
+            var opt = dce("option");
+            var label = dev.label || ("Output " + ctr++);
+            opt.innerText = label;
+            opt.value = dev.deviceId;
+            output.device.appendChild(opt);
+        });
+
+        saveConfigSelect(output.device, "output-device3", outputChange);
+
+    }).catch(function() {}); // Nothing really to do here
+
+    // Volume
+    saveConfigSlider(output.volume, "volume-master3");
+
+    // But, separate save for snapping
+    function volumeChange() {
+        var val = output.volume;
+
+        // Snap to x00%
+        for (var i = 100; i <= 300; i += 100)
+            if (+vol.value >= i - 10 && +vol.value <= i + 10)
+                vol.value = <any> i;
+
+        // Remember preferences
+        localStorage.setItem("volume-master3", ""+vol.value);
+
+        // Show the status
+        output.volumeStatus.innerHTML = "&nbsp;" + vol.value + "%";
+
+        // Set it
+        compression.setGlobalGain((+vol.value) / 100);
+    }
+    output.volume.oninput = volumeChange;
+
+    compression.setGlobalGain((+output.volume.value) / 100);
+
+    // SFX volume
+    function sfxVolumeChange() {
+        var vol = output.sfxVolume;
+        output.sfxVolumeStatus.innerHTML = "&nbsp;" + vol.value + "%";
+
+        var v = (+vol) / 100;
+
+        // FIXME: Set it on soundboard sounds
+
+        output.sounds.chimeUp.volume = v;
+        output.sounds.chimeDown.volume = v;
+    }
+
+    saveConfigSlider(output.sfxVolume, "volume-sfx3", sfxVolumeChange);
+    sfxVolumeChange();
+
+    // Dynamic range compression
+    function drcChange() {
+        var c = output.compression.checked;
+        compression.setCompressing(c);
+
+        if (c) {
+            // Set the volume to 100% so it doesn't explode your ears
+            output.volume.value = <any> 100;
+        } else {
+            // Set the volume to 200% so it's audible
+            output.volume.value = <any> 200;
+        }
+        volumeChange();
+    }
+
+    // Default for DRC depends on support
+    if (!compression.supported) {
+        output.compressionHider.style.display = "none";
+        output.compression.checked = false;
+        if (localStorage.getItem("volume-master3") === null)
+            drcChange();
+    }
+    saveConfigCheckbox(output.compression, "dynamic-range-compression3", drcChange);
+    compression.setCompressing(output.compression.checked);
+
+    // Interface sounds is just a checkbox we check before making sounds
+    saveConfigCheckbox(output.muteInterface, "mute-interface3");
+
+
+    /********************
+     * VIDEO CONFIGURATION
+     *******************/
+
+    // When it's changed, start video
+    video.device.onchange = function() {
+        togglePanel("video-device", false);
+        video.getCamera(video.device.value);
+    };
+
+    // Add a pseudo-device so nothing is selected at first
+    var opt = dce("option");
+    opt.innerText = "None";
+    opt.value = "-none";
+    video.device.appendChild(opt);
+
+    // Fill it with the available devices
+    navigator.mediaDevices.enumerateDevices().then(function(devices) {
+        var ctr = 1;
+        devices.forEach(function(dev) {
+            if (dev.kind !== "videoinput") return;
+
+            // Create an option for this
+            var opt = dce("option");
+            var label = dev.label || ("Camera " + ctr++);
+            opt.innerText = label;
+            opt.value = dev.deviceId;
+            video.device.appendChild(opt);
+        });
+
+        // Add a special pseudo-device for screen capture
+        var opt = dce("option");
+        opt.innerText = "Capture screen";
+        opt.value = "-screen";
+        video.device.appendChild(opt);
+
+    }).catch(function() {}); // Nothing really to do here
+
+
+    // Return which input device should be used
+    return localStorage.getItem("input-device3");
+}
+
+// Set the output audio context
+export function setOutputAudioContext(ac: AudioContext & {ecDestination?: MediaStreamAudioDestinationNode}) {
+    if (!ac.ecDestination) {
+        // Make its destination node
+        ac.ecDestination = ac.createMediaStreamDestination();
+    }
+
+    if (!audio.userMediaRTC) {
+        // We may not yet be allowed to play sound, so wait
+        audio.userMediaAvailableEvent.addEventListener("usermediartcready", function() {
+            setOutputAudioContext(ac);
+        }, {once: true});
+        return;
+    }
+
+    if (!ui.audioOutput) {
+        // Create the output audio device
+        var a = ui.audioOutput = dce("audio");
+        a.style.display = "none";
+        document.body.appendChild(a);
+    }
+
+    ui.audioOutput.srcObject = ac.ecDestination.stream;
+    ui.audioOutput.play().catch(console.error);
+}
+
+// Update the mute button
+export function updateMuteButton() {
+    if (!audio.userMedia) return;
+    var muteB = ui.persistent.muteB;
+    if (audio.userMedia.getAudioTracks()[0].enabled) {
+        // It's unmuted
+        muteB.innerHTML = '<i class="fas fa-volume-up"></i>';
+        muteB.setAttribute("aria-label", "Mute");
+
+    } else {
+        // It's muted
+        muteB.innerHTML = '<i class="fas fa-volume-mute"></i>';
+        muteB.setAttribute("aria-label", "Unmute");
+
+    }
+}
+
+`
 import * as audio from "./audio";
 import * as chat from "./chat";
 import * as compression from "./compression";
@@ -1343,3 +2080,4 @@ export function setOutputAudioContext(ac: AudioContext & {ecDestination?: MediaS
     ui.audioOutput.srcObject = ac.ecDestination.stream;
     ui.audioOutput.play().catch(console.error);
 }
+`;

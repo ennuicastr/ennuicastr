@@ -50,7 +50,7 @@ function main() {
         return net.connect();
     }).then(function() {
         proc.localProcessing(); // This will start up on its own in the background
-        return audio.getMic();
+        return audio.getAudioPerms();
     }).catch(function(ex) {
         log.pushStatus("error", ex + "\n\n" + ex.stack);
     });

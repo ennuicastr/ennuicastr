@@ -96,12 +96,8 @@
             <button id="ecmaster-pause-resume" class="row"><i class="fas fa-pause"></i> Pause recording</button>
             <button id="ecmaster-start-stop" class="row"><i class="fas fa-microphone-alt"></i> Start recording</button>
             <div class="bigrflex row" id="ecmaster-yes-no">
-                <div class="half">
-                    <button id="ecmaster-yes" style="width: 100%;">Yes</button>
-                </div>
-                <div class="half">
-                    <button id="ecmaster-no" style="width: 100%;">No</button>
-                </div>
+                <button id="ecmaster-yes" class="half" style="width: 100%;">Yes</button>
+                <button id="ecmaster-no" class="half" style="width: 100%;">No</button>
             </div>
             <div class="invite row">
                 <div class="rflex">
@@ -153,7 +149,7 @@
         <!-- The soundboard -->
         <div id="ecsounds-wrapper" class="panel">
             <button id="ecsounds-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
-            <div id="ecsounds-panel">
+            <div id="ecsounds-popout-wrapper">
                 <div class="rflex" style="align-items: start;">
                     <div id="ecsounds" style="flex: auto;"></div>
                     <button id="ecsounds-popout" class="tbutton" style="float: right;" title="Pop out" aria-label="Pop out"><i class="far fa-window-restore"></i></button>
@@ -173,9 +169,7 @@
 
             <!-- And options -->
             <div class="bigrflex">
-                <div class="half">
-                    <button id="ecpttb" style="width: 100%;"><i class="fas fa-gamepad"></i> Gamepad push-to-talk</button>
-                </div>
+                <button id="ecpttb" class="half" style="width: 100%;"><i class="fas fa-gamepad"></i> Gamepad push-to-talk</button>
                 <div id="ecinput-options-wrapper" class="half">
                     <input id="ecnoise-reduction" type="checkbox" checked />
                     <label for="ecnoise-reduction">&nbsp;Apply noise reduction</label><br/>
@@ -235,10 +229,17 @@
             </div>
         </div>
 
+        <!-- Video recording -->
+        <div id="ecvideo-record-wrapper" class="panel" style="text-align: right;">
+            <button id="ecvideo-record-local">Record locally</button>&nbsp;
+            <button id="ecvideo-record-remote">Record and send to host</button>&nbsp;
+            <button id="ecvideo-record-local-remote">Both</button>
+        </div>
+
         <!-- The user list/volume -->
         <div id="ecuser-list-wrapper" class="panel">
             <button id="ecmenu-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
-            <div id="ecuser-list-panel">
+            <div id="ecuser-list-popout-wrapper">
                 <div id="ecuser-list-wrapper" class="rflex" style="align-items: start;">
                     <div id="ecuser-list" style="flex: auto;"></div>
                     <button id="ecuser-list-popout" class="tbutton" style="float: right;" title="Pop out" aria-label="Pop out"><i class="far fa-window-restore"></i></button>
@@ -259,12 +260,6 @@
         </div>
 
 <div style="display: none">
-            <!-- Video recording -->
-            <div id="ecvideo-record-wrapper" class="panel" style="text-align: right;">
-                <button id="ecvideo-record-local">Record locally</button>&nbsp;
-                <button id="ecvideo-record-remote">Record and send to host</button>&nbsp;
-                <button id="ecvideo-record-local-remote">Both</button>
-            </div>
 </div>
 <!--END-->
         <script>(function() {

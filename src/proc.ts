@@ -425,7 +425,7 @@ function updateWave(value: number, sentRecently: boolean) {
     }
 
     // Background color
-    ctx.fillStyle = "#1a3333";
+    ctx.fillStyle = "#103030";
     ctx.fillRect(0, 0, w, h*2);
 
     // Level bar at 0.4% for "too soft"

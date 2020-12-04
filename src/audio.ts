@@ -125,6 +125,18 @@ export function disconnect() {
     }
 }
 
+// Get audio permission. First audio step of the process.
+export function getAudioPerms() {
+    return navigator.mediaDevices.getUserMedia({audio: true}).then(function(userMediaIn) {
+        userMedia = userMediaIn; // So that it gets deleted by getMic
+        return getMic(ui.mkAudioUI());
+    }).catch(function(err) {
+        net.disconnect();
+        log.pushStatus("fail", "Cannot get microphone: " + err);
+        log.popStatus("getmic");
+    });
+}
+
 /* The starting point for enabling encoding. Get our microphone input. Returns
  * a promise that resolves when encoding is active. */
 export function getMic(deviceId?: string) {
@@ -150,8 +162,8 @@ export function getMic(deviceId?: string) {
     return navigator.mediaDevices.getUserMedia({
         audio: {
             deviceId: deviceId,
-            autoGainControl: {ideal: ui.ui.deviceList.agc.checked},
-            echoCancellation: {ideal: ui.ui.deviceList.ec.checked},
+            autoGainControl: {ideal: ui.ui.panels.inputConfig.agc.checked},
+            echoCancellation: {ideal: ui.ui.panels.inputConfig.echo.checked},
             noiseSuppression: {ideal: false},
             sampleRate: {ideal: 48000},
             sampleSize: {ideal: 24}
@@ -675,10 +687,10 @@ export function toggleMute(to?: boolean) {
 
 // Play or stop a sound
 export function playStopSound(url: string, status: number, time: number) {
-    var sound = ui.ui.sounds[url];
+    var sound = ui.ui.sounds.soundboard[url];
     if (!sound) {
         // Create an element for it
-        sound = ui.ui.sounds[url] = {
+        sound = ui.ui.sounds.soundboard[url] = {
             el: document.createElement("audio")
         };
 
@@ -688,9 +700,9 @@ export function playStopSound(url: string, status: number, time: number) {
             format = "webm"
 
         sound.el.src = url + "." + format;
-        if (ui.ui.outputControlPanel) {
-            sound.el.volume = (+ui.ui.outputControlPanel.sfxVolume.value) / 100;
-            ui.ui.outputControlPanel.sfxVolumeHider.style.display = "";
+        if (ui.ui.panels.outputConfig) {
+            sound.el.volume = (+ui.ui.panels.outputConfig.sfxVolume.value) / 100;
+            ui.ui.panels.outputConfig.sfxVolumeHider.style.display = "";
         }
     }
     var el = sound.el;

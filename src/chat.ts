@@ -22,11 +22,12 @@ import { dce, gebi } from "./util";
 
 // Receive a chat message
 export function recvChat(text: string) {
-    ui.togglePanel("chat", true);
+    // FIXME: Better output selection
+    ui.ui.chat.wrapper.style.display = "";
     var line = dce("div");
     line.innerText = text;
-    ui.ui.chatBox.incoming.appendChild(line);
-    ui.ui.chatBox.incoming.scroll(0, 1000000);
+    ui.ui.chat.incoming.appendChild(line);
+    ui.ui.chat.incoming.scroll(0, 1000000);
 }
 
 // Send a chat message
@@ -41,12 +42,9 @@ function sendChat(text: string) {
 }
 
 // Build the chat box behavior
-export function createChatBox() {
-    var chatBox = ui.ui.chatBox = {
-        incoming: gebi("ecchat-incoming"),
-        outgoing: gebi("ecchat-outgoing")
-    };
-    var outgoing = chatBox.outgoing;
+export function mkChatBox() {
+    var chat = ui.ui.chat;
+    var outgoing = chat.outgoing;
 
     // Make outgoing work
     function handleOutgoing() {
@@ -55,5 +53,5 @@ export function createChatBox() {
         recvChat("You: " + outgoing.value);
         outgoing.value = "";
     }
-    gebi("ecchat-outgoing-b").onclick = handleOutgoing;
+    chat.outgoingB.onclick = handleOutgoing;
 }
