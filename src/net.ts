@@ -324,22 +324,25 @@ function dataSockMsg(ev: MessageEvent) {
             break;
 
         case prot.ids.user:
-            p = prot.parts.user;
-            var index = msg.getUint32(p.index, true);
-            var status = msg.getUint32(p.status, true);
-            var nick = util.decodeText(msg.buffer.slice(p.nick));
+            if (!("master" in config.config)) {
+                // Master gets this info elsewhere
+                p = prot.parts.user;
+                var index = msg.getUint32(p.index, true);
+                var status = msg.getUint32(p.status, true);
+                var nick = util.decodeText(msg.buffer.slice(p.nick));
 
-            // Add it to the UI
-            if (status)
-                ui.userListAdd(index, nick);
-            else
-                ui.userListRemove(index);
+                // Add it to the UI
+                if (status)
+                    ui.userListAdd(index, nick);
+                else
+                    ui.userListRemove(index);
+            }
             break;
 
         case prot.ids.speech:
         {
-            if (config.useRTC) {
-                // Handled through RTC
+            if (("master" in config.config) || config.useRTC) {
+                // Handled through master interface or RTC
                 break;
             }
             p = prot.parts.speech;
@@ -412,10 +415,11 @@ function dataSockMsg(ev: MessageEvent) {
             if (action === acts.mute) {
                 audio.toggleMute(false);
             } else if (action === acts.echoCancel) {
-                if (!ui.ui.deviceList.ec.checked) {
-                    ui.ui.deviceList.ec.ecAdmin = true;
-                    ui.ui.deviceList.ec.checked = true;
-                    ui.ui.deviceList.ec.onchange(null);
+                var ec = ui.ui.panels.inputConfig.echo;
+                if (!ec.checked) {
+                    // Don't onchange, so we don't save this
+                    ec.checked = true;
+                    audio.getMic(ui.ui.panels.inputConfig.device.value);
                 }
             }
             break;
@@ -439,7 +443,7 @@ function masterSockMsg(ev: MessageEvent) {
                 case prot.info.creditCost:
                     // Informing us of the cost of credits
                     var v2 = msg.getUint32(p.value + 4, true);
-                    ui.ui.masterUI.creditCost = {
+                    master.credits.creditCost = {
                         currency: val,
                         credits: v2
                     };
@@ -448,8 +452,8 @@ function masterSockMsg(ev: MessageEvent) {
                 case prot.info.creditRate:
                     // Informing us of the total cost and rate in credits
                     var v2 = msg.getUint32(p.value + 4, true);
-                    ui.ui.masterUI.creditRate = [val, v2];
-                    master.masterUpdateCreditCost();
+                    master.credits.creditRate = [val, v2];
+                    master.updateCreditCost();
                     break;
 
                 case prot.info.sounds:
@@ -467,6 +471,10 @@ function masterSockMsg(ev: MessageEvent) {
             var nick = util.decodeText(msg.buffer.slice(p.nick));
 
             // Add it to the UI
+            if (status)
+                ui.userListAdd(index, nick);
+            else
+                ui.userListRemove(index);
             var speech = ui.ui.masterUI.speech = ui.ui.masterUI.speech || [];
             while (speech.length <= index)
                 speech.push(null);

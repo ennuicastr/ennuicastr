@@ -18,6 +18,7 @@
 declare var Ennuiboard: any;
 
 import * as chat from "./chat";
+import * as config from "./config";
 import * as uiCode from "./uicode";
 import { gebi } from "./util";
 
@@ -106,13 +107,16 @@ export const ui = {
             // Invite
             inviteLink: HTMLInputElement,
             inviteCopyB: HTMLButtonElement,
-            inviteFLACWrapper: HTMLElement,
+            inviteFLACHider: HTMLElement,
             inviteFLAC: HTMLInputElement,
-            inviteContinuousWrapper: HTMLElement,
+            inviteContinuousHider: HTMLElement,
             inviteContinuous: HTMLInputElement,
 
             // User administration button
             userAdminB: HTMLButtonElement,
+
+            // Accept guest video recordings
+            acceptRemoteVideo: HTMLInputElement,
 
             // Recording cost/rate
             recordingCost: HTMLInputElement,
@@ -160,7 +164,11 @@ export const ui = {
             soundsWrapper: HTMLElement,
 
             // And finally, the sounds
-            sounds: Record<string, HTMLButtonElement>
+            sounds: Record<string, {
+                b: HTMLButtonElement,
+                i: HTMLElement,
+                n: HTMLElement
+            }>
         }> null,
 
         // Input device selection
@@ -235,7 +243,8 @@ export const ui = {
             users: {
                 wrapper: HTMLElement,
                 name: HTMLElement,
-                volume: HTMLInputElement
+                volume: HTMLInputElement,
+                volumeStatus: HTMLElement
             }[]
         }> null
     },
@@ -260,9 +269,9 @@ const mobile = (ua.indexOf("android") >= 0) ||
                (ua.indexOf("ipad") >= 0);
 
 // Show the given panel, or none
-function showPanel(panel: HTMLElement|string) {
+export function showPanel(panel: HTMLElement|string) {
     if (typeof panel === "string")
-        panel = gebi(panel);
+        panel = ui.panels[panel].wrapper;
 
     // Hide all existing panels
     for (var o in ui.panels) {
@@ -292,7 +301,7 @@ function saveConfigValue(sel, name, onchange) {
 }
 
 // Saveable configuration for a checkbox
-function saveConfigCheckbox(cb, name, onchange) {
+export function saveConfigCheckbox(cb, name, onchange) {
     var cur = localStorage.getItem(name);
     if (cur !== null)
         cb.checked = !!~~cur;
@@ -331,6 +340,8 @@ export function mkUI() {
     ui.layerSeparator = gebi("eclayer-separator");
     loadMainMenu();
     loadMasterUI();
+    if ("master" in config.config)
+        master.createMasterInterface();
     loadUserAdmin();
     loadSoundboard();
     loadInputConfig();
@@ -368,10 +379,11 @@ function loadWave() {
 }
 
 function loadLog() {
-    ui.log = {
+    var log = ui.log = {
         wrapper: gebi("eclog"),
         log: gebi("log")
     };
+    log.wrapper.appendChild(log.log);
 }
 
 function loadMainMenu() {
@@ -405,11 +417,12 @@ function loadMasterUI() {
         no: gebi("ecmaster-no"),
         inviteLink: gebi("ecmaster-invite-link"),
         inviteCopyB: gebi("ecmaster-invite-link-copy"),
-        inviteFLACWrapper: gebi("ecmaster-invite-flac-wrapper"),
+        inviteFLACHider: gebi("ecmaster-invite-flac-wrapper"),
         inviteFLAC: gebi("ecmaster-invite-flac"),
-        inviteContinuousWrapper: gebi("ecmaster-invite-continuous-wrapper"),
+        inviteContinuousHider: gebi("ecmaster-invite-continuous-wrapper"),
         inviteContinuous: gebi("ecmaster-invite-continuous"),
         userAdminB: gebi("ecmaster-admin"),
+        acceptRemoteVideo: gebi("ecmaster-video-recording-host"),
         recordingCost: gebi("ecmaster-recording-cost"),
         recordingRate: gebi("ecmaster-recording-rate")
     };
@@ -751,6 +764,105 @@ export function updateMuteButton() {
         muteB.setAttribute("aria-label", "Unmute");
 
     }
+}
+
+// Resize the UI to fit visible components
+export function resizeUI() {
+    // FIXME
+}
+
+// Add a user to the user list
+export function userListAdd(idx: number, name: string) {
+    var userList = ui.panels.userList;
+    while (userList.users.length <= idx)
+        userList.users.push(null);
+
+    var user = userList.users[idx];
+    if (user) {
+        // Just update their name
+        user.name.innerText = name;
+        user.name.setAttribute("aria-label", name + ": Not speaking");
+        return;
+    }
+
+    // Create the user list entry for this user
+    user = userList.users[idx] = {
+        wrapper: dce("div"),
+        name: dce("div"),
+        volume: dce("input"),
+        volumeStatus: dce("div")
+    };
+    var volumeWrapper = dce("div");
+
+    /* Here's how it all lays out:
+     *  <div wrapper bigrflex row>
+     *      <div name half>name</div>
+     *      <div volumeWrapper rflex half>
+     *          <input volume flex />
+     *          <div status>status</div>
+     *      </div>
+     *  </div>
+     */
+    user.wrapper.classList.add("bigrflex", "row");
+    userList.popoutWrapper.appendChild(user.wrapper);
+
+    user.name.classList.add("half");
+    user.name.style.backgroundColor = "#000";
+    user.name.innerText = name;
+    user.wrapper.appendChild(user.name);
+
+    volumeWrapper.classList.add("rflex", "half");
+    user.wrapper.appendChild(volumeWrapper);
+
+    user.volume.style.flex = "auto";
+    user.volume.style.width = "6em";
+    Object.assign(user.volume, {
+        type: "range",
+        min: 0,
+        max: 400,
+        value: 100
+    });
+    user.volume.setAttribute("aria-label", "Volume for " + name);
+    volumeWrapper.appendChild(user.volume);
+
+    user.volumeStatus.innerHTML = "&nbsp;100%";
+    volumeWrapper.appendChild(user.volumeStatus);
+
+    // When we change the volume, pass that to the compressors
+    function volChange() {
+        var vol = user.volume;
+
+        // Snap to x00%
+        for (var i = 100; i <= 300; i += 100)
+            if (vol.value >= i - 10 && vol.value <= i + 10)
+                vol.value = i;
+
+        // Show the status
+        user.volumeStatus.innerHTML = "&nbsp;" + vol.value + "%";
+
+        // Set it
+        compression.setPerUserGain(idx, vol.value / 100);
+    }
+
+    saveConfigSlider(user.volume, "user-volume3-" + name, volChange);
+    volChange();
+}
+
+// Remove a user from the user list
+export function userListRemove(idx: number) {
+    var user = ui.panels.userList.users[idx];
+    if (!user) return;
+    user.wrapper.parentNode.removeChild(user.wrapper);
+    ui.panels.userList.users[idx] = null;
+}
+
+// Update the speaking status of an element in the user list
+export function userListUpdate(idx: number, speaking: boolean) {
+    var user = ui.userList.users[idx];
+    if (!user) return;
+
+    user.name.style.backgroundColor = speaking?"#2b552b":"#000";
+    user.name.setAttribute("aria-label", el.innerText + ": " + (speaking?"Speaking":"Not speaking"));
 }
 
 `

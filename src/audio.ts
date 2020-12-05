@@ -735,5 +735,5 @@ export function playStopSound(url: string, status: number, time: number) {
     }
 
     if ("master" in config.config)
-        master.masterSoundButtonUpdate(url, status, el);
+        master.soundButtonUpdate(url, status, el);
 }
