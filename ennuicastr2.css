@@ -1,0 +1,403 @@
+/* General */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans&display=swap');
+
+body {
+    background: #122;
+    color: #cff;
+    font-family: 'Noto Sans', sans-serif;
+    font-size: 1rem;
+}
+
+a {
+    color: #fcc;
+}
+
+.cflex {
+    display: flex;
+    flex-direction: column;
+}
+
+.rflex {
+    display: flex;
+    align-items: center;
+    overflow: auto hidden;
+}
+
+.bigrflex {
+    display: flex;
+    align-items: start;
+    gap: 0.25em;
+}
+
+.half {
+    flex: auto;
+}
+
+.panel {
+    display: none;
+    position: fixed;
+    box-sizing: border-box;
+    min-width: 20em;
+    max-height: 90%;
+    right: 1em;
+    top: 1em;
+    margin-left: 1em;
+    padding: 2em 0.5em 0.5em 0.5em;
+    background-color: #111;
+    border: 1px solid #222;
+    border-radius: 0.25em;
+    overflow: auto;
+}
+
+@media screen and (max-width: 480px) {
+    .bigrflex {
+        flex-direction: column;
+    }
+
+    .half {
+        flex: 0;
+        width: 100%;
+    }
+
+    .panel {
+        width: 100%;
+        margin-left: 0;
+        max-height: 100%;
+        height: 100%;
+        left: 0;
+        top: 0;
+    }
+}
+
+.row {
+    width: 100%;
+    margin-bottom: 0.5em;
+}
+
+.invite {
+    background-color: #244;
+}
+
+.status {
+    background: #ccc;
+    color: #333;
+    text-align: center;
+    padding: 0.25em;
+}
+
+.status a {
+    color: #00a;
+}
+
+.namelabel {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    padding: 0.2em;
+    border-top-right-radius: 0.2em;
+    background-color: rgba(170, 170, 170, 0.9);
+    color: #000;
+}
+
+#ecvideo-side-wrapper .namelabel {
+    font-size: 0.75em;
+}
+
+.chat {
+    border: solid 1px;
+}
+
+.menu {
+    position: absolute;
+    right: 1em;
+    top: 1em;
+    display: flex;
+    flex-direction: column;
+}
+
+@media screen and (max-height: 480px) {
+    .menu {
+        flex-direction: row;
+    }
+}
+
+button:not(.plain), .button {
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, border-radius 0.2s ease-in-out;
+    background-color: #122;
+    color: #fff;
+    border-radius: 0;
+    border: 0;
+    cursor: pointer;
+    display: inline-block;
+    height: 2.85em;
+    line-height: 2.95em;
+    text-align: center;
+    text-decoration: none;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+button.nouppercase, .button.nouppercase {
+    text-transform: none;
+}
+
+button:not(.plain):hover, .button:hover {
+    background-color: #244;
+    border-radius: 1em;
+}
+
+button.off, button.off:hover {
+    background-color: #333;
+    border-radius: 0;
+}
+
+button.tbutton {
+    background-color: rgba(17, 34, 34, 0);
+    min-width: 2.85em;
+}
+
+button.fsbutton {
+    position: absolute;
+    right: 0px;
+    bottom: 0px;
+    font-size: 1em;
+    min-width: 2.85em;
+}
+
+button.close-button {
+    position: absolute;
+    height: 2em;
+    line-height: 2em;
+    top: 0.25em;
+    right: 0.25em;
+}
+
+[data-interface="hide"] .interface {
+    background-color: rgba(17, 34, 34, 0);
+    color: rgba(255, 255, 255, 0);
+}
+
+[data-interface="none"] .interface {
+    display: none;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="email"],
+select,
+textarea {
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+    background-color: #122;
+    color: #fff;
+    border-radius: 0;
+    border: none;
+    border: solid 1px;
+    outline: 0;
+    padding: 0.5em;
+    text-decoration: none;
+}
+
+select:hover {
+    background-color: #244;
+}
+
+input[type="checkbox"] {
+    -webkit-appearance: none;
+    appearance: none;
+    position: relative;
+    display: inline-block;
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+    background-color: #122;
+    border: 1px solid #fff;
+    padding: 0.6em;
+    margin: 0;
+}
+
+input[type="checkbox"]:hover {
+    background-color: #244;
+}
+
+input[type="checkbox"]:checked:after {
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900;
+    color: #fff;
+    content: "\f00c";
+    position: absolute;
+    font-size: 0.9em;
+    left: 0.15em;
+    top: 0.1em;
+}
+
+
+/* Specific to the UI */
+#ecouter {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+#ecvideo-wrapper {
+    flex: auto;
+    height: 160px;
+    display: flex;
+}
+
+#ecvideo-side-wrapper {
+    position: relative;
+    width: 160px;
+    height: 100%;
+    overflow: hidden;
+
+    display: flex;
+    align-items: center;
+}
+
+#ecvideo-side {
+    position: absolute;
+    width: 100%;
+    max-height: 100%;
+    overflow: hidden auto;
+}
+
+.ecvideo {
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    border: 4px solid #000;
+}
+
+#ecvideo-side .ecvideo {
+    width: 100%;
+    height: 120px;
+}
+
+#ecvideo-main-wrapper {
+    position: relative;
+    flex: auto;
+    width: 160px;
+    height: 100%;
+}
+
+#ecvideo-main {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+#ecvideo-main .ecvideo {
+    flex: auto;
+}
+
+#ecchat-wrapper {
+    box-sizing: border-box;
+    flex: auto 0.5;
+    height: 100%;
+    padding: 0.25em;
+    display: flex;
+    flex-direction: column;
+}
+
+#ecchat-incoming {
+    flex: auto;
+    height: 2em;
+    padding: 0.5em;
+    overflow: auto;
+}
+
+#ecchat-outgoing {
+    box-sizing: border-box;
+    width: 100%;
+}
+
+#ecwaveform-wrapper {
+    position: relative;
+    height: 100px;
+}
+
+#ecwaveform {
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+#ecwave-watcher {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+}
+
+#eclayer-separator {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+}
+
+@media screen and (max-height: 720px) {
+    #ecvideo-side-wrapper {
+        width: 80px;
+    }
+
+    #ecvideo-side .ecvideo {
+        height: 80px;
+    }
+
+    #ecwaveform-wrapper {
+        height: 60px;
+    }
+}
+
+@media screen and (max-aspect-ratio: 3/2) {
+    #ecvideo-wrapper {
+        flex-direction: column-reverse;
+    }
+
+    #ecvideo-side-wrapper {
+        width: 100%;
+        height: 160px;
+        flex-direction: column;
+        overflow: auto hidden;
+    }
+
+    #ecvideo-side {
+        width: auto;
+        height: 100%;
+        overflow: auto hidden;
+
+        display: flex;
+        flex-direction: row;
+    }
+
+    #ecvideo-side .ecvideo {
+        width: 160px;
+        height: 100%;
+    }
+
+    #ecvideo-main-wrapper {
+        width: 100%;
+        height: 160px;
+    }
+
+    #ecchat-wrapper {
+        height: auto;
+    }
+
+    @media screen and (max-height: 720px) {
+        #ecvideo-side-wrapper {
+            height: 80px;
+        }
+
+        #ecvideo-side .ecvideo {
+            width: 80px;
+        }
+
+        #ecwaveform-wrapper {
+            height: 60px;
+        }
+    }
+}
