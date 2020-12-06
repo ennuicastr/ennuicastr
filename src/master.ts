@@ -29,9 +29,11 @@ export const credits = {
     creditRate: <[number, number]> null
 };
 
-export const users = {
-    names: <string[]> []
-};
+export const users = <{
+    name: string,
+    online: boolean,
+    transmitting: boolean
+}[]> [];
 
 // Our mapping if sound IDs to sounds
 const sounds = {
@@ -235,18 +237,17 @@ function creditsToDollars(c: number, creditCost: {currency: number, credits: num
 // Update the administrative interface for the master
 export function updateMasterAdmin() {
     var userAdminP = ui.ui.panels.userAdmin;
-    var ns = users.names;
     var bs = userAdminP.buttons;
 
-    for (var i = 0; i < ns.length; i++) {
-        var n = ns[i];
-        if (!n) continue;
+    for (var i = 0; i < users.length; i++) {
+        var u = users[i];
+        if (!u) continue;
         if (bs[i]) continue;
 
         // Create a button for this user
         var b = bs[i] = dce("button");
         b.classList.add("row");
-        b.innerText = n;
+        b.innerText = u.name;
         b.onclick = (function(i) {
             return function() { userAdmin(i); }
         })(i);
@@ -261,7 +262,7 @@ function userAdmin(user: number) {
     var userAdminUser = ui.ui.panels.userAdminUser;
 
     if (user >= 0) {
-        userAdminUser.name.innerText = users.names[user];
+        userAdminUser.name.innerText = users[user].name;
         userAdminUser.kick.style.display = "";
     } else {
         userAdminUser.name.innerHTML = '<i class="fas fa-users"></i> All users';

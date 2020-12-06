@@ -17,10 +17,15 @@
 // extern
 declare var Ennuiboard: any;
 
+import * as audio from "./audio";
 import * as chat from "./chat";
+import * as compression from "./compression";
 import * as config from "./config";
+import * as master from "./master";
+import * as ptt from "./ptt";
 import * as uiCode from "./uicode";
-import { gebi } from "./util";
+import { dce, gebi } from "./util";
+import * as video from "./video";
 
 // The entire user interface
 export const ui = {
@@ -39,7 +44,20 @@ export const ui = {
         main: HTMLElement,
 
         // Main fullscreen button
-        mainFS: HTMLButtonElement
+        mainFS: HTMLButtonElement,
+
+        // Video components for each user
+        users: {
+            video: HTMLVideoElement,
+            box: HTMLElement,
+            name: HTMLElement
+        }[],
+
+        // Which user is selected?
+        selected: number,
+
+        // Which user is the current major?
+        major: number
     }> null,
 
     // Chat interface
@@ -54,7 +72,8 @@ export const ui = {
     wave: <{
         wrapper: HTMLElement,
         canvas: HTMLCanvasElement,
-        watcher: HTMLImageElement
+        watcher: HTMLImageElement,
+        rotate: boolean
     }> null,
 
     // Status
@@ -269,9 +288,12 @@ const mobile = (ua.indexOf("android") >= 0) ||
                (ua.indexOf("ipad") >= 0);
 
 // Show the given panel, or none
-export function showPanel(panel: HTMLElement|string) {
-    if (typeof panel === "string")
-        panel = ui.panels[panel].wrapper;
+export function showPanel(panelName: HTMLElement|string) {
+    var panel: HTMLElement;
+    if (typeof panelName === "string")
+        panel = ui.panels[panelName].wrapper;
+    else
+        panel = panelName;
 
     // Hide all existing panels
     for (var o in ui.panels) {
@@ -289,7 +311,7 @@ export function showPanel(panel: HTMLElement|string) {
 }
 
 // Saveable config for a box with a string value
-function saveConfigValue(sel, name, onchange) {
+function saveConfigValue(sel, name, onchange?: (Event)=>void) {
     var cur = localStorage.getItem(name);
     if (cur !== null)
         sel.value = cur;
@@ -301,7 +323,7 @@ function saveConfigValue(sel, name, onchange) {
 }
 
 // Saveable configuration for a checkbox
-export function saveConfigCheckbox(cb, name, onchange) {
+export function saveConfigCheckbox(cb, name, onchange?: (Event)=>void) {
     var cur = localStorage.getItem(name);
     if (cur !== null)
         cb.checked = !!~~cur;
@@ -313,11 +335,11 @@ export function saveConfigCheckbox(cb, name, onchange) {
 }
 
 // Saveable configuration for a slider
-function saveConfigSlider(sl, name, onchange) {
+function saveConfigSlider(sl, name, onchange?: (Event)=>void) {
     var cur = localStorage.getItem(name);
     if (cur !== null)
         sl.value = +cur;
-    cb.oninput = function(ev) {
+    sl.oninput = function(ev) {
         localStorage.setItem(name, ""+sl.value);
         if (onchange)
             return onchange(ev);
@@ -329,7 +351,7 @@ export function mkUI() {
     // Load in the UI
     document.body.style.margin =
         document.body.style.padding = "0";
-    document.body.innerHTML = uiCode;
+    document.body.innerHTML = uiCode.code;
 
     // Load the components
     loadVideo();
@@ -357,7 +379,10 @@ function loadVideo() {
         side: gebi("ecvideo-side"),
         sideFS: gebi("ecvideo-wrapper-fs"),
         main: gebi("ecvideo-main"),
-        mainFS: gebi("ecvideo-main-fs")
+        mainFS: gebi("ecvideo-main-fs"),
+        users: [],
+        selected: -1,
+        major: -1
     };
 }
 
@@ -374,7 +399,8 @@ function loadWave() {
     ui.wave = {
         wrapper: gebi("ecwaveform-wrapper"),
         canvas: gebi("ecwaveform"),
-        watcher: gebi("ecwave-watcher")
+        watcher: gebi("ecwave-watcher"),
+        rotate: false
     };
 }
 
@@ -413,8 +439,8 @@ function loadMasterUI() {
         pauseResumeB: gebi("ecmaster-pause-resume"),
         startStopB: gebi("ecmaster-start-stop"),
         yesNo: gebi("ecmaster-yes-no"),
-        yes: gebi("ecmaster-yes"),
-        no: gebi("ecmaster-no"),
+        yesB: gebi("ecmaster-yes"),
+        noB: gebi("ecmaster-no"),
         inviteLink: gebi("ecmaster-invite-link"),
         inviteCopyB: gebi("ecmaster-invite-link-copy"),
         inviteFLACHider: gebi("ecmaster-invite-flac-wrapper"),
@@ -518,7 +544,7 @@ function loadInterfaceSounds() {
 export function mkAudioUI() {
     var input = ui.panels.inputConfig,
         output = ui.panels.outputConfig,
-        video = ui.panels.videoConfig;
+        videoConfig = ui.panels.videoConfig;
 
     /********************
      * INPUT CONFIGURATION
@@ -541,7 +567,7 @@ export function mkAudioUI() {
             input.device.appendChild(opt);
         });
 
-        saveConfigSelect(input.device, "input-device3", inputChange);
+        saveConfigValue(input.device, "input-device3", inputChange);
 
     }).catch(function() {}); // Nothing really to do here
 
@@ -558,7 +584,7 @@ export function mkAudioUI() {
         input.agc.checked = true;
     }
     saveConfigCheckbox(input.echo, "echo-cancellation3", inputChange);
-    saveConfigCheckbox(input.agc, "agc3", inputConfig);
+    saveConfigCheckbox(input.agc, "agc3", inputChange);
 
 
     /********************
@@ -588,8 +614,8 @@ export function mkAudioUI() {
 
         // And all the sounds
         // FIXME: soundboard sounds
-        ui.sounds.chimeUp.setSinkId(v).catch(console.error);
-        ui.sounds.chimeDown.setSinkId(v).catch(console.error);
+        (<any> ui.sounds.chimeUp).setSinkId(v).catch(console.error);
+        (<any> ui.sounds.chimeDown).setSinkId(v).catch(console.error);
     }
 
     // Fill it with the available devices
@@ -606,7 +632,7 @@ export function mkAudioUI() {
             output.device.appendChild(opt);
         });
 
-        saveConfigSelect(output.device, "output-device3", outputChange);
+        saveConfigValue(output.device, "output-device3", outputChange);
 
     }).catch(function() {}); // Nothing really to do here
 
@@ -615,7 +641,7 @@ export function mkAudioUI() {
 
     // But, separate save for snapping
     function volumeChange() {
-        var val = output.volume;
+        var vol = output.volume;
 
         // Snap to x00%
         for (var i = 100; i <= 300; i += 100)
@@ -644,8 +670,8 @@ export function mkAudioUI() {
 
         // FIXME: Set it on soundboard sounds
 
-        output.sounds.chimeUp.volume = v;
-        output.sounds.chimeDown.volume = v;
+        ui.sounds.chimeUp.volume = v;
+        ui.sounds.chimeDown.volume = v;
     }
 
     saveConfigSlider(output.sfxVolume, "volume-sfx3", sfxVolumeChange);
@@ -685,16 +711,16 @@ export function mkAudioUI() {
      *******************/
 
     // When it's changed, start video
-    video.device.onchange = function() {
-        togglePanel("video-device", false);
-        video.getCamera(video.device.value);
+    videoConfig.device.onchange = function() {
+        showPanel(null);
+        video.getCamera(videoConfig.device.value);
     };
 
     // Add a pseudo-device so nothing is selected at first
     var opt = dce("option");
     opt.innerText = "None";
     opt.value = "-none";
-    video.device.appendChild(opt);
+    videoConfig.device.appendChild(opt);
 
     // Fill it with the available devices
     navigator.mediaDevices.enumerateDevices().then(function(devices) {
@@ -707,14 +733,14 @@ export function mkAudioUI() {
             var label = dev.label || ("Camera " + ctr++);
             opt.innerText = label;
             opt.value = dev.deviceId;
-            video.device.appendChild(opt);
+            videoConfig.device.appendChild(opt);
         });
 
         // Add a special pseudo-device for screen capture
         var opt = dce("option");
         opt.innerText = "Capture screen";
         opt.value = "-screen";
-        video.device.appendChild(opt);
+        videoConfig.device.appendChild(opt);
 
     }).catch(function() {}); // Nothing really to do here
 
@@ -752,7 +778,7 @@ export function setOutputAudioContext(ac: AudioContext & {ecDestination?: MediaS
 // Update the mute button
 export function updateMuteButton() {
     if (!audio.userMedia) return;
-    var muteB = ui.persistent.muteB;
+    var muteB = ui.persistent.mute;
     if (audio.userMedia.getAudioTracks()[0].enabled) {
         // It's unmuted
         muteB.innerHTML = '<i class="fas fa-volume-up"></i>';
@@ -772,7 +798,11 @@ export function resizeUI() {
 }
 
 // Add a user to the user list
-export function userListAdd(idx: number, name: string) {
+export function userListAdd(idx: number, name: string, fromMaster: boolean) {
+    if (("master" in config.config) !== fromMaster)
+        return;
+
+    // First to the normal user list
     var userList = ui.panels.userList;
     while (userList.users.length <= idx)
         userList.users.push(null);
@@ -780,8 +810,15 @@ export function userListAdd(idx: number, name: string) {
     var user = userList.users[idx];
     if (user) {
         // Just update their name
-        user.name.innerText = name;
-        user.name.setAttribute("aria-label", name + ": Not speaking");
+        if (name) {
+            user.name.innerText = name;
+            user.name.setAttribute("aria-label", name + ": Not speaking");
+            ui.video.users[idx].name.innerText = name;
+        }
+        if (fromMaster) {
+            master.users[idx].online = true;
+            master.updateMasterAdmin();
+        }
         return;
     }
 
@@ -834,35 +871,117 @@ export function userListAdd(idx: number, name: string) {
 
         // Snap to x00%
         for (var i = 100; i <= 300; i += 100)
-            if (vol.value >= i - 10 && vol.value <= i + 10)
-                vol.value = i;
+            if (+vol.value >= i - 10 && +vol.value <= i + 10)
+                vol.value = ""+i;
 
         // Show the status
         user.volumeStatus.innerHTML = "&nbsp;" + vol.value + "%";
 
         // Set it
-        compression.setPerUserGain(idx, vol.value / 100);
+        compression.setPerUserGain(idx, (+vol.value) / 100);
     }
 
     saveConfigSlider(user.volume, "user-volume3-" + name, volChange);
     volChange();
+
+    // And give them a user element
+    videoAdd(idx, name);
+
+
+    // And the master user list
+    if (fromMaster) {
+        while (master.users.length <= idx)
+            master.users.push(null);
+        master.users[idx] = {
+            name: name,
+            online: true,
+            transmitting: false
+        };
+        master.updateMasterAdmin();
+    }
+}
+
+// Add a video element for this user, if they don't already have one
+export function videoAdd(idx: number, name: string) {
+    if (ui.video.users[idx])
+        return;
+    while (ui.video.users.length <= idx)
+        ui.video.users.push(null);
+
+    var ctx = ui.video.users[idx] = {
+        video: dce("video"),
+        box: dce("div"),
+        name: dce("span")
+    };
+
+    /* A videobox ix flexible for centering, and contains a video element and a
+     * name label */
+    var box = ctx.box;
+    Object.assign(box.style, {
+        position: "relative",
+        boxSizing: "border-box",
+        border: "4px solid #000",
+        display: "flex",
+        flexDirection: "column",
+        flex: "auto"
+    });
+
+    var video = ctx.video;
+    video.height = 0; // Use CSS for style
+    Object.assign(video.style, {
+        backgroundColor: "#000", // FIXME
+        flex: "auto"
+    });
+    box.appendChild(video);
+
+    // When you click, they become the selected major
+    video.onclick = function() {
+        if (ui.video.selected === idx)
+            ui.video.selected = -1;
+        else
+            ui.video.selected = idx;
+        // updateVideoUI(idx); FIXME
+    };
+
+    // And add their personal label
+    var nspan = ctx.name;
+    nspan.classList.add("namelabel");
+    nspan.innerText = name || "";
+    box.appendChild(nspan);
 }
 
 // Remove a user from the user list
-export function userListRemove(idx: number) {
+export function userListRemove(idx: number, fromMaster: boolean) {
+    if (("master" in config.config) !== fromMaster)
+        return;
     var user = ui.panels.userList.users[idx];
     if (!user) return;
     user.wrapper.parentNode.removeChild(user.wrapper);
     ui.panels.userList.users[idx] = null;
+    if (fromMaster) {
+        master.users[idx].online = false;
+        master.updateMasterAdmin();
+    }
+
+    // FIXME: Video
 }
 
 // Update the speaking status of an element in the user list
-export function userListUpdate(idx: number, speaking: boolean) {
-    var user = ui.userList.users[idx];
-    if (!user) return;
+export function userListUpdate(idx: number, speaking: boolean, fromMaster: boolean) {
+    if (("master" in config.config) !== fromMaster)
+        return;
 
+    var user = ui.panels.userList.users[idx];
+    if (!user) return;
     user.name.style.backgroundColor = speaking?"#2b552b":"#000";
-    user.name.setAttribute("aria-label", el.innerText + ": " + (speaking?"Speaking":"Not speaking"));
+    user.name.setAttribute("aria-label", user.name.innerText + ": " + (speaking?"Speaking":"Not speaking"));
+
+    // FIXME: Video
+
+    if (fromMaster) {
+        master.users[idx].transmitting = speaking;
+        master.updateMasterAdmin();
+    }
 }
 
 `

@@ -453,7 +453,8 @@ export function recordVideoRemoteIncoming(peer: number, opts: any) {
     var filename = "";
     if (net.recName)
         filename = net.recName + "-";
-    var remoteName = ui.ui.userList.names[peer];
+    var remoteUser = ui.ui.panels.userList.users[peer];
+    var remoteName = remoteUser ? remoteUser.name.innerText : "";
     if (remoteName)
         filename += remoteName + "-";
     filename += "video." + ext;
@@ -472,7 +473,7 @@ export function recordVideoRemoteIncoming(peer: number, opts: any) {
 
 // Show the video recording panel if we need to, or just start recording
 function recordVideoPanel() {
-    ui.togglePanel("video-record");
+    ui.showPanel("videoRecord");
 }
 
 // Input handler for video recording
@@ -650,7 +651,7 @@ function recordVideoRemoteClose(peer: number) {
 
 // Configure the video recording button based on the current state
 export function recordVideoButton(loading?: boolean) {
-    var btn = ui.ui.recordVideoButton;
+    var btn = ui.ui.panels.main.videoRecordB;
     if (!btn) return;
 
     function disabled(to: boolean) {
@@ -704,17 +705,17 @@ export function recordVideoButton(loading?: boolean) {
             };
 
             gebi("ecvideo-record-local").onclick = function() {
-                ui.togglePanel("video-record", false);
+                ui.showPanel(null);
                 recordVideo({local: true});
             };
 
             gebi("ecvideo-record-remote").onclick = function() {
-                ui.togglePanel("video-record", false);
+                ui.showPanel(null);
                 recordVideo({remote: true});
             };
 
             gebi("ecvideo-record-local-remote").onclick = function() {
-                ui.togglePanel("video-record", false);
+                ui.showPanel(null);
                 recordVideo({local: true, remote: true});
             };
 

@@ -324,24 +324,22 @@ function dataSockMsg(ev: MessageEvent) {
             break;
 
         case prot.ids.user:
-            if (!("master" in config.config)) {
-                // Master gets this info elsewhere
-                p = prot.parts.user;
-                var index = msg.getUint32(p.index, true);
-                var status = msg.getUint32(p.status, true);
-                var nick = util.decodeText(msg.buffer.slice(p.nick));
+            // Master gets this info elsewhere
+            p = prot.parts.user;
+            var index = msg.getUint32(p.index, true);
+            var status = msg.getUint32(p.status, true);
+            var nick = util.decodeText(msg.buffer.slice(p.nick));
 
-                // Add it to the UI
-                if (status)
-                    ui.userListAdd(index, nick);
-                else
-                    ui.userListRemove(index);
-            }
+            // Add it to the UI
+            if (status)
+                ui.userListAdd(index, nick, false);
+            else
+                ui.userListRemove(index, false);
             break;
 
         case prot.ids.speech:
         {
-            if (("master" in config.config) || config.useRTC) {
+            if (config.useRTC) {
                 // Handled through master interface or RTC
                 break;
             }
@@ -349,7 +347,7 @@ function dataSockMsg(ev: MessageEvent) {
             var indexStatus = msg.getUint32(p.indexStatus, true);
             let index = indexStatus>>>1;
             let status = (indexStatus&1);
-            ui.userListUpdate(index, !!status);
+            ui.userListUpdate(index, !!status, false);
             break;
         }
 
@@ -472,19 +470,9 @@ function masterSockMsg(ev: MessageEvent) {
 
             // Add it to the UI
             if (status)
-                ui.userListAdd(index, nick);
+                ui.userListAdd(index, nick, true);
             else
-                ui.userListRemove(index);
-            var speech = ui.ui.masterUI.speech = ui.ui.masterUI.speech || [];
-            while (speech.length <= index)
-                speech.push(null);
-            speech[index] = {
-                nick: nick,
-                online: !!status,
-                speaking: false
-            };
-
-            master.updateMasterSpeech();
+                ui.userListRemove(index, true);
             break;
 
         case prot.ids.speech:
@@ -493,9 +481,7 @@ function masterSockMsg(ev: MessageEvent) {
             let indexStatus = msg.getUint32(p.indexStatus, true);
             let index = indexStatus>>>1;
             let status = (indexStatus&1);
-            if (!ui.ui.masterUI.speech[index]) return;
-            ui.ui.masterUI.speech[index].speaking = !!status;
-            master.updateMasterSpeech();
+            ui.userListUpdate(index, !!status, true);
             break;
         }
     }

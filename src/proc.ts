@@ -130,7 +130,7 @@ export function localProcessing() {
         // Now the display steps
 
         // Create a canvas for it
-        var wc = ui.ui.waveCanvas;
+        var wc = ui.ui.wave.canvas;
 
         // Now the background is nothing, so should just be grey
         document.body.style.backgroundColor = "#111";
@@ -350,22 +350,22 @@ var e4 = Math.exp(4);
 
 // Update the wave display
 function updateWave(value: number, sentRecently: boolean) {
-    var wc = ui.ui.waveCanvas;
+    var wc = ui.ui.wave.canvas;
 
     // Start from the element size
-    var w = ui.ui.waveWrapper.offsetWidth;
-    var h = ui.ui.waveWrapper.offsetHeight;
+    var w = ui.ui.wave.wrapper.offsetWidth;
+    var h = ui.ui.wave.wrapper.offsetHeight;
 
     // Rotate if our view is vertical
     if (w/h < 4/3) {
-        if (!ui.ui.waveRotate) {
-            ui.ui.waveWatcher.style.visibility = "hidden";
-            ui.ui.waveRotate = true;
+        if (!ui.ui.wave.rotate) {
+            ui.ui.wave.watcher.style.visibility = "hidden";
+            ui.ui.wave.rotate = true;
         }
     } else {
-        if (ui.ui.waveRotate) {
-            ui.ui.waveWatcher.style.visibility = "";
-            ui.ui.waveRotate = false;
+        if (ui.ui.wave.rotate) {
+            ui.ui.wave.watcher.style.visibility = "";
+            ui.ui.wave.rotate = false;
         }
 
     }
@@ -376,7 +376,7 @@ function updateWave(value: number, sentRecently: boolean) {
     if (+wc.height !== h)
         wc.height = h;
 
-    if (ui.ui.waveRotate) {
+    if (ui.ui.wave.rotate) {
         var tmp = w;
         w = h;
         h = tmp;
@@ -410,7 +410,7 @@ function updateWave(value: number, sentRecently: boolean) {
     var ctx = wc.getContext("2d");
     var i, p;
     ctx.save();
-    if (ui.ui.waveRotate) {
+    if (ui.ui.wave.rotate) {
         ctx.rotate(Math.PI/2);
         ctx.translate(0, -2*h);
     }
@@ -461,13 +461,5 @@ export function updateSpeech(peer: number, status: boolean) {
     }
 
     // Update the user list
-    ui.userListUpdate(peer, status);
-
-    // Update video speech info
-    if (!ui.ui.video) return;
-    if (status)
-        ui.ui.video.speech[vpeer] = performance.now();
-    else
-        delete ui.ui.video.speech[vpeer];
-    ui.updateVideoUI(vpeer);
+    ui.userListUpdate(peer, status, false);
 }

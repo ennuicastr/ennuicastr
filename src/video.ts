@@ -15,7 +15,9 @@
  */
 
 import * as audio from "./audio";
+import * as config from "./config";
 import * as log from "./log";
+import * as net from "./net";
 import * as ui from "./ui";
 
 // The video device being read
@@ -68,22 +70,22 @@ export function getCamera(id: string) {
 
     }).then(function(userMediaIn) {
         userMediaVideo = userMediaIn;
+        ui.videoAdd(net.selfId, config.username);
+        var v = ui.ui.video.users[net.selfId].video;
         if (userMediaVideo) {
             // Inform RTC
             audio.userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediavideoready", {}));
 
             // And update the display
-            ui.ui.video.self.srcObject = userMediaVideo;
-            ui.ui.video.self.play().catch(function(){});
-            ui.ui.video.hasVideo[0] = true;
+            v.srcObject = userMediaVideo;
+            v.play().catch(function(){});
 
         } else {
             // No video :(
-            ui.ui.video.self.srcObject = null;
-            ui.ui.video.hasVideo[0] = false;
+            v.srcObject = null;
 
         }
-        ui.updateVideoUI(0);
+        // ui.updateVideoUI(0); FIXME
 
     }).catch(function(err) {
         log.pushStatus("video", "Failed to capture video!");
