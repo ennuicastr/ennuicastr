@@ -336,8 +336,13 @@ const mobile = (ua.indexOf("android") >= 0) ||
                (ua.indexOf("ipad") >= 0);
 
 // Show the given panel, or none
-export function showPanel(panelName: HTMLElement|string) {
+export function showPanel(panelName: HTMLElement|string, autoFocusName?: HTMLElement|string) {
     var panel: HTMLElement;
+    var autoFocus: HTMLElement = null;
+    if (typeof autoFocusName === "string")
+        autoFocus = (<any> ui.panels)[<string> panelName][autoFocusName];
+    else if (typeof autoFocus !== "undefined")
+        autoFocus = autoFocusName;
     if (typeof panelName === "string")
         panel = (<any> ui.panels)[panelName].wrapper;
     else
@@ -353,6 +358,9 @@ export function showPanel(panelName: HTMLElement|string) {
         ui.layerSeparator.style.display = "";
         panel.style.display = "block";
         document.body.setAttribute("data-interface", "none");
+
+        if (autoFocus)
+            autoFocus.focus();
 
     } else {
         ui.layerSeparator.style.display = "none";
@@ -477,7 +485,7 @@ export function mkUI() {
 
     if ("master" in config.config) {
         master.createMasterInterface();
-        showPanel(ui.panels.master.wrapper);
+        showPanel(ui.panels.master.wrapper, ui.panels.master.startStopB);
     }
 
     /* If we're not using RTC, we can disable the video display, and move the
@@ -622,26 +630,31 @@ function loadMainMenu() {
         userListB: gebi("ecmenu-user-list")
     };
 
-    function btn(b: HTMLButtonElement, p: string) {
+    function btn(b: HTMLButtonElement, p: string, a: string) {
         b.onclick = function() {
-            showPanel(p);
+            showPanel(p, a);
         };
     }
 
-    btn(p.master, "master");
-    btn(p.sounds, "soundboard");
-    btn(p.main, "main");
+    btn(p.master, "master", "startStopB");
+    btn(p.sounds, "soundboard", null);
+    btn(p.main, "main", "inputB");
     p.chat.onclick = function() {
         var chat = ui.chat.wrapper;
-        chat.style.display = (chat.style.display === "none") ? "" : "none";
+        if (chat.style.display === "none") {
+            chat.style.display = "";
+            ui.chat.outgoing.focus();
+        } else {
+            chat.style.display = "none";
+        }
         resizeUI();
     };
     p.mute.onclick = function() { audio.toggleMute(); };
-    btn(m.inputB, "inputConfig");
-    btn(m.outputB, "outputConfig");
-    btn(m.videoB, "videoConfig");
+    btn(m.inputB, "inputConfig", null);
+    btn(m.outputB, "outputConfig", null);
+    btn(m.videoB, "videoConfig", null);
     videoRecord.recordVideoButton();
-    btn(m.userListB, "userList");
+    btn(m.userListB, "userList", null);
 
     // Auto-hide the persistent menu
     mouseenter();

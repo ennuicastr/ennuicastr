@@ -309,7 +309,8 @@ input[type="checkbox"]:checked:after {
 #ecvideo-main-wrapper {
     position: relative;
     flex: auto;
-    width: 160px;
+    min-width: 160px;
+    width: 100%;
     height: 100%;
 }
 
@@ -327,6 +328,7 @@ input[type="checkbox"]:checked:after {
 #ecchat-wrapper {
     box-sizing: border-box;
     flex: auto 0.5;
+    min-width: 160px;
     width: 100%;
     height: 100%;
     padding: 0.25em;
@@ -374,20 +376,6 @@ input[type="checkbox"]:checked:after {
 }
 
 @media screen and (max-width: 480px) {
-    #ecvideo-side-wrapper {
-        width: 80px;
-    }
-
-    #ecvideo-side .ecvideo {
-        height: 80px;
-    }
-
-    #ecwaveform-wrapper {
-        height: 60px;
-    }
-}
-
-@media screen and (max-width: 480px) {
     #ecvideo-wrapper {
         flex-direction: column-reverse;
     }
@@ -415,11 +403,13 @@ input[type="checkbox"]:checked:after {
 
     #ecvideo-main-wrapper {
         width: 100%;
-        height: 160px;
+        min-height: 160px;
+        height: 100%;
     }
 
     #ecchat-wrapper {
-        height: auto;
+        min-height: 160px;
+        height: 100%;
     }
 
     @media screen and (max-height: 720px) {
