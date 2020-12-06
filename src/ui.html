@@ -44,8 +44,9 @@
             </div>
 
             <!-- Boxes for elements that don't live here by default -->
-            <div id="ecsounds-dock"></div>
-            <div id="ecuser-list-dock"></div>
+            <div id="ecsounds-dock" class="dock"></div>
+            <div id="ecuser-list-dock" class="dock"></div>
+            <div id="ecmaster-recording-cost-dock" class="dock"></div>
 
             <!-- The audio stream -->
             <div id="ecwaveform-wrapper">
@@ -94,8 +95,8 @@
             <button id="ecmaster-pause-resume" class="row"><i class="fas fa-pause"></i> Pause recording</button>
             <button id="ecmaster-start-stop" class="row"><i class="fas fa-microphone-alt"></i> Start recording</button>
             <div class="bigrflex row" id="ecmaster-yes-no">
-                <button id="ecmaster-yes" class="half" style="width: 100%;">Yes</button>
-                <button id="ecmaster-no" class="half" style="width: 100%;">No</button>
+                <button id="ecmaster-yes" class="half">Yes</button>
+                <button id="ecmaster-no" class="half">No</button>
             </div>
             <div class="invite row">
                 <div class="rflex">
@@ -119,13 +120,21 @@
                 <input id="ecmaster-video-record-host" type="checkbox" />
                 <label for="ecmaster-video-record-host">&nbsp;Accept video recordings from guests
             </div>
-            <div class="rflex row">
-                <span style="min-width: 10em; text-align: right;">Recording cost:&nbsp;</span>
-                <input id="ecmaster-recording-cost" type="text" readonly style="flex: auto; width: 1em;" />
-            </div>
-            <div class="rflex row">
-                <span style="min-width: 10em; text-align: right;">Current rate:&nbsp;</span>
-                <input id="ecmaster-recording-rate" type="text" readonly style="flex: auto; width: 1em;" />
+            <!-- Recording cost is poppable so it can be persistent -->
+            <div id="ecmaster-recording-cost-popout-wrapper">
+                <div class="rflex" style="align-items: start;">
+                    <div style="flex: auto;">
+                        <div class="rflex row">
+                            <span style="min-width: 10em; text-align: right;">Recording cost:&nbsp;</span>
+                            <input id="ecmaster-recording-cost" type="text" readonly style="flex: auto; width: 1em;" />
+                        </div>
+                        <div class="rflex row">
+                            <span style="min-width: 10em; text-align: right;">Current rate:&nbsp;</span>
+                            <input id="ecmaster-recording-rate" type="text" readonly style="flex: auto; width: 1em;" />
+                        </div>
+                    </div>
+                    <button id="ecmaster-recording-cost-popout" class="tbutton" title="Pop out" aria-label="Pop out"><i class="far fa-window-restore"></i></button>
+                </div>
             </div>
         </div>
 
@@ -150,7 +159,7 @@
             <div id="ecsounds-popout-wrapper">
                 <div class="rflex" style="align-items: start;">
                     <div id="ecsounds" style="flex: auto;"></div>
-                    <button id="ecsounds-popout" class="tbutton" style="float: right;" title="Pop out" aria-label="Pop out"><i class="far fa-window-restore"></i></button>
+                    <button id="ecsounds-popout" class="tbutton" title="Pop out" aria-label="Pop out"><i class="far fa-window-restore"></i></button>
                 </div>
             </div>
         </div>
@@ -167,8 +176,8 @@
 
             <!-- And options -->
             <div class="bigrflex">
-                <button id="ecpttb" class="half" style="width: 100%;"><i class="fas fa-gamepad"></i> Gamepad push-to-talk</button>
-                <div id="ecinput-options-wrapper" class="half">
+                <button id="ecpttb"><i class="fas fa-gamepad"></i> Gamepad push-to-talk</button>
+                <div id="ecinput-options-wrapper">
                     <input id="ecnoise-reduction" type="checkbox" checked />
                     <label for="ecnoise-reduction">&nbsp;Apply noise reduction</label><br/>
                     <input id="ececho-cancellation" type="checkbox" />
@@ -240,7 +249,7 @@
             <div id="ecuser-list-popout-wrapper">
                 <div id="ecuser-list-wrapper" class="rflex" style="align-items: start;">
                     <div id="ecuser-list" style="flex: auto;"></div>
-                    <button id="ecuser-list-popout" class="tbutton" style="float: right;" title="Pop out" aria-label="Pop out"><i class="far fa-window-restore"></i></button>
+                    <button id="ecuser-list-popout" class="tbutton" title="Pop out" aria-label="Pop out"><i class="far fa-window-restore"></i></button>
                 </div>
             </div>
         </div>
@@ -303,10 +312,6 @@
                     wcw.style.flex = "auto";
                 }
             };
-
-            function rbg() {
-                return Math.round(Math.random()*0x4);
-            }
 
             // Demonstrate video with some images
             function vid(main, nm) {

@@ -31,6 +31,7 @@ a {
 
 .half {
     flex: auto;
+    width: 100%;
 }
 
 .panel {
@@ -47,6 +48,10 @@ a {
     border: 1px solid #222;
     border-radius: 0.25em;
     overflow: auto;
+}
+
+.dock > :first-child {
+    padding: 0.5em;
 }
 
 @media screen and (max-width: 480px) {

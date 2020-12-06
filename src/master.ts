@@ -307,8 +307,8 @@ function addSoundButton(sid: string, url: string, name: string) {
         playStopSound(b.b, sid, play);
     };
 
-    soundboard.wrapper.appendChild(b.b);
-    soundboard.wrapper.appendChild(spacer);
+    soundboard.soundsWrapper.appendChild(b.b);
+    soundboard.soundsWrapper.appendChild(spacer);
     ui.ui.persistent.soundsHider.style.display = "";
 }
 

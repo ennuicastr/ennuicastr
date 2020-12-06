@@ -142,6 +142,11 @@ export const ui = {
             // Accept guest video recordings
             acceptRemoteVideo: HTMLInputElement,
 
+            // Recording cost popout behavior
+            recordingCostPopout: HTMLButtonElement,
+            recordingCostPopoutWrapper: HTMLElement,
+            recordingCostDock: HTMLElement,
+
             // Recording cost/rate
             recordingCost: HTMLInputElement,
             recordingRate: HTMLInputElement
@@ -183,6 +188,9 @@ export const ui = {
 
             // Popout-able wrapper
             popoutWrapper: HTMLElement,
+
+            // Dock
+            dock: HTMLElement,
 
             // Wrapper for the actual sounds
             soundsWrapper: HTMLElement,
@@ -263,6 +271,12 @@ export const ui = {
             // Popout-able wrapper
             popoutWrapper: HTMLElement,
 
+            // Dock
+            dock: HTMLElement,
+
+            // The actual user list
+            userList: HTMLElement,
+
             // User list elements
             users: {
                 wrapper: HTMLElement,
@@ -319,6 +333,26 @@ export function showPanel(panelName: HTMLElement|string) {
         mouseenter();
 
     }
+}
+
+// Configure a panel for popping in or out
+function poppable(popout: HTMLElement, button: HTMLButtonElement,
+                  panelButton: HTMLButtonElement, name: string,
+                  panel: HTMLElement, dock: HTMLElement) {
+    var cur = false;
+    button.onclick = function() {
+        cur = !cur;
+        (cur?dock:panel).appendChild(popout);
+        if (panelButton)
+            panelButton.style.display = cur?"none":"";
+        if (cur)
+            showPanel(null);
+        localStorage.setItem(name, cur?"1":"0");
+    };
+
+    var saved = localStorage.getItem(name);
+    if (saved !== null && !!~~saved)
+        button.onclick(null);
 }
 
 // Functionality for auto-hiding the persistent panel
@@ -405,6 +439,21 @@ export function mkUI() {
     });
     ui.layerSeparator.onclick = function() { showPanel(null); };
 
+    // Poppable panels
+    if ("master" in config.config) {
+        let m = ui.panels.master;
+        poppable(m.recordingCostPopoutWrapper, m.recordingCostPopout, null,
+            "recording-cost-popout3", m.wrapper, m.recordingCostDock);
+    }
+    {
+        let s = ui.panels.soundboard;
+        poppable(s.popoutWrapper, s.popout, ui.persistent.sounds, "sounds-popout3", s.wrapper, s.dock);
+    }
+    {
+        let u = ui.panels.userList;
+        poppable(u.popoutWrapper, u.popout, ui.panels.main.userListB, "user-list-popout3", u.wrapper, u.dock);
+    }
+
     // When we resize, re-flex
     window.addEventListener("resize", function() {
         setTimeout(reflexUI, 100);
@@ -480,7 +529,11 @@ function loadMainMenu() {
     btn(p.master, "master");
     btn(p.sounds, "soundboard");
     btn(p.main, "main");
-    // FIXME: Chat, mute
+    p.chat.onclick = function() {
+        var chat = ui.chat.wrapper;
+        chat.style.display = (chat.style.display === "none") ? "" : "none";
+    };
+    p.mute.onclick = function() { audio.toggleMute(); };
     btn(m.inputB, "inputConfig");
     btn(m.outputB, "outputConfig");
     btn(m.videoB, "videoConfig");
@@ -494,7 +547,7 @@ function loadMainMenu() {
 }
 
 function loadMasterUI() {
-    ui.panels.master = {
+    var m = ui.panels.master = {
         wrapper: gebi("ecmaster-interface"),
         pauseResumeB: gebi("ecmaster-pause-resume"),
         startStopB: gebi("ecmaster-start-stop"),
@@ -509,6 +562,9 @@ function loadMasterUI() {
         inviteContinuous: gebi("ecmaster-invite-continuous"),
         userAdminB: gebi("ecmaster-admin"),
         acceptRemoteVideo: gebi("ecmaster-video-record-host"),
+        recordingCostPopout: gebi("ecmaster-recording-cost-popout"),
+        recordingCostPopoutWrapper: gebi("ecmaster-recording-cost-popout-wrapper"),
+        recordingCostDock: gebi("ecmaster-recording-cost-dock"),
         recordingCost: gebi("ecmaster-recording-cost"),
         recordingRate: gebi("ecmaster-recording-rate")
     };
@@ -532,10 +588,11 @@ function loadUserAdmin() {
 }
 
 function loadSoundboard() {
-    ui.panels.soundboard = {
+    var s = ui.panels.soundboard = {
         wrapper: gebi("ecsounds-wrapper"),
         popout: gebi("ecsounds-popout"),
         popoutWrapper: gebi("ecsounds-popout-wrapper"),
+        dock: gebi("ecsounds-dock"),
         soundsWrapper: gebi("ecsounds"),
         sounds: {}
     };
@@ -584,10 +641,12 @@ function loadVideoConfig() {
 }
 
 function loadUserList() {
-    ui.panels.userList = {
+    var u = ui.panels.userList = {
         wrapper: gebi("ecuser-list-wrapper"),
         popout: gebi("ecuser-list-popout"),
         popoutWrapper: gebi("ecuser-list-popout-wrapper"),
+        dock: gebi("ecuser-list-dock"),
+        userList: gebi("ecuser-list"),
         users: []
     };
 }
@@ -880,6 +939,7 @@ export function userListAdd(idx: number, name: string, fromMaster: boolean) {
             user.name.innerText = name;
             user.name.setAttribute("aria-label", name + ": Not speaking");
             ui.video.users[idx].name.innerText = name;
+            styleVideoEl(ui.video.users[idx].video, name);
         }
         if (fromMaster) {
             master.users[idx].online = true;
@@ -907,7 +967,7 @@ export function userListAdd(idx: number, name: string, fromMaster: boolean) {
      *  </div>
      */
     user.wrapper.classList.add("bigrflex", "row");
-    userList.popoutWrapper.appendChild(user.wrapper);
+    userList.userList.appendChild(user.wrapper);
 
     user.name.classList.add("half");
     user.name.style.backgroundColor = "#000";
@@ -996,11 +1056,14 @@ export function videoAdd(idx: number, name: string) {
 
     var video = ctx.video;
     video.height = 0; // Use CSS for style
+    video.style.flex = "auto";
     Object.assign(video.style, {
         backgroundColor: "#000", // FIXME
         flex: "auto"
     });
     box.appendChild(video);
+
+    styleVideoEl(video, name);
 
     // When you click, they become the selected major
     video.onclick = function() {
@@ -1016,6 +1079,18 @@ export function videoAdd(idx: number, name: string) {
     nspan.classList.add("namelabel");
     nspan.innerText = name || "";
     box.appendChild(nspan);
+}
+
+// Style a video element given a user's name
+function styleVideoEl(el: HTMLVideoElement, name: string) {
+    if (!name) return;
+    var x = parseInt(btoa(unescape(encodeURIComponent(name))).replace(/[^A-Za-z0-9]/g, ""), 36);
+    var r = x % 4;
+    x = ~~(x / 4);
+    var g = x % 4;
+    x = ~~(x / 4);
+    var b = x % 4;
+    el.style.backgroundColor = "#" + r + g + b;
 }
 
 // Remove a user from the user list
