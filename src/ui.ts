@@ -22,13 +22,18 @@ import * as chat from "./chat";
 import * as compression from "./compression";
 import * as config from "./config";
 import * as master from "./master";
+import * as net from "./net";
 import * as ptt from "./ptt";
 import * as uiCode from "./uicode";
 import { dce, gebi } from "./util";
 import * as video from "./video";
+import * as videoRecord from "./video-record";
 
 // The entire user interface
 export const ui = {
+    // The overall wrapper
+    wrapper: <HTMLElement> null,
+
     // Video interface
     video: <{
         // Main wrapper
@@ -281,6 +286,9 @@ export const ui = {
     audioOutput: <HTMLAudioElement> null
 };
 
+// When did each user last speak, for video selection purposes
+var lastSpeech: number[] = [];
+
 // Certain options are only shown on mobile
 const ua = navigator.userAgent.toLowerCase();
 const mobile = (ua.indexOf("android") >= 0) ||
@@ -304,10 +312,26 @@ export function showPanel(panelName: HTMLElement|string) {
     // Show this one
     if (panel) {
         ui.layerSeparator.style.display = "";
-        panel.style.display = "";
+        panel.style.display = "block";
+        document.body.setAttribute("data-interface", "none");
+
     } else {
         ui.layerSeparator.style.display = "none";
+        mouseenter();
+
     }
+}
+
+// Functionality for auto-hiding the persistent panel
+var metimeout = null;
+function mouseenter() {
+    if (metimeout)
+        clearTimeout(metimeout);
+    document.body.setAttribute("data-interface", "show");
+    metimeout = setTimeout(function() {
+        if (document.body.getAttribute("data-interface") === "show")
+            document.body.setAttribute("data-interface", "hide");
+    }, 2000);
 }
 
 // Saveable config for a box with a string value
@@ -357,6 +381,7 @@ export function mkUI() {
     document.body.innerHTML = uiCode.code;
 
     // Load the components
+    ui.wrapper = gebi("ecouter");
     loadVideo();
     loadChat();
     chat.mkChatBox();
@@ -374,6 +399,18 @@ export function mkUI() {
     loadVideoConfig();
     loadUserList();
     loadInterfaceSounds();
+
+    // Every close button works the same
+    Array.prototype.slice.call(document.getElementsByClassName("close-button"), 0).forEach(function(x) {
+        x.onclick = function() { showPanel(null); };
+    });
+    ui.layerSeparator.onclick = function() { showPanel(null); };
+
+    // When we resize, re-flex
+    window.addEventListener("resize", function() {
+        setTimeout(reflexUI, 100);
+    });
+    resizeUI();
 }
 
 function loadVideo() {
@@ -416,7 +453,7 @@ function loadLog(logEl: HTMLElement) {
 }
 
 function loadMainMenu() {
-    ui.persistent = {
+    var p = ui.persistent = {
         masterHider: gebi("ecmenu-master-hider"),
         master: gebi("ecmenu-master"),
         soundsHider: gebi("ecmenu-sounds-hider"),
@@ -426,7 +463,7 @@ function loadMainMenu() {
         mute: gebi("ecmenu-mute")
     };
 
-    ui.panels.main = {
+    var m = ui.panels.main = {
         wrapper: gebi("ecmenu"),
         inputB: gebi("ecmenu-input-devices"),
         outputB: gebi("ecmenu-output-devices"),
@@ -434,6 +471,27 @@ function loadMainMenu() {
         videoRecordB: gebi("ecmenu-record"),
         userListB: gebi("ecmenu-user-list")
     };
+
+    function btn(b: HTMLButtonElement, p: string) {
+        b.onclick = function() {
+            showPanel(p);
+        };
+    }
+
+    btn(p.master, "master");
+    btn(p.sounds, "soundboard");
+    btn(p.main, "main");
+    // FIXME: Chat, mute
+    btn(m.inputB, "inputConfig");
+    btn(m.outputB, "outputConfig");
+    btn(m.videoB, "videoConfig");
+    videoRecord.recordVideoButton();
+    btn(m.userListB, "userList");
+
+    // Auto-hide the persistent menu
+    mouseenter();
+    document.body.addEventListener("mouseenter", mouseenter);
+    document.body.addEventListener("mousemove", mouseenter);
 }
 
 function loadMasterUI() {
@@ -798,6 +856,12 @@ export function updateMuteButton() {
 // Resize the UI to fit visible components
 export function resizeUI() {
     // FIXME
+    setTimeout(reflexUI, 100);
+}
+
+// Re-flex the flexbox UI to the window
+function reflexUI() {
+    //ui.wrapper.style.height = window.innerHeight + "px";
 }
 
 // Add a user to the user list
@@ -889,6 +953,7 @@ export function userListAdd(idx: number, name: string, fromMaster: boolean) {
 
     // And give them a user element
     videoAdd(idx, name);
+    updateVideoUI(idx, false);
 
 
     // And the master user list
@@ -920,6 +985,7 @@ export function videoAdd(idx: number, name: string) {
     /* A videobox ix flexible for centering, and contains a video element and a
      * name label */
     var box = ctx.box;
+    box.classList.add("ecvideo");
     Object.assign(box.style, {
         position: "relative",
         boxSizing: "border-box",
@@ -966,7 +1032,7 @@ export function userListRemove(idx: number, fromMaster: boolean) {
         master.updateMasterAdmin();
     }
 
-    // FIXME: Video
+    updateVideoUI(idx, false);
 }
 
 // Update the speaking status of an element in the user list
@@ -979,12 +1045,103 @@ export function userListUpdate(idx: number, speaking: boolean, fromMaster: boole
     user.name.style.backgroundColor = speaking?"#2b552b":"#000";
     user.name.setAttribute("aria-label", user.name.innerText + ": " + (speaking?"Speaking":"Not speaking"));
 
-    // FIXME: Video
+    updateVideoUI(idx, speaking);
 
     if (fromMaster) {
         master.users[idx].transmitting = speaking;
         master.updateMasterAdmin();
     }
+}
+
+// Update the video UI based on new information about this peer
+export function updateVideoUI(peer: number, speaking: boolean) {
+    var ctx = ui.video.users[peer];
+    var users = ui.panels.userList.users;
+    var user = users[peer];
+    var pi, prevMajor = ui.video.major;
+
+    // Update their speech
+    while (lastSpeech.length <= peer)
+        lastSpeech.push(null);
+    if (speaking)
+        lastSpeech[peer] = performance.now();
+    else
+        lastSpeech[peer] = null;
+
+    // Don't let them be the major if they're gone
+    if (!user) {
+        // If this was the major, it won't do
+        if (ui.video.major === peer)
+            ui.video.major = -1;
+        if (ui.video.selected === peer)
+            ui.video.selected = -1;
+    }
+
+    // Perhaps there's already something selected
+    if (ui.video.selected !== -1) {
+        ui.video.major = ui.video.selected;
+
+    } else if (ui.video.major === net.selfId ||
+               lastSpeech[ui.video.major] === null) {
+        // Otherwise, choose a major based on speech
+        var earliest = -1;
+        for (pi = 1; pi < users.length; pi++) {
+            if (users[pi] && ui.video.users[pi] && pi !== net.selfId && lastSpeech[pi] !== null &&
+                (earliest === -1 || lastSpeech[pi] < lastSpeech[earliest]))
+                earliest = pi;
+        }
+        if (earliest !== -1)
+            ui.video.major = earliest;
+    }
+
+    if (user) {
+        // If we currently have no major, this'll do
+        if (ui.video.major === -1 && peer !== net.selfId)
+            ui.video.major = peer;
+    }
+
+    // If we still have no major, just choose one
+    if (ui.video.major === -1) {
+        for (pi = users.length - 1; pi >= 0; pi--) {
+            if (users[pi] && ui.video.users[pi]) {
+                ui.video.major = pi;
+                break;
+            }
+        }
+    }
+
+    // First rearrange them all in the side box
+    for (pi = 0; pi < users.length; pi++) {
+        let v = ui.video.users[pi];
+        if (!v || !users[pi]) continue;
+
+        var selected = (ui.video.selected === pi);
+        if (lastSpeech[pi] !== null)
+            v.box.style.borderColor = selected?"#090":"#5e8f52";
+        else
+            v.box.style.borderColor = selected?"#999":"#000";
+
+        if (ui.video.major === pi) continue;
+        if (v.box.parentNode !== ui.video.side)
+            ui.video.side.appendChild(v.box);
+    }
+
+    if (ui.video.major === prevMajor) {
+        // No need to change the major
+        resizeUI();
+        return;
+    }
+
+    // Remove anything left over highlighted
+    ui.video.main.innerHTML = "";
+
+    // And highlight it
+    if (ui.video.major !== -1) {
+        let v = ui.video.users[ui.video.major];
+        ui.video.main.appendChild(v.box);
+    }
+
+    resizeUI();
 }
 
 `

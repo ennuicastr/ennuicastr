@@ -231,6 +231,10 @@ input[type="checkbox"]:checked:after {
 
 /* Specific to the UI */
 #ecouter {
+    position: absolute;
+    left: 0;
+    top: 0;
+    min-width: 100%;
     min-height: 100%;
     display: flex;
     flex-direction: column;
@@ -338,7 +342,7 @@ input[type="checkbox"]:checked:after {
     background-color: rgba(0, 0, 0, 0.85);
 }
 
-@media screen and (max-height: 720px) {
+@media screen and (max-height: 640px) {
     #ecvideo-side-wrapper {
         width: 80px;
     }

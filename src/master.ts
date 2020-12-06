@@ -364,6 +364,7 @@ function adminAction(target: number, action: number) {
     out.setUint32(p.target, target, true);
     out.setUint32(p.action, action, true);
     net.masterSock.send(out.buffer);
+    ui.showPanel(null);
 }
 
 // The change handler for accepting remote video
