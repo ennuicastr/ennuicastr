@@ -15,7 +15,7 @@
  */
 
 // extern
-declare var Ennuiboard: any;
+declare var Ennuiboard: any, webkitAudioContext: any;
 
 import * as audio from "./audio";
 import * as chat from "./chat";
@@ -1120,6 +1120,11 @@ export function resizeUI(second?: boolean) {
 function onResize() {
     ui.resized = true;
     ui.manualSize = !ui.resizing;
+
+    if (typeof webkitAudioContext !== "undefined") {
+        // Safari-specific vertical flexbox issue
+        ui.wrapper.style.height = window.innerHeight + "px";
+    }
 }
 
 // Add a user to the user list
