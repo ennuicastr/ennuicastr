@@ -1,15 +1,40 @@
 /* General */
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans&display=swap');
 
+:root {
+    --bg: #122;
+    --bg-hover: #244;
+    --bg-active: #355;
+    --bg-off: #333;
+    --bg-plain: #111;
+    --bg-invite: #244;
+    --bg-status: #ccc;
+    --bg-wave: #103030;
+    --fg: #cff;
+    --fg-status: #333;
+    --border-plain: #222;
+    --link-color: #fcc;
+    --link-color-status: #00a;
+
+    --wave-too-soft: #333;
+    --wave-too-loud: #700;
+    --user-list-silent: #000;
+    --user-list-speaking: #2b552b;
+    --video-speaking-sel: #090;
+    --video-speaking: #5e8f52;
+    --video-silent-sel: #999;
+    --video-silent: #000;
+}
+
 body {
-    background: #122;
-    color: #cff;
+    background: var(--bg);
+    color: var(--fg);
     font-family: 'Noto Sans', sans-serif;
     font-size: 1rem;
 }
 
 a {
-    color: #fcc;
+    color: var(--link-color);
 }
 
 .cflex {
@@ -44,8 +69,8 @@ a {
     top: 1em;
     margin-left: 1em;
     padding: 2em 0.5em 0.5em 0.5em;
-    background-color: #111;
-    border: 1px solid #222;
+    background-color: var(--bg-plain);
+    border: 1px solid var(--border-plain);
     border-radius: 0.25em;
     overflow: auto;
 }
@@ -80,18 +105,18 @@ a {
 }
 
 .invite {
-    background-color: #244;
+    background-color: var(--bg-invite);
 }
 
 .status {
-    background: #ccc;
-    color: #333;
+    background: var(--bg-status);
+    color: var(--fg-status);
     text-align: center;
     padding: 0.25em;
 }
 
 .status a {
-    color: #00a;
+    color: var(--link-color-status);
 }
 
 .namelabel {
@@ -128,7 +153,7 @@ a {
 
 button:not(.plain), .button {
     transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, border-radius 0.2s ease-in-out;
-    background-color: #122;
+    background-color: var(--bg);
     color: #fff;
     border-radius: 0;
     border: 0;
@@ -147,12 +172,12 @@ button.nouppercase, .button.nouppercase {
 }
 
 button:not(.plain):hover, .button:hover {
-    background-color: #244;
+    background-color: var(--bg-hover);
     border-radius: 1em;
 }
 
 button.off, button.off:hover {
-    background-color: #333;
+    background-color: var(--bg-off);
     border-radius: 0;
 }
 
@@ -192,7 +217,7 @@ input[type="email"],
 select,
 textarea {
     transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
-    background-color: #122;
+    background-color: var(--bg);
     color: #fff;
     border-radius: 0;
     border: none;
@@ -203,7 +228,7 @@ textarea {
 }
 
 select:hover {
-    background-color: #244;
+    background-color: var(--bg-hover);
 }
 
 input[type="checkbox"] {
@@ -212,14 +237,14 @@ input[type="checkbox"] {
     position: relative;
     display: inline-block;
     transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
-    background-color: #122;
+    background-color: var(--bg);
     border: 1px solid #fff;
     padding: 0.6em;
     margin: 0;
 }
 
 input[type="checkbox"]:hover {
-    background-color: #244;
+    background-color: var(--bg-hover);
 }
 
 input[type="checkbox"]:checked:after {

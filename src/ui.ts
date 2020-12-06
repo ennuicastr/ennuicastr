@@ -34,6 +34,9 @@ export const ui = {
     // The overall wrapper
     wrapper: <HTMLElement> null,
 
+    // Colors defined in CSS
+    colors: <Record<string, string>> {},
+
     // Video interface
     video: <{
         // Main wrapper
@@ -45,7 +48,10 @@ export const ui = {
         // Side fullscreen button
         sideFS: HTMLButtonElement,
 
-        // Main wrapper
+        // Main video wrapper
+        mainWrapper: HTMLElement,
+
+        // Main video element 
         main: HTMLElement,
 
         // Main fullscreen button
@@ -413,6 +419,19 @@ export function mkUI() {
         document.body.style.padding = "0";
     document.body.innerHTML = uiCode.code;
 
+    // Get the colors
+    var cs = getComputedStyle(document.documentElement);
+    [
+        "bg", "bg-hover", "bg-off", "bg-plain", "bg-invite", "bg-status",
+        "bg-wave", "fg", "fg-status", "border-plain", "link-color",
+        "link-color-status", "wave-too-soft", "wave-too-loud",
+        "user-list-silent", "user-list-speaking", "video-speaking-sel",
+        "video-speaking", "video-silent-sel", "video-silent"
+    ].forEach(function(nm) {
+        ui.colors[nm] = cs.getPropertyValue("--" + nm);
+    });
+    document.body.style.backgroundColor = ui.colors["bg-plain"];
+
     // Load the components
     ui.wrapper = gebi("ecouter");
     loadVideo();
@@ -462,16 +481,41 @@ export function mkUI() {
 }
 
 function loadVideo() {
-    ui.video = {
+    var video = ui.video = {
         wrapper: gebi("ecvideo-wrapper"),
         side: gebi("ecvideo-side"),
         sideFS: gebi("ecvideo-wrapper-fs"),
+        mainWrapper: gebi("ecvideo-main-wrapper"),
         main: gebi("ecvideo-main"),
         mainFS: gebi("ecvideo-main-fs"),
         users: [],
         selected: -1,
         major: -1
     };
+
+    // A generic function to handle fullscreen buttons
+    function fullscreen(el: HTMLElement, btn: HTMLButtonElement) {
+        btn.innerHTML = '<i class="fas fa-expand"></i>';
+
+        // Toggle based on what's fullscreen
+        function toggleFullscreen() {
+            if (document.fullscreenElement === el)
+                document.exitFullscreen();
+            else
+                el.requestFullscreen();
+        }
+        btn.onclick = toggleFullscreen;
+
+        document.addEventListener("fullscreenchange", function() {
+            if (document.fullscreenElement === el)
+                btn.innerHTML = '<i class="fas fa-compress"></i>';
+            else
+                btn.innerHTML = '<i class="fas fa-expand"></i>';
+        });
+    }
+
+    fullscreen(video.wrapper, video.sideFS);
+    fullscreen(video.mainWrapper, video.mainFS);
 }
 
 function loadChat() {
@@ -484,12 +528,29 @@ function loadChat() {
 }
 
 function loadWave() {
-    ui.wave = {
+    var wave = ui.wave = {
         wrapper: gebi("ecwaveform-wrapper"),
         canvas: gebi("ecwaveform"),
         watcher: gebi("ecwave-watcher"),
         rotate: false
     };
+
+    // Choose the watcher image's type based on support
+    function usePng() {
+        wave.watcher.src = "images/watcher.png";
+    }
+    if (!window.createImageBitmap || !window.fetch) {
+        usePng();
+    } else {
+        var sample = "data:image/webp;base64,UklGRh4AAABXRUJQVlA4TBEAAAAvAAAAAAfQ//73v/+BiOh/AAA=";
+        fetch(sample).then(function(res) {
+            return res.blob();
+        }).then(function(blob) {
+            return createImageBitmap(blob)
+        }).then(function() {
+            wave.watcher.src = "images/watcher.webp";
+        }).catch(usePng);
+    }
 }
 
 function loadLog(logEl: HTMLElement) {
@@ -970,7 +1031,7 @@ export function userListAdd(idx: number, name: string, fromMaster: boolean) {
     userList.userList.appendChild(user.wrapper);
 
     user.name.classList.add("half");
-    user.name.style.backgroundColor = "#000";
+    user.name.style.backgroundColor = ui.colors["user-list-silent"];
     user.name.innerText = name;
     user.wrapper.appendChild(user.name);
 
@@ -1010,9 +1071,13 @@ export function userListAdd(idx: number, name: string, fromMaster: boolean) {
     saveConfigSlider(user.volume, "user-volume3-" + name, volChange);
     volChange();
 
-    // And give them a user element
+    // Give them a user element
     videoAdd(idx, name);
     updateVideoUI(idx, false);
+
+    // Chime
+    if (!ui.panels.outputConfig.muteInterface.checked)
+        ui.sounds.chimeUp.play().catch(console.error);
 
 
     // And the master user list
@@ -1048,7 +1113,7 @@ export function videoAdd(idx: number, name: string) {
     Object.assign(box.style, {
         position: "relative",
         boxSizing: "border-box",
-        border: "4px solid #000",
+        border: "4px solid " + ui.colors["video-silent"],
         display: "flex",
         flexDirection: "column",
         flex: "auto"
@@ -1057,10 +1122,6 @@ export function videoAdd(idx: number, name: string) {
     var video = ctx.video;
     video.height = 0; // Use CSS for style
     video.style.flex = "auto";
-    Object.assign(video.style, {
-        backgroundColor: "#000", // FIXME
-        flex: "auto"
-    });
     box.appendChild(video);
 
     styleVideoEl(video, name);
@@ -1071,7 +1132,7 @@ export function videoAdd(idx: number, name: string) {
             ui.video.selected = -1;
         else
             ui.video.selected = idx;
-        // updateVideoUI(idx); FIXME
+        updateVideoUI(idx);
     };
 
     // And add their personal label
@@ -1101,12 +1162,17 @@ export function userListRemove(idx: number, fromMaster: boolean) {
     if (!user) return;
     user.wrapper.parentNode.removeChild(user.wrapper);
     ui.panels.userList.users[idx] = null;
+
+    updateVideoUI(idx, false);
+
     if (fromMaster) {
         master.users[idx].online = false;
         master.updateMasterAdmin();
     }
 
-    updateVideoUI(idx, false);
+    // Chime
+    if (!ui.panels.outputConfig.muteInterface.checked)
+        ui.sounds.chimeDown.play().catch(console.error);
 }
 
 // Update the speaking status of an element in the user list
@@ -1116,7 +1182,7 @@ export function userListUpdate(idx: number, speaking: boolean, fromMaster: boole
 
     var user = ui.panels.userList.users[idx];
     if (!user) return;
-    user.name.style.backgroundColor = speaking?"#2b552b":"#000";
+    user.name.style.backgroundColor = ui.colors["user-list-" + speaking?"speaking":"silent"];
     user.name.setAttribute("aria-label", user.name.innerText + ": " + (speaking?"Speaking":"Not speaking"));
 
     updateVideoUI(idx, speaking);
@@ -1128,7 +1194,7 @@ export function userListUpdate(idx: number, speaking: boolean, fromMaster: boole
 }
 
 // Update the video UI based on new information about this peer
-export function updateVideoUI(peer: number, speaking: boolean) {
+export function updateVideoUI(peer: number, speaking?: boolean) {
     var ctx = ui.video.users[peer];
     var users = ui.panels.userList.users;
     var user = users[peer];
@@ -1137,10 +1203,12 @@ export function updateVideoUI(peer: number, speaking: boolean) {
     // Update their speech
     while (lastSpeech.length <= peer)
         lastSpeech.push(null);
-    if (speaking)
-        lastSpeech[peer] = performance.now();
-    else
-        lastSpeech[peer] = null;
+    if (typeof speaking !== "undefined") {
+        if (speaking)
+            lastSpeech[peer] = performance.now();
+        else
+            lastSpeech[peer] = null;
+    }
 
     // Don't let them be the major if they're gone
     if (!user) {
@@ -1191,9 +1259,9 @@ export function updateVideoUI(peer: number, speaking: boolean) {
 
         var selected = (ui.video.selected === pi);
         if (lastSpeech[pi] !== null)
-            v.box.style.borderColor = selected?"#090":"#5e8f52";
+            v.box.style.borderColor = ui.colors["video-speaking" + selected?"-sel":""];
         else
-            v.box.style.borderColor = selected?"#999":"#000";
+            v.box.style.borderColor = ui.colors["video-silent" + selected?"-sel":""];
 
         if (ui.video.major === pi) continue;
         if (v.box.parentNode !== ui.video.side)

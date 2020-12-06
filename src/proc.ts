@@ -132,9 +132,6 @@ export function localProcessing() {
         // Create a canvas for it
         var wc = ui.ui.wave.canvas;
 
-        // Now the background is nothing, so should just be grey
-        document.body.style.backgroundColor = "#111";
-
         // The VAD needs packets in odd intervals
         var step = audio.ac.sampleRate / 32000;
 
@@ -425,11 +422,11 @@ function updateWave(value: number, sentRecently: boolean) {
     }
 
     // Background color
-    ctx.fillStyle = "#103030";
+    ctx.fillStyle = ui.ui.colors["bg-wave"];
     ctx.fillRect(0, 0, w, h*2);
 
     // Level bar at 0.4% for "too soft"
-    levelBar(0.004, "#333");
+    levelBar(0.004, ui.ui.colors["wave-too-soft"]);
 
     // Each column
     for (i = 0, p = 0; i < dw; i++, p += sw) {
@@ -440,7 +437,7 @@ function updateWave(value: number, sentRecently: boolean) {
     }
 
     // Level bar at 90% for "too loud"
-    levelBar(0.9, "#700");
+    levelBar(0.9, ui.ui.colors["wave-too-loud"]);
 
     ctx.restore();
 }

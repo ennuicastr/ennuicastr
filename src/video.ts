@@ -85,7 +85,6 @@ export function getCamera(id: string) {
             v.srcObject = null;
 
         }
-        // ui.updateVideoUI(0); FIXME
 
     }).catch(function(err) {
         log.pushStatus("video", "Failed to capture video!");
