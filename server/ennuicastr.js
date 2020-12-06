@@ -234,6 +234,10 @@ wss.on("connection", (ws) => {
                         monWs = ws;
                         break;
 
+                    case f.connectionType.master:
+                        // Nothing
+                        break;
+
                     default:
                         // No other connection types supported!
                         return die();
