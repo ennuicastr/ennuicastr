@@ -284,7 +284,7 @@ function addSoundButton(sid: string, url: string, name: string) {
     sounds.url2sid[url] = sid;
 
     // Make the button
-    var b = soundboard.sounds.buttons[sid] = {
+    var b = soundboard.sounds[sid] = {
         b: dce("button"),
         i: dce("i"),
         n: dce("span")

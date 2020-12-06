@@ -348,6 +348,9 @@ function saveConfigSlider(sl, name, onchange?: (Event)=>void) {
 
 // Make the UI
 export function mkUI() {
+    // Snag the original log before we overwrite it
+    var log = gebi("log");
+
     // Load in the UI
     document.body.style.margin =
         document.body.style.padding = "0";
@@ -358,14 +361,14 @@ export function mkUI() {
     loadChat();
     chat.mkChatBox();
     loadWave();
-    loadLog();
+    loadLog(log);
     ui.layerSeparator = gebi("eclayer-separator");
     loadMainMenu();
     loadMasterUI();
-    if ("master" in config.config)
-        master.createMasterInterface();
     loadUserAdmin();
     loadSoundboard();
+    if ("master" in config.config)
+        master.createMasterInterface();
     loadInputConfig();
     loadOutputConfig();
     loadVideoConfig();
@@ -404,10 +407,10 @@ function loadWave() {
     };
 }
 
-function loadLog() {
+function loadLog(logEl: HTMLElement) {
     var log = ui.log = {
         wrapper: gebi("eclog"),
-        log: gebi("log")
+        log: logEl
     };
     log.wrapper.appendChild(log.log);
 }
@@ -443,12 +446,12 @@ function loadMasterUI() {
         noB: gebi("ecmaster-no"),
         inviteLink: gebi("ecmaster-invite-link"),
         inviteCopyB: gebi("ecmaster-invite-link-copy"),
-        inviteFLACHider: gebi("ecmaster-invite-flac-wrapper"),
+        inviteFLACHider: gebi("ecmaster-invite-flac-hider"),
         inviteFLAC: gebi("ecmaster-invite-flac"),
-        inviteContinuousHider: gebi("ecmaster-invite-continuous-wrapper"),
+        inviteContinuousHider: gebi("ecmaster-invite-continuous-hider"),
         inviteContinuous: gebi("ecmaster-invite-continuous"),
         userAdminB: gebi("ecmaster-admin"),
-        acceptRemoteVideo: gebi("ecmaster-video-recording-host"),
+        acceptRemoteVideo: gebi("ecmaster-video-record-host"),
         recordingCost: gebi("ecmaster-recording-cost"),
         recordingRate: gebi("ecmaster-recording-rate")
     };
@@ -666,7 +669,7 @@ export function mkAudioUI() {
         var vol = output.sfxVolume;
         output.sfxVolumeStatus.innerHTML = "&nbsp;" + vol.value + "%";
 
-        var v = (+vol) / 100;
+        var v = (+vol.value) / 100;
 
         // FIXME: Set it on soundboard sounds
 
