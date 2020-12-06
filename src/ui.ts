@@ -21,6 +21,7 @@ import * as audio from "./audio";
 import * as chat from "./chat";
 import * as compression from "./compression";
 import * as config from "./config";
+import * as log from "./log";
 import * as master from "./master";
 import * as net from "./net";
 import * as ptt from "./ptt";
@@ -54,6 +55,9 @@ export const ui = {
         wrapper: HTMLElement,
 
         // Side wrapper
+        sideWrapper: HTMLElement,
+
+        // Side container
         side: HTMLElement,
 
         // Side fullscreen button
@@ -89,6 +93,9 @@ export const ui = {
         outgoing: HTMLInputElement,
         outgoingB: HTMLButtonElement
     }> null,
+
+    // Dock group
+    dock: <HTMLElement> null,
 
     // Live waveform
     wave: <{
@@ -231,6 +238,7 @@ export const ui = {
             ptt: HTMLButtonElement,
 
             // Options
+            noiserHider: HTMLElement,
             noiser: HTMLInputElement,
             echo: HTMLInputElement,
             agcHider: HTMLElement,
@@ -246,6 +254,7 @@ export const ui = {
             device: HTMLSelectElement,
 
             // Master volume
+            volumeHider: HTMLElement,
             volume: HTMLInputElement,
             volumeStatus: HTMLElement,
 
@@ -451,6 +460,7 @@ export function mkUI() {
     ui.wrapper = gebi("ecouter");
     loadVideo();
     loadChat();
+    ui.dock = gebi("ecdock");
     chat.mkChatBox();
     loadWave();
     loadLog(log);
@@ -468,6 +478,14 @@ export function mkUI() {
     if ("master" in config.config) {
         master.createMasterInterface();
         showPanel(ui.panels.master.wrapper);
+    }
+
+    /* If we're not using RTC, we can disable the video display, and move the
+     * dock so menus don't compete */
+    if (!config.useRTC) {
+        ui.video.sideWrapper.style.display =
+            ui.video.mainWrapper.style.display = "none";
+        ui.wrapper.insertBefore(ui.dock, ui.log.wrapper);
     }
 
     // Every close button works the same
@@ -505,6 +523,7 @@ export function mkUI() {
 function loadVideo() {
     var video = ui.video = {
         wrapper: gebi("ecvideo-wrapper"),
+        sideWrapper: gebi("ecvideo-side-wrapper"),
         side: gebi("ecvideo-side"),
         sideFS: gebi("ecvideo-wrapper-fs"),
         mainWrapper: gebi("ecvideo-main-wrapper"),
@@ -615,6 +634,7 @@ function loadMainMenu() {
     p.chat.onclick = function() {
         var chat = ui.chat.wrapper;
         chat.style.display = (chat.style.display === "none") ? "" : "none";
+        resizeUI();
     };
     p.mute.onclick = function() { audio.toggleMute(); };
     btn(m.inputB, "inputConfig");
@@ -682,22 +702,29 @@ function loadSoundboard() {
 }
 
 function loadInputConfig() {
-    ui.panels.inputConfig = {
+    var input = ui.panels.inputConfig = {
         wrapper: gebi("ecinput-device-wrapper"),
         device: gebi("ecinput-device-list"),
         ptt: gebi("ecpttb"),
+        noiserHider: gebi("ecnoise-reduction-hider"),
         noiser: gebi("ecnoise-reduction"),
         echo: gebi("ececho-cancellation"),
         agcHider: gebi("ecagc-hider"),
         agc: gebi("ecagc")
     };
+
+    if (!config.useRTC) {
+        // Hide irrelevant options
+        input.noiserHider.style.display = "none";
+    }
 }
 
 function loadOutputConfig() {
-    ui.panels.outputConfig = {
+    var output = ui.panels.outputConfig = {
         wrapper: gebi("ecoutput-device-wrapper"),
         deviceHider: gebi("ecoutput-device-list-hider"),
         device: gebi("ecoutput-device-list"),
+        volumeHider: gebi("ecoutput-volume-hider"),
         volume: gebi("ecoutput-volume"),
         volumeStatus: gebi("ecoutput-volume-status"),
         sfxVolumeHider: gebi("ecsfx-volume-hider"),
@@ -707,6 +734,12 @@ function loadOutputConfig() {
         compression: gebi("ecdynamic-range-compression"),
         muteInterface: gebi("ecmute-interface-sounds")
     };
+
+    if (!config.useRTC) {
+        // Hide irrelevant parts
+        output.volumeHider.style.display =
+            output.compressionHider.style.display = "none";
+    }
 }
 
 function loadVideoConfig() {
@@ -785,7 +818,15 @@ export function mkAudioUI() {
         input.agcHider.style.display = "";
         input.agc.checked = true;
     }
-    saveConfigCheckbox(input.echo, "echo-cancellation3", inputChange);
+    saveConfigCheckbox(input.echo, "echo-cancellation3", function() {
+        if (input.echo.checked) {
+            log.pushStatus("echo-cancellation", "WARNING: Digital echo cancellation is usually effective in cancelling echo, but will SEVERELY impact the quality of your audio. If possible, find a way to reduce echo physically.");
+            setTimeout(function() {
+                log.popStatus("echo-cancellation");
+            }, 10000);
+        }
+        inputChange();
+    });
     saveConfigCheckbox(input.agc, "agc3", inputChange);
 
 
@@ -995,19 +1036,37 @@ export function updateMuteButton() {
 }
 
 // Resize the UI to fit visible components
-export function resizeUI() {
+export function resizeUI(second?: boolean) {
+    /* Since elements sometimes take an event loop to actually assert their
+     * sizes, resizeUI automatically runs itself twice */
+    if (!second)
+        setTimeout(function() { resizeUI(true); }, 0);
+
+    // If we're not doing RTC, some elements are irrelevant
+    if (!config.useRTC) {
+        if (ui.chat.wrapper.style.display === "none") {
+            ui.video.wrapper.style.display = "none";
+            ui.wave.wrapper.style.flex = "auto";
+        } else {
+            ui.video.wrapper.style.display = "";
+            ui.wave.wrapper.style.flex = "";
+        }
+    }
+
     // Figure out the ideal size for the UI based on what's visible
     var idealSize = 0;
 
     // First, the standard elements
     for (var ci = 0; ci < ui.wrapper.childNodes.length; ci++) {
-        var c = ui.wrapper.childNodes[ci];
+        var c = <HTMLElement> ui.wrapper.childNodes[ci];
+        if (c.style.display === "none")
+            continue;
         if (c === ui.video.wrapper)
             idealSize += 240;
         else if (c === ui.wave.wrapper)
             idealSize += 100;
         else
-            idealSize += (<HTMLElement> c).offsetHeight;
+            idealSize += c.offsetHeight;
     }
 
     // Then, any visible panel
@@ -1017,11 +1076,16 @@ export function resizeUI() {
             idealSize = Math.max(idealSize, panel.scrollHeight + 40);
     }
 
-    // Don't try to seize control
-    if (ui.manualSize && window.innerHeight >= idealSize) {
-        onResize();
+    console.log("Ideal size: " + idealSize);
+    console.log("Manual? " + ui.manualSize);
+
+    // Don't do anything if the size is already right
+    if (window.innerHeight === idealSize)
         return;
-    }
+
+    // Don't try to seize control
+    if (ui.manualSize && window.innerHeight >= idealSize)
+        return;
 
     // Adjust to outer size
     if (!ui.resizing)
@@ -1036,7 +1100,7 @@ export function resizeUI() {
         if (!ui.resized)
             onResize();
     }, 500);
-    window.resizeTo(window.outerWidth, ui.outerInnerHeightDiff + idealSize + 1);
+    window.resizeTo(window.outerWidth, ui.outerInnerHeightDiff + idealSize);
 }
 
 // React to the UI resizing

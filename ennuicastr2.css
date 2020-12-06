@@ -327,6 +327,7 @@ input[type="checkbox"]:checked:after {
 #ecchat-wrapper {
     box-sizing: border-box;
     flex: auto 0.5;
+    width: 100%;
     height: 100%;
     padding: 0.25em;
     display: flex;

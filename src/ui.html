@@ -44,9 +44,11 @@
             </div>
 
             <!-- Boxes for elements that don't live here by default -->
-            <div id="ecsounds-dock" class="dock"></div>
-            <div id="ecuser-list-dock" class="dock"></div>
-            <div id="ecmaster-recording-cost-dock" class="dock"></div>
+            <div id="ecdock">
+                <div id="ecsounds-dock" class="dock"></div>
+                <div id="ecuser-list-dock" class="dock"></div>
+                <div id="ecmaster-recording-cost-dock" class="dock"></div>
+            </div>
 
             <!-- The audio stream -->
             <div id="ecwaveform-wrapper">
@@ -177,9 +179,12 @@
             <!-- And options -->
             <div class="bigrflex">
                 <button id="ecpttb"><i class="fas fa-gamepad"></i> Gamepad push-to-talk</button>
+                &nbsp;
                 <div id="ecinput-options-wrapper">
-                    <input id="ecnoise-reduction" type="checkbox" checked />
-                    <label for="ecnoise-reduction">&nbsp;Apply noise reduction</label><br/>
+                    <span id="ecnoise-reduction-hider">
+                        <input id="ecnoise-reduction" type="checkbox" checked />
+                        <label for="ecnoise-reduction">&nbsp;Apply noise reduction</label><br/>
+                    </span>
                     <input id="ececho-cancellation" type="checkbox" />
                     <label for="ececho-cancellation">&nbsp;Apply echo cancellation</label>
                     <span id="ecagc-hider" style="display: none;"><br/>
@@ -201,7 +206,7 @@
             </div>
 
             <!-- Master volume -->
-            <div class="rflex row">
+            <div id="ecoutput-volume-hider" class="rflex row">
                 <label for="ecoutput-volume" style="min-width: 6em; text-align: right;">Volume:&nbsp;</label>
                 <input id="ecoutput-volume" type="range" min=0 max=400 value=100 style="flex: auto; width: 5em;" />
                 <span id="ecoutput-volume-status">&nbsp;100%</span>
@@ -238,9 +243,11 @@
 
         <!-- Video recording -->
         <div id="ecvideo-record-wrapper" class="panel" style="text-align: right;">
-            <button id="ecvideo-record-local">Record locally</button>&nbsp;
-            <button id="ecvideo-record-remote">Record and send to host</button>&nbsp;
-            <button id="ecvideo-record-local-remote">Both</button>
+            <div class="bigrflex">
+                <button id="ecvideo-record-local">Record locally</button>&nbsp;
+                <button id="ecvideo-record-remote">Record and send to host</button>&nbsp;
+                <button id="ecvideo-record-local-remote">Both</button>
+            </div>
         </div>
 
         <!-- The user list/volume -->
