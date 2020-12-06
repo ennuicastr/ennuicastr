@@ -38,6 +38,10 @@ export const ui = {
     resizing: <null|number> null,
     resized: false,
 
+    /* During resizing, we cache the inner-outer height difference, because
+     * some browsers mis-report it */
+    outerInnerHeightDiff: 0,
+
     // The overall wrapper
     wrapper: <HTMLElement> null,
 
@@ -1000,6 +1004,8 @@ export function resizeUI() {
         var c = ui.wrapper.childNodes[ci];
         if (c === ui.video.wrapper)
             idealSize += 240;
+        else if (c === ui.wave.wrapper)
+            idealSize += 100;
         else
             idealSize += (<HTMLElement> c).offsetHeight;
     }
@@ -1017,8 +1023,11 @@ export function resizeUI() {
         return;
     }
 
+    // Adjust to outer size
+    if (!ui.resizing)
+        ui.outerInnerHeightDiff = window.outerHeight - window.innerHeight;
+
     // Otherwise, try to resize
-    console.log("Auto resize");
     if (ui.resizing)
         clearTimeout(ui.resizing);
     ui.resized = false;
@@ -1027,7 +1036,7 @@ export function resizeUI() {
         if (!ui.resized)
             onResize();
     }, 500);
-    window.resizeTo(window.outerWidth, window.outerHeight - window.innerHeight + idealSize + 1);
+    window.resizeTo(window.outerWidth, ui.outerInnerHeightDiff + idealSize + 1);
 }
 
 // React to the UI resizing
