@@ -113,6 +113,7 @@ a {
     color: var(--fg-status);
     text-align: center;
     padding: 0.25em;
+    cursor: default;
 }
 
 .status a {
@@ -127,6 +128,7 @@ a {
     border-top-right-radius: 0.2em;
     background-color: rgba(170, 170, 170, 0.9);
     color: #000;
+    cursor: default;
 }
 
 #ecvideo-side-wrapper .namelabel {
@@ -303,7 +305,7 @@ input[type="checkbox"]:checked:after {
 
 #ecvideo-side .ecvideo {
     width: 100%;
-    height: 120px;
+    height: 90px;
 }
 
 #ecvideo-main-wrapper {
