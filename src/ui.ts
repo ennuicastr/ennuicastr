@@ -31,6 +31,13 @@ import * as videoRecord from "./video-record";
 
 // The entire user interface
 export const ui = {
+    // True if the user interface has been manually resized
+    manualSize: false,
+
+    // If we're currently resizing, the timeout before assuming we don't have the right
+    resizing: <null|number> null,
+    resized: false,
+
     // The overall wrapper
     wrapper: <HTMLElement> null,
 
@@ -339,6 +346,8 @@ export function showPanel(panelName: HTMLElement|string) {
         mouseenter();
 
     }
+
+    resizeUI();
 }
 
 // Configure a panel for popping in or out
@@ -353,6 +362,8 @@ function poppable(popout: HTMLElement, button: HTMLButtonElement,
             panelButton.style.display = cur?"none":"";
         if (cur)
             showPanel(null);
+        else
+            resizeUI();
         localStorage.setItem(name, cur?"1":"0");
     };
 
@@ -444,19 +455,28 @@ export function mkUI() {
     loadMasterUI();
     loadUserAdmin();
     loadSoundboard();
-    if ("master" in config.config)
-        master.createMasterInterface();
     loadInputConfig();
     loadOutputConfig();
     loadVideoConfig();
     loadUserList();
     loadInterfaceSounds();
 
+    if ("master" in config.config) {
+        master.createMasterInterface();
+        showPanel(ui.panels.master.wrapper);
+    }
+
     // Every close button works the same
     Array.prototype.slice.call(document.getElementsByClassName("close-button"), 0).forEach(function(x: HTMLElement) {
         x.onclick = function() { showPanel(null); };
     });
     ui.layerSeparator.onclick = function() { showPanel(null); };
+
+    // Escape also closes
+    window.addEventListener("keydown", function(ev) {
+        if (ev.key === "Esc" || ev.key === "Escape")
+            showPanel(null);
+    });
 
     // Poppable panels
     if ("master" in config.config) {
@@ -474,9 +494,7 @@ export function mkUI() {
     }
 
     // When we resize, re-flex
-    window.addEventListener("resize", function() {
-        setTimeout(reflexUI, 100);
-    });
+    window.addEventListener("resize", onResize);
     resizeUI();
 }
 
@@ -974,13 +992,48 @@ export function updateMuteButton() {
 
 // Resize the UI to fit visible components
 export function resizeUI() {
-    // FIXME
-    setTimeout(reflexUI, 100);
+    // Figure out the ideal size for the UI based on what's visible
+    var idealSize = 0;
+
+    // First, the standard elements
+    for (var ci = 0; ci < ui.wrapper.childNodes.length; ci++) {
+        var c = ui.wrapper.childNodes[ci];
+        if (c === ui.video.wrapper)
+            idealSize += 240;
+        else
+            idealSize += (<HTMLElement> c).offsetHeight;
+    }
+
+    // Then, any visible panel
+    for (var pn in ui.panels) {
+        var panel: HTMLElement = ui.panels[pn].wrapper;
+        if (panel.style.display === "block")
+            idealSize = Math.max(idealSize, panel.scrollHeight + 40);
+    }
+
+    // Don't try to seize control
+    if (ui.manualSize && window.innerHeight >= idealSize) {
+        onResize();
+        return;
+    }
+
+    // Otherwise, try to resize
+    console.log("Auto resize");
+    if (ui.resizing)
+        clearTimeout(ui.resizing);
+    ui.resized = false;
+    ui.resizing = setTimeout(function() {
+        ui.resizing = null;
+        if (!ui.resized)
+            onResize();
+    }, 500);
+    window.resizeTo(window.outerWidth, window.outerHeight - window.innerHeight + idealSize + 1);
 }
 
-// Re-flex the flexbox UI to the window
-function reflexUI() {
-    //ui.wrapper.style.height = window.innerHeight + "px";
+// React to the UI resizing
+function onResize() {
+    ui.resized = true;
+    ui.manualSize = !ui.resizing;
 }
 
 // Add a user to the user list
@@ -1121,6 +1174,7 @@ export function videoAdd(idx: number, name: string) {
 
     var video = ctx.video;
     video.height = 0; // Use CSS for style
+    video.muted = true; // Audio goes through a different system
     video.style.flex = "auto";
     box.appendChild(video);
 
@@ -1145,7 +1199,7 @@ export function videoAdd(idx: number, name: string) {
 // Style a video element given a user's name
 function styleVideoEl(el: HTMLVideoElement, name: string) {
     if (!name) return;
-    var x = parseInt(btoa(unescape(encodeURIComponent(name))).replace(/[^A-Za-z0-9]/g, ""), 36);
+    var x = parseInt(btoa(unescape(encodeURIComponent(name.slice(-6)))).replace(/[^A-Za-z0-9]/g, ""), 36);
     var r = x % 4;
     x = ~~(x / 4);
     var g = x % 4;
@@ -1255,16 +1309,18 @@ export function updateVideoUI(peer: number, speaking?: boolean) {
     // First rearrange them all in the side box
     for (pi = 0; pi < users.length; pi++) {
         let v = ui.video.users[pi];
-        if (!v || !users[pi]) continue;
+        if (!v) continue;
 
         var selected = (ui.video.selected === pi);
         if (lastSpeech[pi] !== null)
-            v.box.style.borderColor = ui.colors["video-speaking" + selected?"-sel":""];
+            v.box.style.borderColor = ui.colors["video-speaking" + (selected?"-sel":"")];
         else
-            v.box.style.borderColor = ui.colors["video-silent" + selected?"-sel":""];
+            v.box.style.borderColor = ui.colors["video-silent" + (selected?"-sel":"")];
 
         if (ui.video.major === pi) continue;
-        if (v.box.parentNode !== ui.video.side)
+        if (!users[pi] && v.box.parentNode)
+            v.box.parentNode.removeChild(v.box);
+        else if (v.box.parentNode !== ui.video.side)
             ui.video.side.appendChild(v.box);
     }
 
@@ -1620,7 +1676,7 @@ export function mkUI() {
             if (ui.manualSize)
                 resizeUI();
             else
-                reflexUI();
+                onResize();
         }, 100);
     });
 
@@ -1826,7 +1882,7 @@ export function resizeUI() {
 
     // If we're maximized or manually resized, we don't get to choose a size
     if ((ui.manualSize && window.innerHeight >= 320) || maximized)
-        return reflexUI();
+        return onResize();
     ui.manualSize = false;
 
     // Go through the elements to get the ideal height
@@ -1855,13 +1911,13 @@ export function resizeUI() {
         clearTimeout(ui.resizing);
     else
         ui.outerInnerHeightDiff = window.outerHeight - window.innerHeight;
-    ui.resizing = setTimeout(reflexUI, 200);
+    ui.resizing = setTimeout(onResize, 200);
     document.documentElement.style.overflow = "hidden";
     window.resizeTo(window.outerWidth, ui.outerInnerHeightDiff + idealHeight + 1);
 }
 
 // Re-flex the UI based on the actual height of all the elements
-function reflexUI() {
+function onResize() {
     if (ui.resizing) {
         clearTimeout(ui.resizing);
         ui.resizing = null;

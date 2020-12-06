@@ -372,7 +372,7 @@ input[type="checkbox"]:checked:after {
     background-color: rgba(0, 0, 0, 0.85);
 }
 
-@media screen and (max-height: 640px) {
+@media screen and (max-width: 480px) {
     #ecvideo-side-wrapper {
         width: 80px;
     }
@@ -386,7 +386,7 @@ input[type="checkbox"]:checked:after {
     }
 }
 
-@media screen and (max-aspect-ratio: 3/2) {
+@media screen and (max-width: 480px) {
     #ecvideo-wrapper {
         flex-direction: column-reverse;
     }

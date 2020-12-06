@@ -131,6 +131,17 @@ export function initRTC(peer: number) {
         videoEl.srcObject = stream;
         videoEl.play().catch(console.error);
 
+        // Prepare for video tracks to end
+        stream.onremovetrack = function() {
+            if (stream.getVideoTracks().length === 0) {
+                /* This lets it visually reset, but it needs to be playing to
+                 * go through the AudioContext */
+                videoEl.srcObject = null;
+                videoEl.srcObject = stream;
+                videoEl.play().catch(console.error);
+            }
+        };
+
         if (!isVideo) {
             // Audio streams go through a compressor
             compression.createCompressor(peer, audio.ac, stream);
