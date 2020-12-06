@@ -74,13 +74,13 @@ export function createCompressor(idx: number, ac: AudioContext & {ecDestination?
     if (supported) {
         // Create a compression node
         var compressor = com.compressor = ac.createScriptProcessor(1024);
-        var la, frame;
+        var la: any, frame: any;
         audio.loadLibAV().then(function() {
             return LibAV.LibAV();
-        }).then(function(ret) {
+        }).then(function(ret: any) {
             la = ret;
             return la.av_frame_alloc();
-        }).then(function(ret) {
+        }).then(function(ret: any) {
             frame = ret;
             return la.ff_init_filter_graph("dynaudnorm=f=10:g=3", {
                 sample_rate: ac.sampleRate,
@@ -95,7 +95,7 @@ export function createCompressor(idx: number, ac: AudioContext & {ecDestination?
                 frame_size: 1024
             });
 
-        }).then(function(ret) {
+        }).then(function(ret: any) {
             var filter_graph = ret[0];
             var buffersrc_ctx = ret[1];
             var buffersink_ctx = ret[2];

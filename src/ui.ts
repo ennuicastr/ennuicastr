@@ -299,14 +299,13 @@ const mobile = (ua.indexOf("android") >= 0) ||
 export function showPanel(panelName: HTMLElement|string) {
     var panel: HTMLElement;
     if (typeof panelName === "string")
-        panel = ui.panels[panelName].wrapper;
+        panel = (<any> ui.panels)[panelName].wrapper;
     else
         panel = panelName;
 
     // Hide all existing panels
     for (var o in ui.panels) {
-        var op = ui.panels[o];
-        op.wrapper.style.display = "none";
+        (<any> ui.panels)[o].wrapper.style.display = "none";
     }
 
     // Show this one
@@ -323,7 +322,7 @@ export function showPanel(panelName: HTMLElement|string) {
 }
 
 // Functionality for auto-hiding the persistent panel
-var metimeout = null;
+var metimeout: null|number = null;
 function mouseenter() {
     if (metimeout)
         clearTimeout(metimeout);
@@ -335,7 +334,7 @@ function mouseenter() {
 }
 
 // Saveable config for a box with a string value
-function saveConfigValue(sel, name, onchange?: (Event)=>void) {
+function saveConfigValue(sel: HTMLSelectElement, name: string, onchange?: (arg0:Event)=>void) {
     var cur = localStorage.getItem(name);
     if (cur !== null)
         sel.value = cur;
@@ -347,7 +346,7 @@ function saveConfigValue(sel, name, onchange?: (Event)=>void) {
 }
 
 // Saveable configuration for a checkbox
-export function saveConfigCheckbox(cb, name, onchange?: (Event)=>void) {
+export function saveConfigCheckbox(cb: HTMLInputElement, name: string, onchange?: (arg0:Event)=>void) {
     var cur = localStorage.getItem(name);
     if (cur !== null)
         cb.checked = !!~~cur;
@@ -359,10 +358,10 @@ export function saveConfigCheckbox(cb, name, onchange?: (Event)=>void) {
 }
 
 // Saveable configuration for a slider
-function saveConfigSlider(sl, name, onchange?: (Event)=>void) {
+function saveConfigSlider(sl: HTMLInputElement, name: string, onchange?: (arg0:Event)=>void) {
     var cur = localStorage.getItem(name);
     if (cur !== null)
-        sl.value = +cur;
+        sl.value = ""+(+cur);
     sl.oninput = function(ev) {
         localStorage.setItem(name, ""+sl.value);
         if (onchange)
@@ -401,7 +400,7 @@ export function mkUI() {
     loadInterfaceSounds();
 
     // Every close button works the same
-    Array.prototype.slice.call(document.getElementsByClassName("close-button"), 0).forEach(function(x) {
+    Array.prototype.slice.call(document.getElementsByClassName("close-button"), 0).forEach(function(x: HTMLElement) {
         x.onclick = function() { showPanel(null); };
     });
     ui.layerSeparator.onclick = function() { showPanel(null); };
