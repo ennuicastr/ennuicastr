@@ -1178,6 +1178,7 @@ export function userListAdd(idx: number, name: string, fromMaster: boolean) {
     user.name.classList.add("half");
     user.name.style.backgroundColor = ui.colors["user-list-silent"];
     user.name.innerText = name;
+    user.name.setAttribute("role", "note");
     user.name.setAttribute("aria-label", name + ": Not speaking");
     user.wrapper.appendChild(user.name);
 
@@ -1292,6 +1293,7 @@ export function videoAdd(idx: number, name: string) {
     var nspan = ctx.name;
     nspan.classList.add("namelabel");
     nspan.innerText = name || "";
+    nspan.setAttribute("role", "note");
     nspan.setAttribute("aria-label", nspan.innerText + ": Not speaking");
     box.appendChild(nspan);
 }
