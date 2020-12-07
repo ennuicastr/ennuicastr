@@ -473,7 +473,7 @@ export function recordVideoRemoteIncoming(peer: number, opts: any) {
 
 // Show the video recording panel if we need to, or just start recording
 function recordVideoPanel() {
-    ui.showPanel("videoRecord");
+    ui.showPanel("videoRecord", null);
 }
 
 // Input handler for video recording
@@ -705,17 +705,17 @@ export function recordVideoButton(loading?: boolean) {
             };
 
             gebi("ecvideo-record-local").onclick = function() {
-                ui.showPanel(null);
+                ui.showPanel(null, ui.ui.persistent.main);
                 recordVideo({local: true});
             };
 
             gebi("ecvideo-record-remote").onclick = function() {
-                ui.showPanel(null);
+                ui.showPanel(null, ui.ui.persistent.main);
                 recordVideo({remote: true});
             };
 
             gebi("ecvideo-record-local-remote").onclick = function() {
-                ui.showPanel(null);
+                ui.showPanel(null, ui.ui.persistent.main);
                 recordVideo({local: true, remote: true});
             };
 

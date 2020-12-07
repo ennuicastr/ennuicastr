@@ -209,6 +209,10 @@ button.close-button {
     color: rgba(255, 255, 255, 0);
 }
 
+[data-interface="hide"] .interface:focus {
+    outline-style: none;
+}
+
 [data-interface="none"] .interface {
     display: none;
 }

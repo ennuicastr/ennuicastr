@@ -336,7 +336,7 @@ const mobile = (ua.indexOf("android") >= 0) ||
                (ua.indexOf("ipad") >= 0);
 
 // Show the given panel, or none
-export function showPanel(panelName: HTMLElement|string, autoFocusName?: HTMLElement|string) {
+export function showPanel(panelName: HTMLElement|string, autoFocusName: HTMLElement|string) {
     var panel: HTMLElement;
     var autoFocus: HTMLElement = null;
     if (typeof autoFocusName === "string")
@@ -368,6 +368,9 @@ export function showPanel(panelName: HTMLElement|string, autoFocusName?: HTMLEle
         ui.layerSeparator.style.display = "none";
         mouseenter();
 
+        if (autoFocus)
+            autoFocus.focus();
+
     }
 
     resizeUI();
@@ -384,7 +387,7 @@ function poppable(popout: HTMLElement, button: HTMLButtonElement,
         if (panelButton)
             panelButton.style.display = cur?"none":"";
         if (cur)
-            showPanel(null);
+            showPanel(null, ui.persistent.main);
         else
             resizeUI();
         localStorage.setItem(name, cur?"1":"0");
@@ -502,14 +505,14 @@ export function mkUI() {
 
     // Every close button works the same
     Array.prototype.slice.call(document.getElementsByClassName("close-button"), 0).forEach(function(x: HTMLElement) {
-        x.onclick = function() { showPanel(null); };
+        x.onclick = function() { showPanel(null, ui.persistent.main); };
     });
-    ui.layerSeparator.onclick = function() { showPanel(null); };
+    ui.layerSeparator.onclick = function() { showPanel(null, ui.persistent.main); };
 
     // Escape also closes
     window.addEventListener("keydown", function(ev) {
         if (ev.key === "Esc" || ev.key === "Escape")
-            showPanel(null);
+            showPanel(null, ui.persistent.main);
     });
 
     // Poppable panels
@@ -802,7 +805,7 @@ export function mkAudioUI() {
      * INPUT CONFIGURATION
      *******************/
     function inputChange() {
-        showPanel(null);
+        showPanel(null, ui.persistent.main);
         audio.getMic(input.device.value);
     }
 
@@ -859,7 +862,7 @@ export function mkAudioUI() {
 
     function outputChange() {
         if (output.device.value === "-none") return;
-        showPanel(null);
+        showPanel(null, ui.persistent.main);
 
         var v = output.device.value;
 
@@ -972,7 +975,7 @@ export function mkAudioUI() {
 
     // When it's changed, start video
     videoConfig.device.onchange = function() {
-        showPanel(null);
+        showPanel(null, ui.persistent.main);
         video.getCamera(videoConfig.device.value);
     };
 

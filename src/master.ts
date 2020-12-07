@@ -61,7 +61,7 @@ export function createMasterInterface() {
     genInvite();
 
     // User admin
-    masterUI.userAdminB.onclick = function() { ui.showPanel("userAdmin"); };
+    masterUI.userAdminB.onclick = function() { ui.showPanel("userAdmin", "allB"); };
     updateMasterAdmin();
     ui.ui.panels.userAdmin.allB.onclick = function() { userAdmin(-1); };
 
@@ -272,7 +272,7 @@ function userAdmin(user: number) {
     userAdminUser.kick.onclick = function() { adminAction(user, prot.flags.admin.actions.kick); };
     userAdminUser.mute.onclick = function() { adminAction(user, prot.flags.admin.actions.mute); };
     userAdminUser.echo.onclick = function() { adminAction(user, prot.flags.admin.actions.echoCancel); };
-    ui.showPanel(userAdminUser.wrapper);
+    ui.showPanel(userAdminUser.wrapper, null);
 }
 
 // Add a soundboard button
@@ -364,7 +364,7 @@ function adminAction(target: number, action: number) {
     out.setUint32(p.target, target, true);
     out.setUint32(p.action, action, true);
     net.masterSock.send(out.buffer);
-    ui.showPanel(null);
+    ui.showPanel(null, ui.ui.persistent.main);
 }
 
 // The change handler for accepting remote video
