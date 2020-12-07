@@ -1125,10 +1125,8 @@ function onResize() {
     ui.resized = true;
     ui.manualSize = !ui.resizing;
 
-    if (typeof webkitAudioContext !== "undefined") {
-        // Safari-specific vertical flexbox issue
-        ui.wrapper.style.height = window.innerHeight + "px";
-    }
+    // Some browsers need a real height to flex properly
+    ui.wrapper.style.height = window.innerHeight + "px";
 }
 
 // Add a user to the user list
