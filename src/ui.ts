@@ -1223,7 +1223,7 @@ export function userListAdd(idx: number, name: string, fromMaster: boolean) {
 
     // Give them a user element
     videoAdd(idx, name);
-    updateVideoUI(idx, false);
+    updateVideoUI(idx, false, fromMaster);
 
     // Chime
     if (!ui.panels.outputConfig.muteInterface.checked)
@@ -1290,6 +1290,7 @@ export function videoAdd(idx: number, name: string) {
     var nspan = ctx.name;
     nspan.classList.add("namelabel");
     nspan.innerText = name || "";
+    nspan.setAttribute("aria-label", nspan.innerText + ": Not speaking");
     box.appendChild(nspan);
 }
 
@@ -1314,7 +1315,7 @@ export function userListRemove(idx: number, fromMaster: boolean) {
     user.wrapper.parentNode.removeChild(user.wrapper);
     ui.panels.userList.users[idx] = null;
 
-    updateVideoUI(idx, false);
+    updateVideoUI(idx, false, fromMaster);
 
     if (fromMaster) {
         master.users[idx].online = false;
@@ -1340,7 +1341,7 @@ export function userListUpdate(idx: number, speaking: boolean, fromMaster: boole
     if (("master" in config.config) !== fromMaster)
         return;
 
-    updateVideoUI(idx, speaking);
+    updateVideoUI(idx, speaking, fromMaster);
 
     if (fromMaster) {
         master.users[idx].transmitting = speaking;
@@ -1349,7 +1350,7 @@ export function userListUpdate(idx: number, speaking: boolean, fromMaster: boole
 }
 
 // Update the video UI based on new information about this peer
-export function updateVideoUI(peer: number, speaking?: boolean) {
+export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boolean) {
     var ctx = ui.video.users[peer];
     var users = ui.panels.userList.users;
     var user = users[peer];
@@ -1358,11 +1359,25 @@ export function updateVideoUI(peer: number, speaking?: boolean) {
     // Update their speech
     while (lastSpeech.length <= peer)
         lastSpeech.push(null);
-    if (typeof speaking !== "undefined") {
+    if (typeof fromMaster !== "undefined") {
         if (speaking)
             lastSpeech[peer] = performance.now();
         else
             lastSpeech[peer] = null;
+
+        var sw = "";
+        if (fromMaster) {
+            if (speaking)
+                sw = "Transmitting";
+            else
+                sw = "Not transmitting";
+        } else {
+            if (speaking)
+                sw = "Speaking";
+            else
+                sw = "Not speaking";
+        }
+        ctx.name.setAttribute("aria-label", ctx.name.innerText + ": " + sw);
     }
 
     // Don't let them be the major if they're gone
