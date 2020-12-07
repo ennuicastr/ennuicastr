@@ -435,9 +435,11 @@ function saveConfigSlider(sl: HTMLInputElement, name: string, onchange?: (arg0:E
     if (cur !== null)
         sl.value = ""+(+cur);
     sl.oninput = function(ev) {
-        localStorage.setItem(name, ""+sl.value);
+        var ret;
         if (onchange)
-            return onchange(ev);
+            ret = onchange(ev);
+        localStorage.setItem(name, ""+sl.value);
+        return ret;
     };
 }
 
@@ -1195,13 +1197,16 @@ export function userListAdd(idx: number, name: string, fromMaster: boolean) {
     volumeWrapper.appendChild(user.volumeStatus);
 
     // When we change the volume, pass that to the compressors
-    function volChange() {
+    var mousing = false;
+    function volChange(ev: InputEvent) {
         var vol = user.volume;
 
         // Snap to x00%
-        for (var i = 100; i <= 300; i += 100)
-            if (+vol.value >= i - 10 && +vol.value <= i + 10)
-                vol.value = ""+i;
+        if (mousing) {
+            for (var i = 100; i <= 300; i += 100)
+                if (+vol.value >= i - 10 && +vol.value <= i + 10)
+                    vol.value = ""+i;
+        }
 
         // Show the status
         user.volumeStatus.innerHTML = "&nbsp;" + vol.value + "%";
@@ -1210,8 +1215,11 @@ export function userListAdd(idx: number, name: string, fromMaster: boolean) {
         compression.setPerUserGain(idx, (+vol.value) / 100);
     }
 
+    user.volume.onmousedown = function() { mousing = true; };
+    user.volume.onmouseup = function() { mousing = false; };
+
     saveConfigSlider(user.volume, "user-volume3-" + name, volChange);
-    volChange();
+    volChange(null);
 
     // Give them a user element
     videoAdd(idx, name);
