@@ -279,12 +279,14 @@ input[type="checkbox"]:checked:after {
 #ecvideo-wrapper {
     flex: auto;
     height: 160px;
+    min-height: 160px;
     display: flex;
 }
 
 #ecvideo-side-wrapper {
     position: relative;
     width: 160px;
+    min-width: 160px;
     height: 100%;
     overflow: hidden;
 
@@ -310,6 +312,7 @@ input[type="checkbox"]:checked:after {
 #ecvideo-side .ecvideo {
     width: 100%;
     height: 90px;
+    min-height: 90px;
 }
 
 #ecvideo-main-wrapper {
@@ -357,6 +360,7 @@ input[type="checkbox"]:checked:after {
 #ecwaveform-wrapper {
     position: relative;
     height: 100px;
+    min-height: 100px;
 }
 
 #ecwaveform {
@@ -389,6 +393,7 @@ input[type="checkbox"]:checked:after {
     #ecvideo-side-wrapper {
         width: 100%;
         height: 160px;
+        min-height: 160px;
         flex-direction: column;
         overflow: auto hidden;
     }
@@ -404,6 +409,7 @@ input[type="checkbox"]:checked:after {
 
     #ecvideo-side .ecvideo {
         width: 160px;
+        min-width: 160px;
         height: 100%;
     }
 
@@ -421,14 +427,17 @@ input[type="checkbox"]:checked:after {
     @media screen and (max-height: 720px) {
         #ecvideo-side-wrapper {
             height: 80px;
+            min-height: 80px;
         }
 
         #ecvideo-side .ecvideo {
             width: 80px;
+            min-width: 80px;
         }
 
         #ecwaveform-wrapper {
             height: 60px;
+            min-height: 60px;
         }
     }
 }
