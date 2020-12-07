@@ -1332,7 +1332,7 @@ export function userListUpdate(idx: number, speaking: boolean, fromMaster: boole
     if (!fromMaster) {
         var user = ui.panels.userList.users[idx];
         if (!user) return;
-        user.name.style.backgroundColor = ui.colors["user-list-" + speaking?"speaking":"silent"];
+        user.name.style.backgroundColor = ui.colors["user-list-" + (speaking?"speaking":"silent")];
         user.name.setAttribute("aria-label", user.name.innerText + ": " + (speaking?"Speaking":"Not speaking"));
     }
 
