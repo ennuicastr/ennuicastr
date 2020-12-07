@@ -1174,6 +1174,7 @@ export function userListAdd(idx: number, name: string, fromMaster: boolean) {
     user.name.classList.add("half");
     user.name.style.backgroundColor = ui.colors["user-list-silent"];
     user.name.innerText = name;
+    user.name.setAttribute("aria-label", name + ": Not speaking");
     user.wrapper.appendChild(user.name);
 
     volumeWrapper.classList.add("rflex", "half");
@@ -1319,13 +1320,17 @@ export function userListRemove(idx: number, fromMaster: boolean) {
 
 // Update the speaking status of an element in the user list
 export function userListUpdate(idx: number, speaking: boolean, fromMaster: boolean) {
+    // The user list style follows the live info so it's somewhere
+    if (!fromMaster) {
+        var user = ui.panels.userList.users[idx];
+        if (!user) return;
+        user.name.style.backgroundColor = ui.colors["user-list-" + speaking?"speaking":"silent"];
+        user.name.setAttribute("aria-label", user.name.innerText + ": " + (speaking?"Speaking":"Not speaking"));
+    }
+
+    // But the rest follows the master (if we are one)
     if (("master" in config.config) !== fromMaster)
         return;
-
-    var user = ui.panels.userList.users[idx];
-    if (!user) return;
-    user.name.style.backgroundColor = ui.colors["user-list-" + speaking?"speaking":"silent"];
-    user.name.setAttribute("aria-label", user.name.innerText + ": " + (speaking?"Speaking":"Not speaking"));
 
     updateVideoUI(idx, speaking);
 
