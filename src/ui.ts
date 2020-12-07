@@ -361,6 +361,8 @@ export function showPanel(panelName: HTMLElement|string, autoFocusName?: HTMLEle
 
         if (autoFocus)
             autoFocus.focus();
+        else
+            (<HTMLElement> panel.childNodes[0]).focus();
 
     } else {
         ui.layerSeparator.style.display = "none";
