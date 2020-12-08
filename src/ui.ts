@@ -1517,7 +1517,7 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
             w = 1;
         let ew = Math.max((100 / w) - 1, 1);
         let mw = 100 / w;
-        ui.video.css.innerHTML = '[data-gallery="on"] #ecvideo-side .ecvideo { width: ' + ew +  '%; max-width: ' + mw + '% }';
+        ui.video.css.innerHTML = '[data-gallery="on"] #ecvideo-side .ecvideo { width: ' + ew +  '%; max-width: ' + mw + '%; }';
     }
 
     if (ui.video.major === prevMajor) {
