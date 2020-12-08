@@ -441,3 +441,38 @@ input[type="checkbox"]:checked:after {
         }
     }
 }
+
+[data-gallery="on"] #ecvideo-wrapper {
+    flex-direction: row;
+}
+
+[data-gallery="on"] #ecvideo-side-wrapper {
+    width: 100%;
+    min-width: 160px;
+    height: 100%;
+    display: block;
+}
+
+[data-gallery="on"] #ecvideo-side {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: stretch;
+}
+
+[data-gallery="on"] #ecvideo-side .ecvideo {
+    width: 160px;
+    min-width: 160px;
+    height: auto;
+    min-height: auto;
+}
+
+[data-gallery="on"] #ecvideo-side-wrapper .namelabel {
+    font-size: inherit;
+}
+
+[data-gallery="on"] #ecvideo-main-wrapper {
+    display: none;
+}

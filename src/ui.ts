@@ -545,7 +545,7 @@ export function mkUI() {
 }
 
 function loadVideo() {
-    var video = ui.video = {
+    ui.video = {
         wrapper: gebi("ecvideo-wrapper"),
         sideWrapper: gebi("ecvideo-side-wrapper"),
         side: gebi("ecvideo-side"),
@@ -559,6 +559,7 @@ function loadVideo() {
         gallery: false,
         css: dce("style")
     };
+    var video = ui.video;
 
     video.css.type = "text/css";
     document.head.appendChild(video.css);
@@ -792,7 +793,7 @@ function loadVideoConfig() {
 }
 
 function loadUserList() {
-    var u = ui.panels.userList = {
+    ui.panels.userList = {
         wrapper: gebi("ecuser-list-wrapper"),
         popout: gebi("ecuser-list-popout"),
         popoutWrapper: gebi("ecuser-list-popout-wrapper"),
@@ -1023,7 +1024,7 @@ export function mkAudioUI() {
     }).catch(function() {}); // Nothing really to do here
 
     // Gallery mode
-    function galleryChange(ev) {
+    function galleryChange(ev: Event) {
         var g = videoConfig.gallery;
         document.body.setAttribute("data-gallery", g.checked?"on":"off");
         ui.video.gallery = g.checked;
@@ -1122,7 +1123,7 @@ export function resizeUI(second?: boolean) {
 
     // Then, any visible panel
     for (var pn in ui.panels) {
-        var panel: HTMLElement = ui.panels[pn].wrapper;
+        var panel: HTMLElement = (<any> ui.panels)[pn].wrapper;
         if (panel.style.display === "block")
             idealSize = Math.max(idealSize, panel.scrollHeight + 40);
     }
