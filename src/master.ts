@@ -242,16 +242,28 @@ export function updateMasterAdmin() {
     for (var i = 0; i < users.length; i++) {
         var u = users[i];
         if (!u) continue;
-        if (bs[i]) continue;
 
-        // Create a button for this user
-        var b = bs[i] = dce("button");
-        b.classList.add("row");
-        b.innerText = u.name;
-        b.onclick = (function(i) {
-            return function() { userAdmin(i); }
-        })(i);
-        userAdminP.wrapper.appendChild(b);
+        var b: HTMLButtonElement;
+        if (!bs[i]) {
+            // Create a button for this user
+            b = bs[i] = dce("button");
+            b.classList.add("row");
+            b.innerText = u.name;
+            b.onclick = (function(i) {
+                return function() { userAdmin(i); }
+            })(i);
+            userAdminP.wrapper.appendChild(b);
+        }
+        b = bs[i];
+
+        // Update it for their status
+        if (u.online) {
+            b.classList.remove("off");
+            b.disabled = false;
+        } else {
+            b.classList.add("off");
+            b.disabled = true;
+        }
     }
 
     // FIXME: Update for user status
