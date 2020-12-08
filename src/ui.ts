@@ -1521,7 +1521,6 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
 
     if (ui.video.major === prevMajor) {
         // No need to change the major
-        resizeUI();
         return;
     }
 
@@ -1533,6 +1532,4 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
         let v = ui.video.users[ui.video.major];
         ui.video.main.appendChild(v.box);
     }
-
-    resizeUI();
 }
