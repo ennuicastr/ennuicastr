@@ -460,6 +460,7 @@ input[type="checkbox"]:checked:after {
     flex-direction: row;
     flex-wrap: wrap;
     align-items: stretch;
+    justify-content: center;
 }
 
 [data-gallery="on"] #ecvideo-side .ecvideo {

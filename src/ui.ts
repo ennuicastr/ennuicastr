@@ -1515,8 +1515,9 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
         let w = Math.round(Math.sqrt((9 * side.offsetWidth * total) / (16 * side.offsetHeight)));
         if (w < 1)
             w = 1;
-        let gw = Math.max((100 / w) - 1, 1);
-        ui.video.css.innerHTML = '[data-gallery="on"] #ecvideo-side .ecvideo { width: ' + gw +  '%; }';
+        let ew = Math.max((100 / w) - 1, 1);
+        let mw = 100 / w;
+        ui.video.css.innerHTML = '[data-gallery="on"] #ecvideo-side .ecvideo { width: ' + ew +  '%; max-width: ' + mw + '% }';
     }
 
     if (ui.video.major === prevMajor) {
