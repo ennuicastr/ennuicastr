@@ -1441,7 +1441,7 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
         if (ui.video.major === pi) continue;
         if (!users[pi] && v.box.parentNode)
             v.box.parentNode.removeChild(v.box);
-        else if (v.box.parentNode !== ui.video.side)
+        else if (users[pi] && v.box.parentNode !== ui.video.side)
             ui.video.side.appendChild(v.box);
     }
 
