@@ -83,7 +83,13 @@ export const ui = {
         selected: number,
 
         // Which user is the current major?
-        major: number
+        major: number,
+
+        // Are we in gallery mode?
+        gallery: boolean,
+
+        // A global stylesheet to help gallery mode
+        css: HTMLStyleElement
     }> null,
 
     // Chat interface
@@ -274,7 +280,10 @@ export const ui = {
             wrapper: HTMLElement,
 
             // Device selection
-            device: HTMLSelectElement
+            device: HTMLSelectElement,
+
+            // Gallery mode
+            gallery: HTMLInputElement
         }> null,
 
         // Video recording
@@ -546,8 +555,13 @@ function loadVideo() {
         mainFS: gebi("ecvideo-main-fs"),
         users: [],
         selected: -1,
-        major: -1
+        major: -1,
+        gallery: false,
+        css: dce("style")
     };
+
+    video.css.type = "text/css";
+    document.head.appendChild(video.css);
 
     // A generic function to handle fullscreen buttons
     function fullscreen(el: HTMLElement, btn: HTMLButtonElement) {
@@ -765,7 +779,8 @@ function loadOutputConfig() {
 function loadVideoConfig() {
     ui.panels.videoConfig = {
         wrapper: gebi("ecvideo-device-wrapper"),
-        device: gebi("ecvideo-device-list")
+        device: gebi("ecvideo-device-list"),
+        gallery: gebi("ecgallery-mode")
     };
 
     ui.panels.videoRecord = {
@@ -1007,6 +1022,22 @@ export function mkAudioUI() {
 
     }).catch(function() {}); // Nothing really to do here
 
+    // Gallery mode
+    function galleryChange(ev) {
+        var g = videoConfig.gallery;
+        document.body.setAttribute("data-gallery", g.checked?"on":"off");
+        ui.video.gallery = g.checked;
+        ui.video.selected = ui.video.major = -1;
+        if (!g.checked)
+            ui.video.css.innerHTML = "";
+        if (ev)
+            showPanel(null, ui.persistent.main);
+        updateVideoUI(0);
+    }
+
+    saveConfigCheckbox(videoConfig.gallery, "gallery-mode3", galleryChange);
+    galleryChange(null);
+
 
     // Return which input device should be used
     return localStorage.getItem("input-device3");
@@ -1127,6 +1158,10 @@ function onResize() {
 
     // Some browsers need a real height to flex properly
     ui.wrapper.style.height = window.innerHeight + "px";
+
+    // If we're in gallery mode, we may need to change the arrangement
+    if (ui.video.gallery)
+        updateVideoUI(0);
 }
 
 // Add a user to the user list
@@ -1360,6 +1395,7 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
     var users = ui.panels.userList.users;
     var user = users[peer];
     var pi, prevMajor = ui.video.major;
+    var gallery = ui.video.gallery;
 
     // Update their speech
     while (lastSpeech.length <= peer)
@@ -1385,64 +1421,101 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
         ctx.name.setAttribute("aria-label", ctx.name.innerText + ": " + sw);
     }
 
-    // Don't let them be the major if they're gone
-    if (!user) {
-        // If this was the major, it won't do
-        if (ui.video.major === peer)
-            ui.video.major = -1;
-        if (ui.video.selected === peer)
-            ui.video.selected = -1;
-    }
+    if (!ui.video.gallery) {
+        // Choose a major
 
-    // Perhaps there's already something selected
-    if (ui.video.selected !== -1) {
-        ui.video.major = ui.video.selected;
-
-    } else if (ui.video.major === net.selfId ||
-               lastSpeech[ui.video.major] === null) {
-        // Otherwise, choose a major based on speech
-        var earliest = -1;
-        for (pi = 1; pi < users.length; pi++) {
-            if (users[pi] && ui.video.users[pi] && pi !== net.selfId && lastSpeech[pi] !== null &&
-                (earliest === -1 || lastSpeech[pi] < lastSpeech[earliest]))
-                earliest = pi;
+        // Don't let them be the major if they're gone
+        if (!user) {
+            // If this was the major, it won't do
+            if (ui.video.major === peer)
+                ui.video.major = -1;
+            if (ui.video.selected === peer)
+                ui.video.selected = -1;
         }
-        if (earliest !== -1)
-            ui.video.major = earliest;
-    }
 
-    if (user) {
-        // If we currently have no major, this'll do
-        if (ui.video.major === -1 && peer !== net.selfId)
-            ui.video.major = peer;
-    }
+        // Perhaps there's already something selected
+        if (ui.video.selected !== -1) {
+            ui.video.major = ui.video.selected;
 
-    // If we still have no major, just choose one
-    if (ui.video.major === -1) {
-        for (pi = users.length - 1; pi >= 0; pi--) {
-            if (users[pi] && ui.video.users[pi]) {
-                ui.video.major = pi;
-                break;
+        } else if (ui.video.major === net.selfId ||
+                   lastSpeech[ui.video.major] === null) {
+            // Otherwise, choose a major based on speech
+            var earliest = -1;
+            for (pi = 1; pi < users.length; pi++) {
+                if (users[pi] && ui.video.users[pi] && pi !== net.selfId && lastSpeech[pi] !== null &&
+                    (earliest === -1 || lastSpeech[pi] < lastSpeech[earliest]))
+                    earliest = pi;
+            }
+            if (earliest !== -1)
+                ui.video.major = earliest;
+        }
+
+        if (user) {
+            // If we currently have no major, this'll do
+            if (ui.video.major === -1 && peer !== net.selfId)
+                ui.video.major = peer;
+        }
+
+        // If we still have no major, just choose one
+        if (ui.video.major === -1) {
+            for (pi = users.length - 1; pi >= 0; pi--) {
+                if (users[pi] && ui.video.users[pi]) {
+                    ui.video.major = pi;
+                    break;
+                }
             }
         }
+
+    } else {
+        // No major
+        ui.video.selected = ui.video.major = -1;
+
     }
 
     // First rearrange them all in the side box
+    var active = 0;
     for (pi = 0; pi < users.length; pi++) {
         let v = ui.video.users[pi];
+        let u = users[pi];
         if (!v) continue;
 
-        var selected = (ui.video.selected === pi);
-        if (lastSpeech[pi] !== null)
-            v.box.style.borderColor = ui.colors["video-speaking" + (selected?"-sel":"")];
-        else
-            v.box.style.borderColor = ui.colors["video-silent" + (selected?"-sel":"")];
+        // Speech status
+        if (u) {
+            active++;
 
+            var selected = (ui.video.selected === pi);
+            if (lastSpeech[pi] !== null)
+                v.box.style.borderColor = ui.colors["video-speaking" + (selected?"-sel":"")];
+            else
+                v.box.style.borderColor = ui.colors["video-silent" + (selected?"-sel":"")];
+        }
+
+        // Box positioning
         if (ui.video.major === pi) continue;
-        if (!users[pi] && v.box.parentNode)
+        if (!u && v.box.parentNode)
             v.box.parentNode.removeChild(v.box);
-        else if (users[pi] && v.box.parentNode !== ui.video.side)
+        else if (u && v.box.parentNode !== ui.video.side)
             ui.video.side.appendChild(v.box);
+    }
+
+    // Gallery sizing
+    if (gallery) {
+        /* Optimize for individual videos to be as close to 16/9 as possible:
+         * 16/9 = (deviceWidth*h) / (deviceHeight*w), w*h=elementCount
+         * 16/9 = (deviceWidth*h) / (deviceHeight*w), h=elementCount/w
+         * 16/9 = (deviceWidth*elementCount) / (deviceHeight*w*w)
+         * 9/16 = (deviceHeight*w*w) / (deviceWidth*elementCount)
+         * (9 * deviceWidth * elementCount) / 16 = (deviceHeight*w*w)
+         * (9 * deviceWidth * elementCount) / (16 * deviceHeight) = w*w
+         * w = sqrt((9 * deviceWidth * elementCount) / (16 * deviceHeight))
+         */
+        let side = ui.video.side;
+        let total = side.childNodes.length;
+        let w = Math.round(Math.sqrt((9 * side.offsetWidth * total) / (16 * side.offsetHeight)));
+        if (w < 1)
+            w = 1;
+        let gw = Math.max((100 / w) - 1, 1);
+        ui.video.css.innerHTML = '[data-gallery="on"] #ecvideo-side .ecvideo { width: ' + gw +  '%; }';
     }
 
     if (ui.video.major === prevMajor) {
