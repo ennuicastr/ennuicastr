@@ -291,6 +291,7 @@ function recordVideo(opts: RecordVideoOptions) {
 
                                 // Figure out the ideal end time
                                 var endTimeDTS = endTimeReal // The real time when we received this packet
+                                    - video.videoLatency // Adjusted for input latency
                                     + audio.timeOffset // Convert to remote time
                                     - net.remoteBeginTime; // Base at recording start time
 

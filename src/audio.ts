@@ -64,6 +64,9 @@ const libavPackage =
 // The audio device being read
 export var userMedia: MediaStream = null;
 
+// Input latency on said device, in ms
+var inputLatency = 0;
+
 // The pseudodevice as processed to reduce noise, for RTC
 export var userMediaRTC: MediaStream = null;
 export function setUserMediaRTC(to: MediaStream) { userMediaRTC = to; }
@@ -170,6 +173,12 @@ export function getMic(deviceId?: string) {
         }
     }).then(function(userMediaIn) {
         userMedia = userMediaIn;
+        var inl = userMedia.getAudioTracks()[0].getSettings().latency;
+        if (inl)
+            inputLatency = inl * 1000;
+        else
+            inputLatency = 0;
+
         return userMediaSet();
     }).catch(function(err) {
         net.disconnect();
@@ -455,7 +464,7 @@ function libavProcess() {
             ib[ci] = ev.inputBuffer.getChannelData(ci).slice(0);
         var pktLen = (ib[0].length * 48000 / inSampleRate);
         var pktTime = Math.round(
-            (now - startTime) * 48 -
+            (now - inputLatency - startTime) * 48 -
             pktLen
         );
 

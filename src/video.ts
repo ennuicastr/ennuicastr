@@ -23,6 +23,9 @@ import * as ui from "./ui";
 // The video device being read
 export var userMediaVideo: MediaStream = null;
 
+// Input latency of the video, in ms
+export var videoLatency = 0;
+
 // Called when there's a network disconnection
 export function disconnect() {
     if (userMediaVideo) {
@@ -70,6 +73,12 @@ export function getCamera(id: string) {
 
     }).then(function(userMediaIn) {
         userMediaVideo = userMediaIn;
+        var inl = userMediaVideo.getVideoTracks()[0].getSettings().latency;
+        if (inl)
+            videoLatency = inl * 1000;
+        else
+            videoLatency = 0;
+
         ui.videoAdd(net.selfId, config.username);
         var v = ui.ui.video.users[net.selfId].video;
         if (userMediaVideo) {
