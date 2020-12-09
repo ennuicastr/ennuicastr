@@ -205,10 +205,10 @@ function userMediaSet() {
     // Create our AudioContext if needed
     if (!ac) {
         try {
-            ac = new AudioContext({sampleRate: sampleRate});
+            ac = new AudioContext();
         } catch (ex) {
             // Try Apple's, and if not that, nothing left to try, so crash
-            ac = new webkitAudioContext({sampleRate: sampleRate});
+            ac = new webkitAudioContext();
         }
 
         ui.setOutputAudioContext(ac);
