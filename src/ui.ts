@@ -353,7 +353,7 @@ const mobile = (ua.indexOf("android") >= 0) ||
                (ua.indexOf("ipad") >= 0);
 
 // Video standin's SVG code
-const standinSVG = '<svg viewBox="0 0 512 512" style="width: 100%; height: 100%"><g transform="translate(0,215)"><rect style="opacity:0.5;fill:#ffffff" id="rect10" width="512" height="512" x="0" y="-215" rx="128" ry="128" /><text id="tspan10" x="256" y="149.86458" style="font-size:298.66668701px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle">##</tspan></text></g></svg>';
+const standinSVG = '<svg viewBox="0 0 512 512" style="width: 100%; height: 100%"><g transform="translate(0,215)"><rect style="opacity:0.5;fill:#ffffff" width="512" height="512" x="0" y="-215" rx="128" ry="128" /><text x="256" y="149.86458" style="font-size:298.66668701px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle">##</text></g></svg>';
 
 // Show the given panel, or none
 export function showPanel(panelName: HTMLElement|string, autoFocusName: HTMLElement|string) {
@@ -1563,6 +1563,8 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
 
 // Generate a standin abbreviated name given a full name
 function genStandinName(name: string) {
+    name = name.replace(/[&<>]/g, "");
+
     if (name.length <= 2)
         return name;
 
