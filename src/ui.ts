@@ -353,7 +353,15 @@ const mobile = (ua.indexOf("android") >= 0) ||
                (ua.indexOf("ipad") >= 0);
 
 // Video standin's SVG code
-const standinSVG = '<svg viewBox="0 0 512 512" style="width: 100%; height: 100%"><g transform="translate(0,215)"><rect style="opacity:0.5;fill:#ffffff" width="512" height="512" x="0" y="-215" rx="128" ry="128" /><text x="256" y="149.86458" style="font-size:298.66668701px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle">##</text></g></svg>';
+const standinSVG = [
+    '<svg viewBox="0 0 512 512" style="width:100%;height:100%"><g transform="translate(0,215)"><rect ry="128" rx="128" y="-215" x="0" height="512" width="512" style="opacity:0.5;fill:#ffffff" /><text style="font-size:298.66518928px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle" y="149.86458" x="256">##</text></g></svg>',
+    '<svg viewBox="0 0 640 512" style="width:100%;height:100%"><g transform="translate(64,215)"><path transform="matrix(1.3149081,0,0,1.1060609,-80.616476,-4.348493)" d="m 256.00001,-190.45201 243.36301,176.81359 -92.95641,286.09039 -300.81323,-1e-5 -92.956399,-286.090393 z" style="opacity:0.5;fill:#ffffff" /><text style="font-size:298.66519165px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle" y="149.86458" x="256">##</text></g></svg>',
+    '<svg viewBox="0 0 512 512" style="width:100%;height:100%"><g transform="translate(0,215)"><path transform="matrix(1.1552103,0,0,1.0004415,-39.733837,-24.463922)" d="m 256.00001,-190.45201 221.60466,127.943517 -10e-6,255.887023 -221.60467,127.94351 -221.604657,-127.94352 7e-6,-255.887025 z" style="opacity:0.5;fill:#ffffff" /><text style="font-size:298.66518928px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle" y="149.86458" x="256">##</text></g></svg>',
+    '<svg viewBox="0 0 576 512" style="width:100%;height:100%"><g transform="translate(32,215)"><path transform="matrix(1.1544409,0,0,1.0525596,-39.536869,-14.537931)" d="M 256.00001,-190.45201 456.06054,-94.107932 505.4714,122.37524 367.02521,295.98126 144.97478,295.98125 6.5285965,122.37523 55.939473,-94.107942 Z" style="opacity:0.5;fill:#ffffff" /><text style="font-size:298.66519165px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle" y="149.86458" x="256">##</text></g></svg>',
+    '<svg viewBox="0 0 640 512" style="width:100%;height:100%"><g transform="translate(64,215)"><path transform="matrix(1.25,0,0,1,-64,0)" d="M 256.00001,-215.00002 437.01934,-140.01935 512,40.999988 437.01933,222.01932 255.99999,296.99998 74.980659,222.01931 0,40.999974 74.980669,-140.01936 Z" style="opacity:0.5;fill:#ffffff" /><text style="font-size:298.66519165px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle" y="149.86458" x="256">##</text></g></svg>',
+    '<svg viewBox="0 0 576 512" style="width:100%;height:100%"><g transform="translate(32,215)"><path transform="matrix(1.1423549,0,0,1.0310912,-36.442856,6.6846075)" d="m 256.00001,-215.00002 164.55362,59.89263 87.55716,151.6534442 -30.40829,172.4539358 -134.14535,112.5613 -175.11431,0 L 34.297493,168.99997 3.8892164,-3.4539593 91.446377,-155.1074 Z" style="opacity:0.5;fill:#ffffff" /><text style="font-size:298.66519165px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle" y="149.86458" x="256">##</text></g></svg>',
+    '<svg viewBox="0 0 544 512" style="width:100%;height:100%"><g transform="translate(16,215)"><path transform="matrix(1.1171786,0,0,1,-29.997722,0)" d="m 256.00001,-215.00002 150.47302,48.89165 92.99744,128.000007 0,158.216703 -92.99745,128 -150.47303,48.89164 -150.47302,-48.89165 -92.99744,-128.00001 4e-6,-158.216696 92.997446,-127.999994 z" style="opacity:0.5;fill:#ffffff" /><text style="font-size:298.66519165px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle" y="149.86458" x="256">##</text></g></svg>'
+];
 
 // Show the given panel, or none
 export function showPanel(panelName: HTMLElement|string, autoFocusName: HTMLElement|string) {
@@ -1193,7 +1201,7 @@ export function userListAdd(idx: number, name: string, fromMaster: boolean) {
             user.name.innerText = name;
             user.name.setAttribute("aria-label", name + ": Not speaking");
             ui.video.users[idx].name.innerText = name;
-            styleVideoEl(ui.video.users[idx].video, name);
+            styleVideoEl(ui.video.users[idx], name);
         }
         if (fromMaster) {
             master.users[idx].online = true;
@@ -1327,8 +1335,6 @@ export function videoAdd(idx: number, name: string) {
     video.style.flex = "auto";
     box.appendChild(video);
 
-    styleVideoEl(video, name);
-
     // When you click, they become the selected major
     video.onclick = function() {
         if (ui.video.selected === idx)
@@ -1348,9 +1354,10 @@ export function videoAdd(idx: number, name: string) {
         bottom: "8px",
         cursor: "default"
     });
-    standin.innerHTML = standinSVG.replace("##", genStandinName(name || ""));
     box.appendChild(standin);
     standin.onclick = video.onclick;
+
+    styleVideoEl(ctx, name);
 
     // And add their personal label
     var nspan = ctx.name;
@@ -1362,7 +1369,7 @@ export function videoAdd(idx: number, name: string) {
 }
 
 // Style a video element given a user's name
-function styleVideoEl(el: HTMLVideoElement, name: string) {
+function styleVideoEl(ctx: {video: HTMLVideoElement, standin: HTMLElement}, name: string) {
     if (!name) return;
     var x = parseInt(btoa(unescape(encodeURIComponent(name.slice(-6)))).replace(/[^A-Za-z0-9]/g, ""), 36);
     var r = x % 4;
@@ -1370,7 +1377,10 @@ function styleVideoEl(el: HTMLVideoElement, name: string) {
     var g = x % 4;
     x = Math.floor(x / 4);
     var b = x % 4;
-    el.style.backgroundColor = "#" + r + g + b;
+    x = Math.floor(x / 4);
+    var s = x % standinSVG.length;
+    ctx.video.style.backgroundColor = "#" + r + g + b;
+    ctx.standin.innerHTML = standinSVG[s].replace("##", genStandinName(name || ""));
 }
 
 // Remove a user from the user list
