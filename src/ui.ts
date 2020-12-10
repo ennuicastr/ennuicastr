@@ -74,8 +74,16 @@ export const ui = {
 
         // Video components for each user
         users: {
+            // <video> element
             video: HTMLVideoElement,
+
+            // Containing box
             box: HTMLElement,
+
+            // Video standin
+            standin: HTMLElement,
+
+            // Name label
             name: HTMLElement
         }[],
 
@@ -343,6 +351,9 @@ const ua = navigator.userAgent.toLowerCase();
 const mobile = (ua.indexOf("android") >= 0) ||
                (ua.indexOf("iphone") >= 0) ||
                (ua.indexOf("ipad") >= 0);
+
+// Video standin's SVG code
+const standinSVG = '<svg viewBox="0 0 512 512" style="width: 100%; height: 100%"><g transform="translate(0,215)"><rect style="opacity:0.5;fill:#ffffff" id="rect10" width="512" height="512" x="0" y="-215" rx="128" ry="128" /><text id="tspan10" x="256" y="149.86458" style="font-size:298.66668701px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle">##</tspan></text></g></svg>';
 
 // Show the given panel, or none
 export function showPanel(panelName: HTMLElement|string, autoFocusName: HTMLElement|string) {
@@ -1293,6 +1304,7 @@ export function videoAdd(idx: number, name: string) {
     var ctx = ui.video.users[idx] = {
         video: dce("video"),
         box: dce("div"),
+        standin: dce("div"),
         name: dce("span")
     };
 
@@ -1326,6 +1338,20 @@ export function videoAdd(idx: number, name: string) {
         updateVideoUI(idx);
     };
 
+    // The standin for when there is no video
+    var standin = ctx.standin;
+    Object.assign(standin.style, {
+        position: "absolute",
+        left: "8px",
+        top: "8px",
+        right: "8px",
+        bottom: "8px",
+        cursor: "default"
+    });
+    standin.innerHTML = standinSVG.replace("##", genStandinName(name || ""));
+    box.appendChild(standin);
+    standin.onclick = video.onclick;
+
     // And add their personal label
     var nspan = ctx.name;
     nspan.classList.add("namelabel");
@@ -1340,9 +1366,9 @@ function styleVideoEl(el: HTMLVideoElement, name: string) {
     if (!name) return;
     var x = parseInt(btoa(unescape(encodeURIComponent(name.slice(-6)))).replace(/[^A-Za-z0-9]/g, ""), 36);
     var r = x % 4;
-    x = ~~(x / 4);
+    x = Math.floor(x / 4);
     var g = x % 4;
-    x = ~~(x / 4);
+    x = Math.floor(x / 4);
     var b = x % 4;
     el.style.backgroundColor = "#" + r + g + b;
 }
@@ -1533,4 +1559,21 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
         let v = ui.video.users[ui.video.major];
         ui.video.main.appendChild(v.box);
     }
+}
+
+// Generate a standin abbreviated name given a full name
+function genStandinName(name: string) {
+    if (name.length <= 2)
+        return name;
+
+    var out = name[0];
+    name = name.slice(1);
+
+    // Ideal: Last capital character
+    var uc = name.match(/\p{Lu}/gu);
+    if (uc)
+        return out + uc[uc.length-1];
+
+    // Otherwise: Just the next character
+    return out + name[0];
 }

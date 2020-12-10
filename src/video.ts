@@ -73,7 +73,11 @@ export function getCamera(id: string) {
 
     }).then(function(userMediaIn) {
         userMediaVideo = userMediaIn;
-        var inl = userMediaVideo.getVideoTracks()[0].getSettings().latency;
+        var inl: number;
+        if (userMediaVideo)
+            inl = userMediaVideo.getVideoTracks()[0].getSettings().latency;
+        else
+            inl = 0;
         if (inl)
             videoLatency = inl * 1000;
         else
@@ -81,6 +85,7 @@ export function getCamera(id: string) {
 
         ui.videoAdd(net.selfId, config.username);
         var v = ui.ui.video.users[net.selfId].video;
+        var s = ui.ui.video.users[net.selfId].standin;
         if (userMediaVideo) {
             // Inform RTC
             audio.userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediavideoready", {}));
@@ -88,10 +93,13 @@ export function getCamera(id: string) {
             // And update the display
             v.srcObject = userMediaVideo;
             v.play().catch(function(){});
+            s.style.display = "none";
 
         } else {
             // No video :(
+            v.srcObject = audio.userMedia;
             v.srcObject = null;
+            s.style.display = "";
 
         }
 

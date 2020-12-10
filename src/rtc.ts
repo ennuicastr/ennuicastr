@@ -80,6 +80,7 @@ export function initRTC(peer: number) {
     };
 
     var videoEl: HTMLVideoElement = null;
+    var standinEl: HTMLElement = null;
 
     conn.incoming.onicecandidate = function(c) {
         rtcSignal(peer, false, prot.rtc.candidate, c.candidate);
@@ -128,8 +129,14 @@ export function initRTC(peer: number) {
         // Get our video element (even if there is no video)
         ui.videoAdd(peer, null);
         videoEl = ui.ui.video.users[peer].video;
+        standinEl = ui.ui.video.users[peer].standin;
         videoEl.srcObject = stream;
         videoEl.play().catch(console.error);
+
+        if (stream.getVideoTracks().length === 0)
+            standinEl.style.display = "";
+        else
+            standinEl.style.display = "none";
 
         // Prepare for video tracks to end
         stream.onremovetrack = function() {
@@ -139,6 +146,7 @@ export function initRTC(peer: number) {
                 videoEl.srcObject = null;
                 videoEl.srcObject = stream;
                 videoEl.play().catch(console.error);
+                standinEl.style.display = "";
             }
         };
 
