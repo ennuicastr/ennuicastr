@@ -156,7 +156,7 @@ function recordVideo(opts: RecordVideoOptions) {
     var videoSettings = video.userMediaVideo.getVideoTracks()[0].getSettings();
     var bitrate: number;
     if (opts.bitrate)
-        bitrate = Math.max(opts.bitrate * 1000000, videoSettings.height * 50000);
+        bitrate = Math.min(opts.bitrate * 1000000, videoSettings.height * 50000);
     else
         bitrate = videoSettings.height * 5000;
     var globalFrameTime = 1/videoSettings.frameRate * 1000;
