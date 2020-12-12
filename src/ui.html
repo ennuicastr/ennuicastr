@@ -30,11 +30,11 @@
             <div id="ecvideo-wrapper">
                 <div id="ecvideo-side-wrapper">
                     <div id="ecvideo-side"></div>
-                    <button id="ecvideo-wrapper-fs" class="fsbutton tbutton interface" title="Fullscreen (all video)" aria-label="Fullscreen (all video)"><i class="fas fa-expand"></i></button>
+                    <button id="ecvideo-wrapper-fs" class="fsbutton tbutton interface hotkey-hidden" title="Fullscreen (all video)" aria-label="Fullscreen (all video)"><i class="fas fa-expand"></i></button>
                 </div>
                 <div id="ecvideo-main-wrapper">
                     <div id="ecvideo-main"></div>
-                    <button id="ecvideo-main-fs" class="fsbutton tbutton interface" title="Fullscreen (single video)" aria-label="Fullscreen (single video)"><i class="fas fa-expand"></i></button>
+                    <button id="ecvideo-main-fs" class="fsbutton tbutton interface hotkey-hidden" title="Fullscreen (single video)" aria-label="Fullscreen (single video)"><i class="fas fa-expand"></i></button>
                 </div>
                 <div id="ecchat-wrapper" style="display: none;">
                     <div id="ecchat-incoming" class="chat" role="log" aria-live="polite"></div>
@@ -71,6 +71,7 @@
             <button id="ecmenu-main" class="tbutton interface hotkey-hidden" title="Settings" aria-label="Settings"><i class="fas fa-cog"></i></button>
             <button id="ecmenu-chat" class="tbutton interface hotkey-hidden" title="Chat" aria-label="Chat"><i class="fas fa-keyboard"></i></button>
             <button id="ecmenu-mute" class="tbutton interface hotkey-hidden" title="Mute" aria-label="Mute"><i class="fas fa-volume-up"></i></button>
+            <button id="ecmenu-video-popout" class="tbutton interface streamer-interface hotkey-hidden" title="Pop out video" aria-label="Pop out video"><i class="fa fa-window-restore"></i></button>
         </div>
 
         <!-- A layering separator to distinguish the menu from the entire interface -->
@@ -242,8 +243,15 @@
 
             <!-- Gallery mode -->
             <div class="row">
-                <input id="ecgallery-mode" type="checkbox" />
-                <label for="ecgallery-mode">&nbsp;Gallery view</label>
+                <div class="row">
+                    <input id="ecgallery-mode" type="checkbox" />
+                    <label for="ecgallery-mode">&nbsp;Gallery view</label>
+                </div>
+
+                <div id="ecstreamer-mode-hider" class="row">
+                    <input id="ecstreamer-mode" type="checkbox" />
+                    <label for="ecstreamer-mode">&nbsp;Streamer-friendly popout windows</label>
+                </div>
             </div>
         </div>
 

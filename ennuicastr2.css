@@ -188,6 +188,14 @@ button.tbutton {
     min-width: 2.85em;
 }
 
+button.pobutton {
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    font-size: 1em;
+    min-width: 2.85em;
+}
+
 button.fsbutton {
     position: absolute;
     right: 0px;
@@ -202,6 +210,14 @@ button.close-button {
     line-height: 2em;
     top: 0.25em;
     right: 0.25em;
+}
+
+button.streamer-interface {
+    display: none;
+}
+
+[data-streamer-interface="show"] button.streamer-interface {
+    display: inline-block;
 }
 
 [data-interface="hide"] .interface {

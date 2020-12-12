@@ -54,6 +54,9 @@ export const ui = {
         // Main wrapper
         wrapper: HTMLElement,
 
+        // The window, if it's been popped out into a window
+        window: WindowProxy,
+
         // Side wrapper
         sideWrapper: HTMLElement,
 
@@ -84,7 +87,10 @@ export const ui = {
             standin: HTMLElement,
 
             // Name label
-            name: HTMLElement
+            name: HTMLElement,
+
+            // Popout button
+            popout: HTMLButtonElement
         }[],
 
         // Which user is selected?
@@ -133,7 +139,8 @@ export const ui = {
         sounds: HTMLButtonElement,
         main: HTMLButtonElement,
         chat: HTMLButtonElement,
-        mute: HTMLButtonElement
+        mute: HTMLButtonElement,
+        videoPopout: HTMLButtonElement
     }> null,
 
     // The separator for panel layering
@@ -291,7 +298,11 @@ export const ui = {
             device: HTMLSelectElement,
 
             // Gallery mode
-            gallery: HTMLInputElement
+            gallery: HTMLInputElement,
+
+            // Streamer mode
+            streamerModeHider: HTMLElement,
+            streamerMode: HTMLInputElement
         }> null,
 
         // Video recording
@@ -566,6 +577,7 @@ export function mkUI() {
 function loadVideo() {
     ui.video = {
         wrapper: gebi("ecvideo-wrapper"),
+        window: null,
         sideWrapper: gebi("ecvideo-side-wrapper"),
         side: gebi("ecvideo-side"),
         sideFS: gebi("ecvideo-wrapper-fs"),
@@ -659,7 +671,8 @@ function loadMainMenu() {
         sounds: gebi("ecmenu-sounds"),
         main: gebi("ecmenu-main"),
         chat: gebi("ecmenu-chat"),
-        mute: gebi("ecmenu-mute")
+        mute: gebi("ecmenu-mute"),
+        videoPopout: gebi("ecmenu-video-popout")
     };
 
     var m = ui.panels.main = {
@@ -701,6 +714,74 @@ function loadMainMenu() {
     mouseenter();
     document.body.addEventListener("mouseenter", mouseenter);
     document.body.addEventListener("mousemove", mouseenter);
+
+    // Support for popping out the entire video block
+    var w: WindowProxy = null;
+    function popoutOpen() {
+        w = ui.video.window = window.open("", "", "width=1280,height=720,menubar=0,toolbar=0,location=0,personalbar=0,status=0");
+        if (!w) return;
+
+        w.document.title = "Video — " + document.title;
+
+        // To make it flex properly, it needs the CSS
+        var ssurl = new URL(<any> window.location);
+        ssurl.search = "?v=6";
+        ssurl.pathname = ssurl.pathname.replace(/\/[^\/]*$/, "/ennuicastr2.css");
+        w.document.head.innerHTML = '<link href="' + (<any> ssurl) + '" rel="stylesheet" />';
+        w.document.head.appendChild(ui.video.css);
+        w.document.body.setAttribute("data-gallery", document.body.getAttribute("data-gallery"));
+
+        // Add the video element
+        Object.assign(w.document.body.style, {
+            display: "flex",
+            flexDirection: "column",
+            width: "100%",
+            height: "100%",
+            margin: "0"
+        });
+        w.document.body.appendChild(ui.video.wrapper);
+        w.onunload = popoutClose;
+        w.onresize = function() { updateVideoUI(0); }
+        ui.wave.wrapper.style.flex = "auto";
+
+        // Play them
+        for (var vi = 0; vi < ui.video.users.length; vi++) {
+            var v = ui.video.users[vi];
+            if (!v) continue;
+            v.video.play().catch(console.error);
+        }
+
+        setTimeout(function() {
+            updateVideoUI(0);
+            resizeUI();
+        }, 0);
+    }
+
+    function popoutClose() {
+        w = ui.video.window = null;
+        document.head.appendChild(ui.video.css);
+        ui.wrapper.insertBefore(ui.video.wrapper, ui.wrapper.childNodes[0]);
+        ui.wave.wrapper.style.flex = "";
+
+        // Play them
+        for (var vi = 0; vi < ui.video.users.length; vi++) {
+            var v = ui.video.users[vi];
+            if (!v) continue;
+            v.video.play().catch(console.error);
+        }
+
+        setTimeout(function() {
+            updateVideoUI(0);
+            resizeUI();
+        }, 0);
+    }
+
+    p.videoPopout.onclick = function() {
+        if (w)
+            w.close();
+        else
+            popoutOpen();
+    };
 }
 
 function loadMasterUI() {
@@ -800,7 +881,9 @@ function loadVideoConfig() {
     ui.panels.videoConfig = {
         wrapper: gebi("ecvideo-device-wrapper"),
         device: gebi("ecvideo-device-list"),
-        gallery: gebi("ecgallery-mode")
+        gallery: gebi("ecgallery-mode"),
+        streamerModeHider: gebi("ecstreamer-mode-hider"),
+        streamerMode: gebi("ecstreamer-mode")
     };
 
     ui.panels.videoRecord = {
@@ -1058,6 +1141,27 @@ export function mkAudioUI() {
     saveConfigCheckbox(videoConfig.gallery, "gallery-mode3", galleryChange);
     galleryChange(null);
 
+    // Streamer mode
+    function streamerModeChange(ev: Event) {
+        var s = videoConfig.streamerMode.checked;
+        document.body.setAttribute("data-streamer-interface", s?"show":"hide");
+        if (s) {
+            // Tell them how much browser chrome they need to compete with
+            log.pushStatus("chrome", "Browser chrome: " + (window.outerWidth-window.innerWidth) + "x" + (window.outerHeight-window.innerHeight));
+            setTimeout(function() {
+                log.popStatus("chrome");
+            }, 10000);
+        }
+
+        if (ev)
+            showPanel(null, ui.persistent.main);
+    }
+    if (mobile) {
+        videoConfig.streamerModeHider.style.display = "none";
+    } else {
+        saveConfigCheckbox(videoConfig.streamerMode, "streamer-mode3", streamerModeChange);
+        streamerModeChange(null);
+    }
 
     // Return which input device should be used
     return localStorage.getItem("input-device3");
@@ -1313,7 +1417,8 @@ export function videoAdd(idx: number, name: string) {
         video: dce("video"),
         box: dce("div"),
         standin: dce("div"),
-        name: dce("span")
+        name: dce("span"),
+        popout: dce("button")
     };
 
     /* A videobox ix flexible for centering, and contains a video element and a
@@ -1323,16 +1428,19 @@ export function videoAdd(idx: number, name: string) {
     Object.assign(box.style, {
         position: "relative",
         boxSizing: "border-box",
-        border: "4px solid " + ui.colors["video-silent"],
-        display: "flex",
-        flexDirection: "column",
-        flex: "auto"
+        border: "4px solid " + ui.colors["video-silent"]
     });
 
     var video = ctx.video;
     video.height = 0; // Use CSS for style
     video.muted = true; // Audio goes through a different system
-    video.style.flex = "auto";
+    Object.assign(video.style, {
+        position: "absolute",
+        left: "0",
+        top: "0",
+        width: "100%",
+        height: "100%"
+    });
     box.appendChild(video);
 
     // When you click, they become the selected major
@@ -1359,17 +1467,60 @@ export function videoAdd(idx: number, name: string) {
 
     styleVideoEl(ctx, name);
 
-    // And add their personal label
+    // Their personal label
     var nspan = ctx.name;
     nspan.classList.add("namelabel");
     nspan.innerText = name || "";
     nspan.setAttribute("role", "note");
     nspan.setAttribute("aria-label", nspan.innerText + ": Not speaking");
     box.appendChild(nspan);
+
+    // And popout button
+    var popout = ctx.popout;
+    popout.classList.add("pobutton", "tbutton", "interface", "streamer-interface");
+    popout.innerHTML = '<i class="fa fa-window-restore"></i>';
+    popout.title = "Pop out";
+    popout.setAttribute("aria-label", "Pop out");
+    box.appendChild(popout);
+
+    var w: WindowProxy = null;
+
+    function popoutOpen() {
+        var width = 800, height = 450;
+        if (video.srcObject) {
+            let vt = video.srcObject.getVideoTracks();
+            if (vt && vt.length) {
+                let s = vt[0].getSettings();
+                width = s.width;
+                height = s.height;
+            }
+        }
+
+        w = window.open("", "", "width=" + width + ",height=" + height + ",menubar=0,toolbar=0,location=0,personalbar=0,status=0");
+        if (!w) return;
+
+        w.document.title = nspan.innerText;
+        w.document.body.appendChild(video);
+        w.onunload = popoutClose;
+        video.play().catch(console.error);
+    }
+
+    function popoutClose() {
+        w = null;
+        box.insertBefore(video, box.childNodes[0]);
+        video.play().catch(console.error);
+    }
+
+    popout.onclick = function() {
+        if (w)
+            w.close();
+        else
+            popoutOpen();
+    };
 }
 
 // Style a video element given a user's name
-function styleVideoEl(ctx: {video: HTMLVideoElement, standin: HTMLElement}, name: string) {
+function styleVideoEl(ctx: {video: HTMLVideoElement, box: HTMLElement, standin: HTMLElement}, name: string) {
     if (!name) return;
     var x = parseInt(btoa(unescape(encodeURIComponent(name.slice(-6)))).replace(/[^A-Za-z0-9]/g, ""), 36);
     var r = x % 4;
@@ -1379,7 +1530,8 @@ function styleVideoEl(ctx: {video: HTMLVideoElement, standin: HTMLElement}, name
     var b = x % 4;
     x = Math.floor(x / 4);
     var s = x % standinSVG.length;
-    ctx.video.style.backgroundColor = "#" + r + g + b;
+    ctx.video.style.backgroundColor =
+        ctx.box.style.backgroundColor = "#" + r + g + b;
     ctx.standin.innerHTML = standinSVG[s].replace("##", genStandinName(name || ""));
 }
 
@@ -1553,7 +1705,7 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
             w = 1;
         let ew = Math.max((100 / w) - 1, 1);
         let mw = 100 / w;
-        ui.video.css.innerHTML = '[data-gallery="on"] #ecvideo-side .ecvideo { width: ' + ew +  '%; max-width: ' + mw + '%; }';
+        ui.video.css.innerHTML = '[data-gallery="on"] #ecvideo-side .ecvideo { flex: auto; width: ' + ew +  '%; max-width: ' + mw + '%; }';
     }
 
     if (ui.video.major === prevMajor) {
