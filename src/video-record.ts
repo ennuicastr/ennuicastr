@@ -39,6 +39,7 @@ interface RecordVideoOptions {
     local?: boolean;
     remote?: boolean;
     remotePeer?: number;
+    bitrate?: number; // in Mbit
     localWriter?: WritableStreamDefaultWriter;
 }
 
@@ -153,7 +154,11 @@ function recordVideo(opts: RecordVideoOptions) {
 
     // We decide the bitrate based on the height (FIXME: Configurability)
     var videoSettings = video.userMediaVideo.getVideoTracks()[0].getSettings();
-    var bitrate = videoSettings.height * 5000;
+    var bitrate: number;
+    if (opts.bitrate)
+        bitrate = Math.max(opts.bitrate * 1000000, videoSettings.height * 50000);
+    else
+        bitrate = videoSettings.height * 5000;
     var globalFrameTime = 1/videoSettings.frameRate * 1000;
     var libav: any;
     var transtate: TranscodeState = {};
@@ -474,7 +479,47 @@ export function recordVideoRemoteIncoming(peer: number, opts: any) {
 
 // Show the video recording panel if we need to, or just start recording
 function recordVideoPanel() {
-    ui.showPanel("videoRecord", null);
+    var vr = ui.ui.panels.videoRecord;
+
+    // Get a default bitrate (FIXME: Save their configuration?)
+    var bri = vr.bitrate;
+    var sbr = Math.round(video.userMediaVideo.getVideoTracks()[0].getSettings().height * 0.05) / 10;
+    if (sbr < 1) sbr = 1;
+    bri.value = "" + sbr;
+
+    // Use it in the buttons
+    vr.local.onclick = function() {
+        ui.showPanel(null, ui.ui.persistent.main);
+        recordVideo({local: true, bitrate: +bri.value});
+    };
+
+    vr.remote.onclick = function() {
+        ui.showPanel(null, ui.ui.persistent.main);
+        recordVideo({remote: true, bitrate: +bri.value});
+    };
+
+    vr.both.onclick = function() {
+        ui.showPanel(null, ui.ui.persistent.main);
+        recordVideo({local: true, remote: true, bitrate: +bri.value});
+    };
+
+    // En/disable the buttons based on presence of a remote host
+    var focus: HTMLElement;
+    if (rtc.rtcConnections.videoRecHost >= 0) {
+        vr.remote.disabled = false;
+        vr.remote.classList.remove("off");
+        vr.both.disabled = false;
+        vr.both.classList.remove("off");
+        focus = vr.remote;
+    } else {
+        vr.remote.disabled = true;
+        vr.remote.classList.add("off");
+        vr.both.disabled = true;
+        vr.both.classList.add("off");
+        focus = vr.local;
+    }
+
+    ui.showPanel("videoRecord", focus);
 }
 
 // Input handler for video recording
@@ -696,28 +741,8 @@ export function recordVideoButton(loading?: boolean) {
             }
 
             btn.onclick = function() {
-                if (rtc.rtcConnections.videoRecHost >= 0) {
-                    disabled(false);
-                    recordVideoPanel();
-                } else {
-                    disabled(true);
-                    recordVideo({local: true});
-                }
-            };
-
-            gebi("ecvideo-record-local").onclick = function() {
-                ui.showPanel(null, ui.ui.persistent.main);
-                recordVideo({local: true});
-            };
-
-            gebi("ecvideo-record-remote").onclick = function() {
-                ui.showPanel(null, ui.ui.persistent.main);
-                recordVideo({remote: true});
-            };
-
-            gebi("ecvideo-record-local-remote").onclick = function() {
-                ui.showPanel(null, ui.ui.persistent.main);
-                recordVideo({local: true, remote: true});
+                disabled(false);
+                recordVideoPanel();
             };
 
         } else {

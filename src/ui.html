@@ -257,6 +257,11 @@
 
         <!-- Video recording -->
         <div id="ecvideo-record-wrapper" class="panel" style="text-align: right;">
+            <button id="ecvideo-record-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
+            <div class="rflex row">
+                <label for="ecvideo-record-bitrate">Bitrate (Mbit):&nbsp;</label>
+                <input id="ecvideo-record-bitrate" style="flex: auto;" type="text" />
+            </div>
             <div class="bigrflex">
                 <button id="ecvideo-record-local">Record locally</button>&nbsp;
                 <button id="ecvideo-record-remote">Record and send to host</button>&nbsp;

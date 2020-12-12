@@ -309,6 +309,9 @@ export const ui = {
         videoRecord: <{
             wrapper: HTMLElement,
 
+            // Bitrate
+            bitrate: HTMLInputElement,
+
             // Options
             local: HTMLButtonElement,
             remote: HTMLButtonElement,
@@ -478,7 +481,7 @@ function saveConfigSlider(sl: HTMLInputElement, name: string, onchange?: (arg0:E
     var cur = localStorage.getItem(name);
     if (cur !== null)
         sl.value = ""+(+cur);
-    sl.oninput = function(ev) {
+    sl.onchange = function(ev) {
         var ret;
         if (onchange)
             ret = onchange(ev);
@@ -886,11 +889,18 @@ function loadVideoConfig() {
         streamerMode: gebi("ecstreamer-mode")
     };
 
-    ui.panels.videoRecord = {
+    var vr = ui.panels.videoRecord = {
         wrapper: gebi("ecvideo-record-wrapper"),
+        bitrate: gebi("ecvideo-record-bitrate"),
         local: gebi("ecvideo-record-local"),
         remote: gebi("ecvideo-record-remote"),
-        both: gebi("ecvideo-record-both")
+        both: gebi("ecvideo-record-local-remote")
+    };
+
+    vr.bitrate.oninput = function() {
+        var f = vr.bitrate.value.replace(/[^0-9\.]/g, "");
+        if (vr.bitrate.value !== f)
+            vr.bitrate.value = f;
     };
 }
 
