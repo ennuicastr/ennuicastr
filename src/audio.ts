@@ -43,23 +43,7 @@ import * as util from "./util";
 import { dce } from "./util";
 
 // libav version to load
-const libavVersion = "2.2.4.3.1";
-
-/* Although it has nothing to do with audio, we check some MediaRecord
- * capabilities here since it affects what version of libav we load */
-
-// Do we support MediaRecorder with VP8 output?
-export const mediaRecorderVP8 = (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("video/webm; codecs=vp8"));
-
-// How about MPEG-4?
-export const mediaRecorderMP4 = (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("video/mp4; codecs=avc1"));
-
-// The combination
-export const mediaRecorderVideo = mediaRecorderVP8 || mediaRecorderMP4;
-
-// Which libav package to load
-const libavPackage =
-    (mediaRecorderMP4 && !mediaRecorderVP8) ? "ennuicastr-mp4" : "ennuicastr-webm";
+const libavVersion = "2.3.4.3.1";
 
 // The audio device being read
 export var userMedia: MediaStream = null;
@@ -293,7 +277,7 @@ export function loadLibAV(): Promise<unknown> {
         (<any> window).LibAV = {};
     LibAV.base = "libav";
 
-    loadLibAVPromise = util.loadLibrary("libav/libav-" + libavVersion + "-" + libavPackage + ".js").then(function() {
+    loadLibAVPromise = util.loadLibrary("libav/libav-" + libavVersion + "-ennuicastr.js").then(function() {
         return LibAV.LibAV();
 
     }).then(function(ret) {
