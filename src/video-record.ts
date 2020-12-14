@@ -77,7 +77,7 @@ function recordVideo(opts: RecordVideoOptions) {
 
     // Which format?
     var formats: [string, string, boolean][] = [
-        ["x-matroska", "avc1", true],
+        //["x-matroska", "avc1", true], Buggy on Chrome (which is the only browser that supports it)
         ["webm", "vp9", false],
         ["webm", "vp8", false],
         ["mp4", "avc1", true]

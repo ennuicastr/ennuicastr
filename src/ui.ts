@@ -1239,7 +1239,7 @@ export function resizeUI(second?: boolean) {
 
     // If we're not doing RTC, some elements are irrelevant
     if (!config.useRTC) {
-        if (ui.chat.wrapper.style.display === "none") {
+        if (ui.chat.wrapper.style.display === "none" && ui.video.mainWrapper.style.display === "none") {
             ui.video.wrapper.style.display = "none";
             ui.wave.wrapper.style.flex = "auto";
         } else {

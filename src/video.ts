@@ -103,6 +103,12 @@ export function getCamera(id: string) {
 
         }
 
+        if (!config.useRTC) {
+            // We only *show* video if we have it
+            ui.ui.video.mainWrapper.style.display = userMediaVideo ? "" : "none";
+            ui.resizeUI();
+        }
+
     }).catch(function(err) {
         log.pushStatus("video", "Failed to capture video!");
         setTimeout(function() {
