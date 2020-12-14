@@ -76,7 +76,7 @@ export function localProcessing() {
         m = ret;
 
         // Load NoiseRepellent
-        if (typeof NoiseRepellent === "undefined") {
+        if (config.useRTC && typeof NoiseRepellent === "undefined") {
             (<any> window).NoiseRepellent = {base: "noise-repellent"};
             return util.loadLibrary("noise-repellent/noise-repellent-m.js");
         }

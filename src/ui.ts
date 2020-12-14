@@ -297,6 +297,9 @@ export const ui = {
             // Device selection
             device: HTMLSelectElement,
 
+            // Hider for output options
+            outputHider: HTMLElement,
+
             // Gallery mode
             gallery: HTMLInputElement,
 
@@ -709,9 +712,12 @@ function loadMainMenu() {
     p.mute.onclick = function() { audio.toggleMute(); };
     btn(m.inputB, "inputConfig", null);
     btn(m.outputB, "outputConfig", null);
+    if (!config.useRTC) m.outputB.style.display = "none";
     btn(m.videoB, "videoConfig", null);
     videoRecord.recordVideoButton();
     btn(m.userListB, "userList", null);
+    if (!config.useRTC && !("master" in config.config))
+        m.userListB.style.display = "none";
 
     // Auto-hide the persistent menu
     mouseenter();
@@ -884,6 +890,7 @@ function loadVideoConfig() {
     ui.panels.videoConfig = {
         wrapper: gebi("ecvideo-device-wrapper"),
         device: gebi("ecvideo-device-list"),
+        outputHider: gebi("ecvideo-output-hider"),
         gallery: gebi("ecgallery-mode"),
         streamerModeHider: gebi("ecstreamer-mode-hider"),
         streamerMode: gebi("ecstreamer-mode")
@@ -1150,6 +1157,9 @@ export function mkAudioUI() {
 
     saveConfigCheckbox(videoConfig.gallery, "gallery-mode3", galleryChange);
     galleryChange(null);
+
+    if (!config.useRTC)
+        videoConfig.outputHider.style.display = "none";
 
     // Streamer mode
     function streamerModeChange(ev: Event) {
