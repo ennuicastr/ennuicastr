@@ -411,7 +411,7 @@ function libavStart() {
 function libavProcess() {
     var enc = libavEncoder;
     var pts = 0;
-    var inSampleRate = enc.ac.sampleRate;
+    var inSampleRate = ac.sampleRate;
 
     // Keep track of how much data we've received to see if it's too little
     var dataReceived = 0;
@@ -423,7 +423,7 @@ function libavProcess() {
     enc.latencyDump = false;
 
     // Start reading the input
-    var sp = safariWorkarounds.createScriptProcessor(enc.ac, userMedia, 16384 /* Max: Latency doesn't actually matter in this context */).scriptProcessor;
+    var sp = safariWorkarounds.createScriptProcessor(ac, userMedia, 16384 /* Max: Latency doesn't actually matter in this context */).scriptProcessor;
 
     // Don't try to process that last sip of data after termination
     var dead = false;
@@ -536,10 +536,6 @@ function libavProcess() {
             return;
         dead = true;
 
-        // Terminate our custom AC if needed
-        if (enc.ac !== ac)
-            enc.ac.close();
-
         // Close the encoder
         enc.p = enc.p.then(function() {
             return libav.avfilter_graph_free_js(enc.filter_graph);
@@ -553,7 +549,6 @@ function libavProcess() {
     // Catch when our UserMedia ends and stop (FIXME: race condition before reloading?)
     userMediaAvailableEvent.addEventListener("usermediastopped", terminate, {once: true});
     ac.addEventListener("disconnected", terminate);
-    enc.ac.addEventListener("disconnected", terminate);
 }
 
 
