@@ -306,10 +306,6 @@ function libavStart() {
     if (config.useFlac && ac.sampleRate === 44100)
         sampleRate = 44100;
 
-    // Figure out if we need a custom AudioContext, due to sample rate differences
-    var umSampleRate = userMedia.getAudioTracks()[0].getSettings().sampleRate;
-    var needCustomAC = (umSampleRate !== ac.sampleRate) && (typeof AudioContext !== "undefined");
-
     // The server needs to be informed of FLAC's sample rate
     if (config.useFlac) {
         var p = prot.parts.info;
@@ -362,12 +358,8 @@ function libavStart() {
         encOptions.bit_rate = 128000;
     }
 
-    // Make our custom AudioContext if needed
-    var libavAC = needCustomAC ? new AudioContext({sampleRate: umSampleRate}) : ac;
-
     // Begin initializing the encoder
     libavEncoder = {
-        ac: libavAC,
         input_channels: channelCount,
         input_channel_layout: channelLayout
     };
@@ -381,7 +373,7 @@ function libavStart() {
 
         // Now make the filter
         return libav.ff_init_filter_graph("aresample", {
-            sample_rate: libavAC.sampleRate,
+            sample_rate: ac.sampleRate,
             sample_fmt: libav.AV_SAMPLE_FMT_FLTP,
             channels: channelCount,
             channel_layout: channelLayout
