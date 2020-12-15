@@ -1155,11 +1155,14 @@ export function mkAudioUI() {
         updateVideoUI(0);
     }
 
-    saveConfigCheckbox(videoConfig.gallery, "gallery-mode3", galleryChange);
-    galleryChange(null);
+    if (config.useRTC) {
+        saveConfigCheckbox(videoConfig.gallery, "gallery-mode3", galleryChange);
+        galleryChange(null);
 
-    if (!config.useRTC)
+    } else {
         videoConfig.outputHider.style.display = "none";
+
+    }
 
     // Streamer mode
     function streamerModeChange(ev: Event) {

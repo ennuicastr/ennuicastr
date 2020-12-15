@@ -106,6 +106,7 @@ export function getCamera(id: string) {
         if (!config.useRTC) {
             // We only *show* video if we have it
             ui.ui.video.mainWrapper.style.display = userMediaVideo ? "" : "none";
+            ui.updateVideoUI(net.selfId);
             ui.resizeUI();
         }
 

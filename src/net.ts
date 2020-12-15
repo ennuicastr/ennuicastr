@@ -253,6 +253,11 @@ function dataSockMsg(ev: MessageEvent) {
                 case prot.info.id:
                     // Our own ID
                     selfId = val;
+
+                    if (!config.useRTC) {
+                        // Cogito ergo sum
+                        ui.userListAdd(val, config.username, false);
+                    }
                     break;
 
                 case prot.info.peerInitial:
