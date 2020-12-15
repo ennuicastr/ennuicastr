@@ -77,7 +77,7 @@ function recordVideo(opts: RecordVideoOptions) {
 
     // Which format?
     var formats: [string, string, boolean][] = [
-        //["x-matroska", "avc1", true], Buggy on Chrome (which is the only browser that supports it)
+        ["x-matroska", "avc1", true],
         ["webm", "vp9", false],
         ["webm", "vp8", false],
         ["mp4", "avc1", true]
@@ -314,7 +314,12 @@ function recordVideo(opts: RecordVideoOptions) {
                                 if (packets.length > 1) {
                                     var last = timeFrom(lastPacket.dtshi, lastPacket.dts);
                                     var first = timeFrom(packets[0].dtshi, packets[0].dts);
-                                    frameTime = (last - first) / (packets.length - 1);
+                                    if (last < 0 || first < 0) {
+                                        // Invalid dts, just trust global frame time
+                                        frameTime = globalFrameTime;
+                                    } else {
+                                        frameTime = (last - first) / (packets.length - 1);
+                                    }
                                 } else {
                                     frameTime = globalFrameTime;
                                 }
