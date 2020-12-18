@@ -377,8 +377,15 @@ function dataSockMsg(ev: MessageEvent) {
 
             switch (type&0x7F) {
                 case prot.rtc.candidate:
-                    if (value && value.candidate)
-                        conn.addIceCandidate(value);
+                    if (value && value.candidate) {
+                        try {
+                            conn.addIceCandidate(value);
+                        } catch (ex) {
+                            // How to represent null has changed, so try swapping it
+                            value.candidate = (value.candidate === null) ? "" : null;
+                            conn.addIceCandidate(value);
+                        }
+                    }
                     break;
 
                 case prot.rtc.offer:
