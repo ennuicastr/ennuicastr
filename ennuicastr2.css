@@ -173,6 +173,11 @@ button.nouppercase, .button.nouppercase {
     text-transform: none;
 }
 
+button:not(.plain):focus, .button:focus {
+    outline: 1px dotted rgba(255, 255, 255, 0.35);
+    outline-offset: -0.5em;
+}
+
 button:not(.plain):hover, .button:hover {
     background-color: var(--bg-hover);
     border-radius: 1em;
@@ -231,6 +236,51 @@ button.streamer-interface {
 
 [data-interface="none"] .interface {
     display: none;
+}
+
+.menu button:not(.plain) {
+    position: relative;
+    width: 100%;
+    padding: 0 1em 0 1em;
+}
+
+.menu button:not(.plain):hover {
+    border-radius: 0 1em 1em 0;
+}
+
+.menu button .menu-extra {
+    position: absolute;
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+    top: 0;
+    right: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: rgba(34, 68, 68, 0);
+    color: rgba(255, 255, 255, 0);
+    padding-left: 1em;
+    border-radius: 1em 0 0 1em;
+    pointer-events: none;
+}
+
+.menu button:hover .menu-extra {
+    display: inline-block;
+    background-color: var(--bg-hover);
+    color: #fff;
+    pointer-events: auto;
+}
+
+@media screen and (max-height: 480px) {
+    .menu button:not(.plain):hover {
+        border-radius: 1em 1em 0 0;
+    }
+
+    .menu button .menu-extra {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        padding: 0 1em 0 1em;
+        border-radius: 1em 0 1em 1em;
+    }
 }
 
 input[type="text"],

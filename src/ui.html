@@ -63,15 +63,27 @@
         <!-- Persistent menu buttons -->
         <div id="ecmenu-persistent" class="menu">
             <span id="ecmenu-master-hider" style="display: none;">
-                <button id="ecmenu-master" class="tbutton interface hotkey-hidden" title="Host interface" aria-label="Host interface"><i class="fas fa-wave-square"></i></button>
+                <button id="ecmenu-master" class="tbutton interface hotkey-hidden" aria-label="Host interface">
+                    <i class="fas fa-wave-square"></i><span class="menu-extra">Host interface</span>
+                </button>
             </span>
             <span id="ecmenu-sounds-hider" style="display: none;">
-                <button id="ecmenu-sounds" class="tbutton interface hotkey-hidden" title="Soundboard" aria-label="Soundboard"><i class="fas fa-music"></i></button>
+                <button id="ecmenu-sounds" class="tbutton interface hotkey-hidden" aria-label="Soundboard">
+                    <i class="fas fa-music"></i><span class="menu-extra">Soundboard</span>
+                </button>
             </span>
-            <button id="ecmenu-main" class="tbutton interface hotkey-hidden" title="Settings" aria-label="Settings"><i class="fas fa-cog"></i></button>
-            <button id="ecmenu-chat" class="tbutton interface hotkey-hidden" title="Chat" aria-label="Chat"><i class="fas fa-keyboard"></i></button>
-            <button id="ecmenu-mute" class="tbutton interface hotkey-hidden" title="Mute" aria-label="Mute"><i class="fas fa-volume-up"></i></button>
-            <button id="ecmenu-video-popout" class="tbutton interface streamer-interface hotkey-hidden" title="Pop out video" aria-label="Pop out video"><i class="fa fa-window-restore"></i></button>
+            <button id="ecmenu-main" class="tbutton interface hotkey-hidden" aria-label="Settings">
+                <i class="fas fa-cog"></i><span class="menu-extra">Settings</span>
+            </button>
+            <button id="ecmenu-chat" class="tbutton interface hotkey-hidden" aria-label="Chat">
+                <i class="fas fa-keyboard"></i><span class="menu-extra">Chat</span>
+            </button>
+            <button id="ecmenu-mute" class="tbutton interface hotkey-hidden" aria-label="Mute">
+                <i class="fas fa-volume-up" style="width: 2em;"></i><span class="menu-extra">Mute</span>
+            </button>
+            <button id="ecmenu-video-popout" class="tbutton interface streamer-interface hotkey-hidden" aria-label="Pop out video">
+                <i class="fa fa-window-restore"></i><span class="menu-extra">Pop out video</span>
+            </button>
         </div>
 
         <!-- A layering separator to distinguish the menu from the entire interface -->
