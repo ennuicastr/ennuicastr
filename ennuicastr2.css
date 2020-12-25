@@ -225,13 +225,13 @@ button.streamer-interface {
     display: inline-block;
 }
 
-[data-interface="hide"] .interface {
+[data-interface="hide"] .interface:not(:hover) {
     background-color: rgba(17, 34, 34, 0);
     color: rgba(255, 255, 255, 0);
 }
 
-[data-interface="hide"] .interface:focus {
-    outline-style: none;
+[data-interface="hide"] button:not(.plain):focus, [data-interface="hide"] .button:focus {
+    outline: none;
 }
 
 [data-interface="none"] .interface {

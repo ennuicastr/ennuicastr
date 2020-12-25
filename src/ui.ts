@@ -723,6 +723,9 @@ function loadMainMenu() {
     mouseenter();
     document.body.addEventListener("mouseenter", mouseenter);
     document.body.addEventListener("mousemove", mouseenter);
+    Array.prototype.slice.call(document.getElementsByClassName("interface"), 0).forEach(function(el) {
+        el.onfocus = mouseenter;
+    });
 
     // Support for popping out the entire video block
     var w: WindowProxy = null;
