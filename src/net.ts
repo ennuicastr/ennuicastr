@@ -290,6 +290,14 @@ function dataSockMsg(ev: MessageEvent) {
                     else if (mode > prot.mode.rec)
                         log.pushStatus("mode", "Not recording");
 
+                    // Update the timer
+                    if (msg.byteLength >= p.length + 16) {
+                        console.log("MODE = " + mode);
+                        var sTime = msg.getFloat64(p.value + 4, true);
+                        var recTime = msg.getFloat64(p.value + 12, true);
+                        audio.setRecordingTimer(sTime, recTime, (mode === prot.mode.rec));
+                    }
+
                     // Mention flushing buffers if we are
                     if (mode === prot.mode.buffering) {
                         flushBuffers();

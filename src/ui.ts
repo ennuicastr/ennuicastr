@@ -128,7 +128,9 @@ export const ui = {
     // Status
     log: <{
         wrapper: HTMLElement,
-        log: HTMLElement
+        logWrapper: HTMLElement,
+        log: HTMLElement,
+        timer: HTMLElement
     }> null,
 
     // The persistent menu
@@ -663,10 +665,12 @@ function loadWave() {
 
 function loadLog(logEl: HTMLElement) {
     var log = ui.log = {
-        wrapper: gebi("eclog"),
-        log: logEl
+        wrapper: gebi("ecstatus"),
+        logWrapper: gebi("eclog"),
+        log: logEl,
+        timer: gebi("ectimer")
     };
-    log.wrapper.appendChild(log.log);
+    log.logWrapper.appendChild(log.log);
 }
 
 function loadMainMenu() {

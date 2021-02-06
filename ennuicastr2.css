@@ -108,9 +108,13 @@ a {
     background-color: var(--bg-invite);
 }
 
-.status {
+.status-bar {
     background: var(--bg-status);
     color: var(--fg-status);
+}
+
+.status {
+    flex: auto;
     text-align: center;
     padding: 0.25em;
     cursor: default;
@@ -118,6 +122,13 @@ a {
 
 .status a {
     color: var(--link-color-status);
+}
+
+.timer {
+    padding: 0 1em 0 1em;
+    font-family: monospace;
+    font-size: 1.1em;
+    text-align: right;
 }
 
 .namelabel {

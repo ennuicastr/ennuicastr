@@ -91,6 +91,18 @@ var sentZeroes = 999;
 export var lastSentTime = 0;
 export function setLastSentTime(to: number) { lastSentTime = to; }
 
+// Recording timer updater
+var recordingTimerInterval: null|number = null;
+
+// Current base of recording timer, in server time ms
+var recordingTimerBaseST = 0;
+
+// Current base of recording timer, in recording time ms
+var recordingTimerBase = 0;
+
+// Whether the recording timer should be ticking
+var recordingTimerTicking = false;
+
 // Features to use or not use
 var useLibAV = false;
 
@@ -716,4 +728,33 @@ export function playStopSound(url: string, status: number, time: number) {
 
     if ("master" in config.config)
         master.soundButtonUpdate(url, status, el);
+}
+
+
+// Set the recording timer
+export function setRecordingTimer(serverTime, recTime, ticking) {
+    recordingTimerBaseST = serverTime;
+    recordingTimerBase = recTime;
+    recordingTimerTicking = ticking;
+    if (!recordingTimerInterval)
+        recordingTimerInterval = setInterval(tickRecordingTimer, 500);
+}
+
+// Tick the recording timer
+function tickRecordingTimer() {
+    var time = recordingTimerBase;
+    if (recordingTimerTicking && timeOffset !== null)
+        time += performance.now() + timeOffset - recordingTimerBaseST;
+
+    time = ~~(time / 1000);
+    var s = "" + ~~(time % 60);
+    if (s.length < 2) s = "0" + s;
+    time = ~~(time / 60);
+    var m = "" + ~~(time % 60);
+    time = ~~(time / 60);
+    var h = ~~time;
+    if (h && m.length < 2) m = "0" + m;
+    var timer = ui.ui.log.timer;
+    timer.style.color = recordingTimerTicking ? "#080" : "#800";
+    timer.innerText = (h?(h+":"):"") + m + ":" + s;
 }

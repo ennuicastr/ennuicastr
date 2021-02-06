@@ -57,7 +57,10 @@
             </div>
 
             <!-- The status -->
-            <div id="eclog" class="status"></div>
+            <div id="ecstatus" class="rflex status-bar">
+                <div id="eclog" class="status"></div>
+                <div id="ectimer" class="timer">0:00</div>
+            </div>
         </div>
 
         <!-- Persistent menu buttons -->
@@ -303,9 +306,6 @@
                 <source src="sounds/chime-down.m4a" type="audio/mp4" />
             </audio>
         </div>
-
-<div style="display: none">
-</div>
 <!--END-->
         <script>(function() {
             var gebi = document.getElementById.bind(document);
