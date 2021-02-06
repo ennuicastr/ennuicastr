@@ -732,7 +732,7 @@ export function playStopSound(url: string, status: number, time: number) {
 
 
 // Set the recording timer
-export function setRecordingTimer(serverTime, recTime, ticking) {
+export function setRecordingTimer(serverTime: number, recTime: number, ticking: boolean) {
     recordingTimerBaseST = serverTime;
     recordingTimerBase = recTime;
     recordingTimerTicking = ticking;
