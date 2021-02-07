@@ -108,7 +108,7 @@ export function localProcessing() {
 
         /* WebRTC VAD is pretty finicky, so also keep track of volume as a
          * secondary gate */
-        var triggerVadVolume = 0;
+        var triggerVadCeil = 0, triggerVadFloor = 0;
         var curVadVolume = 0;
 
         m.set_mode(3);
@@ -204,19 +204,44 @@ export function localProcessing() {
                     bi = 0;
 
                     if (vadSet) {
-                        // Adjust the trigger value
-                        triggerVadVolume = (
-                                triggerVadVolume * 15 +
-                                curVadVolume/bufSz/2
-                            ) / 16;
-                        curVadVolume = 0;
+                        // Adjust the trigger value quickly up or slowly down
+                        let triggerTarget = curVadVolume/bufSz;
+                        if (triggerTarget > triggerVadCeil) {
+                            triggerVadCeil = triggerTarget;
+                        } else {
+                            triggerVadCeil = (
+                                triggerVadCeil * 1023 +
+                                triggerTarget
+                            ) / 1024;
+                        }
+                    } else {
+                        let triggerTarget = curVadVolume/bufSz*2;
+                        triggerVadFloor = (
+                            triggerVadFloor * 511 +
+                            triggerTarget
+                        ) / 512;
+                    }
+                    curVadVolume = 0;
+                }
+            }
+
+            // Gate the VAD by volume
+            if (vadSet) {
+                let relVolume = curVolume/ib.length;
+                vadSet = false;
+                // We must be over the floor...
+                if (relVolume >= triggerVadFloor) {
+                    // And at least 1/32nd way to the ceiling
+                    if (triggerVadCeil < triggerVadFloor*2 ||
+                        relVolume - triggerVadFloor >= (triggerVadCeil - triggerVadFloor) / 32) {
+                        vadSet = true;
                     }
                 }
             }
 
             // Possibly swap the VAD mode
             if (vadSet) {
-                // Our transmission VAD has a hair trigger
+                // Switch on the transmission VAD
                 if (!rtcVadOn) {
                     rtcVad(true);
                 } else if (rtcTimeout) {
@@ -224,22 +249,19 @@ export function localProcessing() {
                     rtcTimeout = null;
                 }
 
-                // Gate the normal VAD by volume, or if the RTC VAD has been on for a while
-                if (curVolume/ib.length >= triggerVadVolume ||
-                    now - rtcVadOnTime > 750) {
-                    if (timeout) {
-                        clearTimeout(timeout);
-                        timeout = null;
+                // And the recording VAD
+                if (timeout) {
+                    clearTimeout(timeout);
+                    timeout = null;
+                }
+                if (!rawVadOn) {
+                    // We flipped on
+                    if (!vadOn) {
+                        updateWaveRetroactive();
+                        updateSpeech(null, true);
                     }
-                    if (!rawVadOn) {
-                        // We flipped on
-                        if (!vadOn) {
-                            updateWaveRetroactive();
-                            updateSpeech(null, true);
-                        }
-                        rawVadOn = true;
-                        curVadVolume = 0;
-                    }
+                    rawVadOn = true;
+                    curVadVolume = 0;
                 }
 
             } else {
