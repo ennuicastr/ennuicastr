@@ -38,6 +38,21 @@ export class Waveform {
     // VAD data
     waveVADs: number[];
 
+    // How much of the old data actually needs to be redrawn?
+    staleData: number;
+
+    // How much new data is there?
+    newData: number;
+
+    // What was the display height the last time around?
+    lastDisplayHeight: number;
+
+    // Was the status good the last time around?
+    lastGood: boolean;
+
+    // When was the last frame shown?
+    lastFrameTime: number;
+
     // Build a waveform display
     constructor(wrapper: HTMLElement, canvas: HTMLCanvasElement, watcher: HTMLImageElement) {
         this.wrapper = wrapper;
@@ -47,6 +62,10 @@ export class Waveform {
         this.rotate = false;
         this.waveData = [];
         this.waveVADs = [];
+        this.staleData = this.newData = 0;
+        this.lastDisplayHeight = 0;
+        this.lastGood = false;
+        this.lastFrameTime = 0;
     }
 
     // Push data
@@ -56,12 +75,15 @@ export class Waveform {
             let last = this.waveData.pop();
             if (last < val) {
                 last = (last+val)/2;
+                if (this.newData === 0)
+                    this.staleData++;
             } else {
                 val = (last+val)/2;
             }
             this.waveData.push(last);
         }
 
+        this.newData++;
         this.waveData.push(val);
         this.waveVADs.push(vad);
     }
@@ -76,6 +98,13 @@ export class Waveform {
 
     // Update the wave display
     updateWave(value: number, sentRecently: boolean) {
+        var frameTime = performance.now();
+        if (frameTime - this.lastFrameTime < 30) {
+            // Keep the framerate down to save CPU cycles
+            return;
+        }
+        this.lastFrameTime = frameTime;
+
         var wc = this.canvas;
 
         // Start from the element size
@@ -95,11 +124,18 @@ export class Waveform {
             }
         }
 
+        // Set if we need to refresh all data
+        var allNew = false;
+
         // Make sure the canvases are correct
-        if (+wc.width !== w)
+        if (+wc.width !== w) {
             wc.width = w;
-        if (+wc.height !== h)
+            allNew = true;
+        }
+        if (+wc.height !== h) {
             wc.height = h;
+            allNew = true;
+        }
 
         if (this.rotate) {
             var tmp = w;
@@ -129,13 +165,39 @@ export class Waveform {
         // Figure out the height of the display
         var dh = Math.min(Math.max.apply(Math, waveData) * 1.5, 1);
         if (dh < 0.06) dh = 0.06; // Make sure the too-quiet bars are always visible
+        if (this.lastDisplayHeight !== dh) {
+            this.lastDisplayHeight = dh;
+            allNew = true;
+        }
 
         // Figure out whether it should be colored at all
         var good = net.connected && net.transmitting && audio.timeOffset && sentRecently;
+        if (this.lastGood !== good) {
+            this.lastGood = good;
+            allNew = true;
+        }
+
+        // If we should be treating everything as new, do so
+        if (allNew) {
+            this.staleData = 0;
+            this.newData = dw;
+        }
 
         // And draw it
         var ctx = this.ctx;
         var i, p;
+
+        // Make room for new data
+        if (this.rotate)
+            ctx.drawImage(this.canvas, 0, -sw * this.newData);
+        else
+            ctx.drawImage(this.canvas, -sw * this.newData, 0);
+        this.newData += this.staleData;
+
+        // Get the x location where new data starts
+        var ndx = w - sw * this.newData;
+
+        // Transform the canvas if we're rotating
         ctx.save();
         if (this.rotate) {
             ctx.rotate(Math.PI/2);
@@ -147,19 +209,19 @@ export class Waveform {
             if (dh <= at) return;
             var y = Math.log(at/dh * e4) / 4 * h;
             ctx.fillStyle = color;
-            ctx.fillRect(0, h-y-1, w, 1);
-            ctx.fillRect(0, h+y, w, 1);
+            ctx.fillRect(ndx, h-y-1, w-ndx, 1);
+            ctx.fillRect(ndx, h+y, w-ndx, 1);
         }
 
         // Background color
         ctx.fillStyle = ui.ui.colors["bg-wave"];
-        ctx.fillRect(0, 0, w, h*2);
+        ctx.fillRect(ndx, 0, w-ndx, h*2);
 
         // Level bar at 0.4% for "too soft"
         levelBar(0.004, ui.ui.colors["wave-too-soft"]);
 
         // Each column
-        for (i = 0, p = 0; i < dw; i++, p += sw) {
+        for (i = dw - this.newData, p = w - sw * this.newData; i < dw; i++, p += sw) {
             var d = Math.max(Math.log((waveData[i] / dh) * e4) / 4, 0) * h;
             if (d === 0) d = 1;
             ctx.fillStyle = good ? config.waveVADColors[waveVADs[i]] : "#000";
@@ -170,5 +232,6 @@ export class Waveform {
         levelBar(0.9, ui.ui.colors["wave-too-loud"]);
 
         ctx.restore();
+        this.staleData = this.newData = 0;
     }
 }
