@@ -96,6 +96,9 @@ export class Waveform {
     updateWaveRetroactive(vadExtension: number) {
         let timeout = Math.ceil(audio.ac.sampleRate*vadExtension/1024000);
         let i = Math.max(this.waveVADs.length - timeout, 0);
+        let s = this.waveVADs.length - i;
+        if (s > this.staleData)
+            this.staleData = s;
         for (; i < this.waveVADs.length; i++)
             this.waveVADs[i] = (this.waveVADs[i] === 1) ? 2 : this.waveVADs[i];
     }
