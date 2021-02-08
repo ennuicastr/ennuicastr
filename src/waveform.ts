@@ -50,6 +50,9 @@ export class Waveform {
     // Was the status good the last time around?
     lastGood: boolean;
 
+    // What wave VAD color set did we use last time?
+    lastWaveVADColors: string[];
+
     // When was the last frame shown?
     lastFrameTime: number;
 
@@ -65,6 +68,7 @@ export class Waveform {
         this.staleData = this.newData = 0;
         this.lastDisplayHeight = 0;
         this.lastGood = false;
+        this.lastWaveVADColors = null;
         this.lastFrameTime = 0;
     }
 
@@ -174,6 +178,12 @@ export class Waveform {
         var good = net.connected && net.transmitting && audio.timeOffset && sentRecently;
         if (this.lastGood !== good) {
             this.lastGood = good;
+            allNew = true;
+        }
+
+        // And redraw if the colors have changed
+        if (this.lastWaveVADColors !== config.waveVADColors) {
+            this.lastWaveVADColors = config.waveVADColors;
             allNew = true;
         }
 
