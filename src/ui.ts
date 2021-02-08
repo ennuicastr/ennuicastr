@@ -121,8 +121,7 @@ export const ui = {
     wave: <{
         wrapper: HTMLElement,
         canvas: HTMLCanvasElement,
-        watcher: HTMLImageElement,
-        rotate: boolean
+        watcher: HTMLImageElement
     }> null,
 
     // Status
@@ -641,8 +640,7 @@ function loadWave() {
     var wave = ui.wave = {
         wrapper: gebi("ecwaveform-wrapper"),
         canvas: gebi("ecwaveform"),
-        watcher: gebi("ecwave-watcher"),
-        rotate: false
+        watcher: gebi("ecwave-watcher")
     };
 
     // Choose the watcher image's type based on support
