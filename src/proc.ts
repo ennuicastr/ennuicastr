@@ -25,6 +25,7 @@ import * as rtc from "./rtc";
 import * as safariWorkarounds from "./safari";
 import * as ui from "./ui";
 import * as util from "./util";
+import * as waveform from "./waveform";
 
 // WebRTCVAD's raw output
 export var rawVadOn = false;
@@ -40,10 +41,6 @@ export const vadExtension = 2000;
 
 // Similar, for RTC transmission
 const rtcVadExtension = 250;
-
-// The data used by both the level-based VAD and display
-var waveData: number[] = [];
-var waveVADs: number[] = [];
 
 // En/disable noise reduction
 export var useNR = false;
@@ -129,8 +126,8 @@ export function localProcessing() {
 
         // Now the display steps
 
-        // Create a canvas for it
-        var wc = ui.ui.wave.canvas;
+        // Create a display for it
+        var wd = new waveform.Waveform(ui.ui.wave.wrapper, ui.ui.wave.canvas, ui.ui.wave.watcher);
 
         // The VAD needs packets in odd intervals
         var step = audio.ac.sampleRate / 32000;
@@ -257,7 +254,7 @@ export function localProcessing() {
                 if (!rawVadOn) {
                     // We flipped on
                     if (!vadOn) {
-                        updateWaveRetroactive();
+                        wd.updateWaveRetroactive(vadExtension);
                         updateSpeech(null, true);
                     }
                     rawVadOn = true;
@@ -319,28 +316,10 @@ export function localProcessing() {
                     if (v > max) max = v;
                 }
 
-                // Bump up surrounding ones to make the wave look nicer
-                if (waveData.length > 0) {
-                    var last = waveData.pop();
-                    if (last < max)
-                        last = (last+max)/2;
-                    else
-                        max = (last+max)/2;
-                    waveData.push(last);
-                }
-
-                waveData.push(max);
-                if (!net.transmitting)
-                    waveVADs.push(0);
-                else if (rawVadOn)
-                    waveVADs.push(3);
-                else if (vadOn)
-                    waveVADs.push(2);
-                else
-                    waveVADs.push(1);
+                wd.push(max, net.transmitting?(rawVadOn?3:(vadOn?2:1)):0);
             }
 
-            updateWave(max, sentRecently);
+            wd.updateWave(max, sentRecently);
         };
 
         // Restart if we change devices
@@ -354,114 +333,6 @@ export function localProcessing() {
         }, {once: true});
 
     }).catch(console.error);
-}
-
-// Update the wave display when we retroactively promote VAD data
-function updateWaveRetroactive() {
-    var timeout = Math.ceil(audio.ac.sampleRate*vadExtension/1024000);
-    var i = Math.max(waveVADs.length - timeout, 0);
-    for (; i < waveVADs.length; i++)
-        waveVADs[i] = (waveVADs[i] === 1) ? 2 : waveVADs[i];
-}
-
-// Constant used by updateWave
-var e4 = Math.exp(4);
-
-// Update the wave display
-function updateWave(value: number, sentRecently: boolean) {
-    var wc = ui.ui.wave.canvas;
-
-    // Start from the element size
-    var w = ui.ui.wave.wrapper.offsetWidth;
-    var h = ui.ui.wave.wrapper.offsetHeight;
-
-    // Rotate if our view is vertical
-    if (w/h < 4/3) {
-        if (!ui.ui.wave.rotate) {
-            ui.ui.wave.watcher.style.visibility = "hidden";
-            ui.ui.wave.rotate = true;
-        }
-    } else {
-        if (ui.ui.wave.rotate) {
-            ui.ui.wave.watcher.style.visibility = "";
-            ui.ui.wave.rotate = false;
-        }
-
-    }
-
-    // Make sure the canvases are correct
-    if (+wc.width !== w)
-        wc.width = w;
-    if (+wc.height !== h)
-        wc.height = h;
-
-    if (ui.ui.wave.rotate) {
-        var tmp = w;
-        w = h;
-        h = tmp;
-    }
-
-    // Half the wave height is a more useful value
-    h = Math.floor(h/2);
-
-    // Figure out the width of each sample
-    var sw = Math.max(Math.floor(w/468), 1);
-    var dw = Math.ceil(w/sw);
-
-    // Make sure we have an appropriate amount of data
-    while (waveData.length > dw) {
-        waveData.shift();
-        waveVADs.shift();
-    }
-    while (waveData.length < dw) {
-        waveData.unshift(0);
-        waveVADs.unshift(0);
-    }
-
-    // Figure out the height of the display
-    var dh = Math.min(Math.max.apply(Math, waveData) * 1.5, 1);
-    if (dh < 0.06) dh = 0.06; // Make sure the too-quiet bars are always visible
-
-    // Figure out whether it should be colored at all
-    var good = net.connected && net.transmitting && audio.timeOffset && sentRecently;
-
-    // And draw it
-    var ctx = wc.getContext("2d");
-    var i, p;
-    ctx.save();
-    if (ui.ui.wave.rotate) {
-        ctx.rotate(Math.PI/2);
-        ctx.translate(0, -2*h);
-    }
-
-    // A function for drawing our level warning bars
-    function levelBar(at: number, color: string) {
-        if (dh <= at) return;
-        var y = Math.log(at/dh * e4) / 4 * h;
-        ctx.fillStyle = color;
-        ctx.fillRect(0, h-y-1, w, 1);
-        ctx.fillRect(0, h+y, w, 1);
-    }
-
-    // Background color
-    ctx.fillStyle = ui.ui.colors["bg-wave"];
-    ctx.fillRect(0, 0, w, h*2);
-
-    // Level bar at 0.4% for "too soft"
-    levelBar(0.004, ui.ui.colors["wave-too-soft"]);
-
-    // Each column
-    for (i = 0, p = 0; i < dw; i++, p += sw) {
-        var d = Math.max(Math.log((waveData[i] / dh) * e4) / 4, 0) * h;
-        if (d === 0) d = 1;
-        ctx.fillStyle = good ? config.waveVADColors[waveVADs[i]] : "#000";
-        ctx.fillRect(p, h-d, sw, 2*d);
-    }
-
-    // Level bar at 90% for "too loud"
-    levelBar(0.9, ui.ui.colors["wave-too-loud"]);
-
-    ctx.restore();
 }
 
 // Update speech info everywhere that needs it. peer===null is self
