@@ -15,12 +15,16 @@
  */
 
 /* NOTE: The functionality in this file relates to dynamic range compression,
- * NOT digital audio compression */
+ * NOT digital audio compression.
+ *
+ * Actually, this does all output processing, but for historical reasons, a lot
+ * of it is called "compress". */
 
 // extern
 declare var LibAV: any, webkitAudioContext: any;
 
 import * as audio from "./audio";
+import * as waveform from "./waveform";
 
 // Can we do compression?
 export const supported = (typeof webkitAudioContext === "undefined");
@@ -30,6 +34,7 @@ interface Compressor {
     ac: AudioContext & {ecDestination?: MediaStreamAudioDestinationNode};
     inputStream: MediaStream;
     input: MediaStreamAudioSourceNode;
+    waveview: ScriptProcessorNode;
     compressor: ScriptProcessorNode;
     cp: Promise<unknown>;
     pts: number;
@@ -38,6 +43,9 @@ interface Compressor {
 }
 
 export var rtcCompression = {
+    // Should we be displaying waveforms?
+    waveviewing: false,
+
     // Should we be compressing? (Global)
     compressing: supported,
 
@@ -52,7 +60,7 @@ export var rtcCompression = {
 };
 
 // Create a compressor and gain node
-export function createCompressor(idx: number, ac: AudioContext & {ecDestination?: MediaStreamAudioDestinationNode}, inputStream: MediaStream) {
+export function createCompressor(idx: number, ac: AudioContext & {ecDestination?: MediaStreamAudioDestinationNode}, inputStream: MediaStream, wrapper: HTMLElement, canvas: HTMLCanvasElement) {
     // Destroy any previous compressor
     if (rtcCompression.compressors[idx])
         destroyCompressor(idx);
@@ -61,6 +69,7 @@ export function createCompressor(idx: number, ac: AudioContext & {ecDestination?
         ac: ac,
         inputStream: inputStream,
         input: null,
+        waveview: null,
         compressor: null,
         cp: Promise.all([]),
         pts: 0,
@@ -72,6 +81,26 @@ export function createCompressor(idx: number, ac: AudioContext & {ecDestination?
     var input = com.input = ac.createMediaStreamSource(inputStream);
 
     if (supported) {
+        // Create a waveform node
+        var waveview = com.waveview = ac.createScriptProcessor(1024);
+        var wf = new waveform.Waveform(wrapper, canvas, null);
+        waveview.onaudioprocess = function(ev: AudioProcessingEvent) {
+            // Transfer input to output
+            var ib = ev.inputBuffer.getChannelData(0);
+            for (var ci = 0; ci < ev.outputBuffer.numberOfChannels; ci++)
+                ev.outputBuffer.getChannelData(ci).set(ib);
+
+            // Get the max
+            var max = 0;
+            for (var i = 0; i < ib.length; i++) {
+                let v = ib[i];
+                if (v < 0) v = -v;
+                if (v > max) max = v;
+            }
+            wf.push(max, (max < 0.0001) ? 1 : 3);
+            wf.updateWave(max, true);
+        }
+
         // Create a compression node
         var compressor = com.compressor = ac.createScriptProcessor(1024);
         var la: any, frame: any;
@@ -149,12 +178,16 @@ export function createCompressor(idx: number, ac: AudioContext & {ecDestination?
         ((idx in rtcCompression.perUserGain) ? rtcCompression.perUserGain[idx] : 1);
 
     // Link them together
-    if (com.compressor && rtcCompression.compressing) {
-        input.connect(com.compressor);
-        com.compressor.connect(gain);
-    } else {
-        input.connect(gain);
+    var cur: AudioNode = input;
+    if (com.waveview && rtcCompression.waveviewing) {
+        input.connect(com.waveview);
+        cur = com.waveview;
     }
+    if (com.compressor && rtcCompression.compressing) {
+        cur.connect(com.compressor);
+        cur = com.compressor;
+    }
+    cur.connect(gain);
     gain.connect(ac.ecDestination);
 
     // And add it to the list
@@ -173,13 +206,64 @@ export function destroyCompressor(idx: number) {
         return;
     rtcCompression.compressors[idx] = null;
 
-    if (com.compressor && rtcCompression.compressing) {
-        com.input.disconnect(com.compressor);
-        com.compressor.disconnect(com.gain);
-    } else {
-        com.input.disconnect(com.gain);
+    var cur: AudioNode = com.input;
+    if (com.waveview) {
+        cur.disconnect(com.waveview);
+        cur = com.waveview;
     }
+    if (com.compressor && rtcCompression.compressing) {
+        cur.disconnect(com.compressor);
+        cur = com.compressor;
+    }
+    cur.disconnect(com.gain);
     com.gain.disconnect(com.ac.ecDestination);
+}
+
+// Disconnect all audio nodes
+function disconnectNodes() {
+    rtcCompression.compressors.forEach(function(com) {
+        if (!com) return;
+        var cur: AudioNode = com.input;
+        if (rtcCompression.waveviewing) {
+            cur.disconnect(com.waveview);
+            cur = com.waveview;
+        }
+        if (rtcCompression.compressing) {
+            cur.disconnect(com.compressor);
+            cur = com.compressor;
+        }
+        cur.disconnect(com.gain);
+    });
+}
+
+// Reconnect nodes based on the current waveviewing/compressing mode
+function reconnectNodes() {
+    rtcCompression.compressors.forEach(function(com) {
+        if (!com) return;
+        var cur: AudioNode = com.input;
+        if (rtcCompression.waveviewing) {
+            cur.connect(com.waveview);
+            cur = com.waveview;
+        }
+        if (rtcCompression.compressing) {
+            cur.connect(com.compressor);
+            cur = com.compressor;
+        }
+        cur.connect(com.gain);
+    });
+}
+
+// En/disable waveviewing
+export function setWaveviewing(to: boolean) {
+    if (rtcCompression.waveviewing === to || !supported)
+        return;
+
+    // Change it
+    disconnectNodes();
+    rtcCompression.waveviewing = to;
+
+    // And reconnect all the nodes
+    reconnectNodes();
 }
 
 // En/disable compression
@@ -188,21 +272,11 @@ export function setCompressing(to: boolean) {
         return;
 
     // Change it
+    disconnectNodes();
     rtcCompression.compressing = to;
 
     // And reconnect all the nodes
-    rtcCompression.compressors.forEach(function(com) {
-        if (!com) return;
-        if (to) {
-            com.input.disconnect(com.gain);
-            com.input.connect(com.compressor);
-            com.compressor.connect(com.gain);
-        } else {
-            com.input.disconnect(com.compressor);
-            com.compressor.disconnect(com.gain);
-            com.input.connect(com.gain);
-        }
-    });
+    reconnectNodes();
 }
 
 // Change the global gain

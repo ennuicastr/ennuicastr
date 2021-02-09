@@ -292,7 +292,6 @@ function dataSockMsg(ev: MessageEvent) {
 
                     // Update the timer
                     if (msg.byteLength >= p.length + 16) {
-                        console.log("MODE = " + mode);
                         var sTime = msg.getFloat64(p.value + 4, true);
                         var recTime = msg.getFloat64(p.value + 12, true);
                         audio.setRecordingTimer(sTime, recTime, (mode === prot.mode.rec));

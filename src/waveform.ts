@@ -22,8 +22,21 @@ import * as ui from "./ui";
 // Constant used by updateWave
 const e4 = Math.exp(4);
 
+// Global display timer
+var displayInterval: number|null = null;
+
+// Array of waveforms to display
+var toDisplay: Waveform[] = [];
+
+// Set of waveforms to display
+var toDisplaySet: Record<number, boolean> = {};
+
+// Increasing index of waveforms allocated
+var waveformId = 0;
+
 // Our waveform display class
 export class Waveform {
+    id: number;
     wrapper: HTMLElement;
     canvas: HTMLCanvasElement;
     ctx: CanvasRenderingContext2D;
@@ -44,6 +57,9 @@ export class Waveform {
     // How much new data is there?
     newData: number;
 
+    // Have we sent recently?
+    sentRecently: boolean;
+
     // What was the display height the last time around?
     lastDisplayHeight: number;
 
@@ -53,13 +69,20 @@ export class Waveform {
     // What wave VAD color set did we use last time?
     lastWaveVADColors: string[];
 
-    // When was the last frame shown?
-    lastFrameTime: number;
-
     // Build a waveform display
     constructor(wrapper: HTMLElement, canvas: HTMLCanvasElement, watcher: HTMLImageElement) {
+        this.id = waveformId++;
         this.wrapper = wrapper;
+        Object.assign(wrapper.style, {
+            position: "relative",
+            overflow: "hidden"
+        });
         this.canvas = canvas;
+        Object.assign(canvas.style, {
+            position: "absolute",
+            left: "0px",
+            top: "0px"
+        });
         this.ctx = canvas.getContext("2d", {alpha: false});
         this.watcher = watcher;
         this.rotate = false;
@@ -69,7 +92,19 @@ export class Waveform {
         this.lastDisplayHeight = 0;
         this.lastGood = false;
         this.lastWaveVADColors = null;
-        this.lastFrameTime = 0;
+
+        // If there is no rendering interval, make one
+        if (!displayInterval) {
+            displayInterval = setInterval(function() {
+                window.requestAnimationFrame(function() {
+                    toDisplay.forEach((w) => {
+                        w.display();
+                    });
+                    toDisplay = [];
+                    toDisplaySet = {};
+                });
+            }, 50);
+        }
     }
 
     // Push data
@@ -103,15 +138,18 @@ export class Waveform {
             this.waveVADs[i] = (this.waveVADs[i] === 1) ? 2 : this.waveVADs[i];
     }
 
-    // Update the wave display
+    // Queue the wave to be displayed
     updateWave(value: number, sentRecently: boolean) {
-        var frameTime = performance.now();
-        if (frameTime - this.lastFrameTime < 30) {
-            // Keep the framerate down to save CPU cycles
+        this.sentRecently = sentRecently;
+        if (toDisplaySet[this.id])
             return;
-        }
-        this.lastFrameTime = frameTime;
+        toDisplay.push(this);
+        toDisplaySet[this.id] = true;
+    }
 
+    // Display this wave
+    display() {
+        var sentRecently = this.sentRecently;
         var wc = this.canvas;
 
         // Start from the element size
@@ -201,10 +239,12 @@ export class Waveform {
         var i, p;
 
         // Make room for new data
-        if (this.rotate)
-            ctx.drawImage(this.canvas, 0, -sw * this.newData);
-        else
-            ctx.drawImage(this.canvas, -sw * this.newData, 0);
+        try {
+            if (this.rotate)
+                ctx.drawImage(this.canvas, 0, -sw * this.newData);
+            else
+                ctx.drawImage(this.canvas, -sw * this.newData, 0);
+        } catch (ex) {}
         this.newData += this.staleData;
 
         // Get the x location where new data starts

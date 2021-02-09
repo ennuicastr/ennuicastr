@@ -19,16 +19,24 @@ declare var Ennuiboard: any, webkitAudioContext: any;
 
 import * as audio from "./audio";
 import * as chat from "./chat";
-import * as compression from "./compression";
 import * as config from "./config";
 import * as log from "./log";
 import * as master from "./master";
 import * as net from "./net";
+import * as outproc from "./outproc";
 import * as ptt from "./ptt";
 import * as uiCode from "./uicode";
 import { dce, gebi } from "./util";
 import * as video from "./video";
 import * as videoRecord from "./video-record";
+
+// Interface modes
+export enum ViewMode {
+    Normal = 0,
+    Small,
+    Gallery,
+    Studio
+}
 
 // The entire user interface
 export const ui = {
@@ -77,20 +85,30 @@ export const ui = {
 
         // Video components for each user
         users: {
-            // <video> element
+            /* The arrangement goes like this
+             * <div box-a rflex>
+             *   <div box-b>
+             *     <video element />
+             *     <standin element />
+             *     <name label />
+             *     <popout button />
+             *   </div>
+             *   <admin button />
+             *   <div flexible waveformWrapper>
+             *     <waveform canvas />
+             *   </div>
+             * </div>
+             */
+
+            boxA: HTMLElement,
+            boxB: HTMLElement,
             video: HTMLVideoElement,
-
-            // Containing box
-            box: HTMLElement,
-
-            // Video standin
             standin: HTMLElement,
-
-            // Name label
             name: HTMLElement,
-
-            // Popout button
-            popout: HTMLButtonElement
+            popout: HTMLButtonElement,
+            admin: HTMLButtonElement,
+            waveformWrapper: HTMLElement,
+            waveform: HTMLCanvasElement
         }[],
 
         // Which user is selected?
@@ -99,10 +117,10 @@ export const ui = {
         // Which user is the current major?
         major: number,
 
-        // Are we in gallery mode?
-        gallery: boolean,
+        // Which interface mode are we in?
+        mode: ViewMode,
 
-        // A global stylesheet to help gallery mode
+        // A global stylesheet to help mode changes
         css: HTMLStyleElement
     }> null,
 
@@ -152,6 +170,8 @@ export const ui = {
         // Main (settings) menu
         main: <{
             wrapper: HTMLElement,
+            modeHider: HTMLElement,
+            modeS: HTMLSelectElement,
             inputB: HTMLButtonElement,
             outputB: HTMLButtonElement,
             videoB: HTMLButtonElement,
@@ -300,9 +320,6 @@ export const ui = {
 
             // Hider for output options
             outputHider: HTMLElement,
-
-            // Gallery mode
-            gallery: HTMLInputElement,
 
             // Streamer mode
             streamerModeHider: HTMLElement,
@@ -541,14 +558,6 @@ export function mkUI() {
         showPanel(ui.panels.master.wrapper, ui.panels.master.startStopB);
     }
 
-    /* If we're not using RTC, we can disable the video display, and move the
-     * dock so menus don't compete */
-    if (!config.useRTC) {
-        ui.video.sideWrapper.style.display =
-            ui.video.mainWrapper.style.display = "none";
-        ui.wrapper.insertBefore(ui.dock, ui.log.wrapper);
-    }
-
     // Every close button works the same
     Array.prototype.slice.call(document.getElementsByClassName("close-button"), 0).forEach(function(x: HTMLElement) {
         x.onclick = function() { showPanel(null, ui.persistent.main); };
@@ -594,7 +603,7 @@ function loadVideo() {
         users: [],
         selected: -1,
         major: -1,
-        gallery: false,
+        mode: ViewMode.Normal,
         css: dce("style")
     };
     var video = ui.video;
@@ -685,6 +694,8 @@ function loadMainMenu() {
 
     var m = ui.panels.main = {
         wrapper: gebi("ecmenu"),
+        modeHider: gebi("ecview-mode-hider"),
+        modeS: gebi("ecview-mode"),
         inputB: gebi("ecmenu-input-devices"),
         outputB: gebi("ecmenu-output-devices"),
         videoB: gebi("ecmenu-video-devices"),
@@ -743,7 +754,7 @@ function loadMainMenu() {
         ssurl.pathname = ssurl.pathname.replace(/\/[^\/]*$/, "/ennuicastr2.css");
         w.document.head.innerHTML = '<link href="' + (<any> ssurl) + '" rel="stylesheet" />';
         w.document.head.appendChild(ui.video.css);
-        w.document.body.setAttribute("data-gallery", document.body.getAttribute("data-gallery"));
+        w.document.body.setAttribute("data-view-mode", document.body.getAttribute("data-view-mode"));
 
         // Add the video element
         Object.assign(w.document.body.style, {
@@ -896,7 +907,6 @@ function loadVideoConfig() {
         wrapper: gebi("ecvideo-device-wrapper"),
         device: gebi("ecvideo-device-list"),
         outputHider: gebi("ecvideo-output-hider"),
-        gallery: gebi("ecgallery-mode"),
         streamerModeHider: gebi("ecstreamer-mode-hider"),
         streamerMode: gebi("ecstreamer-mode")
     };
@@ -937,7 +947,8 @@ function loadInterfaceSounds() {
 
 // Load elements which require audio first
 export function mkAudioUI() {
-    var input = ui.panels.inputConfig,
+    var main = ui.panels.main,
+        input = ui.panels.inputConfig,
         output = ui.panels.outputConfig,
         videoConfig = ui.panels.videoConfig;
 
@@ -1058,11 +1069,11 @@ export function mkAudioUI() {
         output.volumeStatus.innerHTML = "&nbsp;" + vol.value + "%";
 
         // Set it
-        compression.setGlobalGain((+vol.value) / 100);
+        outproc.setGlobalGain((+vol.value) / 100);
     }
     output.volume.oninput = volumeChange;
 
-    compression.setGlobalGain((+output.volume.value) / 100);
+    outproc.setGlobalGain((+output.volume.value) / 100);
 
     // SFX volume
     function sfxVolumeChange() {
@@ -1083,7 +1094,7 @@ export function mkAudioUI() {
     // Dynamic range compression
     function drcChange() {
         var c = output.compression.checked;
-        compression.setCompressing(c);
+        outproc.setCompressing(c);
 
         if (c) {
             // Set the volume to 100% so it doesn't explode your ears
@@ -1096,14 +1107,14 @@ export function mkAudioUI() {
     }
 
     // Default for DRC depends on support
-    if (!compression.supported) {
+    if (!outproc.supported) {
         output.compressionHider.style.display = "none";
         output.compression.checked = false;
         if (localStorage.getItem("volume-master3") === null)
             drcChange();
     }
     saveConfigCheckbox(output.compression, "dynamic-range-compression3", drcChange);
-    compression.setCompressing(output.compression.checked);
+    outproc.setCompressing(output.compression.checked);
 
     // Interface sounds is just a checkbox we check before making sounds
     saveConfigCheckbox(output.muteInterface, "mute-interface3");
@@ -1147,25 +1158,37 @@ export function mkAudioUI() {
 
     }).catch(function() {}); // Nothing really to do here
 
-    // Gallery mode
-    function galleryChange(ev: Event) {
-        var g = videoConfig.gallery;
-        document.body.setAttribute("data-gallery", g.checked?"on":"off");
-        ui.video.gallery = g.checked;
+    // View mode
+    function viewModeChange(ev: Event) {
+        // Set the view
+        var mode = ui.video.mode = +main.modeS.value;
+        var smode = ["normal", "small", "gallery", "studio"][mode] || "";
+        document.body.setAttribute("data-view-mode", smode);
+
+        // Reset UI elements
         ui.video.selected = ui.video.major = -1;
-        if (!g.checked)
-            ui.video.css.innerHTML = "";
+        ui.video.css.innerHTML = "";
+        if (mode === ViewMode.Small)
+            ui.wrapper.insertBefore(ui.dock, ui.log.wrapper);
+        else
+            ui.wrapper.insertBefore(ui.dock, ui.wave.wrapper);
         if (ev)
             showPanel(null, ui.persistent.main);
+
+        // And update other components
         updateVideoUI(0);
+        outproc.setWaveviewing(mode === ViewMode.Studio);
     }
 
     if (config.useRTC) {
-        saveConfigCheckbox(videoConfig.gallery, "gallery-mode3", galleryChange);
-        galleryChange(null);
+        saveConfigValue(main.modeS, "view-mode", viewModeChange);
+        viewModeChange(null);
 
     } else {
+        main.modeHider.style.display = "none";
         videoConfig.outputHider.style.display = "none";
+        main.modeS.value = "" + ViewMode.Small;
+        viewModeChange(null);
 
     }
 
@@ -1245,15 +1268,14 @@ export function resizeUI(second?: boolean) {
     if (!second)
         setTimeout(function() { resizeUI(true); }, 0);
 
-    // If we're not doing RTC, some elements are irrelevant
-    if (!config.useRTC) {
-        if (ui.chat.wrapper.style.display === "none" && ui.video.mainWrapper.style.display === "none") {
-            ui.video.wrapper.style.display = "none";
-            ui.wave.wrapper.style.flex = "auto";
-        } else {
-            ui.video.wrapper.style.display = "";
-            ui.wave.wrapper.style.flex = "";
-        }
+    // In the small UI, some elements are irrelevant
+    if (ui.video.mode === ViewMode.Small && ui.chat.wrapper.style.display === "none") {
+        //if (ui.chat.wrapper.style.display === "none" && ui.video.mainWrapper.style.display === "none") {
+        ui.video.wrapper.style.display = "none";
+        ui.wave.wrapper.style.flex = "auto";
+    } else {
+        ui.video.wrapper.style.display = "";
+        ui.wave.wrapper.style.flex = "";
     }
 
     // Figure out the ideal size for the UI based on what's visible
@@ -1264,12 +1286,21 @@ export function resizeUI(second?: boolean) {
         var c = <HTMLElement> ui.wrapper.childNodes[ci];
         if (c.style.display === "none")
             continue;
-        if (c === ui.video.wrapper)
-            idealSize += 240;
-        else if (c === ui.wave.wrapper)
+        if (c === ui.video.wrapper) {
+            if (ui.video.mode === ViewMode.Studio) {
+                // Doesn't flex
+                let vsize = ui.video.side.childNodes.length * 96;
+                if (vsize > 240)
+                    vsize = 240;
+                idealSize += vsize;
+            } else {
+                idealSize += 240;
+            }
+        } else if (c === ui.wave.wrapper && ui.video.mode !== ViewMode.Studio) {
             idealSize += 100;
-        else
+        } else {
             idealSize += c.offsetHeight;
+        }
     }
 
     // Then, any visible panel
@@ -1312,7 +1343,7 @@ function onResize() {
     ui.wrapper.style.height = window.innerHeight + "px";
 
     // If we're in gallery mode, we may need to change the arrangement
-    if (ui.video.gallery)
+    if (ui.video.mode === ViewMode.Gallery)
         updateVideoUI(0);
 }
 
@@ -1403,7 +1434,7 @@ export function userListAdd(idx: number, name: string, fromMaster: boolean) {
         user.volumeStatus.innerHTML = "&nbsp;" + vol.value + "%";
 
         // Set it
-        compression.setPerUserGain(idx, (+vol.value) / 100);
+        outproc.setPerUserGain(idx, (+vol.value) / 100);
     }
 
     user.volume.onmousedown = function() { mousing = true; };
@@ -1442,23 +1473,28 @@ export function videoAdd(idx: number, name: string) {
         ui.video.users.push(null);
 
     var ctx = ui.video.users[idx] = {
+        boxA: dce("div"),
+        boxB: dce("div"),
         video: dce("video"),
-        box: dce("div"),
         standin: dce("div"),
         name: dce("span"),
-        popout: dce("button")
+        popout: dce("button"),
+        admin: null,
+        waveformWrapper: dce("div"),
+        waveform: dce("canvas")
     };
 
-    /* A videobox ix flexible for centering, and contains a video element and a
-     * name label */
-    var box = ctx.box;
-    box.classList.add("ecvideo");
-    Object.assign(box.style, {
-        position: "relative",
-        boxSizing: "border-box",
-        border: "4px solid " + ui.colors["video-silent"]
-    });
+    /* The outer box */
+    var boxA = ctx.boxA;
+    boxA.classList.add("ecvideo-a");
 
+    /* The inner box */
+    var box = ctx.boxB;
+    box.classList.add("ecvideo");
+    box.style.border = "4px solid " + ui.colors["video-silent"];
+    boxA.appendChild(box);
+
+    // The video element itself
     var video = ctx.video;
     video.height = 0; // Use CSS for style
     video.muted = true; // Audio goes through a different system
@@ -1545,10 +1581,33 @@ export function videoAdd(idx: number, name: string) {
         else
             popoutOpen();
     };
+
+    // The admin button
+    if ("master" in config.config) {
+        let admin = ctx.admin = dce("button");
+        admin.classList.add("ecstudio-admin-button");
+        admin.innerHTML = '<i class="fas fa-user-cog"></i>';
+        admin.title = "Administrate " + name;
+        admin.setAttribute("aria-label", "Administrate " + name);
+        admin.style.height = "100%";
+        admin.onclick = function() {
+            master.userAdmin(idx);
+        };
+        boxA.appendChild(admin);
+    }
+
+    // The waveform wrapper (only in studio mode)
+    var waveformWrapper = ctx.waveformWrapper;
+    waveformWrapper.classList.add("ecvideo-waveform");
+    boxA.appendChild(waveformWrapper);
+
+    // The waveform canvas
+    var waveform = ctx.waveform;
+    waveformWrapper.appendChild(waveform);
 }
 
 // Style a video element given a user's name
-function styleVideoEl(ctx: {video: HTMLVideoElement, box: HTMLElement, standin: HTMLElement}, name: string) {
+function styleVideoEl(ctx: {video: HTMLVideoElement, boxA: HTMLElement, standin: HTMLElement}, name: string) {
     if (!name) return;
     var x = parseInt(btoa(unescape(encodeURIComponent(name.slice(-6)))).replace(/[^A-Za-z0-9]/g, ""), 36);
     var r = x % 4;
@@ -1559,7 +1618,7 @@ function styleVideoEl(ctx: {video: HTMLVideoElement, box: HTMLElement, standin: 
     x = Math.floor(x / 4);
     var s = x % standinSVG.length;
     ctx.video.style.backgroundColor =
-        ctx.box.style.backgroundColor = "#" + r + g + b;
+        ctx.boxA.style.backgroundColor = "#" + r + g + b;
     ctx.standin.innerHTML = standinSVG[s].replace("##", genStandinName(name || ""));
 }
 
@@ -1612,7 +1671,8 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
     var users = ui.panels.userList.users;
     var user = users[peer];
     var pi, prevMajor = ui.video.major;
-    var gallery = ui.video.gallery;
+    var gallery = (ui.video.mode === ViewMode.Gallery);
+    var studio = (ui.video.mode === ViewMode.Studio);
 
     // Update their speech
     while (lastSpeech.length <= peer)
@@ -1638,7 +1698,7 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
         ctx.name.setAttribute("aria-label", ctx.name.innerText + ": " + sw);
     }
 
-    if (!ui.video.gallery) {
+    if (!gallery && !studio) {
         // Choose a major
 
         // Don't let them be the major if they're gone
@@ -1691,6 +1751,7 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
 
     // First rearrange them all in the side box
     var active = 0;
+    let moved = 0;
     for (pi = 0; pi < users.length; pi++) {
         let v = ui.video.users[pi];
         let u = users[pi];
@@ -1702,17 +1763,20 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
 
             var selected = (ui.video.selected === pi);
             if (lastSpeech[pi] !== null)
-                v.box.style.borderColor = ui.colors["video-speaking" + (selected?"-sel":"")];
+                v.boxB.style.borderColor = ui.colors["video-speaking" + (selected?"-sel":"")];
             else
-                v.box.style.borderColor = ui.colors["video-silent" + (selected?"-sel":"")];
+                v.boxB.style.borderColor = ui.colors["video-silent" + (selected?"-sel":"")];
         }
 
         // Box positioning
         if (ui.video.major === pi) continue;
-        if (!u && v.box.parentNode)
-            v.box.parentNode.removeChild(v.box);
-        else if (u && v.box.parentNode !== ui.video.side)
-            ui.video.side.appendChild(v.box);
+        if (!u && v.boxA.parentNode) {
+            v.boxA.parentNode.removeChild(v.boxA);
+            moved++;
+        } else if (u && v.boxA.parentNode !== ui.video.side) {
+            ui.video.side.appendChild(v.boxA);
+            moved++;
+        }
     }
 
     // Gallery sizing
@@ -1733,8 +1797,12 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
             w = 1;
         let ew = Math.max((100 / w) - 1, 1);
         let mw = 100 / w;
-        ui.video.css.innerHTML = '[data-gallery="on"] #ecvideo-side .ecvideo { flex: auto; width: ' + ew +  '%; max-width: ' + mw + '%; }';
+        ui.video.css.innerHTML = '[data-view-mode="gallery"] #ecvideo-side .ecvideo-a { flex: auto; width: ' + ew +  '%; max-width: ' + mw + '%; }';
     }
+
+    // Studio sizing
+    if (studio && moved)
+        resizeUI();
 
     if (ui.video.major === prevMajor) {
         // No need to change the major
@@ -1747,7 +1815,7 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
     // And highlight it
     if (ui.video.major !== -1) {
         let v = ui.video.users[ui.video.major];
-        ui.video.main.appendChild(v.box);
+        ui.video.main.appendChild(v.boxA);
     }
 }
 

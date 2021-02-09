@@ -126,8 +126,23 @@ export function localProcessing() {
 
         // Now the display steps
 
-        // Create a display for it
-        var wd = new waveform.Waveform(ui.ui.wave.wrapper, ui.ui.wave.canvas, ui.ui.wave.watcher);
+        // Create a display for it, either in the main waveform wrapper or the studio location
+        var studio = (ui.ui.video.mode === ui.ViewMode.Studio);
+        var wd: waveform.Waveform;
+        function studioSwapped() {
+            if (studio) {
+                var user = ui.ui.video.users[net.selfId];
+                if (!user) {
+                    studio = false;
+                    studioSwapped();
+                } else {
+                    wd = new waveform.Waveform(user.waveformWrapper, user.waveform, null);
+                }
+            } else {
+                wd = new waveform.Waveform(ui.ui.wave.wrapper, ui.ui.wave.canvas, ui.ui.wave.watcher);
+            }
+        }
+        studioSwapped();
 
         // The VAD needs packets in odd intervals
         var step = audio.ac.sampleRate / 32000;
@@ -306,6 +321,11 @@ export function localProcessing() {
 
 
             // And display
+            var nowStudio = (ui.ui.video.mode === ui.ViewMode.Studio);
+            if (studio !== nowStudio) {
+                studio = nowStudio;
+                studioSwapped();
+            }
             for (var part = 0; part < ib.length; part += 1024) {
                 // Find the max for this range
                 var max = 0;

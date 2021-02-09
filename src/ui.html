@@ -95,6 +95,17 @@
         <!-- The main menu -->
         <div id="ecmenu" class="panel">
             <button id="ecmenu-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
+
+            <div id="ecview-mode-hider" class="rflex row">
+                <label for="ecview-mode">View mode:&nbsp;</label>
+                <select id="ecview-mode" style="flex: auto">
+                    <option value="0">Normal</option>
+                    <option value="1">Small</option>
+                    <option value="2">Gallery</option>
+                    <option value="3">Studio</option>
+                </select>
+            </div>
+
             <button id="ecmenu-input-devices" class="row"><i class="fas fa-microphone-alt"></i> Input settings</button>
             <button id="ecmenu-output-devices" class="row"><i class="fas fa-headphones-alt"></i> Output settings</button>
             <div class="rflex row">
@@ -258,11 +269,6 @@
 
             <!-- Options -->
             <div id="ecvideo-output-hider" class="row">
-                <div class="row">
-                    <input id="ecgallery-mode" type="checkbox" />
-                    <label for="ecgallery-mode">&nbsp;Gallery view</label>
-                </div>
-
                 <div id="ecstreamer-mode-hider" class="row">
                     <input id="ecstreamer-mode" type="checkbox" />
                     <label for="ecstreamer-mode">&nbsp;Streamer-friendly popout windows</label>

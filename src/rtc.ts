@@ -15,10 +15,10 @@
  */
 
 import * as audio from "./audio";
-import * as compression from "./compression";
 import * as config from "./config";
 import * as log from "./log";
 import * as net from "./net";
+import * as outproc from "./outproc";
 import * as proc from "./proc";
 import { prot } from "./protocol";
 import * as ui from "./ui";
@@ -152,7 +152,7 @@ export function initRTC(peer: number) {
 
         if (!isVideo) {
             // Audio streams go through a compressor
-            compression.createCompressor(peer, audio.ac, stream);
+            outproc.createCompressor(peer, audio.ac, stream, ui.ui.video.users[peer].waveformWrapper, ui.ui.video.users[peer].waveform);
         }
     };
 

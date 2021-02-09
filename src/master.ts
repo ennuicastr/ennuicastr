@@ -270,7 +270,7 @@ export function updateMasterAdmin() {
 }
 
 // Display the interface to perform administration on this user
-function userAdmin(user: number) {
+export function userAdmin(user: number) {
     var userAdminUser = ui.ui.panels.userAdminUser;
 
     if (user >= 0) {
