@@ -24,6 +24,7 @@ import * as log from "./log";
 import * as master from "./master";
 import * as net from "./net";
 import * as outproc from "./outproc";
+import * as proc from "./proc";
 import * as ptt from "./ptt";
 import * as uiCode from "./uicode";
 import { dce, gebi } from "./util";
@@ -983,7 +984,13 @@ export function mkAudioUI() {
     else
         input.ptt.style.display = "none";
 
-    saveConfigCheckbox(input.noiser, "noise-reduction3", inputChange);
+    function noiserChange() {
+        proc.setUseNR(input.noiser.checked);
+    }
+
+    saveConfigCheckbox(input.noiser, "noise-reduction3", noiserChange);
+    noiserChange();
+
     if (mobile) {
         input.echo.checked = true;
         input.agcHider.style.display = "";
