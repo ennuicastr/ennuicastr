@@ -1113,7 +1113,7 @@ export function mkAudioUI() {
         if (localStorage.getItem("volume-master3") === null)
             drcChange();
     }
-    saveConfigCheckbox(output.compression, "dynamic-range-compression3", drcChange);
+    saveConfigCheckbox(output.compression, "dynamic-range-compression4", drcChange);
     outproc.setCompressing(output.compression.checked);
 
     // Interface sounds is just a checkbox we check before making sounds
