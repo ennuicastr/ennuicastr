@@ -207,7 +207,7 @@ export function destroyCompressor(idx: number) {
     rtcCompression.compressors[idx] = null;
 
     var cur: AudioNode = com.input;
-    if (com.waveview) {
+    if (com.waveview && rtcCompression.waveviewing) {
         cur.disconnect(com.waveview);
         cur = com.waveview;
     }
