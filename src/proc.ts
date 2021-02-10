@@ -73,7 +73,7 @@ export function localProcessing() {
         m = ret;
 
         // Load NoiseRepellent
-        if (config.useRTC && typeof NoiseRepellent === "undefined") {
+        if (typeof NoiseRepellent === "undefined") {
             (<any> window).NoiseRepellent = {base: "noise-repellent"};
             return util.loadLibrary("noise-repellent/noise-repellent-m.js");
         }
@@ -113,15 +113,13 @@ export function localProcessing() {
 
         // Now the noise repellent steps
         var nr: any = null;
-        if (config.useRTC) {
-            // This can happen whenever
-            NoiseRepellent.NoiseRepellent(audio.ac.sampleRate).then(function(ret: any) {
-                nr = ret;
-                nr.set(NoiseRepellent.N_ADAPTIVE, 1);
-                nr.set(NoiseRepellent.AMOUNT, 20);
-                nr.set(NoiseRepellent.WHITENING, 50);
-            });
-        }
+        // This can happen whenever
+        NoiseRepellent.NoiseRepellent(audio.ac.sampleRate).then(function(ret: any) {
+            nr = ret;
+            nr.set(NoiseRepellent.N_ADAPTIVE, 1);
+            nr.set(NoiseRepellent.AMOUNT, 20);
+            nr.set(NoiseRepellent.WHITENING, 50);
+        });
 
 
         // Now the display steps
@@ -199,11 +197,30 @@ export function localProcessing() {
                     ib[i] /= cc;
             }
 
+
+            // Perform noise reduction and output
+            var nrbuf = ib;
+            if (nr) {
+                let ob = ib;
+                nrbuf = nr.run(ib);
+                if (useNR)
+                    ob = nrbuf;
+                var cc = ev.outputBuffer.numberOfChannels;
+                if (sentRecently) {
+                    for (var oi = 0; oi < cc; oi++)
+                        ev.outputBuffer.getChannelData(oi).set(ob);
+                } else {
+                    for (var oi = 0; oi < cc; oi++)
+                        ev.outputBuffer.getChannelData(oi).fill(0);
+                }
+            }
+
+
             // Transfer data for the VAD
             var vadSet = rawVadOn;
             var curVolume = 0;
             for (var i = 0; i < ib.length; i += step) {
-                var v = ib[~~i];
+                var v = nrbuf[~~i];
                 var a = Math.abs(v);
                 curVolume += a;
                 curVadVolume += a;
@@ -296,26 +313,6 @@ export function localProcessing() {
                             updateSpeech(null, false);
                         }, vadExtension);
                     }
-                }
-            }
-
-
-            /* Our actual script processing step: noise reduction, only for RTC
-             * (live voice chat). Do not send audio if encoding isn't working,
-             * so that your silence will be a hint that something is wrong. */
-            if (nr) {
-                var ob;
-                if (useNR)
-                    ob = nr.run(ib);
-                else
-                    ob = ib;
-                var cc = ev.outputBuffer.numberOfChannels;
-                if (sentRecently) {
-                    for (var oi = 0; oi < cc; oi++)
-                        ev.outputBuffer.getChannelData(oi).set(ob);
-                } else {
-                    for (var oi = 0; oi < cc; oi++)
-                        ev.outputBuffer.getChannelData(oi).fill(0);
                 }
             }
 
