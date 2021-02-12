@@ -108,8 +108,7 @@ export const ui = {
             name: HTMLElement,
             popout: HTMLButtonElement,
             admin: HTMLButtonElement,
-            waveformWrapper: HTMLElement,
-            waveform: HTMLCanvasElement
+            waveformWrapper: HTMLElement
         }[],
 
         // Which user is selected?
@@ -139,7 +138,6 @@ export const ui = {
     // Live waveform
     wave: <{
         wrapper: HTMLElement,
-        canvas: HTMLCanvasElement,
         watcher: HTMLImageElement
     }> null,
 
@@ -532,7 +530,8 @@ export function mkUI() {
         "bg-wave", "fg", "fg-status", "border-plain", "link-color",
         "link-color-status", "wave-too-soft", "wave-too-loud",
         "user-list-silent", "user-list-speaking", "video-speaking-sel",
-        "video-speaking", "video-silent-sel", "video-silent"
+        "video-speaking", "video-silent-sel", "video-silent",
+        "peak-1", "peak-2", "peak-3", "nopeak-1", "nopeak-2", "nopeak-3",
     ].forEach(function(nm) {
         ui.colors[nm] = cs.getPropertyValue("--" + nm);
     });
@@ -652,7 +651,6 @@ function loadChat() {
 function loadWave() {
     var wave = ui.wave = {
         wrapper: gebi("ecwaveform-wrapper"),
-        canvas: gebi("ecwaveform"),
         watcher: gebi("ecwave-watcher")
     };
 
@@ -1501,8 +1499,7 @@ export function videoAdd(idx: number, name: string) {
         name: dce("span"),
         popout: dce("button"),
         admin: <HTMLButtonElement> null,
-        waveformWrapper: dce("div"),
-        waveform: dce("canvas")
+        waveformWrapper: dce("div")
     };
 
     /* The outer box */
@@ -1621,10 +1618,6 @@ export function videoAdd(idx: number, name: string) {
     var waveformWrapper = ctx.waveformWrapper;
     waveformWrapper.classList.add("ecvideo-waveform");
     boxA.appendChild(waveformWrapper);
-
-    // The waveform canvas
-    var waveform = ctx.waveform;
-    waveformWrapper.appendChild(waveform);
 }
 
 // Style a video element given a user's name

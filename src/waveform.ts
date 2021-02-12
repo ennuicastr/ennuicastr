@@ -19,8 +19,9 @@ import * as config from "./config";
 import * as net from "./net";
 import * as ui from "./ui";
 
-// Constant used by updateWave
+// Constants used by updateWave
 const e4 = Math.exp(4);
+const log1036 = Math.log(10) * 3.6;
 
 // Global display timer
 var displayInterval: number|null = null;
@@ -34,12 +35,17 @@ var toDisplaySet: Record<number, boolean> = {};
 // Increasing index of waveforms allocated
 var waveformId = 0;
 
+// Width of the peak meter
+const peakWidth = 6;
+
 // Our waveform display class
 export class Waveform {
     id: number;
     wrapper: HTMLElement;
     canvas: HTMLCanvasElement;
     ctx: CanvasRenderingContext2D;
+    lblCanvas: HTMLCanvasElement;
+    lblCtx: CanvasRenderingContext2D;
     watcher: HTMLImageElement;
 
     // Should we be rotating?
@@ -69,22 +75,42 @@ export class Waveform {
     // What wave VAD color set did we use last time?
     lastWaveVADColors: string[];
 
+    // What was our peak last time?
+    lastPeak: number;
+
     // Build a waveform display
-    constructor(wrapper: HTMLElement, canvas: HTMLCanvasElement, watcher: HTMLImageElement) {
+    constructor(wrapper: HTMLElement, watcher: HTMLImageElement) {
         this.id = waveformId++;
         this.wrapper = wrapper;
         Object.assign(wrapper.style, {
             position: "relative",
             overflow: "hidden"
         });
-        this.canvas = canvas;
+
+        let canvas = this.canvas = document.createElement("canvas");
         Object.assign(canvas.style, {
             position: "absolute",
             left: "0px",
             top: "0px"
         });
+        wrapper.innerHTML = "";
+        wrapper.appendChild(canvas);
         this.ctx = canvas.getContext("2d", {alpha: false});
+
+        let lblCanvas = this.lblCanvas = document.createElement("canvas");
+        lblCanvas.classList.add("ecwaveform-label");
+        Object.assign(lblCanvas.style, {
+            position: "absolute",
+            left: "0px",
+            top: "0px"
+        });
+        wrapper.appendChild(lblCanvas);
+        this.lblCtx = lblCanvas.getContext("2d");
+
         this.watcher = watcher;
+        if (watcher)
+            wrapper.appendChild(watcher);
+
         this.rotate = false;
         this.waveData = [];
         this.waveVADs = [];
@@ -151,6 +177,7 @@ export class Waveform {
     display() {
         var sentRecently = this.sentRecently;
         var wc = this.canvas;
+        var lwc = this.lblCanvas;
 
         // Start from the element size
         var w = this.wrapper.offsetWidth;
@@ -175,10 +202,12 @@ export class Waveform {
         // Make sure the canvases are correct
         if (+wc.width !== w) {
             wc.width = w;
+            lwc.width = w;
             allNew = true;
         }
         if (+wc.height !== h) {
             wc.height = h;
+            lwc.height = h;
             allNew = true;
         }
 
@@ -187,6 +216,10 @@ export class Waveform {
             w = h;
             h = tmp;
         }
+
+        // peakWidth pixels at the right for peak meter
+        if (w > peakWidth * 2)
+            w -= peakWidth;
 
         // Half the wave height is a more useful value
         h = Math.floor(h/2);
@@ -236,6 +269,7 @@ export class Waveform {
 
         // And draw it
         var ctx = this.ctx;
+        var lctx = this.lblCtx;
         var i, p;
 
         // Make room for new data
@@ -252,9 +286,12 @@ export class Waveform {
 
         // Transform the canvas if we're rotating
         ctx.save();
+        lctx.save();
         if (this.rotate) {
             ctx.rotate(Math.PI/2);
             ctx.translate(0, -2*h);
+            lctx.rotate(Math.PI/2);
+            lctx.translate(0, -2*h);
         }
 
         // A function for drawing our level warning bars
@@ -284,7 +321,45 @@ export class Waveform {
         // Level bar at 90% for "too loud"
         levelBar(0.9, ui.ui.colors["wave-too-loud"]);
 
+        // Possibly draw the peak labels
+        function drawLabel(db: number, t: number) {
+            let txt = db + "dB";
+            let m = lctx.measureText(txt);
+            let l = w - m.width - peakWidth - 2;
+            t = ~~(t + m.actualBoundingBoxAscent/2);
+            lctx.fillStyle = "#fff";
+            lctx.fillText(txt, l, t);
+        }
+        if (allNew) {
+            lctx.clearRect(0, 0, w, h*2);
+            drawLabel(-12, h/3);
+            drawLabel(-24, 2*h/3);
+            drawLabel(-36, h);
+        }
+
+        // Peak meter at the right
+        let peak = Math.log(waveData[waveData.length-1]) / log1036 + 1;
+        if (peak < this.lastPeak)
+            peak = (this.lastPeak * 3 + peak) / 4;
+        this.lastPeak = peak;
+        for (let pi = 0; pi < 3; pi++) {
+            let c = pi + 1;
+            let pl = (2-pi)/3, pu = (3-pi)/3;
+            if (peak <= pu) {
+                ctx.fillStyle = ui.ui.colors["nopeak-" + c];
+                ctx.fillRect(w, ~~(h*pi/3), peakWidth, ~~(h*2*(3-pi)/3));
+            }
+            if (peak >= pl) {
+                ctx.fillStyle = ui.ui.colors["peak-" + c];
+                if (peak >= pu)
+                    ctx.fillRect(w, ~~(h-(pu*h)), peakWidth, ~~(h*2*pu));
+                else
+                    ctx.fillRect(w, ~~(h-(peak*h)), peakWidth, ~~(h*2*peak));
+            }
+        }
+
         ctx.restore();
+        lctx.restore();
         this.staleData = this.newData = 0;
     }
 }

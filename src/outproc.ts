@@ -60,7 +60,7 @@ export var rtcCompression = {
 };
 
 // Create a compressor and gain node
-export function createCompressor(idx: number, ac: AudioContext & {ecDestination?: MediaStreamAudioDestinationNode}, inputStream: MediaStream, wrapper: HTMLElement, canvas: HTMLCanvasElement) {
+export function createCompressor(idx: number, ac: AudioContext & {ecDestination?: MediaStreamAudioDestinationNode}, inputStream: MediaStream, wrapper: HTMLElement) {
     // Destroy any previous compressor
     if (rtcCompression.compressors[idx])
         destroyCompressor(idx);
@@ -83,7 +83,7 @@ export function createCompressor(idx: number, ac: AudioContext & {ecDestination?
     if (supported) {
         // Create a waveform node
         var waveview = com.waveview = ac.createScriptProcessor(1024);
-        var wf = new waveform.Waveform(wrapper, canvas, null);
+        var wf = new waveform.Waveform(wrapper, null);
         waveview.onaudioprocess = function(ev: AudioProcessingEvent) {
             // Transfer input to output
             var ib = ev.inputBuffer.getChannelData(0);

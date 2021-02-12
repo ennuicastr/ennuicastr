@@ -134,10 +134,10 @@ export function localProcessing() {
                     studio = false;
                     studioSwapped();
                 } else {
-                    wd = new waveform.Waveform(user.waveformWrapper, user.waveform, null);
+                    wd = new waveform.Waveform(user.waveformWrapper, null);
                 }
             } else {
-                wd = new waveform.Waveform(ui.ui.wave.wrapper, ui.ui.wave.canvas, ui.ui.wave.watcher);
+                wd = new waveform.Waveform(ui.ui.wave.wrapper, ui.ui.wave.watcher);
             }
         }
         studioSwapped();

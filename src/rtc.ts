@@ -152,7 +152,7 @@ export function initRTC(peer: number) {
 
         if (!isVideo) {
             // Audio streams go through a compressor
-            outproc.createCompressor(peer, audio.ac, stream, ui.ui.video.users[peer].waveformWrapper, ui.ui.video.users[peer].waveform);
+            outproc.createCompressor(peer, audio.ac, stream, ui.ui.video.users[peer].waveformWrapper);
         }
     };
 

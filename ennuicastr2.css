@@ -24,6 +24,13 @@
     --video-speaking: #5e8f52;
     --video-silent-sel: #999;
     --video-silent: #000;
+
+    --nopeak-1: #200;
+    --peak-1:   #800;
+    --nopeak-2: #220;
+    --peak-2:   #880;
+    --nopeak-3: #020;
+    --peak-3:   #080;
 }
 
 body {
@@ -454,10 +461,13 @@ button.ecstudio-admin-button {
     min-height: 100px;
 }
 
-#ecwaveform {
-    position: absolute;
-    left: 0;
-    top: 0;
+.ecwaveform-label {
+    transition: opacity 0.2s ease-in-out;
+    opacity: 0;
+}
+
+.ecwaveform-label:hover {
+    opacity: 1;
 }
 
 #ecwave-watcher {
