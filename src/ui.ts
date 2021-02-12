@@ -319,6 +319,9 @@ export const ui = {
             // Device selection
             device: HTMLSelectElement,
 
+            // Resolution selection
+            res: HTMLSelectElement,
+
             // Hider for output options
             outputHider: HTMLElement,
 
@@ -907,6 +910,7 @@ function loadVideoConfig() {
     ui.panels.videoConfig = {
         wrapper: gebi("ecvideo-device-wrapper"),
         device: gebi("ecvideo-device-list"),
+        res: gebi("ecvideo-res"),
         outputHider: gebi("ecvideo-output-hider"),
         streamerModeHider: gebi("ecstreamer-mode-hider"),
         streamerMode: gebi("ecstreamer-mode")
@@ -1132,10 +1136,11 @@ export function mkAudioUI() {
      *******************/
 
     // When it's changed, start video
-    videoConfig.device.onchange = function() {
+    function videoChange() {
         showPanel(null, ui.persistent.main);
-        video.getCamera(videoConfig.device.value);
+        video.getCamera(videoConfig.device.value, +videoConfig.res.value);
     };
+    videoConfig.device.onchange = videoChange;
 
     // Add a pseudo-device so nothing is selected at first
     var opt = dce("option");
@@ -1164,6 +1169,9 @@ export function mkAudioUI() {
         videoConfig.device.appendChild(opt);
 
     }).catch(function() {}); // Nothing really to do here
+
+    // Resolution selector
+    saveConfigValue(videoConfig.res, "video-res", videoChange);
 
     // View mode
     function viewModeChange(ev: Event) {
@@ -1486,7 +1494,7 @@ export function videoAdd(idx: number, name: string) {
         standin: dce("div"),
         name: dce("span"),
         popout: dce("button"),
-        admin: null,
+        admin: <HTMLButtonElement> null,
         waveformWrapper: dce("div"),
         waveform: dce("canvas")
     };

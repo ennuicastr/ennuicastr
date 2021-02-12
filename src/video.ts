@@ -37,7 +37,7 @@ export function disconnect() {
 }
 
 // Get a camera/video device
-export function getCamera(id: string) {
+export function getCamera(id: string, res: number) {
     return Promise.all([]).then(function() {
         // If we already have a video device, stop it first
         if (userMediaVideo) {
@@ -60,13 +60,22 @@ export function getCamera(id: string) {
             return null;
 
         } else {
-            return navigator.mediaDevices.getUserMedia({
-                video: {
-                    deviceId: id,
-                    aspectRatio: {ideal: 16/9},
-                    facingMode: {ideal: "user"},
-                    frameRate: {ideal: 30},
-                    height: {ideal: 720}
+            // Try max res, then ideal res
+            let opts = {
+                deviceId: id,
+                aspectRatio: {ideal: 16/9},
+                facingMode: {ideal: "user"},
+                frameRate: {ideal: 30},
+                height: <any> {max: res}
+            };
+            if (res === 0)
+                delete opts.height;
+            return navigator.mediaDevices.getUserMedia({video: opts}).then(function(ret) {
+                if (ret) {
+                    return ret;
+                } else {
+                    opts.height = {ideal: res};
+                    return navigator.mediaDevices.getUserMedia({video: opts});
                 }
             });
         }

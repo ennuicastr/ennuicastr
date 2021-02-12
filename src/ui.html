@@ -263,8 +263,19 @@
         <div id="ecvideo-device-wrapper" class="panel">
             <button id="ecmenu-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
             <div class="rflex row">
-                <label for="ecvideo-device-list" style="min-width: 6em; text-align: right;">Camera:&nbsp;</label>
+                <label for="ecvideo-device-list" style="min-width: 8em; text-align: right;">Camera:&nbsp;</label>
                 <select id="ecvideo-device-list" style="flex: auto; width: 6em;"></select>
+            </div>
+
+            <div class="rflex row">
+                <label for="ecvideo-res" style="min-width: 8em; text-align: right;">Max resolution:&nbsp;</label>
+                <select id="ecvideo-res" style="flex: auto; width: 6em;">
+                    <option value="360">360p</option>
+                    <option value="480">480p</option>
+                    <option value="720">720p</option>
+                    <option value="1080">1080p</option>
+                    <option value="0">Unlimited</option>
+                </select>
             </div>
 
             <!-- Options -->
