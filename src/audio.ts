@@ -711,18 +711,37 @@ export function playStopSound(url: string, status: number, time: number) {
     function catchup() {
         // Try to catch up if it's long enough to be worthwhile
         if (el.duration < 10 ||
-            !timeOffset) return;
+            el.ended ||
+            el.ecStartTime !== time) {
+            return;
+        }
+
+        // If we don't yet know how to catch up, try in a moment
+        if (!timeOffset) {
+            setTimeout(catchup, 1000);
+            return;
+        }
 
         // OK, it might be worth catching up. Figure out our time.
         var elCurTime = el.ecStartTime + el.currentTime * 1000;
         var realCurTime = performance.now() + timeOffset;
-        if (elCurTime < realCurTime) {
+        if (elCurTime < realCurTime - 100 || elCurTime > realCurTime + 100) {
             // Adjust our time so that we catch up in exactly one second
-            el.playbackRate = 1 + (realCurTime - elCurTime) / 1000;
+            let rate;
+            if (elCurTime < realCurTime)
+                rate = Math.min(1 + (realCurTime - elCurTime) / 1000, 16);
+            else
+                rate = Math.max(1 / (1 + (elCurTime - realCurTime) / 1000), 0.75);
+            if (rate < 0.75 || rate > 1.25)
+                el.muted = true;
+            el.playbackRate = rate;
             setTimeout(function() {
                 if (el.ecStartTime !== time) return;
                 el.playbackRate = 1;
+                catchup();
             }, 1000);
+        } else {
+            el.muted = false;
         }
     }
 
