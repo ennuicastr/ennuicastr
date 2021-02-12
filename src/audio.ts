@@ -732,7 +732,7 @@ export function playStopSound(url: string, status: number, time: number) {
                 rate = Math.min(1 + (realCurTime - elCurTime) / 1000, 16);
             else
                 rate = Math.max(1 / (1 + (elCurTime - realCurTime) / 1000), 0.75);
-            if (rate < 0.75 || rate > 1.25)
+            if (rate < 0.75 || rate > 4)
                 el.muted = true;
             el.playbackRate = rate;
             setTimeout(function() {
