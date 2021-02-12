@@ -1171,7 +1171,13 @@ export function mkAudioUI() {
     }).catch(function() {}); // Nothing really to do here
 
     // Resolution selector
-    saveConfigValue(videoConfig.res, "video-res", videoChange);
+    function resChange() {
+        if (videoConfig.device.value !== "-none") {
+            showPanel(null, ui.persistent.main);
+            video.getCamera(videoConfig.device.value, +videoConfig.res.value);
+        }
+    }
+    saveConfigValue(videoConfig.res, "video-res", resChange);
 
     // View mode
     function viewModeChange(ev: Event) {
