@@ -32,7 +32,8 @@ import * as util from "./util";
 function main() {
     return Promise.all([]).then(function() {
         // Load the keyboard indirection library
-        return util.loadLibrary("https://unpkg.com/ennuiboard@^1.0.0/ennuiboard.min.js");
+        //return util.loadLibrary("https://unpkg.com/ennuiboard@^1.0.0/ennuiboard.min.js");
+        return util.loadLibrary("https://unpkg.com/ennuiboard@1.0.0/ennuiboard.min.js");
 
     }).catch(function(){}).then(function() {
         // Gamepads can be supported by default
