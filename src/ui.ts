@@ -1269,12 +1269,12 @@ export function updateMuteButton() {
     var muteB = ui.persistent.mute;
     if (audio.userMedia.getAudioTracks()[0].enabled) {
         // It's unmuted
-        muteB.innerHTML = '<i class="fas fa-volume-up" style="width: 1em;"></i><span class="menu-extra">Mute</span>';
+        muteB.innerHTML = '<i class="fas fa-microphone-alt" style="width: 1em;"></i><span class="menu-extra">Mute</span>';
         muteB.setAttribute("aria-label", "Mute");
 
     } else {
         // It's muted
-        muteB.innerHTML = '<i class="fas fa-volume-mute" style="width: 1em;"></i><span class="menu-extra">Unmute</span>';
+        muteB.innerHTML = '<i class="fas fa-microphone-alt-slash" style="width: 1em;"></i><span class="menu-extra">Unmute</span>';
         muteB.setAttribute("aria-label", "Unmute");
 
     }
