@@ -1,6 +1,6 @@
-all: ennuicastr.js ennuicastr.min.js protocol.min.js hotkeys.min.js web-streams-ponyfill.js
+all: ennuicastr.js ennuicastr.min.js protocol.min.js hotkeys.min.js NoSleep.min.js web-streams-ponyfill.js
 
-test: ennuicastr-test.js ennuicastr-test.min.js web-streams-ponyfill.js
+test: ennuicastr-test.js ennuicastr-test.min.js NoSleep.min.js web-streams-ponyfill.js
 
 ennuicastr.js: src/*.ts node_modules/.bin/browserify
 	./src/build.js > $@.tmp
@@ -26,6 +26,9 @@ node_modules/.bin/browserify:
 	npm install
 
 node_modules/.bin/minify: node_modules/.bin/browserify
+
+NoSleep.min.js: node_modules/.bin/browserify
+	cp node_modules/nosleep.js/dist/NoSleep.min.js $@
 
 web-streams-ponyfill.js: node_modules/.bin/browserify
 	cp node_modules/web-streams-polyfill/dist/ponyfill.js $@

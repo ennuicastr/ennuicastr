@@ -41,8 +41,9 @@ function main() {
             Ennuiboard.enable("gamepad", {auto: true, manualPoll: true});
 
         // Build the UI
-        ui.mkUI();
+        return <any> ui.mkUI();
 
+    }).then(function() {
         // This can be loaded lazily
         ECDefaultHotkeys = {"0000c": "ecmenu-chat"};
         util.loadLibrary("hotkeys.min.js?v=3");

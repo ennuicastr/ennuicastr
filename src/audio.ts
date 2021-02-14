@@ -168,6 +168,7 @@ export function getMic(deviceId?: string) {
             sampleSize: {ideal: 24}
         }
     }).then(function(userMediaIn) {
+        // Figure out our latency
         userMedia = userMediaIn;
         var inl = userMedia.getAudioTracks()[0].getSettings().latency;
         if (inl)
@@ -175,6 +176,7 @@ export function getMic(deviceId?: string) {
         else
             inputLatency = 0;
 
+        // And move on to the next step
         return userMediaSet();
     }).catch(function(err) {
         net.disconnect();

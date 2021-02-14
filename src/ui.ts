@@ -15,7 +15,7 @@
  */
 
 // extern
-declare var Ennuiboard: any, webkitAudioContext: any;
+declare var Ennuiboard: any, NoSleep: any, webkitAudioContext: any;
 
 import * as audio from "./audio";
 import * as chat from "./chat";
@@ -27,6 +27,7 @@ import * as outproc from "./outproc";
 import * as proc from "./proc";
 import * as ptt from "./ptt";
 import * as uiCode from "./uicode";
+import * as util from "./util";
 import { dce, gebi } from "./util";
 import * as video from "./video";
 import * as videoRecord from "./video-record";
@@ -38,6 +39,13 @@ export enum ViewMode {
     Gallery,
     Studio
 }
+
+// The NoSleep interface
+var noSleep: any = null;
+
+/* A panel can be modal, in which case showPanel(null) won't hide it. Actually
+ * only used for the mobile forced-click to disable sleep. */
+var modal: HTMLElement = null;
 
 // The entire user interface
 export const ui = {
@@ -166,6 +174,12 @@ export const ui = {
 
     // The panels
     panels: {
+        // Mobile join menu
+        mobile: <{
+            wrapper: HTMLElement,
+            button: HTMLButtonElement
+        }> null,
+
         // Main (settings) menu
         main: <{
             wrapper: HTMLElement,
@@ -385,9 +399,9 @@ var lastSpeech: number[] = [];
 
 // Certain options are only shown on mobile
 const ua = navigator.userAgent.toLowerCase();
-const mobile = (ua.indexOf("android") >= 0) ||
-               (ua.indexOf("iphone") >= 0) ||
-               (ua.indexOf("ipad") >= 0);
+export const mobile = (ua.indexOf("android") >= 0) ||
+                      (ua.indexOf("iphone") >= 0) ||
+                      (ua.indexOf("ipad") >= 0);
 
 // Video standin's SVG code
 const standinSVG = [
@@ -412,6 +426,11 @@ export function showPanel(panelName: HTMLElement|string, autoFocusName: HTMLElem
         panel = (<any> ui.panels)[panelName].wrapper;
     else
         panel = panelName;
+
+    // Keep modal panels
+    if (panel === null && modal)
+        return;
+    modal = null;
 
     // Hide all existing panels
     for (var o in ui.panels) {
@@ -591,6 +610,30 @@ export function mkUI() {
     // When we resize, re-flex
     window.addEventListener("resize", onResize);
     resizeUI();
+
+    // If we're on mobile, now is the time to NoSleep
+    if (mobile) {
+        return Promise.all([]).then(function() {
+            return util.loadLibrary("NoSleep.min.js");
+
+        }).then(function() {
+            noSleep = new NoSleep();
+            showPanel(ui.panels.mobile.wrapper, ui.persistent.main);
+            modal = ui.panels.mobile.wrapper;
+            return new Promise((res, rej) => {
+                ui.panels.mobile.button.onclick = res;
+            });
+
+        }).then(function() {
+            noSleep.enable();
+            modal = null;
+            showPanel(null, ui.persistent.main);
+        });
+
+    } else {
+        return Promise.all([]);
+
+    }
 }
 
 function loadVideo() {
@@ -692,6 +735,11 @@ function loadMainMenu() {
         chat: gebi("ecmenu-chat"),
         mute: gebi("ecmenu-mute"),
         videoPopout: gebi("ecmenu-video-popout")
+    };
+
+    var mobile = ui.panels.mobile = {
+        wrapper: gebi("ecmobile-join"),
+        button: gebi("ecmobile-join-b")
     };
 
     var m = ui.panels.main = {
