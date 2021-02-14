@@ -1139,7 +1139,10 @@ export function mkAudioUI() {
 
         var v = (+vol.value) / 100;
 
-        // FIXME: Set it on soundboard sounds
+        for (let url in ui.sounds.soundboard) {
+            let sound = ui.sounds.soundboard[url];
+            sound.el.volume = v;
+        }
 
         ui.sounds.chimeUp.volume = v;
         ui.sounds.chimeDown.volume = v;
