@@ -470,6 +470,10 @@ button.ecstudio-admin-button {
     opacity: 1;
 }
 
+[data-persist-peak-labels="yes"] .ecwaveform-label {
+    opacity: 1;
+}
+
 #ecwave-watcher {
     position: absolute;
     left: 0;

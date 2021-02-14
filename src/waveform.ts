@@ -38,6 +38,9 @@ var waveformId = 0;
 // Width of the peak meter
 const peakWidth = 6;
 
+// Whether to persist the peak labels
+var persistPeak = false;
+
 // Our waveform display class
 export class Waveform {
     id: number;
@@ -105,6 +108,10 @@ export class Waveform {
             top: "0px"
         });
         wrapper.appendChild(lblCanvas);
+        lblCanvas.onclick = function() {
+            persistPeak = !persistPeak;
+            document.body.setAttribute("data-persist-peak-labels", persistPeak ? "yes" : "no");
+        };
         this.lblCtx = lblCanvas.getContext("2d");
 
         this.watcher = watcher;
