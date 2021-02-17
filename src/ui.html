@@ -27,7 +27,7 @@
         <!-- Our overall interface is video box at the top, audio at the bottom, with the menu overlaid -->
         <div id="ecouter">
             <!-- The video display and chat -->
-            <div id="ecvideo-wrapper">
+            <div id="ecvideo-wrapper" role="main" aria-label="Video">
                 <div id="ecvideo-side-wrapper">
                     <div id="ecvideo-side"></div>
                     <button id="ecvideo-wrapper-fs" class="fsbutton tbutton interface hotkey-hidden" title="Fullscreen (all video)" aria-label="Fullscreen (all video)"><i class="fas fa-expand"></i></button>
@@ -51,7 +51,7 @@
             </div>
 
             <!-- The audio stream -->
-            <div id="ecwaveform-wrapper">
+            <div id="ecwaveform-wrapper" role="complementary" aria-label="Live audio waveform">
                 <img id="ecwave-watcher" src="images/watcher.webp" />
             </div>
 
@@ -63,7 +63,7 @@
         </div>
 
         <!-- Persistent menu buttons -->
-        <div id="ecmenu-persistent" class="menu">
+        <div id="ecmenu-persistent" class="menu" role="navigation" aria-label="Main menu">
             <span id="ecmenu-master-hider" style="display: none;">
                 <button id="ecmenu-master" class="tbutton interface hotkey-hidden" aria-label="Host interface">
                     <i class="fas fa-wave-square"></i><span class="menu-extra">Host interface</span>
@@ -97,7 +97,7 @@
         </div>
 
         <!-- The main menu -->
-        <div id="ecmenu" class="panel">
+        <div id="ecmenu" class="panel" role="dialog" aria-label="Settings">
             <button id="ecmenu-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
 
             <div id="ecview-mode-hider" class="rflex row">
@@ -123,13 +123,13 @@
         </div>
 
         <!-- The master interface -->
-        <div id="ecmaster-interface" class="panel">
+        <div id="ecmaster-interface" class="panel" role="dialog" aria-label="Master interface">
             <button id="ecmaster-interface-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
             <button id="ecmaster-pause-resume" class="row"><i class="fas fa-pause"></i> Pause recording</button>
             <button id="ecmaster-start-stop" class="row"><i class="fas fa-microphone-alt"></i> Start recording</button>
             <div class="bigrflex row" id="ecmaster-yes-no">
-                <button id="ecmaster-yes" class="half">Yes</button>
-                <button id="ecmaster-no" class="half">No</button>
+                <button id="ecmaster-yes" class="half" aria-label="I am sure, stop the recording">Yes</button>
+                <button id="ecmaster-no" class="half" aria-label="Do not stop the recording">No</button>
             </div>
             <div class="invite row">
                 <div class="rflex">
@@ -154,7 +154,7 @@
                 <label for="ecmaster-video-record-host">&nbsp;Accept video recordings from guests
             </div>
             <!-- Recording cost is poppable so it can be persistent -->
-            <div id="ecmaster-recording-cost-popout-wrapper">
+            <div id="ecmaster-recording-cost-popout-wrapper" data-popout-label="Recording cost and rate">
                 <div class="rflex" style="align-items: start;">
                     <div style="flex: auto;">
                         <div class="rflex row">
@@ -172,13 +172,13 @@
         </div>
 
         <!-- User administration interface (list) -->
-        <div id="ecuser-admin-interface" class="panel">
+        <div id="ecuser-admin-interface" class="panel" role="dialog" aria-label="User administration">
             <button id="ecuser-admin-interface-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
             <button id="ecuser-admin-all-b" class="row"><i class="fas fa-users"></i> All users</button>
         </div>
 
         <!-- User administration interface (particular user) -->
-        <div id="ecuser-admin-interface-user" class="panel">
+        <div id="ecuser-admin-interface-user" class="panel" role="dialog" aria-label="User administration">
             <button id="ecuser-admin-interface-user-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
             <div id="ecuser-admin-interface-user-name" class="row" style="text-align: center;"><i class="fas fa-users"></i> All users</div>
             <button id="ecuser-admin-kick" class="row"><i class="fas fa-user-slash"></i> Kick user</button>
@@ -187,9 +187,9 @@
         </div>
 
         <!-- The soundboard -->
-        <div id="ecsounds-wrapper" class="panel">
+        <div id="ecsounds-wrapper" class="panel" role="dialog" aria-label="Soundboard">
             <button id="ecsounds-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
-            <div id="ecsounds-popout-wrapper">
+            <div id="ecsounds-popout-wrapper" data-popout-label="Soundboard">
                 <div class="rflex" style="align-items: start;">
                     <div id="ecsounds" style="flex: auto;"></div>
                     <button id="ecsounds-popout" class="tbutton" title="Pop out" aria-label="Pop out"><i class="far fa-window-restore"></i></button>
@@ -198,7 +198,7 @@
         </div>
 
         <!-- The input device selector -->
-        <div id="ecinput-device-wrapper" class="panel">
+        <div id="ecinput-device-wrapper" class="panel" role="dialog" aria-label="Input settings">
             <button id="ecmenu-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
 
             <!-- Input device -->
@@ -227,7 +227,7 @@
         </div>
 
         <!-- The output device selector -->
-        <div id="ecoutput-device-wrapper" class="panel">
+        <div id="ecoutput-device-wrapper" class="panel" role="dialog" aria-label="Output settings">
             <button id="ecmenu-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
 
             <!-- The output device selector -->
@@ -264,7 +264,7 @@
         </div>
 
         <!-- Video device selector -->
-        <div id="ecvideo-device-wrapper" class="panel">
+        <div id="ecvideo-device-wrapper" class="panel" role="dialog" aria-label="Video settings">
             <button id="ecmenu-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
             <div class="rflex row">
                 <label for="ecvideo-device-list" style="min-width: 8em; text-align: right;">Camera:&nbsp;</label>
@@ -292,7 +292,7 @@
         </div>
 
         <!-- Video recording -->
-        <div id="ecvideo-record-wrapper" class="panel" style="text-align: right;">
+        <div id="ecvideo-record-wrapper" class="panel" style="text-align: right;" role="dialog" aria-label="Video recording">
             <button id="ecvideo-record-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
             <div class="rflex row">
                 <label for="ecvideo-record-bitrate">Bitrate (Mbit):&nbsp;</label>
@@ -306,9 +306,9 @@
         </div>
 
         <!-- The user list/volume -->
-        <div id="ecuser-list-wrapper" class="panel">
+        <div id="ecuser-list-wrapper" class="panel" role="dialog" aria-label="User volume">
             <button id="ecmenu-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
-            <div id="ecuser-list-popout-wrapper">
+            <div id="ecuser-list-popout-wrapper" data-popout-label="User volume">
                 <div id="ecuser-list-wrapper" class="rflex" style="align-items: start;">
                     <div id="ecuser-list" style="flex: auto;"></div>
                     <button id="ecuser-list-popout" class="tbutton" title="Pop out" aria-label="Pop out"><i class="far fa-window-restore"></i></button>

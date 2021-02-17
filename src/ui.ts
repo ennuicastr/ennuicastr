@@ -428,7 +428,7 @@ export function showPanel(panelName: HTMLElement|string, autoFocusName: HTMLElem
         panel = panelName;
 
     // Keep modal panels
-    if (panel === null && modal)
+    if (modal && panel !== modal)
         return;
     modal = null;
 
@@ -466,14 +466,33 @@ function poppable(popout: HTMLElement, button: HTMLButtonElement,
                   panel: HTMLElement, dock: HTMLElement) {
     var cur = false;
     button.onclick = function() {
+        // Swap the state
         cur = !cur;
+
+        // Set up ARIA
+        if (cur) {
+            popout.setAttribute("role", "dialog");
+            popout.setAttribute("aria-label", popout.getAttribute("data-popout-label"));
+        } else {
+            popout.removeAttribute("role");
+            popout.removeAttribute("aria-label");
+        }
+
+        // Put it either in the dock or the panel
         (cur?dock:panel).appendChild(popout);
+
+        // Perhaps hide the panel button
         if (panelButton)
             panelButton.style.display = cur?"none":"";
+
+        // UI
         if (cur)
             showPanel(null, ui.persistent.main);
         else
-            resizeUI();
+            ui.persistent.main.focus();
+        resizeUI();
+
+        // Remember the setting
         localStorage.setItem(name, cur?"1":"0");
     };
 

@@ -152,6 +152,7 @@ function stopRecording() {
 
     ui.ui.panels.master.yesNo.style.display = "";
     ui.ui.panels.master.yesB.onclick = stopRecordingYes;
+    ui.ui.panels.master.yesB.focus();
     ui.ui.panels.master.noB.onclick = stopRecordingNo;
 
     ui.resizeUI();
