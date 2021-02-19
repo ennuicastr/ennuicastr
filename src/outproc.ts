@@ -83,7 +83,7 @@ export function createCompressor(idx: number, ac: AudioContext & {ecDestination?
     if (supported) {
         // Create a waveform node
         var waveview = com.waveview = ac.createScriptProcessor(1024);
-        var wf = new waveform.Waveform(wrapper, null);
+        var wf = new waveform.Waveform(ac.sampleRate / 1024, wrapper, null);
         waveview.onaudioprocess = function(ev: AudioProcessingEvent) {
             // Transfer input to output
             var ib = ev.inputBuffer.getChannelData(0);

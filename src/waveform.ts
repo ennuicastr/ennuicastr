@@ -21,7 +21,8 @@ import * as ui from "./ui";
 
 // Constants used by updateWave
 const e4 = Math.exp(4);
-const log1036 = Math.log(10) * 3.6;
+const log10 = Math.log(10);
+const log1036 = log10 * 3.6;
 
 // Global display timer
 var displayInterval: number|null = null;
@@ -49,16 +50,35 @@ export class Waveform {
     ctx: CanvasRenderingContext2D;
     lblCanvas: HTMLCanvasElement;
     lblCtx: CanvasRenderingContext2D;
+    statsBox: HTMLElement;
     watcher: HTMLImageElement;
 
     // Should we be rotating?
     rotate: boolean;
+
+    // Sample rate of data
+    sampleRate: number;
 
     // Wave data
     waveData: number[];
 
     // VAD data
     waveVADs: number[];
+
+    // Peak data
+    peakData: number[];
+
+    // RMS data (i.e., square roots of each value)
+    rmsData: number[];
+
+    // Running peak
+    curPeak: number;
+
+    // Running sum of roots
+    rootSum: number;
+
+    // Number of placeholders (VAD-off zero values) in the RMS data
+    rmsPlaceholders: number;
 
     // How much of the old data actually needs to be redrawn?
     staleData: number;
@@ -82,45 +102,78 @@ export class Waveform {
     lastPeak: number;
 
     // Build a waveform display
-    constructor(wrapper: HTMLElement, watcher: HTMLImageElement) {
+    constructor(sampleRate: number, wrapper: HTMLElement, watcher: HTMLImageElement) {
         this.id = waveformId++;
+        this.sampleRate = sampleRate;
+
         this.wrapper = wrapper;
         Object.assign(wrapper.style, {
             position: "relative",
             overflow: "hidden"
         });
 
+        // Main canvas
         let canvas = this.canvas = document.createElement("canvas");
         Object.assign(canvas.style, {
             position: "absolute",
             left: "0px",
             top: "0px"
         });
+        wrapper.setAttribute("role", "img");
         wrapper.innerHTML = "";
         wrapper.appendChild(canvas);
         this.ctx = canvas.getContext("2d", {alpha: false});
 
+        // Wrapper for the label and stats canvases
+        let lblStatsWrapper = document.createElement("div");
+        lblStatsWrapper.classList.add("ecwaveform-label");
+        Object.assign(lblStatsWrapper.style, {
+            position: "absolute",
+            left: "0px",
+            top: "0px",
+            width: "100%",
+            height: "100%"
+        });
+        wrapper.appendChild(lblStatsWrapper);
+
+        // The label canvas
         let lblCanvas = this.lblCanvas = document.createElement("canvas");
-        lblCanvas.classList.add("ecwaveform-label");
         Object.assign(lblCanvas.style, {
             position: "absolute",
             left: "0px",
             top: "0px"
         });
-        wrapper.appendChild(lblCanvas);
+        lblStatsWrapper.appendChild(lblCanvas);
         lblCanvas.onclick = function() {
             persistPeak = !persistPeak;
             document.body.setAttribute("data-persist-peak-labels", persistPeak ? "yes" : "no");
         };
         this.lblCtx = lblCanvas.getContext("2d");
 
+        // And the stats box
+        let statsBox = this.statsBox = document.createElement("span");
+        Object.assign(statsBox.style, {
+            position: "absolute",
+            right: (peakWidth + 8) + "px",
+            bottom: "2px",
+            fontSize: "0.8em"
+        });
+        lblStatsWrapper.appendChild(statsBox);
+
+        // The watcher image
         this.watcher = watcher;
         if (watcher)
             wrapper.appendChild(watcher);
 
+        // Other internal data
         this.rotate = false;
         this.waveData = [];
         this.waveVADs = [];
+        this.peakData = [];
+        this.rmsData = [];
+        this.curPeak = 0;
+        this.rootSum = 0;
+        this.rmsPlaceholders = 0;
         this.staleData = this.newData = 0;
         this.lastDisplayHeight = 0;
         this.lastGood = false;
@@ -138,6 +191,9 @@ export class Waveform {
                 });
             }, 50);
         }
+
+        // Seed the data
+        this.push(0, 2);
     }
 
     // Push data
@@ -158,6 +214,43 @@ export class Waveform {
         this.newData++;
         this.waveData.push(val);
         this.waveVADs.push(vad);
+
+        // And push to peak data too
+        this.peakData.push(val);
+        if (val > this.curPeak)
+            this.curPeak = val;
+        let root = Math.sqrt(val);
+        if (vad >= 2) {
+            this.rmsData.push(root);
+            this.rootSum += root;
+        } else {
+            this.rmsData.push(null);
+            this.rmsPlaceholders++;
+        }
+
+        // Shift over obsolete data
+        let max = 30 * this.sampleRate;
+        let recalculate = false;
+        while (this.peakData.length > max) {
+            if (this.peakData[0] === this.curPeak)
+                recalculate = true;
+            this.peakData.shift();
+            let root = this.rmsData.shift();
+            if (root !== null)
+                this.rootSum -= root;
+            else
+                this.rmsPlaceholders--;
+        }
+        if (recalculate)
+            this.curPeak = Math.max.apply(Math, this.peakData);
+
+        // And report
+        let peakDb = Math.round(10 * Math.log(this.curPeak) / log10);
+        let rmsDb = Math.round(10 * Math.log(Math.pow(this.rootSum / (this.rmsData.length - this.rmsPlaceholders), 2)) / log10);
+        let stats = "30 second peak " + peakDb + " decibels, RMS " + rmsDb + " decibels";
+        this.wrapper.setAttribute("aria-label", stats);
+        stats = stats.replace(/ decibels/g, "dB");
+        this.statsBox.innerText = stats;
     }
 
     // Update the wave display when we retroactively promote VAD data
