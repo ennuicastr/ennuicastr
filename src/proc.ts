@@ -146,7 +146,7 @@ export function localProcessing() {
         var step = audio.ac.sampleRate / 32000;
 
         // Create our script processor
-        var spW = safariWorkarounds.createScriptProcessor(audio.ac, audio.userMedia, 1024);
+        var spW = safariWorkarounds.createScriptProcessor(audio.ac, audio.userMedia, 4096);
         var destination: MediaStream = spW.destination;
         var sp = spW.scriptProcessor;
 
