@@ -1095,7 +1095,9 @@ export function mkAudioUI() {
 
         // Set the main audio output
         if (ui.audioOutput) {
-            (<any> ui.audioOutput).setSinkId(v).catch(console.error);
+            try {
+                (<any> ui.audioOutput).setSinkId(v).catch(console.error);
+            } catch (ex) {}
         } else {
             // Just try again
             setTimeout(outputChange, 100);
@@ -1104,8 +1106,10 @@ export function mkAudioUI() {
 
         // And all the sounds
         // FIXME: soundboard sounds
-        (<any> ui.sounds.chimeUp).setSinkId(v).catch(console.error);
-        (<any> ui.sounds.chimeDown).setSinkId(v).catch(console.error);
+        try {
+            (<any> ui.sounds.chimeUp).setSinkId(v).catch(console.error);
+            (<any> ui.sounds.chimeDown).setSinkId(v).catch(console.error);
+        } catch (ex) {}
     }
 
     // Fill it with the available devices
