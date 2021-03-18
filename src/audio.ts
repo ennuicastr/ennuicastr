@@ -585,8 +585,9 @@ function handlePackets() {
     }
 
     // Warn if we're buffering
-    if (net.dataSock.bufferedAmount > 1024*1024)
-        log.pushStatus("buffering", util.bytesToRepr(net.dataSock.bufferedAmount) + " audio data buffered");
+    let ba = net.bufferedAmount();
+    if (ba > 1024*1024)
+        log.pushStatus("buffering", util.bytesToRepr(ba) + " audio data buffered");
     else
         log.popStatus("buffering");
 

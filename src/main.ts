@@ -67,6 +67,6 @@ main();
 
 // If we're buffering, warn before closing
 window.onbeforeunload = function() {
-    if (net.mode === prot.mode.buffering && net.dataSock.bufferedAmount)
+    if (net.mode === prot.mode.buffering && net.bufferedAmount())
         return "Data is still buffering to the server!";
 }

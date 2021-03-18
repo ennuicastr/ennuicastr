@@ -515,8 +515,9 @@ function flushBuffers() {
 
     if (!dataSock) return;
 
-    if (dataSock.bufferedAmount)
-        log.pushStatus("buffering", "Sending audio to server (" + util.bytesToRepr(dataSock.bufferedAmount) + ")...");
+    let ba = bufferedAmount();
+    if (ba)
+        log.pushStatus("buffering", "Sending audio to server (" + util.bytesToRepr(ba) + ")...");
     else
         log.popStatus("buffering");
 
@@ -524,6 +525,11 @@ function flushBuffers() {
         flushTimeout = null;
         flushBuffers();
     }, 1000);
+}
+
+// If our data socket is connected, the buffered amount
+export function bufferedAmount() {
+    return dataSock ? dataSock.bufferedAmount : 0;
 }
 
 // Generic phone-home error handler
