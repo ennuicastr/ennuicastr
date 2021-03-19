@@ -18,7 +18,7 @@
 declare var Ennuiboard: any, ECDefaultHotkeys: any;
 
 // Since config is imported for side effects, it needs to come first
-import "./config";
+import * as config from "./config";
 
 import * as audio from "./audio";
 import * as log from "./log";
@@ -32,25 +32,32 @@ import * as util from "./util";
 function main() {
     return Promise.all([]).then(function() {
         // Load the keyboard indirection library
-        return util.loadLibrary("https://unpkg.com/ennuiboard@^1.0.0/ennuiboard.min.js");
+        //return util.loadLibrary("https://unpkg.com/ennuiboard@^1.0.0/ennuiboard.min.js");
+        return util.loadLibrary("https://unpkg.com/ennuiboard@1.0.0/ennuiboard.min.js");
 
     }).catch(function(){}).then(function() {
         // Gamepads can be supported by default
         if (typeof Ennuiboard !== "undefined")
             Ennuiboard.enable("gamepad", {auto: true, manualPoll: true});
 
-        // Build the UI
-        ui.mkUI();
+        // If we're using WebRTC, load adapter.js
+        if (config.useRTC)
+            return util.loadLibrary("https://webrtc.github.io/adapter/adapter-latest.js");
 
+    }).catch(function(){}).then(function() {
+        // Build the UI
+        return <any> ui.mkUI();
+
+    }).then(function() {
         // This can be loaded lazily
         ECDefaultHotkeys = {"0000c": "ecmenu-chat"};
-        util.loadLibrary("hotkeys.min.js?v=3");
+        util.loadLibrary("hotkeys.min.js?v=4");
 
         // Now connect
         return net.connect();
     }).then(function() {
         proc.localProcessing(); // This will start up on its own in the background
-        return audio.getMic();
+        return audio.getAudioPerms();
     }).catch(function(ex) {
         log.pushStatus("error", ex + "\n\n" + ex.stack);
     });
@@ -60,6 +67,6 @@ main();
 
 // If we're buffering, warn before closing
 window.onbeforeunload = function() {
-    if (net.mode === prot.mode.buffering && net.dataSock.bufferedAmount)
+    if (net.mode === prot.mode.buffering && net.bufferedAmount())
         return "Data is still buffering to the server!";
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Yahweasel
+ * Copyright (c) 2018-2021 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -253,6 +253,11 @@ function dataSockMsg(ev: MessageEvent) {
                 case prot.info.id:
                     // Our own ID
                     selfId = val;
+
+                    if (!config.useRTC) {
+                        // Cogito ergo sum
+                        ui.userListAdd(val, config.username, false);
+                    }
                     break;
 
                 case prot.info.peerInitial:
@@ -284,6 +289,13 @@ function dataSockMsg(ev: MessageEvent) {
                         log.pushStatus("mode", "Recording paused");
                     else if (mode > prot.mode.rec)
                         log.pushStatus("mode", "Not recording");
+
+                    // Update the timer
+                    if (msg.byteLength >= p.length + 16) {
+                        var sTime = msg.getFloat64(p.value + 4, true);
+                        var recTime = msg.getFloat64(p.value + 12, true);
+                        audio.setRecordingTimer(sTime, recTime, (mode === prot.mode.rec));
+                    }
 
                     // Mention flushing buffers if we are
                     if (mode === prot.mode.buffering) {
@@ -324,6 +336,7 @@ function dataSockMsg(ev: MessageEvent) {
             break;
 
         case prot.ids.user:
+            // Master gets this info elsewhere
             p = prot.parts.user;
             var index = msg.getUint32(p.index, true);
             var status = msg.getUint32(p.status, true);
@@ -331,22 +344,22 @@ function dataSockMsg(ev: MessageEvent) {
 
             // Add it to the UI
             if (status)
-                ui.userListAdd(index, nick);
+                ui.userListAdd(index, nick, false);
             else
-                ui.userListRemove(index);
+                ui.userListRemove(index, false);
             break;
 
         case prot.ids.speech:
         {
             if (config.useRTC) {
-                // Handled through RTC
+                // Handled through master interface or RTC
                 break;
             }
             p = prot.parts.speech;
             var indexStatus = msg.getUint32(p.indexStatus, true);
             let index = indexStatus>>>1;
             let status = (indexStatus&1);
-            ui.userListUpdate(index, !!status);
+            ui.userListUpdate(index, !!status, false);
             break;
         }
 
@@ -371,8 +384,15 @@ function dataSockMsg(ev: MessageEvent) {
 
             switch (type&0x7F) {
                 case prot.rtc.candidate:
-                    if (value && value.candidate)
-                        conn.addIceCandidate(value);
+                    if (value && value.candidate) {
+                        try {
+                            conn.addIceCandidate(value);
+                        } catch (ex) {
+                            // How to represent null has changed, so try swapping it
+                            value.candidate = (value.candidate === null) ? "" : null;
+                            conn.addIceCandidate(value);
+                        }
+                    }
                     break;
 
                 case prot.rtc.offer:
@@ -412,10 +432,11 @@ function dataSockMsg(ev: MessageEvent) {
             if (action === acts.mute) {
                 audio.toggleMute(false);
             } else if (action === acts.echoCancel) {
-                if (!ui.ui.deviceList.ec.checked) {
-                    ui.ui.deviceList.ec.ecAdmin = true;
-                    ui.ui.deviceList.ec.checked = true;
-                    ui.ui.deviceList.ec.onchange(null);
+                var ec = ui.ui.panels.inputConfig.echo;
+                if (!ec.checked) {
+                    // Don't onchange, so we don't save this
+                    ec.checked = true;
+                    audio.getMic(ui.ui.panels.inputConfig.device.value);
                 }
             }
             break;
@@ -439,7 +460,7 @@ function masterSockMsg(ev: MessageEvent) {
                 case prot.info.creditCost:
                     // Informing us of the cost of credits
                     var v2 = msg.getUint32(p.value + 4, true);
-                    ui.ui.masterUI.creditCost = {
+                    master.credits.creditCost = {
                         currency: val,
                         credits: v2
                     };
@@ -448,8 +469,8 @@ function masterSockMsg(ev: MessageEvent) {
                 case prot.info.creditRate:
                     // Informing us of the total cost and rate in credits
                     var v2 = msg.getUint32(p.value + 4, true);
-                    ui.ui.masterUI.creditRate = [val, v2];
-                    master.masterUpdateCreditCost();
+                    master.credits.creditRate = [val, v2];
+                    master.updateCreditCost();
                     break;
 
                 case prot.info.sounds:
@@ -467,16 +488,10 @@ function masterSockMsg(ev: MessageEvent) {
             var nick = util.decodeText(msg.buffer.slice(p.nick));
 
             // Add it to the UI
-            var speech = ui.ui.masterUI.speech = ui.ui.masterUI.speech || [];
-            while (speech.length <= index)
-                speech.push(null);
-            speech[index] = {
-                nick: nick,
-                online: !!status,
-                speaking: false
-            };
-
-            master.updateMasterSpeech();
+            if (status)
+                ui.userListAdd(index, nick, true);
+            else
+                ui.userListRemove(index, true);
             break;
 
         case prot.ids.speech:
@@ -485,9 +500,7 @@ function masterSockMsg(ev: MessageEvent) {
             let indexStatus = msg.getUint32(p.indexStatus, true);
             let index = indexStatus>>>1;
             let status = (indexStatus&1);
-            if (!ui.ui.masterUI.speech[index]) return;
-            ui.ui.masterUI.speech[index].speaking = !!status;
-            master.updateMasterSpeech();
+            ui.userListUpdate(index, !!status, true);
             break;
         }
     }
@@ -502,8 +515,9 @@ function flushBuffers() {
 
     if (!dataSock) return;
 
-    if (dataSock.bufferedAmount)
-        log.pushStatus("buffering", "Sending audio to server (" + util.bytesToRepr(dataSock.bufferedAmount) + ")...");
+    let ba = bufferedAmount();
+    if (ba)
+        log.pushStatus("buffering", "Sending audio to server (" + util.bytesToRepr(ba) + ")...");
     else
         log.popStatus("buffering");
 
@@ -511,6 +525,11 @@ function flushBuffers() {
         flushTimeout = null;
         flushBuffers();
     }, 1000);
+}
+
+// If our data socket is connected, the buffered amount
+export function bufferedAmount() {
+    return dataSock ? dataSock.bufferedAmount : 0;
 }
 
 // Generic phone-home error handler

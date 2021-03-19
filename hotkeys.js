@@ -300,7 +300,7 @@ ECHotkeys = (function() {
 
     // And the way to add hotkeys
     document.body.addEventListener("click", function(ev) {
-        if (!ev.ctrlKey)
+        if (!ev.ctrlKey && !ev.metaKey)
             return true;
 
         // Find a relevant target

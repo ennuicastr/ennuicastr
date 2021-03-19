@@ -1,0 +1,623 @@
+/* General */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans&display=swap');
+
+:root {
+    --bg: #122;
+    --bg-hover: #244;
+    --bg-active: #355;
+    --bg-off: #333;
+    --bg-plain: #111;
+    --bg-invite: #244;
+    --bg-status: #ccc;
+    --bg-wave: #103030;
+    --fg: #cff;
+    --fg-status: #333;
+    --border-plain: #222;
+    --link-color: #fcc;
+    --link-color-status: #00a;
+
+    --wave-too-soft: #333;
+    --wave-too-loud: #700;
+    --user-list-silent: #000;
+    --user-list-speaking: #2b552b;
+    --video-speaking-sel: #090;
+    --video-speaking: #5e8f52;
+    --video-silent-sel: #999;
+    --video-silent: #000;
+
+    --nopeak-1: #200;
+    --peak-1:   #800;
+    --nopeak-2: #220;
+    --peak-2:   #880;
+    --nopeak-3: #020;
+    --peak-3:   #080;
+}
+
+body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'Noto Sans', sans-serif;
+    font-size: 1rem;
+}
+
+a {
+    color: var(--link-color);
+}
+
+.cflex {
+    display: flex;
+    flex-direction: column;
+}
+
+.rflex {
+    display: flex;
+    align-items: center;
+    overflow: auto hidden;
+}
+
+.bigrflex {
+    display: flex;
+    align-items: start;
+    gap: 0.25em;
+}
+
+.half {
+    flex: auto;
+    width: 100%;
+}
+
+.panel {
+    display: none;
+    position: fixed;
+    box-sizing: border-box;
+    min-width: 20em;
+    max-height: 90%;
+    right: 1em;
+    top: 1em;
+    margin-left: 1em;
+    padding: 2em 0.5em 0.5em 0.5em;
+    background-color: var(--bg-plain);
+    border: 1px solid var(--border-plain);
+    border-radius: 0.25em;
+    overflow: auto;
+}
+
+.dock > :first-child {
+    padding: 0.5em;
+}
+
+@media screen and (max-width: 480px) {
+    .bigrflex {
+        flex-direction: column;
+    }
+
+    .half {
+        flex: 0;
+        width: 100%;
+    }
+
+    .panel {
+        width: 100%;
+        margin-left: 0;
+        max-height: 100%;
+        height: 100%;
+        left: 0;
+        top: 0;
+    }
+}
+
+.row {
+    width: 100%;
+    margin-bottom: 0.5em;
+}
+
+.invite {
+    background-color: var(--bg-invite);
+}
+
+.status-bar {
+    background: var(--bg-status);
+    color: var(--fg-status);
+}
+
+.status {
+    flex: auto;
+    text-align: center;
+    padding: 0.25em;
+    cursor: default;
+}
+
+.status a {
+    color: var(--link-color-status);
+}
+
+.timer {
+    padding: 0 1em 0 1em;
+    font-family: monospace;
+    font-size: 1.1em;
+    text-align: right;
+}
+
+.namelabel {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    padding: 0.2em;
+    border-top-right-radius: 0.2em;
+    background-color: rgba(170, 170, 170, 0.9);
+    color: #000;
+    cursor: default;
+}
+
+#ecvideo-side-wrapper .namelabel {
+    font-size: 0.75em;
+}
+
+.chat {
+    border: solid 1px;
+}
+
+.menu {
+    position: absolute;
+    right: 1em;
+    top: 1em;
+    display: flex;
+    flex-direction: column;
+}
+
+@media screen and (max-height: 480px) {
+    .menu {
+        flex-direction: row;
+    }
+}
+
+button:not(.plain), .button {
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, border-radius 0.2s ease-in-out;
+    background-color: var(--bg);
+    color: #fff;
+    border-radius: 0;
+    border: 0;
+    cursor: pointer;
+    display: inline-block;
+    height: 2.85em;
+    line-height: 2.95em;
+    text-align: center;
+    text-decoration: none;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+button.nouppercase, .button.nouppercase {
+    text-transform: none;
+}
+
+button:not(.plain):focus, .button:focus {
+    outline: 1px dotted rgba(255, 255, 255, 0.35);
+    outline-offset: -0.5em;
+}
+
+button:not(.plain):hover, .button:hover {
+    background-color: var(--bg-hover);
+    border-radius: 1em;
+}
+
+button.off, button.off:hover {
+    background-color: var(--bg-off);
+    border-radius: 0;
+}
+
+button.tbutton {
+    background-color: rgba(17, 34, 34, 0);
+    min-width: 2.85em;
+}
+
+button.pobutton {
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    font-size: 1em;
+    min-width: 2.85em;
+}
+
+button.fsbutton {
+    position: absolute;
+    right: 0px;
+    bottom: 0px;
+    font-size: 1em;
+    min-width: 2.85em;
+}
+
+button.close-button {
+    position: absolute;
+    height: 2em;
+    line-height: 2em;
+    top: 0.25em;
+    right: 0.25em;
+}
+
+button.streamer-interface {
+    display: none;
+}
+
+[data-streamer-interface="show"] button.streamer-interface {
+    display: inline-block;
+}
+
+[data-interface="hide"] .interface:not(:hover) {
+    background-color: rgba(17, 34, 34, 0);
+    color: rgba(255, 255, 255, 0);
+}
+
+[data-interface="hide"] button:not(.plain):focus, [data-interface="hide"] .button:focus {
+    outline: none;
+}
+
+[data-interface="none"] .interface {
+    display: none;
+}
+
+.menu button:not(.plain) {
+    position: relative;
+    width: 100%;
+    padding: 0 1em 0 1em;
+}
+
+.menu button:not(.plain):hover {
+    border-radius: 0 1em 1em 0;
+}
+
+.menu button .menu-extra {
+    position: absolute;
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+    top: 0;
+    right: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: rgba(34, 68, 68, 0);
+    color: rgba(255, 255, 255, 0);
+    padding-left: 1em;
+    border-radius: 1em 0 0 1em;
+    pointer-events: none;
+}
+
+.menu button:hover .menu-extra {
+    display: inline-block;
+    background-color: var(--bg-hover);
+    color: #fff;
+    pointer-events: auto;
+}
+
+@media screen and (max-height: 480px) {
+    .menu button:not(.plain):hover {
+        border-radius: 1em 1em 0 0;
+    }
+
+    .menu button .menu-extra {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        padding: 0 1em 0 1em;
+        border-radius: 1em 0 1em 1em;
+    }
+}
+
+input[type="text"],
+input[type="password"],
+input[type="email"],
+select,
+textarea {
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+    background-color: var(--bg);
+    color: #fff;
+    border-radius: 0;
+    border: none;
+    border: solid 1px;
+    outline: 0;
+    padding: 0.5em;
+    text-decoration: none;
+}
+
+select:hover {
+    background-color: var(--bg-hover);
+}
+
+input[type="checkbox"] {
+    -webkit-appearance: none;
+    appearance: none;
+    position: relative;
+    display: inline-block;
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+    background-color: var(--bg);
+    border: 1px solid #fff;
+    padding: 0.6em;
+    margin: 0;
+}
+
+input[type="checkbox"]:hover {
+    background-color: var(--bg-hover);
+}
+
+input[type="checkbox"]:checked:after {
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900;
+    color: #fff;
+    content: "\f00c";
+    position: absolute;
+    font-size: 0.9em;
+    left: 0.15em;
+    top: 0.1em;
+}
+
+
+/* Specific to the UI */
+#ecouter {
+    position: absolute;
+    left: 0;
+    top: 0;
+    min-width: 100%;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+#ecvideo-wrapper {
+    flex: auto;
+    height: 160px;
+    min-height: 160px;
+    display: flex;
+}
+
+#ecvideo-side-wrapper {
+    position: relative;
+    width: 160px;
+    min-width: 160px;
+    height: 100%;
+    overflow: hidden;
+
+    display: flex;
+    align-items: center;
+}
+
+#ecvideo-side {
+    position: absolute;
+    width: 100%;
+    max-height: 100%;
+    overflow: hidden auto;
+}
+
+.ecvideo-a {
+    display: flex;
+    flex-direction: row;
+}
+
+.ecvideo {
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    flex: auto;
+    border: 4px solid #000;
+}
+
+button.ecstudio-admin-button {
+    display: none;
+}
+
+.ecvideo-waveform {
+    display: none;
+}
+
+#ecvideo-side .ecvideo-a {
+    width: 100%;
+    height: 90px;
+    min-height: 90px;
+}
+
+#ecvideo-main-wrapper {
+    position: relative;
+    flex: auto;
+    min-width: 160px;
+    width: 100%;
+    height: 100%;
+}
+
+#ecvideo-main {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+#ecvideo-main .ecvideo-a {
+    flex: auto;
+}
+
+#ecchat-wrapper {
+    box-sizing: border-box;
+    flex: auto 0.5;
+    min-width: 160px;
+    width: 100%;
+    height: 100%;
+    padding: 0.25em;
+    display: flex;
+    flex-direction: column;
+}
+
+#ecchat-incoming {
+    flex: auto;
+    height: 2em;
+    padding: 0.5em;
+    overflow: auto;
+}
+
+#ecchat-outgoing {
+    box-sizing: border-box;
+    width: 100%;
+}
+
+#ecwaveform-wrapper {
+    position: relative;
+    height: 100px;
+    min-height: 100px;
+}
+
+.ecwaveform-label {
+    transition: opacity 0.2s ease-in-out;
+    opacity: 0;
+}
+
+.ecwaveform-label:hover {
+    opacity: 1;
+}
+
+[data-persist-peak-labels="yes"] .ecwaveform-label {
+    opacity: 1;
+}
+
+#ecwave-watcher {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+}
+
+#eclayer-separator {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+}
+
+@media screen and (max-width: 480px) {
+    #ecvideo-wrapper {
+        flex-direction: column-reverse;
+    }
+
+    #ecvideo-side-wrapper {
+        width: 100%;
+        height: 160px;
+        min-height: 160px;
+        flex-direction: column;
+        overflow: auto hidden;
+    }
+
+    #ecvideo-side {
+        width: auto;
+        height: 100%;
+        overflow: auto hidden;
+
+        display: flex;
+        flex-direction: row;
+    }
+
+    #ecvideo-side .ecvideo-a {
+        width: 160px;
+        min-width: 160px;
+        height: 100%;
+    }
+
+    #ecvideo-main-wrapper {
+        width: 100%;
+        min-height: 160px;
+        height: 100%;
+    }
+
+    #ecchat-wrapper {
+        min-height: 160px;
+        height: 100%;
+    }
+
+    @media screen and (max-height: 720px) {
+        #ecvideo-side-wrapper {
+            height: 80px;
+            min-height: 80px;
+        }
+
+        #ecvideo-side .ecvideo-a {
+            width: 80px;
+            min-width: 80px;
+        }
+
+        #ecwaveform-wrapper {
+            height: 60px;
+            min-height: 60px;
+        }
+    }
+}
+
+[data-view-mode="small"] #ecvideo-side-wrapper, [data-view-mode="small"] #ecvideo-main-wrapper {
+    display: none;
+}
+
+[data-view-mode="studio"] #ecvideo-wrapper {
+    height: auto;
+    min-height: auto;
+}
+
+[data-view-mode="gallery"] #ecvideo-side-wrapper, [data-view-mode="studio"] #ecvideo-side-wrapper {
+    width: 100%;
+    min-width: 160px;
+    height: 100%;
+    display: block;
+}
+
+[data-view-mode="gallery"] #ecvideo-side, [data-view-mode="studio"] #ecvideo-side {
+    width: 100%;
+    height: 100%;
+    display: flex;
+}
+
+[data-view-mode="gallery"] #ecvideo-side {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: stretch;
+    justify-content: center;
+}
+
+[data-view-mode="studio"] #ecvideo-side {
+    flex-direction: column;
+    gap: 6px;
+}
+
+[data-view-mode="gallery"] #ecvideo-side .ecvideo-a {
+    width: 160px;
+    min-width: 160px;
+    height: auto;
+    min-height: auto;
+}
+
+[data-view-mode="studio"] #ecvideo-side .ecvideo-a {
+    width: auto;
+    min-width: auto;
+    height: 90px;
+    max-height: 90px;
+}
+
+[data-view-mode="studio"] #ecvideo-side .ecvideo {
+    min-width: 160px;
+    max-width: 160px;
+    flex: 1;
+}
+
+[data-view-mode="studio"] #ecvideo-side button.ecstudio-admin-button {
+    display: block;
+}
+
+[data-view-mode="studio"] #ecvideo-side .ecvideo-waveform {
+    display: block;
+    flex: auto;
+}
+
+[data-view-mode="studio"] #ecwaveform-wrapper {
+    display: none;
+}
+
+[data-view-mode="gallery"] #ecvideo-side-wrapper .namelabel {
+    font-size: inherit;
+}
+
+[data-view-mode="gallery"] #ecvideo-main-wrapper, [data-view-mode="studio"] #ecvideo-main-wrapper {
+    display: none;
+}

@@ -45,6 +45,6 @@ function updateStatus() {
         txt = "Recording";
     log.innerText = txt;
 
-    if (ui.ui.wrapper)
+    if (ui.ui.log)
         ui.resizeUI();
 }

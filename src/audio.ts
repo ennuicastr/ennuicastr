@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Yahweasel
+ * Copyright (c) 2018-2021 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -43,26 +43,13 @@ import * as util from "./util";
 import { dce } from "./util";
 
 // libav version to load
-const libavVersion = "2.2.4.3.1";
-
-/* Although it has nothing to do with audio, we check some MediaRecord
- * capabilities here since it affects what version of libav we load */
-
-// Do we support MediaRecorder with VP8 output?
-export const mediaRecorderVP8 = (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("video/webm; codecs=vp8"));
-
-// How about MPEG-4?
-export const mediaRecorderMP4 = (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("video/mp4; codecs=avc1"));
-
-// The combination
-export const mediaRecorderVideo = mediaRecorderVP8 || mediaRecorderMP4;
-
-// Which libav package to load
-const libavPackage =
-    (mediaRecorderMP4 && !mediaRecorderVP8) ? "ennuicastr-mp4" : "ennuicastr-webm";
+const libavVersion = "2.3.4.3.1";
 
 // The audio device being read
 export var userMedia: MediaStream = null;
+
+// Input latency on said device, in ms
+var inputLatency = 0;
 
 // The pseudodevice as processed to reduce noise, for RTC
 export var userMediaRTC: MediaStream = null;
@@ -104,6 +91,18 @@ var sentZeroes = 999;
 export var lastSentTime = 0;
 export function setLastSentTime(to: number) { lastSentTime = to; }
 
+// Recording timer updater
+var recordingTimerInterval: null|number = null;
+
+// Current base of recording timer, in server time ms
+var recordingTimerBaseST = 0;
+
+// Current base of recording timer, in recording time ms
+var recordingTimerBase = 0;
+
+// Whether the recording timer should be ticking
+var recordingTimerTicking = false;
+
 // Shall we use direct libav encoding?
 var useLibAV = false;
 
@@ -126,6 +125,18 @@ export function disconnect() {
         });
         userMedia = null;
     }
+}
+
+// Get audio permission. First audio step of the process.
+export function getAudioPerms() {
+    return navigator.mediaDevices.getUserMedia({audio: true}).then(function(userMediaIn) {
+        userMedia = userMediaIn; // So that it gets deleted by getMic
+        return getMic(ui.mkAudioUI());
+    }).catch(function(err) {
+        net.disconnect();
+        log.pushStatus("fail", "Cannot get microphone: " + err);
+        log.popStatus("getmic");
+    });
 }
 
 /* The starting point for enabling encoding. Get our microphone input. Returns
@@ -153,14 +164,22 @@ export function getMic(deviceId?: string) {
     return navigator.mediaDevices.getUserMedia({
         audio: {
             deviceId: deviceId,
-            autoGainControl: {ideal: ui.ui.deviceList.agc.checked},
-            echoCancellation: {ideal: ui.ui.deviceList.ec.checked},
+            autoGainControl: {ideal: ui.ui.panels.inputConfig.agc.checked},
+            echoCancellation: {ideal: ui.ui.panels.inputConfig.echo.checked},
             noiseSuppression: {ideal: false},
             sampleRate: {ideal: 48000},
             sampleSize: {ideal: 24}
         }
     }).then(function(userMediaIn) {
+        // Figure out our latency
         userMedia = userMediaIn;
+        var inl = userMedia.getAudioTracks()[0].getSettings().latency;
+        if (inl)
+            inputLatency = inl * 1000;
+        else
+            inputLatency = 0;
+
+        // And move on to the next step
         return userMediaSet();
     }).catch(function(err) {
         net.disconnect();
@@ -187,10 +206,10 @@ function userMediaSet() {
     // Create our AudioContext if needed
     if (!ac) {
         try {
-            ac = new AudioContext({sampleRate: sampleRate});
+            ac = new AudioContext();
         } catch (ex) {
             // Try Apple's, and if not that, nothing left to try, so crash
-            ac = new webkitAudioContext({sampleRate: sampleRate});
+            ac = new webkitAudioContext();
         }
 
         ui.setOutputAudioContext(ac);
@@ -290,7 +309,7 @@ export function loadLibAV(): Promise<unknown> {
         (<any> window).LibAV = {};
     LibAV.base = "libav";
 
-    loadLibAVPromise = util.loadLibrary("libav/libav-" + libavVersion + "-" + libavPackage + ".js").then(function() {
+    loadLibAVPromise = util.loadLibrary("libav/libav-" + libavVersion + "-ennuicastr.js").then(function() {
         return LibAV.LibAV();
 
     }).then(function(ret) {
@@ -416,10 +435,6 @@ function libavStart() {
     if (config.useFlac && ac.sampleRate === 44100)
         sampleRate = 44100;
 
-    // Figure out if we need a custom AudioContext, due to sample rate differences
-    var umSampleRate = userMedia.getAudioTracks()[0].getSettings().sampleRate;
-    var needCustomAC = (umSampleRate !== ac.sampleRate) && (typeof AudioContext !== "undefined");
-
     // The server needs to be informed of FLAC's sample rate
     if (config.useFlac) {
         var p = prot.parts.info;
@@ -472,12 +487,8 @@ function libavStart() {
         encOptions.bit_rate = 128000;
     }
 
-    // Make our custom AudioContext if needed
-    var libavAC = needCustomAC ? new AudioContext({sampleRate: umSampleRate}) : ac;
-
     // Begin initializing the encoder
     libavEncoder = {
-        ac: libavAC,
         input_channels: channelCount,
         input_channel_layout: channelLayout
     };
@@ -491,7 +502,7 @@ function libavStart() {
 
         // Now make the filter
         return libav.ff_init_filter_graph("aresample", {
-            sample_rate: libavAC.sampleRate,
+            sample_rate: ac.sampleRate,
             sample_fmt: libav.AV_SAMPLE_FMT_FLTP,
             channels: channelCount,
             channel_layout: channelLayout
@@ -529,7 +540,7 @@ function libavStart() {
 function libavProcess() {
     var enc = libavEncoder;
     var pts = 0;
-    var inSampleRate = enc.ac.sampleRate;
+    var inSampleRate = ac.sampleRate;
 
     // Keep track of how much data we've received to see if it's too little
     var dataReceived = 0;
@@ -541,7 +552,7 @@ function libavProcess() {
     enc.latencyDump = false;
 
     // Start reading the input
-    var sp = safariWorkarounds.createScriptProcessor(enc.ac, userMedia, 16384 /* Max: Latency doesn't actually matter in this context */).scriptProcessor;
+    var sp = safariWorkarounds.createScriptProcessor(ac, userMedia, 16384 /* Max: Latency doesn't actually matter in this context */).scriptProcessor;
 
     // Don't try to process that last sip of data after termination
     var dead = false;
@@ -555,10 +566,10 @@ function libavProcess() {
         var channelCount = ev.inputBuffer.numberOfChannels;
         var ib = new Array(channelCount);
         for (var ci = 0; ci < channelCount; ci++)
-            ib[ci] = ev.inputBuffer.getChannelData(ci);
+            ib[ci] = ev.inputBuffer.getChannelData(ci).slice(0);
         var pktLen = (ib[0].length * 48000 / inSampleRate);
         var pktTime = Math.round(
-            (now - startTime) * 48 -
+            (now - inputLatency - startTime) * 48 -
             pktLen
         );
 
@@ -654,10 +665,6 @@ function libavProcess() {
             return;
         dead = true;
 
-        // Terminate our custom AC if needed
-        if (enc.ac !== ac)
-            enc.ac.close();
-
         // Close the encoder
         enc.p = enc.p.then(function() {
             return libav.avfilter_graph_free_js(enc.filter_graph);
@@ -671,7 +678,6 @@ function libavProcess() {
     // Catch when our UserMedia ends and stop (FIXME: race condition before reloading?)
     userMediaAvailableEvent.addEventListener("usermediastopped", terminate, {once: true});
     ac.addEventListener("disconnected", terminate);
-    enc.ac.addEventListener("disconnected", terminate);
 }
 
 
@@ -694,8 +700,9 @@ function handlePackets() {
     }
 
     // Warn if we're buffering
-    if (net.dataSock.bufferedAmount > 1024*1024)
-        log.pushStatus("buffering", util.bytesToRepr(net.dataSock.bufferedAmount) + " audio data buffered");
+    let ba = net.bufferedAmount();
+    if (ba > 1024*1024)
+        log.pushStatus("buffering", util.bytesToRepr(ba) + " audio data buffered");
     else
         log.popStatus("buffering");
 
@@ -790,10 +797,10 @@ export function toggleMute(to?: boolean) {
 
 // Play or stop a sound
 export function playStopSound(url: string, status: number, time: number) {
-    var sound = ui.ui.sounds[url];
+    var sound = ui.ui.sounds.soundboard[url];
     if (!sound) {
         // Create an element for it
-        sound = ui.ui.sounds[url] = {
+        sound = ui.ui.sounds.soundboard[url] = {
             el: document.createElement("audio")
         };
 
@@ -803,9 +810,9 @@ export function playStopSound(url: string, status: number, time: number) {
             format = "webm"
 
         sound.el.src = url + "." + format;
-        if (ui.ui.outputControlPanel) {
-            sound.el.volume = (+ui.ui.outputControlPanel.sfxVolume.value) / 100;
-            ui.ui.outputControlPanel.sfxVolumeHider.style.display = "";
+        if (ui.ui.panels.outputConfig) {
+            sound.el.volume = (+ui.ui.panels.outputConfig.sfxVolume.value) / 100;
+            ui.ui.panels.outputConfig.sfxVolumeHider.style.display = "";
         }
     }
     var el = sound.el;
@@ -822,21 +829,69 @@ export function playStopSound(url: string, status: number, time: number) {
     function catchup() {
         // Try to catch up if it's long enough to be worthwhile
         if (el.duration < 10 ||
-            !timeOffset) return;
+            el.ended ||
+            el.ecStartTime !== time) {
+            return;
+        }
+
+        // If we don't yet know how to catch up, try in a moment
+        if (!timeOffset) {
+            setTimeout(catchup, 1000);
+            return;
+        }
 
         // OK, it might be worth catching up. Figure out our time.
         var elCurTime = el.ecStartTime + el.currentTime * 1000;
         var realCurTime = performance.now() + timeOffset;
-        if (elCurTime < realCurTime) {
+        if (elCurTime < realCurTime - 100 || elCurTime > realCurTime + 100) {
             // Adjust our time so that we catch up in exactly one second
-            el.playbackRate = 1 + (realCurTime - elCurTime) / 1000;
+            let rate;
+            if (elCurTime < realCurTime)
+                rate = Math.min(1 + (realCurTime - elCurTime) / 1000, 16);
+            else
+                rate = Math.max(1 / (1 + (elCurTime - realCurTime) / 1000), 0.75);
+            if (rate < 0.75 || rate > 4)
+                el.muted = true;
+            el.playbackRate = rate;
             setTimeout(function() {
                 if (el.ecStartTime !== time) return;
                 el.playbackRate = 1;
+                catchup();
             }, 1000);
+        } else {
+            el.muted = false;
         }
     }
 
     if ("master" in config.config)
-        master.masterSoundButtonUpdate(url, status, el);
+        master.soundButtonUpdate(url, status, el);
+}
+
+
+// Set the recording timer
+export function setRecordingTimer(serverTime: number, recTime: number, ticking: boolean) {
+    recordingTimerBaseST = serverTime;
+    recordingTimerBase = recTime;
+    recordingTimerTicking = ticking;
+    if (!recordingTimerInterval)
+        recordingTimerInterval = setInterval(tickRecordingTimer, 500);
+}
+
+// Tick the recording timer
+function tickRecordingTimer() {
+    var time = recordingTimerBase;
+    if (recordingTimerTicking && timeOffset !== null)
+        time += performance.now() + timeOffset - recordingTimerBaseST;
+
+    time = ~~(time / 1000);
+    var s = "" + ~~(time % 60);
+    if (s.length < 2) s = "0" + s;
+    time = ~~(time / 60);
+    var m = "" + ~~(time % 60);
+    time = ~~(time / 60);
+    var h = ~~time;
+    if (h && m.length < 2) m = "0" + m;
+    var timer = ui.ui.log.timer;
+    timer.style.color = recordingTimerTicking ? "#080" : "#800";
+    timer.innerText = (h?(h+":"):"") + m + ":" + s;
 }

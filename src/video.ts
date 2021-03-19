@@ -15,11 +15,16 @@
  */
 
 import * as audio from "./audio";
+import * as config from "./config";
 import * as log from "./log";
+import * as net from "./net";
 import * as ui from "./ui";
 
 // The video device being read
 export var userMediaVideo: MediaStream = null;
+
+// Input latency of the video, in ms
+export var videoLatency = 0;
 
 // Called when there's a network disconnection
 export function disconnect() {
@@ -32,7 +37,7 @@ export function disconnect() {
 }
 
 // Get a camera/video device
-export function getCamera(id: string) {
+export function getCamera(id: string, res: number) {
     return Promise.all([]).then(function() {
         // If we already have a video device, stop it first
         if (userMediaVideo) {
@@ -55,35 +60,64 @@ export function getCamera(id: string) {
             return null;
 
         } else {
-            return navigator.mediaDevices.getUserMedia({
-                video: {
-                    deviceId: id,
-                    aspectRatio: {ideal: 16/9},
-                    facingMode: {ideal: "user"},
-                    frameRate: {ideal: 30},
-                    height: {ideal: 720}
+            // Try max res, then ideal res
+            let opts = {
+                deviceId: id,
+                aspectRatio: {ideal: 16/9},
+                facingMode: {ideal: "user"},
+                frameRate: {ideal: 30},
+                height: <any> {max: res}
+            };
+            if (res === 0)
+                delete opts.height;
+            return navigator.mediaDevices.getUserMedia({video: opts}).then(function(ret) {
+                if (ret) {
+                    return ret;
+                } else {
+                    opts.height = {ideal: res};
+                    return navigator.mediaDevices.getUserMedia({video: opts});
                 }
             });
         }
 
     }).then(function(userMediaIn) {
         userMediaVideo = userMediaIn;
+        var inl: number;
+        if (userMediaVideo)
+            inl = userMediaVideo.getVideoTracks()[0].getSettings().latency;
+        else
+            inl = 0;
+        if (inl)
+            videoLatency = inl * 1000;
+        else
+            videoLatency = 0;
+
+        ui.videoAdd(net.selfId, config.username);
+        var v = ui.ui.video.users[net.selfId].video;
+        var s = ui.ui.video.users[net.selfId].standin;
         if (userMediaVideo) {
             // Inform RTC
             audio.userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediavideoready", {}));
 
             // And update the display
-            ui.ui.video.self.srcObject = userMediaVideo;
-            ui.ui.video.self.play().catch(function(){});
-            ui.ui.video.hasVideo[0] = true;
+            v.srcObject = userMediaVideo;
+            v.play().catch(function(){});
+            s.style.display = "none";
 
         } else {
             // No video :(
-            ui.ui.video.self.srcObject = null;
-            ui.ui.video.hasVideo[0] = false;
+            v.srcObject = audio.userMedia;
+            v.srcObject = null;
+            s.style.display = "";
 
         }
-        ui.updateVideoUI(0);
+
+        if (!config.useRTC) {
+            // We only *show* video if we have it
+            ui.ui.video.mainWrapper.style.display = userMediaVideo ? "" : "none";
+            ui.updateVideoUI(net.selfId);
+            ui.resizeUI();
+        }
 
     }).catch(function(err) {
         log.pushStatus("video", "Failed to capture video!");

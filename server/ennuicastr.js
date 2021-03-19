@@ -178,15 +178,23 @@ wss.on("connection", (ws) => {
                         break;
 
                     case f.connectionType.data:
-                        // This is a data connection. First inform all parties of connections.
+                        // This is a data connection
                         id = connections.length;
                         connections.push(ws);
 
+                        // Tell them their ID
                         op = prot.parts.info;
                         ret = Buffer.alloc(op.length);
                         ret.writeUInt32LE(prot.ids.info, 0);
                         ret.writeUInt32LE(prot.info.id, op.key);
                         ret.writeUInt32LE(id, op.value);
+                        ws.send(ret);
+
+                        // Tell them the recording mode (always on)
+                        ret = Buffer.alloc(op.length);
+                        ret.writeUInt32LE(prot.ids.info, 0);
+                        ret.writeUInt32LE(prot.info.mode, op.key);
+                        ret.writeUInt32LE(prot.mode.rec, op.value);
                         ws.send(ret);
 
                         for (var ci = 1; ci < connections.length; ci++) {
@@ -224,6 +232,10 @@ wss.on("connection", (ws) => {
                         if (nick)
                             ws.send(ret);
                         monWs = ws;
+                        break;
+
+                    case f.connectionType.master:
+                        // Nothing
                         break;
 
                     default:

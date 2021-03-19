@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Yahweasel
+ * Copyright (c) 2018-2021 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,10 +15,10 @@
  */
 
 import * as audio from "./audio";
-import * as compression from "./compression";
 import * as config from "./config";
 import * as log from "./log";
 import * as net from "./net";
+import * as outproc from "./outproc";
 import * as proc from "./proc";
 import { prot } from "./protocol";
 import * as ui from "./ui";
@@ -80,6 +80,7 @@ export function initRTC(peer: number) {
     };
 
     var videoEl: HTMLVideoElement = null;
+    var standinEl: HTMLElement = null;
 
     conn.incoming.onicecandidate = function(c) {
         rtcSignal(peer, false, prot.rtc.candidate, c.candidate);
@@ -125,19 +126,33 @@ export function initRTC(peer: number) {
                 stream.removeTrack(otrack);
         });
 
-        // Prepare for tracks to end
-        stream.onremovetrack = function() {
-            videoEl = reassessRTCEl(peer, !!stream.getTracks().length, !!stream.getVideoTracks().length);
-        };
-
         // Get our video element (even if there is no video)
-        videoEl = reassessRTCEl(peer, true, !!stream.getVideoTracks().length);
+        ui.videoAdd(peer, null);
+        videoEl = ui.ui.video.users[peer].video;
+        standinEl = ui.ui.video.users[peer].standin;
         videoEl.srcObject = stream;
         videoEl.play().catch(console.error);
 
+        if (stream.getVideoTracks().length === 0)
+            standinEl.style.display = "";
+        else
+            standinEl.style.display = "none";
+
+        // Prepare for video tracks to end
+        stream.onremovetrack = function() {
+            if (stream.getVideoTracks().length === 0) {
+                /* This lets it visually reset, but it needs to be playing to
+                 * go through the AudioContext */
+                videoEl.srcObject = null;
+                videoEl.srcObject = stream;
+                videoEl.play().catch(console.error);
+                standinEl.style.display = "";
+            }
+        };
+
         if (!isVideo) {
             // Audio streams go through a compressor
-            compression.createCompressor(peer, audio.ac, stream);
+            outproc.createCompressor(peer, audio.ac, stream, ui.ui.video.users[peer].waveformWrapper);
         }
     };
 
@@ -214,7 +229,7 @@ export function initRTC(peer: number) {
     chan.onopen = function() {
         rtcSpeech(proc.vadOn, peer);
         if ("master" in config.config)
-            rtcVideoRecSend(void 0, prot.videoRec.videoRecHost, ~~ui.ui.masterUI.acceptRemoteVideo.checked);
+            rtcVideoRecSend(void 0, prot.videoRec.videoRecHost, ~~ui.ui.panels.master.acceptRemoteVideo.checked);
     };
 
     conn.incoming.ondatachannel = function(ev) {
@@ -235,45 +250,6 @@ export function closeRTC(peer: number) {
     if (conn.outgoing.ecOnclose)
         conn.outgoing.ecOnclose();
     conn.outgoing.close();
-    reassessRTCEl(peer, false, false);
-}
-
-// Reassess the properties of the RTC element for this peer
-function reassessRTCEl(peer: number, hasTracks: boolean, hasVideo: boolean) {
-    var el = ui.ui.video.els[peer];
-
-    if (hasTracks) {
-        if (!el) {
-            // Create the element
-            el = dce("video");
-            el.height = 0; // Use CSS for sizing
-            el.muted = true; // Audio is done separately
-            el.style.maxWidth = "100%";
-
-            // Add it to the UI
-            let els = ui.ui.video.els;
-            let hasVideo = ui.ui.video.hasVideo;
-            while (els.length <= peer) {
-                els.push(null);
-                hasVideo.push(false);
-            }
-            els[peer] = el;
-        }
-        ui.ui.video.hasVideo[peer] = hasVideo;
-
-    } else if (!hasTracks && el) {
-        // Destroy it
-        el.pause();
-        try {
-            el.parentNode.removeChild(el);
-        } catch (ex) {}
-        el = ui.ui.video.els[peer] = null;
-        ui.ui.video.hasVideo[peer] = false;
-
-    }
-
-    ui.updateVideoUI(peer);
-    return el;
 }
 
 // Receive a data channel message from an RTC peer
@@ -317,7 +293,7 @@ function rtcMessage(peer: number, msg: DataView) {
 
                 case pv.startVideoRecReq:
                     if ("master" in config.config &&
-                        ui.ui.masterUI.acceptRemoteVideo.checked &&
+                        ui.ui.panels.master.acceptRemoteVideo.checked &&
                         rtcConnections.peers[peer]) {
 
                         // Check for options

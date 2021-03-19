@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Yahweasel
+ * Copyright (c) 2018-2021 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -25,6 +25,7 @@ import * as rtc from "./rtc";
 import * as safariWorkarounds from "./safari";
 import * as ui from "./ui";
 import * as util from "./util";
+import * as waveform from "./waveform";
 
 // WebRTCVAD's raw output
 export var rawVadOn = false;
@@ -40,10 +41,6 @@ export const vadExtension = 2000;
 
 // Similar, for RTC transmission
 const rtcVadExtension = 250;
-
-// The data used by both the level-based VAD and display
-var waveData: number[] = [];
-var waveVADs: number[] = [];
 
 // En/disable noise reduction
 export var useNR = false;
@@ -104,10 +101,11 @@ export function localProcessing() {
         var buf = new Int16Array(m.heap.buffer, dataPtr, bufSz * 2);
         var bi = 0;
         var timeout: null|number = null, rtcTimeout: null|number = null;
+        var rtcVadOnTime: null|number = null;
 
         /* WebRTC VAD is pretty finicky, so also keep track of volume as a
          * secondary gate */
-        var triggerVadVolume = 0;
+        var triggerVadCeil = 0, triggerVadFloor = 0;
         var curVadVolume = 0;
 
         m.set_mode(3);
@@ -115,34 +113,49 @@ export function localProcessing() {
 
         // Now the noise repellent steps
         var nr: any = null;
-        if (config.useRTC) {
-            // This can happen whenever
-            NoiseRepellent.NoiseRepellent(audio.ac.sampleRate).then(function(ret: any) {
-                nr = ret;
-                nr.set(NoiseRepellent.N_ADAPTIVE, 1);
-                nr.set(NoiseRepellent.AMOUNT, 20);
-                nr.set(NoiseRepellent.WHITENING, 50);
-            });
-        }
+        // This can happen whenever
+        NoiseRepellent.NoiseRepellent(audio.ac.sampleRate).then(function(ret: any) {
+            nr = ret;
+            nr.set(NoiseRepellent.N_ADAPTIVE, 1);
+            nr.set(NoiseRepellent.AMOUNT, 20);
+            nr.set(NoiseRepellent.WHITENING, 50);
+        });
 
 
         // Now the display steps
 
-        // Create a canvas for it
-        var wc = ui.ui.waveCanvas;
-
-        // Now the background is nothing, so should just be grey
-        document.body.style.backgroundColor = "#111";
+        // Create a display for it, either in the main waveform wrapper or the studio location
+        var studio = (ui.ui.video.mode === ui.ViewMode.Studio);
+        var wd: waveform.Waveform;
+        function studioSwapped() {
+            if (studio) {
+                var user = ui.ui.video.users[net.selfId];
+                if (!user) {
+                    studio = false;
+                    studioSwapped();
+                } else {
+                    wd = new waveform.Waveform(audio.ac.sampleRate / 1024, user.waveformWrapper, null);
+                }
+            } else {
+                wd = new waveform.Waveform(audio.ac.sampleRate / 1024, ui.ui.wave.wrapper, ui.ui.wave.watcher);
+            }
+        }
+        studioSwapped();
 
         // The VAD needs packets in odd intervals
         var step = audio.ac.sampleRate / 32000;
 
         // Create our script processor
-        var spW = safariWorkarounds.createScriptProcessor(audio.ac, audio.userMedia, 1024);
+        var spW = safariWorkarounds.createScriptProcessor(audio.ac, audio.userMedia, 4096);
         var destination: MediaStream = spW.destination;
         var sp = spW.scriptProcessor;
 
         function rtcVad(to: boolean) {
+            rtcVadOn = to;
+            if (to)
+                rtcVadOnTime = performance.now();
+            else
+                rtcVadOnTime = null;
             destination.getTracks().forEach(function(track) {
                 track.enabled = to;
             });
@@ -156,7 +169,8 @@ export function localProcessing() {
         // The actual processing
         sp.onaudioprocess = function(ev: AudioProcessingEvent) {
             // Display an issue if we haven't sent recently
-            var sentRecently = (audio.lastSentTime > performance.now()-1500);
+            var now = performance.now();
+            var sentRecently = (audio.lastSentTime > now-1500);
             if (sentRecently)
                 log.popStatus("notencoding");
             else
@@ -183,11 +197,30 @@ export function localProcessing() {
                     ib[i] /= cc;
             }
 
+
+            // Perform noise reduction and output
+            var nrbuf = ib;
+            if (nr) {
+                let ob = ib;
+                nrbuf = nr.run(ib);
+                if (useNR)
+                    ob = nrbuf;
+                var cc = ev.outputBuffer.numberOfChannels;
+                if (sentRecently) {
+                    for (var oi = 0; oi < cc; oi++)
+                        ev.outputBuffer.getChannelData(oi).set(ob);
+                } else {
+                    for (var oi = 0; oi < cc; oi++)
+                        ev.outputBuffer.getChannelData(oi).fill(0);
+                }
+            }
+
+
             // Transfer data for the VAD
             var vadSet = rawVadOn;
             var curVolume = 0;
             for (var i = 0; i < ib.length; i += step) {
-                var v = ib[~~i];
+                var v = nrbuf[~~i];
                 var a = Math.abs(v);
                 curVolume += a;
                 curVadVolume += a;
@@ -200,42 +233,64 @@ export function localProcessing() {
                     bi = 0;
 
                     if (vadSet) {
-                        // Adjust the trigger value
-                        triggerVadVolume = (
-                                triggerVadVolume * 15 +
-                                curVadVolume/bufSz/2
-                            ) / 16;
-                        curVadVolume = 0;
+                        // Adjust the trigger value quickly up or slowly down
+                        let triggerTarget = curVadVolume/bufSz;
+                        if (triggerTarget > triggerVadCeil) {
+                            triggerVadCeil = triggerTarget;
+                        } else {
+                            triggerVadCeil = (
+                                triggerVadCeil * 1023 +
+                                triggerTarget
+                            ) / 1024;
+                        }
+                    } else {
+                        let triggerTarget = curVadVolume/bufSz*2;
+                        triggerVadFloor = (
+                            triggerVadFloor * 511 +
+                            triggerTarget
+                        ) / 512;
+                    }
+                    curVadVolume = 0;
+                }
+            }
+
+            // Gate the VAD by volume
+            if (vadSet) {
+                let relVolume = curVolume/ib.length;
+                vadSet = false;
+                // We must be over the floor...
+                if (relVolume >= triggerVadFloor) {
+                    // And at least 1/32nd way to the ceiling
+                    if (triggerVadCeil < triggerVadFloor*2 ||
+                        relVolume - triggerVadFloor >= (triggerVadCeil - triggerVadFloor) / 32) {
+                        vadSet = true;
                     }
                 }
             }
 
             // Possibly swap the VAD mode
             if (vadSet) {
-                // Our transmission VAD has a hair trigger
+                // Switch on the transmission VAD
                 if (!rtcVadOn) {
-                    rtcVadOn = true;
                     rtcVad(true);
                 } else if (rtcTimeout) {
                     clearTimeout(rtcTimeout);
                     rtcTimeout = null;
                 }
 
-                // Gate the normal VAD by volume
-                if (curVolume/ib.length >= triggerVadVolume) {
-                    if (timeout) {
-                        clearTimeout(timeout);
-                        timeout = null;
+                // And the recording VAD
+                if (timeout) {
+                    clearTimeout(timeout);
+                    timeout = null;
+                }
+                if (!rawVadOn) {
+                    // We flipped on
+                    if (!vadOn) {
+                        wd.updateWaveRetroactive(vadExtension);
+                        updateSpeech(null, true);
                     }
-                    if (!rawVadOn) {
-                        // We flipped on
-                        if (!vadOn) {
-                            updateWaveRetroactive();
-                            updateSpeech(null, true);
-                        }
-                        rawVadOn = true;
-                        curVadVolume = 0;
-                    }
+                    rawVadOn = true;
+                    curVadVolume = 0;
                 }
 
             } else {
@@ -244,7 +299,6 @@ export function localProcessing() {
                     if (!rtcTimeout) {
                         rtcTimeout = setTimeout(function() {
                             rtcTimeout = null;
-                            rtcVadOn = false;
                             rtcVad(false);
                         }, rtcVadExtension);
                     }
@@ -263,27 +317,12 @@ export function localProcessing() {
             }
 
 
-            /* Our actual script processing step: noise reduction, only for RTC
-             * (live voice chat). Do not send audio if encoding isn't working,
-             * so that your silence will be a hint that something is wrong. */
-            if (nr) {
-                var ob;
-                if (useNR)
-                    ob = nr.run(ib);
-                else
-                    ob = ib;
-                var cc = ev.outputBuffer.numberOfChannels;
-                if (sentRecently) {
-                    for (var oi = 0; oi < cc; oi++)
-                        ev.outputBuffer.getChannelData(oi).set(ob);
-                } else {
-                    for (var oi = 0; oi < cc; oi++)
-                        ev.outputBuffer.getChannelData(oi).fill(0);
-                }
-            }
-
-
             // And display
+            var nowStudio = (ui.ui.video.mode === ui.ViewMode.Studio);
+            if (studio !== nowStudio) {
+                studio = nowStudio;
+                studioSwapped();
+            }
             for (var part = 0; part < ib.length; part += 1024) {
                 // Find the max for this range
                 var max = 0;
@@ -294,28 +333,10 @@ export function localProcessing() {
                     if (v > max) max = v;
                 }
 
-                // Bump up surrounding ones to make the wave look nicer
-                if (waveData.length > 0) {
-                    var last = waveData.pop();
-                    if (last < max)
-                        last = (last+max)/2;
-                    else
-                        max = (last+max)/2;
-                    waveData.push(last);
-                }
-
-                waveData.push(max);
-                if (!net.transmitting)
-                    waveVADs.push(0);
-                else if (rawVadOn)
-                    waveVADs.push(3);
-                else if (vadOn)
-                    waveVADs.push(2);
-                else
-                    waveVADs.push(1);
+                wd.push(max, net.transmitting?(rawVadOn?3:(vadOn?2:1)):0);
             }
 
-            updateWave(max, sentRecently);
+            wd.updateWave(max, sentRecently);
         };
 
         // Restart if we change devices
@@ -329,114 +350,6 @@ export function localProcessing() {
         }, {once: true});
 
     }).catch(console.error);
-}
-
-// Update the wave display when we retroactively promote VAD data
-function updateWaveRetroactive() {
-    var timeout = Math.ceil(audio.ac.sampleRate*vadExtension/1024000);
-    var i = Math.max(waveVADs.length - timeout, 0);
-    for (; i < waveVADs.length; i++)
-        waveVADs[i] = (waveVADs[i] === 1) ? 2 : waveVADs[i];
-}
-
-// Constant used by updateWave
-var e4 = Math.exp(4);
-
-// Update the wave display
-function updateWave(value: number, sentRecently: boolean) {
-    var wc = ui.ui.waveCanvas;
-
-    // Start from the element size
-    var w = ui.ui.waveWrapper.offsetWidth;
-    var h = ui.ui.waveWrapper.offsetHeight;
-
-    // Rotate if our view is vertical
-    if (w/h < 4/3) {
-        if (!ui.ui.waveRotate) {
-            ui.ui.waveWatcher.style.visibility = "hidden";
-            ui.ui.waveRotate = true;
-        }
-    } else {
-        if (ui.ui.waveRotate) {
-            ui.ui.waveWatcher.style.visibility = "";
-            ui.ui.waveRotate = false;
-        }
-
-    }
-
-    // Make sure the canvases are correct
-    if (+wc.width !== w)
-        wc.width = w;
-    if (+wc.height !== h)
-        wc.height = h;
-
-    if (ui.ui.waveRotate) {
-        var tmp = w;
-        w = h;
-        h = tmp;
-    }
-
-    // Half the wave height is a more useful value
-    h = Math.floor(h/2);
-
-    // Figure out the width of each sample
-    var sw = Math.max(Math.floor(w/468), 1);
-    var dw = Math.ceil(w/sw);
-
-    // Make sure we have an appropriate amount of data
-    while (waveData.length > dw) {
-        waveData.shift();
-        waveVADs.shift();
-    }
-    while (waveData.length < dw) {
-        waveData.unshift(0);
-        waveVADs.unshift(0);
-    }
-
-    // Figure out the height of the display
-    var dh = Math.min(Math.max.apply(Math, waveData) * 1.5, 1);
-    if (dh < 0.06) dh = 0.06; // Make sure the too-quiet bars are always visible
-
-    // Figure out whether it should be colored at all
-    var good = net.connected && net.transmitting && audio.timeOffset && sentRecently;
-
-    // And draw it
-    var ctx = wc.getContext("2d");
-    var i, p;
-    ctx.save();
-    if (ui.ui.waveRotate) {
-        ctx.rotate(Math.PI/2);
-        ctx.translate(0, -2*h);
-    }
-
-    // A function for drawing our level warning bars
-    function levelBar(at: number, color: string) {
-        if (dh <= at) return;
-        var y = Math.log(at/dh * e4) / 4 * h;
-        ctx.fillStyle = color;
-        ctx.fillRect(0, h-y-1, w, 1);
-        ctx.fillRect(0, h+y, w, 1);
-    }
-
-    // Background color
-    ctx.fillStyle = "#1a3333";
-    ctx.fillRect(0, 0, w, h*2);
-
-    // Level bar at 0.4% for "too soft"
-    levelBar(0.004, "#333");
-
-    // Each column
-    for (i = 0, p = 0; i < dw; i++, p += sw) {
-        var d = Math.max(Math.log((waveData[i] / dh) * e4) / 4, 0) * h;
-        if (d === 0) d = 1;
-        ctx.fillStyle = good ? config.waveVADColors[waveVADs[i]] : "#000";
-        ctx.fillRect(p, h-d, sw, 2*d);
-    }
-
-    // Level bar at 90% for "too loud"
-    levelBar(0.9, "#700");
-
-    ctx.restore();
 }
 
 // Update speech info everywhere that needs it. peer===null is self
@@ -455,13 +368,5 @@ export function updateSpeech(peer: number, status: boolean) {
     }
 
     // Update the user list
-    ui.userListUpdate(peer, status);
-
-    // Update video speech info
-    if (!ui.ui.video) return;
-    if (status)
-        ui.ui.video.speech[vpeer] = performance.now();
-    else
-        delete ui.ui.video.speech[vpeer];
-    ui.updateVideoUI(vpeer);
+    ui.userListUpdate(peer, status, false);
 }

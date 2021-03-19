@@ -15,7 +15,7 @@
  */
 
 // extern
-declare var MediaRecorder: any, streamSaver: any;
+declare var LibAV: any, MediaRecorder: any, streamSaver: any;
 
 import * as audio from "./audio";
 import * as config from "./config";
@@ -39,11 +39,15 @@ interface RecordVideoOptions {
     local?: boolean;
     remote?: boolean;
     remotePeer?: number;
+    bitrate?: number; // in Mbit
     localWriter?: WritableStreamDefaultWriter;
 }
 
 interface TranscodeState {
+    libav?: any;
     format?: string;
+    mimeType?: string;
+    fullReadCodecPar?: boolean;
     bitrate?: number;
     inF?: string;
     outF?: string;
@@ -53,9 +57,7 @@ interface TranscodeState {
     in_streams?: any[];
     in_stream_idx?: number;
     in_stream?: any;
-    c?: number;
     pkt?: number;
-    frame?: number;
     out_oc?: number;
     out_fmt?: number;
     out_pb?: number;
@@ -74,13 +76,29 @@ function recordVideo(opts: RecordVideoOptions) {
     recordVideoButton(true);
 
     // Which format?
-    var format = "webm", outFormat = "webm";
-    var mimeType = "video/webm; codecs=vp8";
-    if (!audio.mediaRecorderVP8) {
-        format = "mp4";
-        outFormat = "mkv";
-        mimeType = "video/mp4; codecs=avc1";
+    var formats: [string, string, boolean][] = [
+        ["x-matroska", "avc1", true],
+        ["webm", "vp9", false],
+        ["webm", "vp8", false],
+        ["mp4", "avc1", true]
+    ];
+    var format: [string, string, boolean];
+    var mimeType: string;
+    var fi: number;
+    for (fi = 0; fi < formats.length; fi++) {
+        format = formats[fi];
+        mimeType = "video/" + format[0] + "; codecs=" + format[1];
+        if (MediaRecorder.isTypeSupported(mimeType))
+            break;
     }
+    if (fi === formats.length) {
+        log.pushStatus("mediaRecorder", "No supported video encoder found!");
+        setTimeout(function() {
+            log.popStatus("mediaRecorder");
+        }, 10000);
+        return;
+    }
+    var outFormat = (format[0] === "webm") ? "webm" : "mkv";
 
     // Choose a name
     var filename = "";
@@ -153,14 +171,21 @@ function recordVideo(opts: RecordVideoOptions) {
 
     // We decide the bitrate based on the height (FIXME: Configurability)
     var videoSettings = video.userMediaVideo.getVideoTracks()[0].getSettings();
-    var bitrate = videoSettings.height * 5000;
+    var bitrate: number;
+    if (opts.bitrate)
+        bitrate = Math.min(opts.bitrate * 1000000, videoSettings.height * 50000);
+    else
+        bitrate = videoSettings.height * 5000;
     var globalFrameTime = 1/videoSettings.frameRate * 1000;
     var libav: any;
     var transtate: TranscodeState = {};
+    var c: number;
 
     return audio.loadLibAV().then(function() {
+        return LibAV.LibAV();
+    }).then(function(la) {
         // Set up our forwarder in LibAV
-        libav = audio.libav;
+        transtate.libav = libav = la;
         if (!libav.onwrite) {
             libav.onwriteto = {};
             libav.onwrite = function(name: string, pos: number, buf: Uint8Array) {
@@ -173,7 +198,9 @@ function recordVideo(opts: RecordVideoOptions) {
 
     }).then(function() {
         // Create our LibAV input
-        transtate.format = format;
+        transtate.format = (format[0] === "x-matroska") ? "mkv" : format[0];
+        transtate.mimeType = mimeType;
+        transtate.fullReadCodecPar = format[2];
         transtate.bitrate = bitrate;
         transtate.inF = "in-" + Math.random() + "." + format;
         transtate.outF = "out-" + Math.random() + "." + outFormat;
@@ -212,13 +239,18 @@ function recordVideo(opts: RecordVideoOptions) {
 
             transtate.in_stream_idx = si;
             transtate.in_stream = stream;
-            return libav.ff_init_decoder(stream.codec_id, stream.codecpar);
+            return Promise.all([
+                libav.avcodec_alloc_context3(0),
+                libav.av_packet_alloc()
+            ]);
 
         }).then(function(ret: any) {
-            transtate.c = ret[1];
-            transtate.pkt = ret[2];
-            transtate.frame = ret[3];
+            c = ret[0];
+            transtate.pkt = ret[1];
 
+            return libav.avcodec_parameters_to_context(c, transtate.in_stream.codecpar);
+
+        }).then(function() {
             var sentFirst = false;
             var starterPackets: any[] = [];
             var lastDTS = 0;
@@ -242,12 +274,10 @@ function recordVideo(opts: RecordVideoOptions) {
 
                         // Maybe prepare output
                         if (packets.length && !transtate.out_oc) {
-                            // Decode at least some packets so the codec state is complete
-                            return libav.ff_decode_multi(transtate.c, transtate.pkt, transtate.frame, packets, true).then(function() {
-                                // Initialize the muxer and output device
-                                return libav.ff_init_muxer({filename: transtate.outF, open: true, device: true},
-                                    [[transtate.c, fixedTimeBase.num, fixedTimeBase.den]]);
-                            }).then(function(ret: any) {
+                            // Initialize the muxer and output device
+                            return libav.ff_init_muxer({filename: transtate.outF, open: true, device: true},
+                                [[c, fixedTimeBase.num, fixedTimeBase.den]]).then(function(ret: any) {
+
                                 transtate.out_oc = ret[0];
                                 transtate.out_fmt = ret[1];
                                 transtate.out_pb = ret[2];
@@ -284,13 +314,19 @@ function recordVideo(opts: RecordVideoOptions) {
                                 if (packets.length > 1) {
                                     var last = timeFrom(lastPacket.dtshi, lastPacket.dts);
                                     var first = timeFrom(packets[0].dtshi, packets[0].dts);
-                                    frameTime = (last - first) / (packets.length - 1);
+                                    if (last < 0 || first < 0) {
+                                        // Invalid dts, just trust global frame time
+                                        frameTime = globalFrameTime;
+                                    } else {
+                                        frameTime = (last - first) / (packets.length - 1);
+                                    }
                                 } else {
                                     frameTime = globalFrameTime;
                                 }
 
                                 // Figure out the ideal end time
                                 var endTimeDTS = endTimeReal // The real time when we received this packet
+                                    - video.videoLatency // Adjusted for input latency
                                     + audio.timeOffset // Convert to remote time
                                     - net.remoteBeginTime; // Base at recording start time
 
@@ -317,6 +353,7 @@ function recordVideo(opts: RecordVideoOptions) {
                                     var packet = packets[pi];
                                     var pdts: any = timeFrom(packet.dtshi, packet.dts);
                                     var ppts: any = timeFrom(packet.ptshi, packet.pts);
+                                    if (pdts < 0) pdts = ppts;
                                     ppts -= pdts;
                                     pdts = (dts < lastDTS) ? lastDTS : dts;
                                     ppts += pdts;
@@ -390,7 +427,8 @@ function recordVideo(opts: RecordVideoOptions) {
         }).then(function() {
             // Free everything
             return Promise.all([
-                libav.ff_free_decoder(transtate.c, transtate.pkt, transtate.frame),
+                libav.avcodec_free_context_js(c),
+                libav.av_packet_free(transtate.pkt),
                 libav.avformat_close_input_js(transtate.in_fmt_ctx),
                 transtate.out_oc ? libav.ff_free_muxer(transtate.out_oc, transtate.out_pb) : Promise.all([])
             ]);
@@ -453,7 +491,8 @@ export function recordVideoRemoteIncoming(peer: number, opts: any) {
     var filename = "";
     if (net.recName)
         filename = net.recName + "-";
-    var remoteName = ui.ui.userList.names[peer];
+    var remoteUser = ui.ui.panels.userList.users[peer];
+    var remoteName = remoteUser ? remoteUser.name.innerText : "";
     if (remoteName)
         filename += remoteName + "-";
     filename += "video." + ext;
@@ -472,19 +511,58 @@ export function recordVideoRemoteIncoming(peer: number, opts: any) {
 
 // Show the video recording panel if we need to, or just start recording
 function recordVideoPanel() {
-    ui.togglePanel("video-record");
+    var vr = ui.ui.panels.videoRecord;
+
+    // Get a default bitrate (FIXME: Save their configuration?)
+    var bri = vr.bitrate;
+    var sbr = Math.round(video.userMediaVideo.getVideoTracks()[0].getSettings().height * 0.05) / 10;
+    if (sbr < 1) sbr = 1;
+    bri.value = "" + sbr;
+
+    // Use it in the buttons
+    vr.local.onclick = function() {
+        ui.showPanel(null, ui.ui.persistent.main);
+        recordVideo({local: true, bitrate: +bri.value});
+    };
+
+    vr.remote.onclick = function() {
+        ui.showPanel(null, ui.ui.persistent.main);
+        recordVideo({remote: true, bitrate: +bri.value});
+    };
+
+    vr.both.onclick = function() {
+        ui.showPanel(null, ui.ui.persistent.main);
+        recordVideo({local: true, remote: true, bitrate: +bri.value});
+    };
+
+    // En/disable the buttons based on presence of a remote host
+    var focus: HTMLElement;
+    if (rtc.rtcConnections.videoRecHost >= 0) {
+        vr.remote.disabled = false;
+        vr.remote.classList.remove("off");
+        vr.both.disabled = false;
+        vr.both.classList.remove("off");
+        focus = vr.remote;
+    } else {
+        vr.remote.disabled = true;
+        vr.remote.classList.add("off");
+        vr.both.disabled = true;
+        vr.both.classList.add("off");
+        focus = vr.local;
+    }
+
+    ui.showPanel("videoRecord", focus);
 }
 
 // Input handler for video recording
 function recordVideoInput(transtate: TranscodeState) {
-    var libav = audio.libav;
+    var libav = transtate.libav;
 
     return Promise.all([]).then(function() {
-        if (transtate.format === "mp4") {
-            /* Only MP4 is supported. We need one *complete* file to even start
-             * transcoding because the MOOV atom is in the wrong place. */
+        if (transtate.fullReadCodecPar) {
+            // To get the codec parameters, we need a full file
             var mediaRecorder = new MediaRecorder(video.userMediaVideo, {
-                mimeType: "video/mp4; codecs=avc1",
+                mimeType: transtate.mimeType,
                 videoBitsPerSecond: transtate.bitrate
             });
             var data = new Uint8Array(0);
@@ -513,7 +591,7 @@ function recordVideoInput(transtate: TranscodeState) {
             mediaRecorder.addEventListener("stop", function() {
                 // Use this complete file to figure out the header for our eventual real file
                 var in_fmt_ctx: number, in_stream_idx: number, in_stream: any,
-                    c: number, pkt: number, frame: number;
+                    c: number;
 
                 var tmpFile = transtate.inF + ".tmp.mp4";
 
@@ -536,17 +614,14 @@ function recordVideoInput(transtate: TranscodeState) {
 
                     in_stream_idx = si;
                     in_stream = stream;
-                    return libav.ff_init_decoder(stream.codec_id, stream.codecpar);
+                    return libav.avformat_find_stream_info(in_fmt_ctx);
+
+                }).then(function() {
+                    return libav.avcodec_alloc_context3(0);
 
                 }).then(function(ret) {
-                    c = ret[1];
-                    pkt = ret[2];
-                    frame = ret[3];
-                    return libav.ff_read_multi(in_fmt_ctx, pkt);
-
-                }).then(function(ret: any) {
-                    // FIXME: Just assuming success here
-                    return libav.ff_decode_multi(c, pkt, frame, ret[1][in_stream_idx], true);
+                    c = ret;
+                    return libav.avcodec_parameters_to_context(c, in_stream.codecpar);
 
                 }).then(function() {
                     // Now we have the codec info to create WebM's header
@@ -565,7 +640,7 @@ function recordVideoInput(transtate: TranscodeState) {
                 }).then(function() {
                     // Clean up
                     return Promise.all([
-                        libav.ff_free_decoder(c, pkt, frame),
+                        libav.avcodec_free_context_js(c),
                         libav.avformat_close_input_js(in_fmt_ctx),
                         libav.unlink(tmpFile)
                     ]);
@@ -650,7 +725,7 @@ function recordVideoRemoteClose(peer: number) {
 
 // Configure the video recording button based on the current state
 export function recordVideoButton(loading?: boolean) {
-    var btn = ui.ui.recordVideoButton;
+    var btn = ui.ui.panels.main.videoRecordB;
     if (!btn) return;
 
     function disabled(to: boolean) {
@@ -680,7 +755,7 @@ export function recordVideoButton(loading?: boolean) {
     } else {
         // Not currently recording
         btn.innerHTML = start + '<i class="fas fa-circle"></i>';
-        if (audio.mediaRecorderVideo && video.userMediaVideo) {
+        if (typeof MediaRecorder !== "undefined" && video.userMediaVideo) {
             // But we could be!
 
             // Make sure we've loaded StreamSaver
@@ -694,28 +769,8 @@ export function recordVideoButton(loading?: boolean) {
             }
 
             btn.onclick = function() {
-                if (rtc.rtcConnections.videoRecHost >= 0) {
-                    disabled(false);
-                    recordVideoPanel();
-                } else {
-                    disabled(true);
-                    recordVideo({local: true});
-                }
-            };
-
-            gebi("ecvideo-record-local").onclick = function() {
-                ui.togglePanel("video-record", false);
-                recordVideo({local: true});
-            };
-
-            gebi("ecvideo-record-remote").onclick = function() {
-                ui.togglePanel("video-record", false);
-                recordVideo({remote: true});
-            };
-
-            gebi("ecvideo-record-local-remote").onclick = function() {
-                ui.togglePanel("video-record", false);
-                recordVideo({local: true, remote: true});
+                disabled(false);
+                recordVideoPanel();
             };
 
         } else {

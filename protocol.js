@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Yahweasel
+ * Copyright (c) 2018-2021 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -221,7 +221,9 @@
             // S->C, uint32: Inform the client of a peer disconnecting
             "peerLost": 0x13,
 
-            // S->C, uint32: Inform the user of the current mode
+            /* S->C, uint32 + double + double: Inform the user of the current
+             * mode, the server time when that mode was set, and the recording
+             * time when that mode was set */
             "mode": 0x14,
 
             /* S->C, double: Inform the user of the timestamp at which
