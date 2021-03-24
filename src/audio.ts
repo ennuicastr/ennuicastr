@@ -110,7 +110,7 @@ export var useLibAV = false;
 export var useAWP = false;
 
 // Worker paths to use
-const workerVer = "0." + Math.random() + Math.random();
+const workerVer = "4";
 const awpPath = "awp/ennuicastr-awp.js?v=" + workerVer;
 export const workerPath = "awp/ennuicastr-worker.js?v=" + workerVer;
 
