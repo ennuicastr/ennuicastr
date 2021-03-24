@@ -43,6 +43,7 @@ declare function registerProcessor(
 class WorkerProcessor extends AudioWorkletProcessor {
     workerPort: MessagePort;
     buffer: Float32Array[][];
+    lenPerBuf: number;
 
     /*
     last: number;
@@ -53,6 +54,7 @@ class WorkerProcessor extends AudioWorkletProcessor {
         super(options);
 
         this.buffer = [];
+        this.lenPerBuf = 0;
         /*
         this.last = 0;
         this.ct = 0;
@@ -64,7 +66,11 @@ class WorkerProcessor extends AudioWorkletProcessor {
                 case "workerPort":
                     this.workerPort = msg.p;
                     this.workerPort.onmessage = ev => {
-                        this.buffer.push(ev.data.d);
+                        let buf = ev.data.d;
+                        let len = buf[0].length;
+                        if (len > this.lenPerBuf)
+                            this.lenPerBuf = len;
+                        this.buffer.push(buf);
                     };
                     break;
             }
@@ -88,7 +94,12 @@ class WorkerProcessor extends AudioWorkletProcessor {
         // Send inputs to the worker
         this.workerPort.postMessage({c: "data", t: Date.now(), d: inputs[0]} /*, inputs[0].map(x => x.buffer)*/);
 
-        // And buffered output out
+        // Drain any excess buffer
+        while (this.buffer.length >= 3 &&
+            (this.buffer.length * this.lenPerBuf >= 4800))
+            this.buffer.shift();
+
+        // And send buffered output out
         var out = outputs[0];
         var i = 0, len = out[0].length;
         while (i < len && this.buffer.length) {
