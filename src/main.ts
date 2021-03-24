@@ -56,6 +56,7 @@ function main() {
         // Now connect
         return net.connect();
     }).then(function() {
+        audio.detectCapture(); // This happens immediately
         proc.localProcessing(); // This will start up on its own in the background
         return audio.getAudioPerms();
     }).catch(function(ex) {

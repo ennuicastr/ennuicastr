@@ -104,10 +104,15 @@ var recordingTimerBase = 0;
 var recordingTimerTicking = false;
 
 // Shall we use direct libav encoding?
-var useLibAV = false;
+export var useLibAV = false;
 
 // Shall we use an AudioWorkletProcessor for encoding?
-var useAWP = false;
+export var useAWP = false;
+
+// Worker paths to use
+const workerVer = "0." + Math.random() + Math.random();
+const awpPath = "awp/ennuicastr-awp.js?v=" + workerVer;
+export const workerPath = "awp/ennuicastr-worker.js?v=" + workerVer;
 
 // Called when the network is disconnection
 export function disconnect() {
@@ -124,6 +129,41 @@ export function disconnect() {
             track.stop();
         });
         userMedia = null;
+    }
+}
+
+// Figure out what our capture technique is
+export function detectCapture() {
+    function isChrome() {
+        // Edge is Chrome, Opera is Chrome, Brave is Chrome...
+        return navigator.userAgent.indexOf("Chrome") >= 0;
+    }
+
+    function isWindows() {
+        return navigator.userAgent.indexOf("Windows") >= 0;
+    }
+
+    function isMacOSX() {
+        return navigator.userAgent.indexOf("OS X") >= 0;
+    }
+
+    /* Here's the status of AWP support:
+     * Safari doesn't support it at all.
+     * Firefox supports it well everywhere.
+     * On Chrome on Linux, it's very dodgy, and ScriptProcessor is quite reliable.
+     * On Chrome everywhere else, it's reliable.
+     * There are no other browsers */
+    if (typeof AudioWorkletNode !== "undefined" &&
+        (isWindows() || isMacOSX() || !isChrome())) {
+        // Use a worklet
+        useAWP = true;
+        console.log("Using worklet processors");
+
+    } else {
+        // Direct libav
+        useLibAV = true;
+        console.log("Using ScriptProcessor");
+
     }
 }
 
@@ -253,16 +293,6 @@ function userMediaSet() {
         if (ac.state !== "running")
             log.pushStatus("audiocontext", "Cannot capture audio! State: " + ac.state);
 
-        if (ac.audioWorklet && typeof AudioWorkletNode !== "undefined") {
-            // Use a worklet
-            useAWP = true;
-
-        } else {
-            // Direct libav
-            useLibAV = true;
-
-        }
-
         // At this point, we want to start catching errors
         window.addEventListener("error", function(error) {
             net.errorHandler(error.error + "\n\n" + error.error.stack);
@@ -293,7 +323,7 @@ function userMediaSet() {
 // Load our worklet into an AudioContext
 export function loadAWP(ac: AudioContext & {ecAWPP?: Promise<unknown>}) {
     if (!ac.ecAWPP)
-        ac.ecAWPP = ac.audioWorklet.addModule("awp/ennuicastr-awp.js");
+        ac.ecAWPP = ac.audioWorklet.addModule(awpPath);
     return ac.ecAWPP;
 }
 
@@ -383,7 +413,7 @@ function awpStart() {
          * Worker in worker.js ->
          * back to us */
         var awn = new AudioWorkletNode(awpAC, "worker-processor");
-        var worker = new Worker("awp/ennuicastr-worker.js");
+        var worker = new Worker(workerPath);
 
         // Need a channel for them to communicate
         var mc = new MessageChannel();
