@@ -1918,7 +1918,13 @@ function genStandinName(name: string) {
     name = name.slice(1);
 
     // Ideal: Last capital character
-    var uc = name.match(/\p{Lu}/gu);
+    let re: RegExp;
+    try {
+        re = RegExp("\\p{Lu}", "gu");
+    } catch (ex) {
+        re = RegExp("[A-Z]", "g");
+    }
+    var uc = name.match(re);
     if (uc)
         return out + uc[uc.length-1];
 
