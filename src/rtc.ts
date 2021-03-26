@@ -104,7 +104,9 @@ export function initRTC(peer: number) {
     }
 
     // Called when we get a new track
-    conn.incoming.ontrack = function(ev) {
+    function ontrack(ev) {
+        var track, stream, isVideo;
+
         // If we haven't yet approved audio, then we're not ready for this track
         if (!audio.userMediaRTC) {
             audio.userMediaAvailableEvent.addEventListener("usermediartcready", function() {
@@ -113,48 +115,57 @@ export function initRTC(peer: number) {
             return;
         }
 
-        // Get out the information
-        var track = ev.track;
-        var stream = ev.streams[0];
-        var isVideo = (track.kind === "video");
+        onTrackPromise = onTrackPromise.then(function() {
+            // Get out the information
+            track = ev.track;
+            stream = ev.streams[0];
+            isVideo = (track.kind === "video");
 
-        if (!stream) return;
+            // Remove any existing tracks of the same kind
+            stream.getTracks().forEach(function(otrack) {
+                if (track !== otrack && track.kind === otrack.kind)
+                    stream.removeTrack(otrack);
+            });
 
-        // Remove any existing tracks of the same kind
-        stream.getTracks().forEach(function(otrack) {
-            if (track !== otrack && track.kind === otrack.kind)
-                stream.removeTrack(otrack);
-        });
+            // Get our video element (even if there is no video)
+            ui.videoAdd(peer, null);
+            videoEl = ui.ui.video.users[peer].video;
+            standinEl = ui.ui.video.users[peer].standin;
+            videoEl.srcObject = curStream = stream;
+            return videoEl.play().catch(console.error);
 
-        // Get our video element (even if there is no video)
-        ui.videoAdd(peer, null);
-        videoEl = ui.ui.video.users[peer].video;
-        standinEl = ui.ui.video.users[peer].standin;
-        videoEl.srcObject = stream;
-        videoEl.play().catch(console.error);
-
-        if (stream.getVideoTracks().length === 0)
-            standinEl.style.display = "";
-        else
-            standinEl.style.display = "none";
-
-        // Prepare for video tracks to end
-        stream.onremovetrack = function() {
-            if (stream.getVideoTracks().length === 0) {
-                /* This lets it visually reset, but it needs to be playing to
-                 * go through the AudioContext */
-                videoEl.srcObject = null;
-                videoEl.srcObject = stream;
-                videoEl.play().catch(console.error);
+        }).then(function() {
+            if (stream.getVideoTracks().length === 0)
                 standinEl.style.display = "";
-            }
-        };
+            else
+                standinEl.style.display = "none";
 
-        if (!isVideo) {
-            // Audio streams go through a compressor
-            outproc.createCompressor(peer, audio.ac, stream, ui.ui.video.users[peer].waveformWrapper);
-        }
-    };
+            // Prepare for video tracks to end
+            stream.onremovetrack = function() {
+                if (stream.getVideoTracks().length === 0) {
+                    /* This lets it visually reset, but it needs to be playing to
+                     * go through the AudioContext */
+                    onTrackPromise = onTrackPromise.then(function() {
+                        if (curStream === stream) {
+                            videoEl.srcObject = null;
+                            videoEl.srcObject = stream;
+                            standinEl.style.display = "";
+                            return videoEl.play().catch(console.error);
+                        }
+                    });
+                }
+            };
+
+            if (!isVideo) {
+                // Audio streams go through a compressor
+                outproc.createCompressor(peer, audio.ac, stream, ui.ui.video.users[peer].waveformWrapper);
+            }
+
+        });
+    }
+    var curStream: MediaStream = null;
+    var onTrackPromise = <Promise<unknown>> Promise.all([]);
+    conn.incoming.ontrack = ontrack;
 
     // Called when the ICE connection state changes
     conn.outgoing.oniceconnectionstatechange = function(ev) {
@@ -171,14 +182,18 @@ export function initRTC(peer: number) {
         }
     };
 
-    // Add each track to the connection
-    function addTracks() {
+    // Add each audio track to the connection
+    function addAudioTracks() {
+        if (video.userMediaVideo)
+            removeVideoTracks();
         audio.userMediaRTC.getTracks().forEach(function(track) {
             conn.outgoing.addTrack(track, audio.userMediaRTC);
         });
+        if (video.userMediaVideo)
+            addVideoTracks();
     }
     if (audio.userMediaRTC)
-        addTracks();
+        addAudioTracks();
 
     // Add video tracks to the connection
     function addVideoTracks() {
@@ -210,14 +225,24 @@ export function initRTC(peer: number) {
         });
     }
 
+    // Remove just video tracks
+    function removeVideoTracks() {
+        video.userMediaVideo.getTracks().forEach(function(track) {
+            conn.outgoing.getSenders().forEach(function(sender) {
+                if (sender.track === track)
+                    conn.outgoing.removeTrack(sender);
+            });
+        });
+    }
+
     // If we switch UserMedia, we'll need to re-up
     var umae = audio.userMediaAvailableEvent;
-    umae.addEventListener("usermediartcready", addTracks);
+    umae.addEventListener("usermediartcready", addAudioTracks);
     umae.addEventListener("usermediavideoready", addVideoTracks);
     umae.addEventListener("usermediastopped", removeTracks);
     umae.addEventListener("usermediavideostopped", removeTracks);
     conn.outgoing.ecOnclose = function() {
-        umae.removeEventListener("usermediartcready", addTracks);
+        umae.removeEventListener("usermediartcready", addAudioTracks);
         umae.removeEventListener("usermediavideoready", addVideoTracks);
         umae.removeEventListener("usermediastopped", removeTracks);
         umae.removeEventListener("usermediavideostopped", removeTracks);
