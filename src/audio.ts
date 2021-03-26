@@ -406,6 +406,7 @@ function awpStart() {
 
     // Load the worklet processor into our audio context
     return loadAWP(awpAC).then(() => {
+        let dead = false;
 
         /* Here's how the whole setup works:
          * input ->
@@ -430,6 +431,7 @@ function awpStart() {
 
         // Accept encoded packets
         worker.onmessage = ev => {
+            if (dead) return;
             var msg = ev.data;
             if (msg.c !== "packets") return;
 
@@ -454,6 +456,22 @@ function awpStart() {
         var mss = awpAC.createMediaStreamSource(userMedia);
         mss.connect(awn);
         awn.connect(awpAC.destination);
+
+        // Terminate the recording
+        function terminate() {
+            if (dead)
+                return;
+            dead = true;
+
+            // Close the chain
+            mss.disconnect(awn);
+            awn.disconnect(awpAC.destination);
+        }
+
+        // Catch when our UserMedia ends and stop (FIXME: race condition before reloading?)
+        userMediaAvailableEvent.addEventListener("usermediastopped", terminate, {once: true});
+        ac.addEventListener("disconnected", terminate);
+
     });
 
 }
