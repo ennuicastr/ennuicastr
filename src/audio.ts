@@ -466,6 +466,7 @@ function awpStart() {
             // Close the chain
             mss.disconnect(awn);
             awn.disconnect(awpAC.destination);
+            worker.terminate();
         }
 
         // Catch when our UserMedia ends and stop (FIXME: race condition before reloading?)

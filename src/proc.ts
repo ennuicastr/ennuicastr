@@ -489,6 +489,7 @@ function localProcessingAWP() {
             dead = true;
             mss.disconnect(awn);
             awn.disconnect(msd);
+            worker.terminate();
             localProcessing();
         }, {once: true});
 
