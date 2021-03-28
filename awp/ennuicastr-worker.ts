@@ -16,7 +16,6 @@
 
 declare var LibAV: any, NoiseRepellent: any, NoiseRepellentFactory: any, WebRtcVad: any, __filename: string;
 
-// FIXME: More duplication
 // Number of milliseconds to run the VAD for before/after talking
 const vadExtension = 2000;
 
@@ -151,8 +150,6 @@ function doEncoder(msg) {
 
 // Do a live filter
 function doFilter(msg) {
-    // FIXME: Massive duplication
-
     // Get out our info
     let inPort: MessagePort = msg.port;
     let sampleRate: number = msg.sampleRate;
@@ -189,8 +186,7 @@ function doFilter(msg) {
      * secondary gate */
     let triggerVadCeil = 0, triggerVadFloor = 0;
     let curVadVolume = 0;
-    let lastVolume = 0, curVolume = 0;
-    let vi = 0;
+    let lastVolume = 0;
 
     // Load everything
     Promise.all([]).then(function() {
@@ -283,15 +279,9 @@ function doFilter(msg) {
         for (let i = 0; i < ib.length; i += step) {
             let v = nrbuf[~~i];
             let a = Math.abs(v);
-            curVolume += a;
             curVadVolume += a;
 
             buf[bi++] = v * 0x7FFF;
-            if (++vi >= 1024) {
-                lastVolume = curVolume;
-                curVolume = 0;
-                vi = 0;
-            }
 
             if (bi == bufSz) {
                 // We have a complete packet
@@ -316,13 +306,14 @@ function doFilter(msg) {
                         triggerTarget
                     ) / 512;
                 }
+                lastVolume = curVadVolume;
                 curVadVolume = 0;
             }
         }
 
         // Gate the VAD by volume
         if (vadSet) {
-            let relVolume = lastVolume/ib.length;
+            let relVolume = lastVolume/bufSz;
             vadSet = false;
             // We must be over the floor...
             if (relVolume >= triggerVadFloor) {

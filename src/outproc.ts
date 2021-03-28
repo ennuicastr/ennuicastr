@@ -24,6 +24,7 @@
 declare var LibAV: any, webkitAudioContext: any;
 
 import * as audio from "./audio";
+import * as avloader from "./avloader";
 import * as waveform from "./waveform";
 
 // Can we do compression?
@@ -104,7 +105,7 @@ export function createCompressor(idx: number, ac: AudioContext & {ecDestination?
         // Create a compression node
         var compressor = com.compressor = ac.createScriptProcessor(1024);
         var la: any, frame: any;
-        audio.loadLibAV().then(function() {
+        avloader.loadLibAV().then(function() {
             return LibAV.LibAV();
         }).then(function(ret: any) {
             la = ret;

@@ -15,7 +15,7 @@
  */
 
 // extern
-declare var LibAV: any, MediaRecorder: any, webkitAudioContext: any;
+declare var webkitAudioContext: any;
 
 /* We need an event target we can use. "usermediaready" fires when userMedia is
  * ready. "usermediastopped" fires when it stops. "usermediavideoready" fires
@@ -37,13 +37,10 @@ import * as net from "./net";
 import * as proc from "./proc";
 import { prot } from "./protocol";
 import * as ptt from "./ptt";
-import * as safariWorkarounds from "./safari";
+import * as capture from "./capture";
 import * as ui from "./ui";
 import * as util from "./util";
 import { dce } from "./util";
-
-// libav version to load
-const libavVersion = "2.3.4.3.1";
 
 // The audio device being read
 export var userMedia: MediaStream = null;
@@ -57,12 +54,6 @@ export function setUserMediaRTC(to: MediaStream) { userMediaRTC = to; }
 
 // Audio context
 export var ac: AudioContext = null;
-
-// Our libav instance if applicable
-export var libav: any = null;
-
-// Our libav encoder information
-var libavEncoder: any = null;
 
 // The Opus or FLAC packets to be handled. Format: [granulePos, data]
 type Packet = [number, DataView];
@@ -103,17 +94,6 @@ var recordingTimerBase = 0;
 // Whether the recording timer should be ticking
 var recordingTimerTicking = false;
 
-// Shall we use direct libav encoding?
-export var useLibAV = false;
-
-// Shall we use an AudioWorkletProcessor for encoding?
-export var useAWP = false;
-
-// Worker paths to use
-const workerVer = "5";
-const awpPath = "awp/ennuicastr-awp.js?v=" + workerVer;
-export const workerPath = "awp/ennuicastr-worker.js?v=" + workerVer;
-
 // Called when the network is disconnection
 export function disconnect() {
     if (ac) {
@@ -129,41 +109,6 @@ export function disconnect() {
             track.stop();
         });
         userMedia = null;
-    }
-}
-
-// Figure out what our capture technique is
-export function detectCapture() {
-    function isChrome() {
-        // Edge is Chrome, Opera is Chrome, Brave is Chrome...
-        return navigator.userAgent.indexOf("Chrome") >= 0;
-    }
-
-    function isWindows() {
-        return navigator.userAgent.indexOf("Windows") >= 0;
-    }
-
-    function isMacOSX() {
-        return navigator.userAgent.indexOf("OS X") >= 0;
-    }
-
-    /* Here's the status of AWP support:
-     * Safari doesn't support it at all.
-     * Firefox supports it well everywhere.
-     * On Chrome on Linux, it's very dodgy, and ScriptProcessor is quite reliable.
-     * On Chrome everywhere else, it's reliable.
-     * There are no other browsers */
-    if (typeof AudioWorkletNode !== "undefined" &&
-        (isWindows() || isMacOSX() || !isChrome())) {
-        // Use a worklet
-        useAWP = true;
-        console.log("Using worklet processors");
-
-    } else {
-        // Direct libav
-        useLibAV = true;
-        console.log("Using ScriptProcessor");
-
     }
 }
 
@@ -313,40 +258,7 @@ function userMediaSet() {
                 net.errorHandler(msg);
             }
         });
-
-        // Load anything we need
-        if (useLibAV)
-            return loadLibAV();
     }).then(encoderLoaded);
-}
-
-// Load our worklet into an AudioContext
-export function loadAWP(ac: AudioContext & {ecAWPP?: Promise<unknown>}) {
-    if (!ac.ecAWPP)
-        ac.ecAWPP = ac.audioWorklet.addModule(awpPath);
-    return ac.ecAWPP;
-}
-
-// Load LibAV if it's not already loaded
-var loadLibAVPromise: Promise<unknown> = null;
-export function loadLibAV(): Promise<unknown> {
-    if (loadLibAVPromise) {
-        // Already loading or loaded
-        return loadLibAVPromise;
-    }
-
-    if (typeof LibAV === "undefined")
-        (<any> window).LibAV = {};
-    LibAV.base = "libav";
-
-    loadLibAVPromise = util.loadLibrary("libav/libav-" + libavVersion + "-ennuicastr.js").then(function() {
-        return LibAV.LibAV();
-
-    }).then(function(ret) {
-        libav = ret;
-
-    });
-    return loadLibAVPromise;
 }
 
 /* Called once the specialized encoder is loaded, if it's needed. Returns a
@@ -358,29 +270,20 @@ function encoderLoaded() {
     log.pushStatus("startenc", "Starting encoder...");
     log.popStatus("initenc");
 
-    if (useAWP)
-        return awpStart();
-    else
-        return libavStart();
+    return encoderStart();
 }
 
-// Start our AWP encoder
-function awpStart() {
-    // FIXME: Massive duplication
+// Start our encoder
+function encoderStart() {
     // We need to choose our target sample rate based on the input sample rate and format
-    var sampleRate = 48000;
+    let sampleRate = 48000;
     if (config.useFlac && ac.sampleRate === 44100)
         sampleRate = 44100;
 
-    // Figure out if we need a custom AudioContext, due to sample rate differences
-    var umSampleRate = userMedia.getAudioTracks()[0].getSettings().sampleRate;
-    var needCustomAC = umSampleRate !== ac.sampleRate;
-    var awpAC = needCustomAC ? new AudioContext({sampleRate: umSampleRate}) : ac;
-
     // The server needs to be informed of FLAC's sample rate
     if (config.useFlac) {
-        var p = prot.parts.info;
-        var info = new DataView(new ArrayBuffer(p.length));
+        let p = prot.parts.info;
+        let info = new DataView(new ArrayBuffer(p.length));
         info.setUint32(0, prot.ids.info, true);
         info.setUint32(p.key, prot.info.sampleRate, true);
         info.setUint32(p.value, sampleRate, true);
@@ -399,52 +302,42 @@ function awpStart() {
     }
 
     // Figure out our channel layout based on the number of channels
-    var channelLayout = 4;
-    var channelCount = ~~(userMedia.getAudioTracks()[0].getSettings().channelCount);
+    let channelLayout = 4;
+    let channelCount = ~~(userMedia.getAudioTracks()[0].getSettings().channelCount);
     if (channelCount > 1)
         channelLayout = Math.pow(2, channelCount) - 1;
 
-    // Load the worklet processor into our audio context
-    return loadAWP(awpAC).then(() => {
-        let dead = false;
-
-        /* Here's how the whole setup works:
-         * input ->
-         * AudioWorkletNode in awp.js ->
-         * Worker in worker.js ->
-         * back to us */
-        var awn = new AudioWorkletNode(awpAC, "worker-processor");
-        var worker = new Worker(workerPath);
-
-        // Need a channel for them to communicate
-        var mc = new MessageChannel();
-        awn.port.postMessage({c: "workerPort", p: mc.port1}, [mc.port1]);
-        worker.postMessage({
+    // Create the capture stream
+    return capture.createCapture(ac, {
+        ms: userMedia,
+        matchSampleRate: true,
+        bufferSize: 16384 /* Max: Latency doesn't actually matter in this context */,
+        outStream: true,
+        sampleRate: "inSampleRate",
+        workerCommand: {
             c: "encoder",
-            port: mc.port2,
-            inSampleRate: awpAC.sampleRate,
             outSampleRate: sampleRate,
             format: config.useFlac ? "flac" : "opus",
             channelLayout: channelLayout,
             channelCount: channelCount
-        }, [mc.port2]);
+        }
 
+    }).then(capture => {
         // Accept encoded packets
-        worker.onmessage = ev => {
-            if (dead) return;
-            var msg = ev.data;
+        capture.worker.onmessage = function(ev) {
+            let msg = ev.data;
             if (msg.c !== "packets") return;
 
             // Figure out the packet start time
-            var p = msg.d;
-            var now = performance.now() - msg.t;
-            var pktTime = Math.round(
+            let p = msg.d;
+            let now = performance.now() - msg.t;
+            let pktTime = Math.round(
                 (now - startTime) * 48 -
                 p.length * 960
             );
 
             // Add them to our own packet buffer
-            for (var pi = 0; pi < p.length; pi++) {
+            for (let pi = 0; pi < p.length; pi++) {
                 packets.push([pktTime, new DataView(p[pi].buffer)]);
                 pktTime += 960;
             }
@@ -452,281 +345,11 @@ function awpStart() {
             handlePackets();
         };
 
-        // Now hook everything up
-        var mss = awpAC.createMediaStreamSource(userMedia);
-        mss.connect(awn);
-        awn.connect(awpAC.destination);
-
-        // Terminate the recording
-        function terminate() {
-            if (dead)
-                return;
-            dead = true;
-
-            // Close the chain
-            mss.disconnect(awn);
-            awn.disconnect(awpAC.destination);
-            worker.terminate();
-        }
-
-        // Catch when our UserMedia ends and stop (FIXME: race condition before reloading?)
-        userMediaAvailableEvent.addEventListener("usermediastopped", terminate, {once: true});
-        ac.addEventListener("disconnected", terminate);
+        // Terminate when user media stops
+        userMediaAvailableEvent.addEventListener("usermediastopped", capture.disconnect, {once: true});
 
     });
 
-}
-
-// Start the libav encoder
-function libavStart() {
-    // We need to choose our target sample rate based on the input sample rate and format
-    var sampleRate = 48000;
-    if (config.useFlac && ac.sampleRate === 44100)
-        sampleRate = 44100;
-
-    // The server needs to be informed of FLAC's sample rate
-    if (config.useFlac) {
-        var p = prot.parts.info;
-        var info = new DataView(new ArrayBuffer(p.length));
-        info.setUint32(0, prot.ids.info, true);
-        info.setUint32(p.key, prot.info.sampleRate, true);
-        info.setUint32(p.value, sampleRate, true);
-        net.dataSock.send(info.buffer);
-    }
-
-    // Set our zero packet as appropriate
-    if (config.useFlac) {
-        switch (sampleRate) {
-            case 44100:
-                zeroPacket = new Uint8Array([0xFF, 0xF8, 0x79, 0x0C, 0x00, 0x03, 0x71, 0x56, 0x00, 0x00, 0x00, 0x00, 0x63, 0xC5]);
-                break;
-            default:
-                zeroPacket = new Uint8Array([0xFF, 0xF8, 0x7A, 0x0C, 0x00, 0x03, 0xBF, 0x94, 0x00, 0x00, 0x00, 0x00, 0xB1, 0xCA]);
-        }
-    }
-
-    // Figure out our channel layout based on the number of channels
-    var channelLayout = 4;
-    var channelCount = ~~(userMedia.getAudioTracks()[0].getSettings().channelCount);
-    switch (channelCount) {
-        case 0:
-        case 1:
-            channelCount = 1;
-            channelLayout = 4; // Mono
-            break;
-        case 2:
-            channelLayout = 3; // Stereo
-            break;
-        default:
-            // Just give a vaguely-sensible value
-            channelLayout = Math.pow(2, channelCount) - 1;
-    }
-
-    // Determine our encoder options
-    var encOptions: any = {
-        sample_rate: sampleRate,
-        frame_size: sampleRate * 20 / 1000,
-        channel_layout: 4,
-        channels: 1
-    };
-    if (config.useFlac) {
-        encOptions.sample_fmt = libav.AV_SAMPLE_FMT_S32;
-    } else {
-        encOptions.sample_fmt = libav.AV_SAMPLE_FMT_FLT;
-        encOptions.bit_rate = 128000;
-    }
-
-    // Begin initializing the encoder
-    libavEncoder = {
-        input_channels: channelCount,
-        input_channel_layout: channelLayout
-    };
-    return libav.ff_init_encoder(config.useFlac?"flac":"libopus", encOptions, 1, sampleRate).then(function(ret: any) {
-
-        libavEncoder.codec = ret[0];
-        libavEncoder.c = ret[1];
-        libavEncoder.frame = ret[2];
-        libavEncoder.pkt = ret[3];
-        libavEncoder.frame_size = ret[4];
-
-        // Now make the filter
-        return libav.ff_init_filter_graph("aresample", {
-            sample_rate: ac.sampleRate,
-            sample_fmt: libav.AV_SAMPLE_FMT_FLTP,
-            channels: channelCount,
-            channel_layout: channelLayout
-        }, {
-            sample_rate: encOptions.sample_rate,
-            sample_fmt: encOptions.sample_fmt,
-            channel_layout: 4,
-            frame_size: libavEncoder.frame_size
-        });
-
-    }).then(function(ret: any) {
-        libavEncoder.filter_graph = ret[0];
-        libavEncoder.buffersrc_ctx = ret[1];
-        libavEncoder.buffersink_ctx = ret[2];
-
-        // We're ready to go!
-        if (!startTime)
-            startTime = performance.now();
-        libavEncoder.p = Promise.all([]);
-
-        // Start processing in the background
-        libavProcess();
-
-    }).catch(function(ex: any) {
-        log.pushStatus("libaverr", "Encoding error: " + ex);
-        net.errorHandler(ex);
-
-        // This is sufficiently catastrophic that we should disconnect if it happens
-        net.disconnect();
-
-    });
-}
-
-// libav's actual per-chunk processing
-function libavProcess() {
-    var enc = libavEncoder;
-    var pts = 0;
-    var inSampleRate = ac.sampleRate;
-
-    // Keep track of how much data we've received to see if it's too little
-    var dataReceived = 0;
-    var pktCounter: [number, number][] = [];
-    var tooLittle = inSampleRate * 0.9;
-
-    // And if our latency is too high
-    enc.latency = 0;
-    enc.latencyDump = false;
-
-    // Start reading the input
-    var sp = safariWorkarounds.createScriptProcessor(ac, userMedia, 16384 /* Max: Latency doesn't actually matter in this context */).scriptProcessor;
-
-    // Don't try to process that last sip of data after termination
-    var dead = false;
-
-    sp.onaudioprocess = function(ev: AudioProcessingEvent) {
-        if (dead)
-            return;
-
-        // Determine the data timing
-        var now = performance.now();
-        var channelCount = ev.inputBuffer.numberOfChannels;
-        var ib = new Array(channelCount);
-        for (var ci = 0; ci < channelCount; ci++)
-            ib[ci] = ev.inputBuffer.getChannelData(ci).slice(0);
-        var pktLen = (ib[0].length * 48000 / inSampleRate);
-        var pktTime = Math.round(
-            (now - inputLatency - startTime) * 48 -
-            pktLen
-        );
-
-        // Count it
-        var ctrStart = now - 1000;
-        pktCounter.push([now, ib[0].length]);
-        dataReceived += ib[0].length;
-        if (pktCounter[0][0] < ctrStart) {
-            while (pktCounter[0][0] < ctrStart) {
-                dataReceived -= pktCounter[0][1];
-                pktCounter.shift();
-            }
-            if (dataReceived < tooLittle) {
-                log.pushStatus("toolittle", "Encoding is overloaded, incomplete audio data!");
-            } else {
-                log.popStatus("toolittle");
-            }
-        }
-
-        // Check for latency
-        if (enc.latency > 1000) {
-            // Maybe report it
-            if (enc.latency > 2000)
-                log.pushStatus("latency", "Encoding is buffering. " + Math.ceil(enc.latency/1000) + " seconds of audio buffered.");
-
-            // Choose whether to dump audio
-            if (!enc.latencyDump)
-                enc.latencyDump = (enc.latency > 1500);
-
-            if (!proc.vadOn && enc.latencyDump) {
-                // VAD is off, so lose some data to try to eliminate latency
-                enc.latency -= (pktLen/48);
-
-                // Don't let the display get independently concerned about this
-                lastSentTime = now;
-                return;
-            }
-        } else {
-            if (enc.latencyDump)
-                enc.latencyDump = false;
-            log.popStatus("latency");
-        }
-
-        // Put it in libav's format
-        while (libavEncoder.input_channels > ib.length) {
-            // Channel count changed???
-            ib = ib.concat(ib);
-        }
-        var frames = [{
-            data: ib,
-            channels: libavEncoder.input_channels,
-            channel_layout: libavEncoder.input_channel_layout,
-            format: libav.AV_SAMPLE_FMT_FLTP,
-            pts: pts,
-            sample_rate: inSampleRate
-        }];
-        pts += ib[0].length;
-
-        // Wait for any previous filtering
-        enc.p = enc.p.then(function() {
-
-            // Filter
-            return libav.ff_filter_multi(enc.buffersrc_ctx, enc.buffersink_ctx, enc.frame, frames);
-
-        }).then(function(frames: any) {
-            // Encode
-            return libav.ff_encode_multi(enc.c, enc.frame, enc.pkt, frames);
-
-        }).then(function(encPackets: any) {
-            // Now write these packets out
-            for (var pi = 0; pi < encPackets.length; pi++) {
-                packets.push([pktTime, new DataView(encPackets[pi].data.buffer)])
-                pktTime += 960; // 20ms
-            }
-            handlePackets();
-
-            // Look for latency problems
-            enc.latency = performance.now() - now;
-
-        }).catch(function(ex: any) {
-            log.pushStatus("libaverr", "Encoding error: " + ex);
-            net.errorHandler(ex);
-
-            // This is sufficiently catastrophic that we should disconnect if it happens
-            net.disconnect();
-
-        });
-    }
-
-    // Terminate the recording
-    function terminate() {
-        if (dead)
-            return;
-        dead = true;
-
-        // Close the encoder
-        enc.p = enc.p.then(function() {
-            return libav.avfilter_graph_free_js(enc.filter_graph);
-
-        }).then(function() {
-            return libav.ff_free_encoder(enc.c, enc.frame, enc.pkt);
-
-        });
-    }
-
-    // Catch when our UserMedia ends and stop (FIXME: race condition before reloading?)
-    userMediaAvailableEvent.addEventListener("usermediastopped", terminate, {once: true});
-    ac.addEventListener("disconnected", terminate);
 }
 
 

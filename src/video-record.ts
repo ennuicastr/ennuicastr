@@ -18,6 +18,7 @@
 declare var LibAV: any, MediaRecorder: any, streamSaver: any;
 
 import * as audio from "./audio";
+import * as avloader from "./avloader";
 import * as config from "./config";
 import * as log from "./log";
 import * as net from "./net";
@@ -181,7 +182,7 @@ function recordVideo(opts: RecordVideoOptions) {
     var transtate: TranscodeState = {};
     var c: number;
 
-    return audio.loadLibAV().then(function() {
+    return avloader.loadLibAV().then(function() {
         return LibAV.LibAV();
     }).then(function(la) {
         // Set up our forwarder in LibAV

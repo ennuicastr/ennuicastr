@@ -23,7 +23,7 @@ awp/ennuicastr-awp.js: awp/ennuicastr-awp.ts node_modules/.bin/tsc
 	./node_modules/.bin/tsc -t es2015 --lib es2015,dom $<
 
 awp/ennuicastr-worker.js: awp/ennuicastr-worker.ts node_modules/.bin/tsc
-	./node_modules/.bin/tsc -t es2015 --lib es2015,webworker $<
+	./node_modules/.bin/tsc --lib es2015,webworker $<
 
 protocol.min.js: protocol.js node_modules/.bin/minify
 	./node_modules/.bin/minify --js < $< | cat src/license.js - > $@
