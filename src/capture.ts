@@ -24,7 +24,7 @@ const workerVer = "5." + Math.random();
 const awpPath = "awp/ennuicastr-awp.js?v=" + workerVer;
 export const workerPath = "awp/ennuicastr-worker.js?v=" + workerVer;
 
-interface Capture {
+export interface Capture {
     source: AudioNode,
     worker: Worker,
     node: AudioNode,
@@ -32,11 +32,11 @@ interface Capture {
     disconnect: ()=>unknown
 };
 
-interface CaptureOptions {
+export interface CaptureOptions {
     workerCommand: any;
-    sampleRate: string;
     ms?: MediaStream; // Input as a MediaStream
     input?: AudioNode; // Input as an AudioNode
+    sampleRate: string;
     matchSampleRate?: boolean; // Must be false if input is set
     bufferSize?: number;
     outStream?: boolean;
@@ -109,12 +109,13 @@ function createCaptureAWP(ac: AudioContext & {ecAWPP?: Promise<unknown>}, option
         worker.postMessage(cmd, [mc.port2]);
 
         // Now hook everything up
-        let source: AudioNode;
+        let source = null;
         if (options.ms)
             source = ac.createMediaStreamSource(options.ms);
-        else
+        else if (options.input)
             source = options.input;
-        source.connect(awn);
+        if (source)
+            source.connect(awn);
         let msd = null;
         if (options.outStream) {
             msd = ac.createMediaStreamDestination();
@@ -127,7 +128,8 @@ function createCaptureAWP(ac: AudioContext & {ecAWPP?: Promise<unknown>}, option
                 return;
             dead = true;
 
-            source.disconnect(awn);
+            if (source)
+                source.disconnect(awn);
             if (msd)
                 awn.disconnect(msd);
             worker.terminate();
@@ -174,12 +176,13 @@ function createCaptureSP(ac: AudioContext, options: CaptureOptions): Promise<Cap
     node.onaudioprocess = createOnAudioProcess(workerPort, worker);
 
     // Now hook everything up
-    let source: AudioNode;
+    let source = null;
     if (options.ms)
         source = ac.createMediaStreamSource(options.ms);
-    else
+    else if (options.input)
         source = options.input;
-    source.connect(node);
+    if (source)
+        source.connect(node);
     let msd = null;
     if (options.outStream) {
         msd = ac.createMediaStreamDestination();

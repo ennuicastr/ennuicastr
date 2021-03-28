@@ -16,11 +16,14 @@
 
 declare var LibAV: any, NoiseRepellent: any, NoiseRepellentFactory: any, WebRtcVad: any, __filename: string;
 
+const libavVersion = "2.3.4.3.1";
+const libavPath = "../libav/libav-" + libavVersion + "-ennuicastr.js";
+
 // Number of milliseconds to run the VAD for before/after talking
 const vadExtension = 2000;
 
 // Similar, for RTC transmission
-const rtcVadExtension = 250;
+const rtcVadExtension = 1000;
 
 onmessage = function(ev) {
     var msg = ev.data;
@@ -32,11 +35,19 @@ onmessage = function(ev) {
         case "filter":
             doFilter(msg);
             break;
+
+        case "max":
+            doMax(msg);
+            break;
+
+        case "dynaudnorm":
+            doDynaudnorm(msg);
+            break;
     }
 }
 
 // Encode with libav
-function doEncoder(msg) {
+function doEncoder(msg: any) {
     var inPort: MessagePort = msg.port;
     var inSampleRate: number = msg.inSampleRate || 48000;
     var outSampleRate: number = msg.outSampleRate || 48000;
@@ -54,14 +65,14 @@ function doEncoder(msg) {
         channels: 1
     };
 
-    var codec, c, frame, pkt;
-    var filter_graph, buffersrc_ctx, buffersink_ctx;
+    var codec: number, c: number, frame: number, pkt: number;
+    var filter_graph: number, buffersrc_ctx: number, buffersink_ctx: number;
 
     // Load libav
     LibAV = {nolibavworker: true, base: "../libav"};
-    __filename = "../libav/libav-2.3.4.3.1-ennuicastr.js"; // To "trick" wasm loading
+    __filename = libavPath; // To "trick" wasm loading
     importScripts(__filename);
-    return LibAV.LibAV({noworker: true}).then(la => {
+    return LibAV.LibAV({noworker: true}).then((la: any) => {
         libav = la;
 
         if (format === "flac") {
@@ -74,7 +85,7 @@ function doEncoder(msg) {
         // Create the encoder
         return libav.ff_init_encoder((format==="flac")?"flac":"libopus", encOptions, 1, outSampleRate);
 
-    }).then(ret => {
+    }).then((ret: any) => {
         codec = ret[0];
         c = ret[1];
         frame = ret[2];
@@ -94,7 +105,7 @@ function doEncoder(msg) {
             frame_size: encOptions.frame_size
         });
 
-    }).then(ret => {
+    }).then((ret: any) => {
         filter_graph = ret[0];
         buffersrc_ctx = ret[1];
         buffersink_ctx = ret[2];
@@ -149,7 +160,7 @@ function doEncoder(msg) {
 }
 
 // Do a live filter
-function doFilter(msg) {
+function doFilter(msg: any) {
     // Get out our info
     let inPort: MessagePort = msg.port;
     let sampleRate: number = msg.sampleRate;
@@ -168,7 +179,7 @@ function doFilter(msg) {
     let rawVadOn: boolean = false;
     let rtcVadOn: boolean = false;
     let vadOn: boolean = false;
-    let max: number = 0; 
+    let max: number = 0;
     let maxCtr: number = 0;
 
     // Libraries
@@ -390,5 +401,104 @@ function doFilter(msg) {
             rtcVadOn: rtcVadOn,
             vadOn: vadOn
         });
+    }
+}
+
+// Do simply histogram generation
+function doMax(msg: any) {
+    // Get out our info
+    let inPort: MessagePort = msg.port;
+
+    // State for transfer to the host
+    let max: number = 0;
+    let maxCtr: number = 0;
+
+    inPort.onmessage = function(ev: MessageEvent) {
+        let data = ev.data.d;
+        let ib = data[0];
+        for (let i = 0; i < ib.length; i++) {
+            let v = ib[i];
+            if (v < 0) v = -v;
+            if (v > max) max = v;
+            if (++maxCtr >= 1024) {
+                // Send a max count
+                postMessage({c: "max", m: max});
+                max = maxCtr = 0;
+            }
+        }
+        inPort.postMessage({c: "data", d: data});
+    };
+}
+
+// Do compression/normalization
+function doDynaudnorm(msg: any) {
+    // Get out our info
+    let inPort: MessagePort = msg.port;
+    let sampleRate: number = msg.sampleRate;
+
+    let la: any; // libav
+    let frame: number;
+    let filter_graph: number, buffersrc_ctx: number, buffersink_ctx: number;
+    let pts: number = 0;
+
+    // Load libav
+    LibAV = {nolibavworker: true, base: "../libav"};
+    __filename = libavPath; // To "trick" wasm loading
+    importScripts(__filename);
+    return LibAV.LibAV({noworker: true}).then((ret: any) => {
+        la = ret;
+        return la.av_frame_alloc();
+
+    }).then((ret: any) => {
+        frame = ret;
+        return la.ff_init_filter_graph("dynaudnorm=f=10:g=3", {
+            sample_rate: sampleRate,
+            sample_fmt: la.AV_SAMPLE_FMT_FLT,
+            channels: 1,
+            channel_layout: 4
+        }, {
+            sample_rate: sampleRate,
+            sample_fmt: la.AV_SAMPLE_FMT_FLT,
+            channels: 1,
+            channel_layout: 4,
+            frame_size: 1024
+        });
+
+    }).then((ret: any) => {
+        filter_graph = ret[0];
+        buffersrc_ctx = ret[1];
+        buffersink_ctx = ret[2];
+
+        // Now we're ready for input
+        inPort.onmessage = onmessage;
+
+    }).catch(console.error);
+
+    function onmessage(ev: MessageEvent) {
+        // Handle input
+        let data = ev.data.d;
+        let ib = data[0];
+
+        var frames = [{
+            data: ib,
+            channels: 1,
+            channel_layout: 4,
+            format: la.AV_SAMPLE_FMT_FLT,
+            pts: pts,
+            sample_rate: sampleRate
+        }];
+        pts += ib.length;
+
+        return la.ff_filter_multi(buffersrc_ctx, buffersink_ctx, frame, frames, false).then((frames: any) => {
+
+            for (let fi = 0; fi < frames.length; fi++) {
+                let frame = [frames[fi].data];
+                while (frame.length < data.length)
+                    frame.push(frame[0]);
+                // Send it back
+                inPort.postMessage({c: "data", d: frame});
+            }
+
+        }).catch(console.error);
     }
 }

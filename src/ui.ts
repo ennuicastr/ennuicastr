@@ -15,7 +15,7 @@
  */
 
 // extern
-declare var Ennuiboard: any, NoSleep: any, webkitAudioContext: any;
+declare var Ennuiboard: any, NoSleep: any;
 
 import * as audio from "./audio";
 import * as chat from "./chat";

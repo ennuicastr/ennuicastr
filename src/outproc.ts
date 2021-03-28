@@ -25,6 +25,7 @@ declare var LibAV: any, webkitAudioContext: any;
 
 import * as audio from "./audio";
 import * as avloader from "./avloader";
+import * as capture from "./capture";
 import * as waveform from "./waveform";
 
 // Can we do compression?
@@ -35,8 +36,8 @@ interface Compressor {
     ac: AudioContext & {ecDestination?: MediaStreamAudioDestinationNode};
     inputStream: MediaStream;
     input: MediaStreamAudioSourceNode;
-    waveview: ScriptProcessorNode;
-    compressor: ScriptProcessorNode;
+    waveview: AudioNode;
+    compressor: AudioNode;
     cp: Promise<unknown>;
     pts: number;
     buffer: Float32Array;
@@ -81,123 +82,76 @@ export function createCompressor(idx: number, ac: AudioContext & {ecDestination?
     // Create the input
     var input = com.input = ac.createMediaStreamSource(inputStream);
 
-    if (supported) {
-        // Create a waveform node
-        var waveview = com.waveview = ac.createScriptProcessor(1024);
-        var wf = new waveform.Waveform(ac.sampleRate / 1024, wrapper, null);
-        waveview.onaudioprocess = function(ev: AudioProcessingEvent) {
-            // Transfer input to output
-            var ib = ev.inputBuffer.getChannelData(0);
-            for (var ci = 0; ci < ev.outputBuffer.numberOfChannels; ci++)
-                ev.outputBuffer.getChannelData(ci).set(ib);
+    return Promise.all([]).then(() => {
+        // Only build the waveview and compressor if supported
+        if (supported) {
+            let waveviewCap: capture.Capture;
+            let waveview;
+            let wf;
+            let compressorCap: capture.Capture;
+            let compressor;
+            let la: any, frame: any;
 
-            // Get the max
-            var max = 0;
-            for (var i = 0; i < ib.length; i++) {
-                let v = ib[i];
-                if (v < 0) v = -v;
-                if (v > max) max = v;
-            }
-            wf.push(max, (max < 0.0001) ? 1 : 3);
-            wf.updateWave(max, true);
+            return Promise.all([]).then(() => {
+                // Create a waveform node
+                return capture.createCapture(ac, {
+                    sampleRate: "sampleRate",
+                    bufferSize: 1024,
+                    workerCommand: {c: "max"}
+                });
+
+            }).then(ret => {
+                waveviewCap = ret;
+                waveview = com.waveview = waveviewCap.node;
+                wf = new waveform.Waveform(ac.sampleRate / 1024, wrapper, null);
+                waveviewCap.worker.onmessage = function(ev) {
+                    let max = ev.data.m;
+                    wf.push(max, (max < 0.0001) ? 1 : 3);
+                    wf.updateWave(max, true);
+                };
+
+                // Create a compression node
+                return capture.createCapture(ac, {
+                    sampleRate: "sampleRate",
+                    bufferSize: 1024,
+                    workerCommand: {c: "dynaudnorm"}
+                });
+
+            }).then(ret => {
+                compressorCap = ret;
+                compressor = com.compressor = compressorCap.node;
+
+            }).catch(console.error);
         }
 
-        // Create a compression node
-        var compressor = com.compressor = ac.createScriptProcessor(1024);
-        var la: any, frame: any;
-        avloader.loadLibAV().then(function() {
-            return LibAV.LibAV();
-        }).then(function(ret: any) {
-            la = ret;
-            return la.av_frame_alloc();
-        }).then(function(ret: any) {
-            frame = ret;
-            return la.ff_init_filter_graph("dynaudnorm=f=10:g=3", {
-                sample_rate: ac.sampleRate,
-                sample_fmt: la.AV_SAMPLE_FMT_FLT,
-                channels: 1,
-                channel_layout: 4
-            }, {
-                sample_rate: ac.sampleRate,
-                sample_fmt: la.AV_SAMPLE_FMT_FLT,
-                channels: 1,
-                channel_layout: 4,
-                frame_size: 1024
-            });
+    }).then(() => {
+        // Create the final gain node
+        var gain = com.gain = ac.createGain();
+        gain.gain.value = rtcCompression.gain *
+            ((idx in rtcCompression.perUserGain) ? rtcCompression.perUserGain[idx] : 1);
 
-        }).then(function(ret: any) {
-            var filter_graph = ret[0];
-            var buffersrc_ctx = ret[1];
-            var buffersink_ctx = ret[2];
+        // Link them together
+        var cur: AudioNode = input;
+        if (com.waveview && rtcCompression.waveviewing) {
+            input.connect(com.waveview);
+            cur = com.waveview;
+        }
+        if (com.compressor && rtcCompression.compressing) {
+            cur.connect(com.compressor);
+            cur = com.compressor;
+        }
+        cur.connect(gain);
+        gain.connect(ac.ecDestination);
 
-            compressor.onaudioprocess = function(ev: AudioProcessingEvent) {
-                // Handle input
-                var ib = ev.inputBuffer.getChannelData(0).slice(0);
-                com.cp = com.cp.then(function() {
-                    return la.av_frame_alloc();
-                }).then(function(ret) {
-                    var frames = [{
-                        data: ib,
-                        channels: 1,
-                        channel_layout: 4,
-                        format: la.AV_SAMPLE_FMT_FLT,
-                        pts: com.pts,
-                        sample_rate: ac.sampleRate
-                    }];
-                    com.pts += ib.length;
-                    return la.ff_filter_multi(buffersrc_ctx, buffersink_ctx, frame, frames, false);
-                }).then(function(frames) {
-                    for (var fi = 0; fi < frames.length; fi++) {
-                        var frame = frames[fi].data;
-                        var buffer = new Float32Array(com.buffer.length + frame.length);
-                        buffer.set(com.buffer);
-                        buffer.set(frame, com.buffer.length);
-                        com.buffer = buffer;
-                    }
-                }).catch(console.error);
+        // And add it to the list
+        var cs = rtcCompression.compressors;
+        while (cs.length <= idx)
+            cs.push(null);
+        cs[idx] = com;
 
-                // Handle output
-                var ob = ev.outputBuffer.getChannelData(0);
-                if (com.buffer.length >= ob.length) {
-                    ob.set(com.buffer.subarray(0, ob.length));
-                    com.buffer = com.buffer.slice(ob.length);
+        return com;
 
-                    // Copy to other channels
-                    for (var ci = 1; ci < ev.outputBuffer.numberOfChannels; ci++)
-                        ev.outputBuffer.getChannelData(ci).set(ob);
-                }
-                if (com.buffer.length > 2048)
-                    com.buffer = com.buffer.slice(com.buffer.length - 2048);
-            };
-
-        }).catch(console.error);
-    }
-
-    // Create the final gain node
-    var gain = com.gain = ac.createGain();
-    gain.gain.value = rtcCompression.gain *
-        ((idx in rtcCompression.perUserGain) ? rtcCompression.perUserGain[idx] : 1);
-
-    // Link them together
-    var cur: AudioNode = input;
-    if (com.waveview && rtcCompression.waveviewing) {
-        input.connect(com.waveview);
-        cur = com.waveview;
-    }
-    if (com.compressor && rtcCompression.compressing) {
-        cur.connect(com.compressor);
-        cur = com.compressor;
-    }
-    cur.connect(gain);
-    gain.connect(ac.ecDestination);
-
-    // And add it to the list
-    var cs = rtcCompression.compressors;
-    while (cs.length <= idx)
-        cs.push(null);
-    cs[idx] = com;
-
-    return com;
+    });
 }
 
 // Destroy a compressor
