@@ -415,6 +415,7 @@ function doMax(msg: any) {
 
     inPort.onmessage = function(ev: MessageEvent) {
         let data = ev.data.d;
+        if (data.length === 0 || data[0].length === 0) return;
         let ib = data[0];
         for (let i = 0; i < ib.length; i++) {
             let v = ib[i];
@@ -477,6 +478,7 @@ function doDynaudnorm(msg: any) {
     function onmessage(ev: MessageEvent) {
         // Handle input
         let data = ev.data.d;
+        if (data.length === 0 || data[0].length === 0) return;
         let ib = data[0];
 
         var frames = [{
