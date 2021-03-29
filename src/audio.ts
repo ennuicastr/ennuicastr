@@ -240,7 +240,14 @@ function userMediaSet() {
 
         // At this point, we want to start catching errors
         window.addEventListener("error", function(error) {
-            net.errorHandler(error.error + "\n\n" + error.error.stack);
+            try {
+                let msg: string = "";
+                if (error.error)
+                    msg = error.error + "\n\n" + error.error.stack;
+                else
+                    msg = error.message + "\n\n" + error.filename + ":" + error.lineno;
+                net.errorHandler(msg);
+            } catch (ex) {}
         });
 
         window.addEventListener("unhandledrejection", function(error) {
@@ -258,7 +265,7 @@ function userMediaSet() {
                 net.errorHandler(msg);
             }
         });
-    }).then(encoderLoaded);
+    }).catch(net.promiseFail()).then(encoderLoaded);
 }
 
 /* Called once the specialized encoder is loaded, if it's needed. Returns a
@@ -348,7 +355,7 @@ function encoderStart() {
         // Terminate when user media stops
         userMediaAvailableEvent.addEventListener("usermediastopped", capture.disconnect, {once: true});
 
-    });
+    }).catch(net.promiseFail());
 
 }
 

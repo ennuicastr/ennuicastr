@@ -161,7 +161,7 @@ export function initRTC(peer: number) {
                 outproc.createCompressor(peer, audio.ac, stream, ui.ui.video.users[peer].waveformWrapper);
             }
 
-        });
+        }).catch(net.promiseFail());
     }
     var curStream: MediaStream = null;
     var onTrackPromise = <Promise<unknown>> Promise.all([]);
@@ -335,7 +335,7 @@ function rtcMessage(peer: number, msg: DataView) {
                                 rtcConnections.peers[peer].incoming.ecVideoRecord = fileWriter;
                             else
                                 fileWriter.close();
-                        });
+                        }).catch(net.promiseFail());
 
                     } else {
                         rtcVideoRecSend(peer, prot.videoRec.startVideoRecRes, 0);

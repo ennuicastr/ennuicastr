@@ -92,7 +92,8 @@ export function localProcessing() {
         }
 
         return localProcessingWorker();
-    });
+
+    }).catch(net.promiseFail());
 }
 
 // Worker-based processing

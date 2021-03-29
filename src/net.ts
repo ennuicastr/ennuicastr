@@ -540,3 +540,11 @@ export function errorHandler(error: any) {
     new Uint8Array(out.buffer).set(errBuf, 4);
     dataSock.send(out.buffer);
 }
+
+// Generic phone-home promise-fail handler
+export function promiseFail() {
+    const loc = (new Error().stack)+"";
+    return function(ex: any) {
+        errorHandler("Promise failure\n\n" + ex + "\n\n" + loc);
+    };
+}

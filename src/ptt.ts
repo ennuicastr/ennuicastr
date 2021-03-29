@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Yahweasel
+ * Copyright (c) 2020, 2021 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,6 +20,7 @@
 declare var ECHotkeys: any;
 
 import * as audio from "./audio";
+import * as net from "./net";
 import * as ui from "./ui";
 
 // PTT settings
@@ -68,7 +69,7 @@ export function userConfigurePTT() {
         } else {
             configurePTT(null);
         }
-    });
+    }).catch(net.promiseFail());
 }
 
 // PTT key pressed

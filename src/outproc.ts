@@ -26,6 +26,7 @@ declare var LibAV: any, webkitAudioContext: any;
 import * as audio from "./audio";
 import * as avloader from "./avloader";
 import * as capture from "./capture";
+import * as net from "./net";
 import * as waveform from "./waveform";
 
 // Can we do compression?
@@ -121,7 +122,7 @@ export function createCompressor(idx: number, ac: AudioContext & {ecDestination?
                 compressorCap = ret;
                 compressor = com.compressor = compressorCap.node;
 
-            }).catch(console.error);
+            });
         }
 
     }).then(() => {
@@ -151,7 +152,7 @@ export function createCompressor(idx: number, ac: AudioContext & {ecDestination?
 
         return com;
 
-    });
+    }).catch(net.promiseFail());
 }
 
 // Destroy a compressor

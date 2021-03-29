@@ -441,10 +441,7 @@ function recordVideo(opts: RecordVideoOptions) {
             if (remoteWriter)
                 remoteWriter.close();
 
-        }).catch(function(err: any) {
-            console.error(err);
-
-        });
+        }).catch(net.promiseFail());
 
         // MediaRecorder produces a WebM file, and we have to correct its timestamps
         var mediaRecorder = new MediaRecorder(video.userMediaVideo, {
@@ -478,7 +475,7 @@ function recordVideo(opts: RecordVideoOptions) {
         };
         recordVideoButton();
 
-    });
+    }).catch(net.promiseFail());
 }
 
 // Receive a remote video recording
@@ -507,7 +504,7 @@ export function recordVideoRemoteIncoming(peer: number, opts: any) {
         });
 
         return fileWriter;
-    });
+    }).catch(net.promiseFail());
 }
 
 // Show the video recording panel if we need to, or just start recording
@@ -708,10 +705,7 @@ function recordVideoInput(transtate: TranscodeState) {
 
         transtate.startPromise = startPromise;
 
-    }).catch(function(ex) {
-        alert(ex + "\n\n" + ex.stack);
-        throw ex;
-    });
+    }).catch(net.promiseFail());
 }
 
 // Write data to an RTC peer
@@ -764,7 +758,7 @@ export function recordVideoButton(loading?: boolean) {
                 disabled(true);
                 loadStreamSaver().then(function() {
                     disabled(false);
-                });
+                }).catch(net.promiseFail());
             } else {
                 disabled(false);
             }

@@ -647,7 +647,8 @@ export function mkUI() {
             noSleep.enable();
             modal = null;
             showPanel(null, ui.persistent.main);
-        });
+
+        }).catch(net.promiseFail());
 
     } else {
         return Promise.all([]);
