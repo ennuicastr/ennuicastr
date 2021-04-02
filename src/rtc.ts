@@ -27,10 +27,11 @@ import { dce } from "./util";
 import * as video from "./video";
 import * as videoRecord from "./video-record";
 
-type ECRTCPeerConnection = RTCPeerConnection & {
+export type ECRTCPeerConnection = RTCPeerConnection & {
     ecDataChannel?: RTCDataChannel,
     ecVideoRecord?: WritableStreamDefaultWriter,
-    ecOnclose?: ()=>void
+    ecOnclose?: ()=>void,
+    ecSeq?: Promise<unknown>
 };
 
 interface ECRPCPair {
@@ -78,6 +79,8 @@ export function initRTC(peer: number) {
         incoming: new RTCPeerConnection({iceServers: net.iceServers, iceTransportPolicy: "all"}),
         outgoing: new RTCPeerConnection({iceServers: net.iceServers, iceTransportPolicy: "all"})
     };
+    conn.incoming.ecSeq = Promise.all([]);
+    conn.outgoing.ecSeq = Promise.all([]);
 
     var videoEl: HTMLVideoElement = null;
     var standinEl: HTMLElement = null;

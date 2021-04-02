@@ -367,7 +367,7 @@ function dataSockMsg(ev: MessageEvent) {
             var p = prot.parts.rtc;
             var peer = msg.getUint32(p.peer, true);
             var type = msg.getUint32(p.type, true);
-            var conn: RTCPeerConnection, outgoing: boolean;
+            var conn: rtc.ECRTCPeerConnection, outgoing: boolean;
             var outgoing: boolean;
             if (type & 0x80000000) {
                 // For *their* outgoing connection
@@ -384,19 +384,24 @@ function dataSockMsg(ev: MessageEvent) {
 
             switch (type&0x7F) {
                 case prot.rtc.candidate:
-                    if (value && value.candidate) {
-                        try {
-                            conn.addIceCandidate(value);
-                        } catch (ex) {
-                            // How to represent null has changed, so try swapping it
-                            value.candidate = (value.candidate === null) ? "" : null;
-                            conn.addIceCandidate(value);
+                    conn.ecSeq = conn.ecSeq.then(function() {
+                        if (value && value.candidate) {
+                            try {
+                                conn.addIceCandidate(value);
+                            } catch (ex) {
+                                // How to represent null has changed, so try swapping it
+                                value.candidate = (value.candidate === null) ? "" : null;
+                                conn.addIceCandidate(value);
+                            }
                         }
-                    }
+                    }).catch(promiseFail());
                     break;
 
                 case prot.rtc.offer:
-                    conn.setRemoteDescription(value).then(function() {
+                    conn.ecSeq = conn.ecSeq.then(function() {
+                        return conn.setRemoteDescription(value);
+
+                    }).then(function() {
                         return conn.createAnswer();
 
                     }).then(function(answer) {
@@ -412,7 +417,9 @@ function dataSockMsg(ev: MessageEvent) {
                     break;
 
                 case prot.rtc.answer:
-                    conn.setRemoteDescription(value).catch(function(ex) {
+                    conn.ecSeq = conn.ecSeq.then(function() {
+                        return conn.setRemoteDescription(value);
+                    }).catch(function(ex) {
                         log.pushStatus("rtc", "RTC connection failed!");
                     });
                     break;
