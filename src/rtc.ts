@@ -69,9 +69,10 @@ export function rtcSignal(peer: number, outgoing: boolean, type: number, value: 
 // Initialize a connection to an RTC peer
 export function initRTC(peer: number) {
     if (peer in rtcConnections.peers) {
-        // Just try reconnecting
-        rtcConnections.peers[peer].outgoing.onnegotiationneeded(null);
-        return;
+        // Close the old one first
+        //rtcConnections.peers[peer].outgoing.onnegotiationneeded(null);
+        //return;
+        closeRTC(peer);
     }
 
     // Otherwise, make the connections
@@ -269,9 +270,12 @@ export function initRTC(peer: number) {
     };
 }
 
+// RTC connections that will be closed if they're not reinitialized quickly
+let maybeClose: Record<number, number> = {};
+
 // Close an RTC connection when a peer disconnects
 export function closeRTC(peer: number) {
-    var conn = rtcConnections.peers[peer];
+    let conn = rtcConnections.peers[peer];
     if (!conn) return;
     delete rtcConnections.peers[peer];
     conn.incoming.close();

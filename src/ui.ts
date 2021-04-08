@@ -609,6 +609,14 @@ export function mkUI() {
     window.addEventListener("keydown", function(ev) {
         if (ev.key === "Esc" || ev.key === "Escape")
             showPanel(null, ui.persistent.main);
+        /*
+        if (ev.key === "d") {
+            let bad = new DataView(new ArrayBuffer(4));
+            bad.setUint32(0, -1, true);
+            net.dataSock.send(bad.buffer);
+            net.pingSock.send(bad.buffer);
+        }
+        */
     });
 
     // Poppable panels

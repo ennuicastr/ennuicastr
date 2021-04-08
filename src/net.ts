@@ -30,9 +30,9 @@ import * as video from "./video";
  * One for pings,
  * one to send data, and
  * if we're the master, one for master communication */
-export var pingSock: WebSocket = null;
-export var dataSock: WebSocket = null;
-export var masterSock: WebSocket = null;
+export var pingSock: ReconnectableWebSocket = null;
+export var dataSock: ReconnectableWebSocket = null;
+export var masterSock: ReconnectableWebSocket = null;
 
 // Global connection state
 export var connected = false;
@@ -68,79 +68,131 @@ export var remoteBeginTime: null|number = null;
 // If we're flushing our buffers, this will be a timeout to re-check
 var flushTimeout: null|number = null;
 
+// A WebSocket that can automatically reconnect if it's unexpectedly disconnected
+class ReconnectableWebSocket {
+    sock: WebSocket;
+    url: string;
+    connecter: (WebSocket)=>Promise<unknown>;
+    closeHandler: (CloseEvent)=>unknown;
+    promise: Promise<unknown>;
+
+    constructor(url: string, closeHandler: (CloseEvent)=>unknown, connecter: (WebSocket)=>Promise<unknown>) {
+        this.url = url;
+        this.closeHandler = closeHandler;
+        this.connecter = connecter;
+        this.promise = Promise.all([]);
+    }
+
+    // Perform the initial connection
+    connect() {
+        let sock;
+        this.promise = this.promise.then(() => {
+            // Set up the web socket
+            sock = this.sock = new WebSocket(this.url);
+            sock.binaryType = "arraybuffer";
+            sock.onerror = this.closeHandler;
+            sock.onclose = this.closeHandler;
+
+            return new Promise((res, rej) => {
+                sock.onopen = () => {
+                    this.connecter(sock).then(res).catch(rej);
+                };
+            });
+
+        }).then(() => {
+            // Now the connecter is done. Give it a second, then set up automatic reconnection.
+            setTimeout(() => {
+                if (sock !== this.sock) return;
+                sock.onclose = () => {
+                    this.connect();
+                };
+            }, 1000);
+
+        });
+        return this.promise;
+    }
+
+    // Send data
+    send(data: any) {
+        this.promise = this.promise.then(() => {
+            this.sock.send(data);
+        });
+        return this.promise;
+    }
+
+    // Close the connection
+    close() {
+        this.promise = this.promise.then(() => {
+            //this.sock.onclose = this.closeHandler;
+            this.sock.close();
+        });
+        return this.promise;
+    }
+}
+
 // Connect to the server (our first step)
 export function connect() {
-    // Our connection message, which is largely the same for all three
-    var p: any, f: any, out: DataView, flags: number;
+    let p = prot.parts.login;
+    let f = prot.flags;
+    let nickBuf = util.encodeText(config.username);
 
-    return Promise.all([]).then(function() {
-        // (1) The ping socket
+    // The connection message is largely the same for all, so start with a generic one
+    let connMsg = new DataView(new ArrayBuffer(p.length + nickBuf.length));
+    connMsg.setUint32(0, prot.ids.login, true);
+    let flags = (config.useFlac?f.dataType.flac:0) | (config.useContinuous?f.features.continuous:0);
+    connMsg.setUint32(p.id, config.config.id, true);
+    connMsg.setUint32(p.key, config.config.key, true);
+    new Uint8Array(connMsg.buffer).set(nickBuf, p.length);
+
+    return Promise.all([]).then(() => {
         connected = true;
         log.pushStatus("conn", "Connecting...");
 
-        return new Promise(function(res, rej) {
-            pingSock = new WebSocket(config.wsUrl);
-            pingSock.binaryType = "arraybuffer";
+        // (1) The ping socket
+        pingSock = new ReconnectableWebSocket(config.wsUrl, disconnect, connecter);
+        let out = new DataView(connMsg.buffer.slice(0));
+        out.setUint32(p.flags, f.connectionType.ping | flags, true);
 
-            pingSock.addEventListener("open", function() {
-                var nickBuf = util.encodeText(config.username);
+        function connecter(sock) {
+            sock.send(out.buffer);
+            sock.addEventListener("message", pingSockMsg);
+            return Promise.all([]);
+        }
 
-                p = prot.parts.login;
-                out = new DataView(new ArrayBuffer(p.length + nickBuf.length));
-                out.setUint32(0, prot.ids.login, true);
-                f = prot.flags;
-                flags = (config.useFlac?f.dataType.flac:0) | (config.useContinuous?f.features.continuous:0);
-                out.setUint32(p.id, config.config.id, true);
-                out.setUint32(p.key, config.config.key, true);
-                out.setUint32(p.flags, f.connectionType.ping | flags, true);
-                new Uint8Array(out.buffer).set(nickBuf, 16);
-                pingSock.send(out.buffer);
+        return pingSock.connect();
 
-                res(void 0);
-            });
-
-            pingSock.addEventListener("message", pingSockMsg);
-            pingSock.addEventListener("error", disconnect);
-            pingSock.addEventListener("close", disconnect);
-        });
-
-    }).then(function() {
+    }).then(() => {
         // (2) The data socket
-        return new Promise(function(res, rej) {
-            dataSock = new WebSocket(config.wsUrl);
-            dataSock.binaryType = "arraybuffer";
+        dataSock = new ReconnectableWebSocket(config.wsUrl, disconnect, connecter);
+        let out = new DataView(connMsg.buffer.slice(0));
+        out.setUint32(p.flags, f.connectionType.data | flags, true);
 
-            dataSock.addEventListener("open", function() {
-                out.setUint32(p.flags, f.connectionType.data | flags, true);
-                dataSock.send(out.buffer);
+        function connecter(sock) {
+            sock.send(out.buffer);
+            sock.addEventListener("message", dataSockMsg);
+            return Promise.all([]);
+        }
 
-                res(void 0);
-            });
-
-            dataSock.addEventListener("message", dataSockMsg);
-            dataSock.addEventListener("error", disconnect);
-            dataSock.addEventListener("close", disconnect);
-        });
+        return dataSock.connect();
 
     }).then(function() {
         // (3) The master socket
-        if ("master" in config.config) return new Promise(function(res, rej) {
-            masterSock = new WebSocket(config.wsUrl);
-            masterSock.binaryType = "arraybuffer";
+        let out;
+        if ("master" in config.config) {
+            masterSock = new ReconnectableWebSocket(config.wsUrl, disconnect, connecter);
+            out = new DataView(connMsg.buffer.slice(0));
+            out.setUint32(p.key, config.config.master, true);
+            out.setUint32(p.flags, f.connectionType.master | flags, true);
 
-            masterSock.addEventListener("open", function() {
-                out.setUint32(p.key, config.config.master, true);
-                out.setUint32(p.flags, f.connectionType.master | flags, true);
-                masterSock.send(out.buffer);
+            return masterSock.connect();
 
-                res(void 0);
-            });
+        }
 
-            masterSock.addEventListener("message", masterSockMsg);
-            masterSock.addEventListener("error", disconnect);
-            masterSock.addEventListener("close", disconnect);
-        });
-
+        function connecter(sock) {
+            sock.send(out.buffer);
+            sock.addEventListener("message", masterSockMsg);
+            return Promise.all([]);
+        }
     });
 }
 
@@ -167,7 +219,7 @@ export function disconnect(ev?: Event) {
     if (ev && ev.target)
         target = ev.target;
 
-    function close(sock: WebSocket): WebSocket {
+    function close(sock: ReconnectableWebSocket): ReconnectableWebSocket {
         if (sock && sock !== target)
             sock.close();
         return null;
@@ -536,7 +588,7 @@ function flushBuffers() {
 
 // If our data socket is connected, the buffered amount
 export function bufferedAmount() {
-    return dataSock ? dataSock.bufferedAmount : 0;
+    return dataSock ? dataSock.sock.bufferedAmount : 0;
 }
 
 // Generic phone-home error handler
