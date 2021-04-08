@@ -331,13 +331,14 @@ function encoderStart() {
 
     }).then(capture => {
         // Accept encoded packets
+        let last = 0;
         capture.worker.onmessage = function(ev) {
             let msg = ev.data;
             if (msg.c !== "packets") return;
 
             // Figure out the packet start time
             let p = msg.d;
-            let now = performance.now() - msg.t;
+            let now = msg.ts + performance.now() - Date.now(); // time adjusted from Date.now to performance.now
             let pktTime = Math.round(
                 (now - startTime) * 48 -
                 p.length * 960

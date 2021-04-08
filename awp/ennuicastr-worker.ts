@@ -152,8 +152,7 @@ function doEncoder(msg: any) {
                 packets.push(encPackets[pi].data);
 
             // Send the encoded packets to the *host*
-            var end = Date.now();
-            postMessage({c: "packets", t: end - msg.t, d: packets});
+            postMessage({c: "packets", t: Date.now() - msg.t, ts: msg.t, d: packets});
 
         }).catch(console.error);
     }
