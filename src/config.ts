@@ -191,6 +191,9 @@ if (username === null || username === "") {
 // Find the websock URL
 export const wsUrl = (url.protocol==="http:"?"ws":"wss") + "://" + url.hostname + ":" + config.port;
 
+// And the Jitsi URL
+export const jitsiUrl = "//jitsi." + url.hostname + "/http-bind";
+
 // Should we be creating FLAC?
 export const useFlac = ((config.format&prot.flags.dataTypeMask) === prot.flags.dataType.flac);
 

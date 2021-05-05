@@ -40,10 +40,6 @@ function main() {
         if (typeof Ennuiboard !== "undefined")
             Ennuiboard.enable("gamepad", {auto: true, manualPoll: true});
 
-        // If we're using WebRTC, load adapter.js
-        if (config.useRTC)
-            return util.loadLibrary("https://webrtc.github.io/adapter/adapter-latest.js");
-
     }).catch(function(){}).then(function() {
         // Build the UI
         return <any> ui.mkUI();

@@ -15,10 +15,10 @@
  */
 
 import * as config from "./config";
+import * as jitsi from "./jitsi";
 import * as log from "./log";
 import * as net from "./net";
 import { prot } from "./protocol";
-import * as rtc from "./rtc";
 import * as ui from "./ui";
 import * as util from "./util";
 import { dce, gebi } from "./util";
@@ -384,5 +384,5 @@ function adminAction(target: number, action: number) {
 function acceptRemoteVideoChange() {
     var arv = ui.ui.panels.master.acceptRemoteVideo;
     localStorage.setItem("ecmaster-video-record-host", JSON.stringify(arv.checked));
-    rtc.rtcVideoRecSend(void 0, prot.videoRec.videoRecHost, ~~arv.checked);
+    jitsi.videoRecSend(void 0, prot.videoRec.videoRecHost, ~~arv.checked);
 }

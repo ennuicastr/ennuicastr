@@ -19,9 +19,9 @@ declare var Ennuiboard: any, NoiseRepellent: any, WebRtcVad: any;
 
 import * as audio from "./audio";
 import * as config from "./config";
+import * as jitsi from "./jitsi";
 import * as log from "./log";
 import * as net from "./net";
-import * as rtc from "./rtc";
 import * as capture from "./capture";
 import * as ui from "./ui";
 import * as util from "./util";
@@ -198,7 +198,7 @@ export function updateSpeech(peer: number, status: boolean) {
         vadOn = status;
 
         // Send the update to all RTC peers
-        rtc.rtcSpeech(status);
+        jitsi.speech(status);
         peer = net.selfId;
         vpeer = 0;
     }

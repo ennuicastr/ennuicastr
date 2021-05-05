@@ -20,10 +20,10 @@ declare var LibAV: any, MediaRecorder: any, streamSaver: any;
 import * as audio from "./audio";
 import * as avloader from "./avloader";
 import * as config from "./config";
+import * as jitsi from "./jitsi";
 import * as log from "./log";
 import * as net from "./net";
 import { prot } from "./protocol";
-import * as rtc from "./rtc";
 import * as ui from "./ui";
 import * as util from "./util";
 import { gebi } from "./util";
@@ -109,7 +109,7 @@ function recordVideo(opts: RecordVideoOptions) {
 
     // Create a write stream early, so it's in response to the button click
     var localWriter: WritableStreamDefaultWriter = null,
-        remoteWriter: {write: (arg0:Uint8Array)=>void, close: ()=>void} = null;
+        remoteWriter: {idx: number, write: (arg0:Uint8Array)=>void, close: ()=>void} = null;
     if (opts.local) {
         if (opts.localWriter) {
             localWriter = opts.localWriter;
@@ -126,7 +126,7 @@ function recordVideo(opts: RecordVideoOptions) {
     if (opts.remote) {
         if (!("remotePeer" in opts)) {
             // Verify first!
-            rtc.rtcVideoRecSend(rtc.rtcConnections.videoRecHost, prot.videoRec.startVideoRecReq, {ext: outFormat});
+            jitsi.videoRecSend(jitsi.videoRecHost, prot.videoRec.startVideoRecReq, {ext: outFormat});
 
             recordVideoRemoteOK = function(peer: number) {
                 opts.remotePeer = peer;
@@ -149,7 +149,11 @@ function recordVideo(opts: RecordVideoOptions) {
             }
 
             remoteWriter = {
-                write: function(chunk) { recordVideoRemoteWrite(opts.remotePeer, chunk); },
+                idx: 0,
+                write: function(chunk) {
+                    recordVideoRemoteWrite(opts.remotePeer, this.idx, chunk);
+                    this.idx += chunk.length;
+                },
                 close: function() {
                     this.write = function() {};
                     this.close = function() {};
@@ -535,7 +539,7 @@ function recordVideoPanel() {
 
     // En/disable the buttons based on presence of a remote host
     var focus: HTMLElement;
-    if (rtc.rtcConnections.videoRecHost >= 0) {
+    if (jitsi.videoRecHost >= 0) {
         vr.remote.disabled = false;
         vr.remote.classList.remove("off");
         vr.both.disabled = false;
@@ -709,13 +713,13 @@ function recordVideoInput(transtate: TranscodeState) {
 }
 
 // Write data to an RTC peer
-function recordVideoRemoteWrite(peer: number, buf: Uint8Array) {
-    rtc.rtcDataSend(peer, buf);
+function recordVideoRemoteWrite(peer: number, idx: number, buf: Uint8Array) {
+    jitsi.videoDataSend(peer, idx, buf);
 }
 
 // Stop sending video data to a peer
 function recordVideoRemoteClose(peer: number) {
-    rtc.rtcVideoRecSend(peer, prot.videoRec.endVideoRec);
+    jitsi.videoRecSend(peer, prot.videoRec.endVideoRec);
 }
 
 // Configure the video recording button based on the current state

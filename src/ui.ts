@@ -20,6 +20,7 @@ declare var Ennuiboard: any, NoSleep: any;
 import * as audio from "./audio";
 import * as chat from "./chat";
 import * as config from "./config";
+import * as jitsi from "./jitsi";
 import * as log from "./log";
 import * as master from "./master";
 import * as net from "./net";
@@ -112,6 +113,7 @@ export const ui = {
             boxA: HTMLElement,
             boxB: HTMLElement,
             video: HTMLVideoElement,
+            audio: HTMLAudioElement,
             standin: HTMLElement,
             name: HTMLElement,
             popout: HTMLButtonElement,
@@ -1578,6 +1580,7 @@ export function videoAdd(idx: number, name: string) {
         boxA: dce("div"),
         boxB: dce("div"),
         video: dce("video"),
+        audio: dce("audio"),
         standin: dce("div"),
         name: dce("span"),
         popout: dce("button"),
@@ -1607,6 +1610,12 @@ export function videoAdd(idx: number, name: string) {
         height: "100%"
     });
     box.appendChild(video);
+
+    // The audio element, just used to make sure audio is actually playing
+    let audio = ctx.audio;
+    audio.muted = true;
+    audio.style.display = "none";
+    box.appendChild(audio);
 
     // When you click, they become the selected major
     video.onclick = function() {
@@ -1845,6 +1854,10 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
         ui.video.selected = ui.video.major = -1;
 
     }
+
+    // Tell RTC about our major
+    if (ui.video.major >= 0)
+        jitsi.setMajor(ui.video.major);
 
     // First rearrange them all in the side box
     var active = 0;

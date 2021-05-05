@@ -17,10 +17,10 @@
 import * as audio from "./audio";
 import * as chat from "./chat";
 import * as config from "./config";
+import * as jitsi from "./jitsi";
 import * as log from "./log";
 import * as master from "./master";
 import { prot } from "./protocol";
-import * as rtc from "./rtc";
 import * as util from "./util";
 import * as ui from "./ui";
 import { dce } from "./util";
@@ -230,7 +230,7 @@ export function disconnect(ev?: Event) {
 
     audio.disconnect();
     video.disconnect();
-    rtc.disconnect();
+    jitsi.disconnect();
 }
 
 // Ping the ping socket
@@ -306,22 +306,18 @@ function dataSockMsg(ev: MessageEvent) {
                     // Our own ID
                     selfId = val;
 
-                    if (!config.useRTC) {
-                        // Cogito ergo sum
-                        ui.userListAdd(val, config.username, false);
-                    }
-                    break;
+                    // Cogito ergo sum
+                    ui.userListAdd(val, config.username, false);
 
-                case prot.info.peerInitial:
-                case prot.info.peerContinuing:
-                    // We may need to start an RTC connection
-                    if (config.useRTC)
-                        rtc.initRTC(val);
+                    if (config.useRTC) {
+                        // Now is when we have enough information to start Jitsi
+                        jitsi.initJitsi();
+                    }
                     break;
 
                 case prot.info.peerLost:
                     if (config.useRTC)
-                        rtc.closeRTC(val);
+                        jitsi.closeRTC(val);
                     break;
 
                 case prot.info.mode:
@@ -414,69 +410,6 @@ function dataSockMsg(ev: MessageEvent) {
             ui.userListUpdate(index, !!status, false);
             break;
         }
-
-        case prot.ids.rtc:
-            var p = prot.parts.rtc;
-            var peer = msg.getUint32(p.peer, true);
-            var type = msg.getUint32(p.type, true);
-            var conn: rtc.ECRTCPeerConnection, outgoing: boolean;
-            var outgoing: boolean;
-            if (type & 0x80000000) {
-                // For *their* outgoing connection
-                conn = rtc.rtcConnections.peers[peer].incoming;
-                outgoing = false;
-            } else {
-                conn = rtc.rtcConnections.peers[peer].outgoing;
-                outgoing = true;
-            }
-            if (!conn)
-                break;
-
-            var value = JSON.parse(util.decodeText(msg.buffer.slice(p.value)));
-
-            switch (type&0x7F) {
-                case prot.rtc.candidate:
-                    conn.ecSeq = conn.ecSeq.then(function() {
-                        if (value && value.candidate) {
-                            try {
-                                conn.addIceCandidate(value);
-                            } catch (ex) {
-                                // How to represent null has changed, so try swapping it
-                                value.candidate = (value.candidate === null) ? "" : null;
-                                conn.addIceCandidate(value);
-                            }
-                        }
-                    }).catch(promiseFail());
-                    break;
-
-                case prot.rtc.offer:
-                    conn.ecSeq = conn.ecSeq.then(function() {
-                        return conn.setRemoteDescription(value);
-
-                    }).then(function() {
-                        return conn.createAnswer();
-
-                    }).then(function(answer) {
-                        return conn.setLocalDescription(answer);
-
-                    }).then(function() {
-                        rtc.rtcSignal(peer, outgoing, prot.rtc.answer, conn.localDescription);
-
-                    }).catch(function(ex) {
-                        log.pushStatus("rtc", "RTC connection failed!");
-
-                    });
-                    break;
-
-                case prot.rtc.answer:
-                    conn.ecSeq = conn.ecSeq.then(function() {
-                        return conn.setRemoteDescription(value);
-                    }).catch(function(ex) {
-                        log.pushStatus("rtc", "RTC connection failed!");
-                    });
-                    break;
-            }
-            break;
 
         case prot.ids.text:
             var p = prot.parts.text;
