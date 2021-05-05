@@ -90,7 +90,7 @@ export function initJitsi() {
                     muc: "conference.jitsi.weca.st"
                 },
                 bosh: config.jitsiUrl,
-                clientNode: "http://jitsi.org/jitsimeet"
+                clientNode: "https://ennuicastr.com/"
             });
 
             connection.addEventListener(JitsiMeetJS.events.connection.CONNECTION_ESTABLISHED, res);
