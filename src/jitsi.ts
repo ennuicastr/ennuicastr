@@ -78,7 +78,9 @@ export function initJitsi() {
 
     }).then(() => {
         JitsiMeetJS.setLogLevel(JitsiMeetJS.logLevels.ERROR);
-        JitsiMeetJS.init();
+        JitsiMeetJS.init({
+            disableAudioLevels: true
+        });
 
         // Create our connection
         return new Promise(function(res, rej) {
