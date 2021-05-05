@@ -256,13 +256,13 @@ function jitsiTrackAdded(track: any) {
         incoming[id] = {id: null, audio: null, video: null};
     let inc = incoming[id];
     inc.id = track.getParticipantId();
-    inc[type] = track;
+    (<any> inc)[type] = track;
 
     // Make sure they have a video element
     ui.videoAdd(id, null);
 
     // Set this in the appropriate element
-    let el: HTMLMediaElement = ui.ui.video.users[id][type];
+    let el: HTMLMediaElement = (<any> ui.ui.video.users[id])[type];
     el.srcObject = stream;
     el.play().catch(console.error);
 
@@ -292,13 +292,13 @@ function jitsiTrackRemoved(track: any) {
     let inc = incoming[id];
 
     // If this isn't even their current track, ignore it
-    if (inc[type] !== track)
+    if ((<any> inc)[type] !== track)
         return;
-    inc[type] = null;
+    (<any> inc)[type] = null;
 
     // Remove it from the UI
     if (ui.ui.video.users[id]) {
-        let el: HTMLMediaElement = ui.ui.video.users[id][type];
+        let el: HTMLMediaElement = (<any> ui.ui.video.users[id])[type];
         el.srcObject = null;
 
         // Show the standin if applicable

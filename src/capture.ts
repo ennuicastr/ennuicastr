@@ -109,14 +109,14 @@ function createCaptureAWP(ac: AudioContext & {ecAWPP?: Promise<unknown>}, option
         worker.postMessage(cmd, [mc.port2]);
 
         // Now hook everything up
-        let source = null;
+        let source: AudioNode = null;
         if (options.ms)
             source = ac.createMediaStreamSource(options.ms);
         else if (options.input)
             source = options.input;
         if (source)
             source.connect(awn);
-        let msd = null;
+        let msd: MediaStreamAudioDestinationNode = null;
         if (options.outStream) {
             msd = ac.createMediaStreamDestination();
             awn.connect(msd);
@@ -176,14 +176,14 @@ function createCaptureSP(ac: AudioContext, options: CaptureOptions): Promise<Cap
     node.onaudioprocess = createOnAudioProcess(workerPort, worker);
 
     // Now hook everything up
-    let source = null;
+    let source: AudioNode = null;
     if (options.ms)
         source = ac.createMediaStreamSource(options.ms);
     else if (options.input)
         source = options.input;
     if (source)
         source.connect(node);
-    let msd = null;
+    let msd: MediaStreamAudioDestinationNode = null;
     if (options.outStream) {
         msd = ac.createMediaStreamDestination();
         node.connect(msd);
@@ -234,7 +234,7 @@ function createCaptureSafari(ac: AudioContext & {ecSP?: any}, options: CaptureOp
             name = "createJavaScriptNode";
 
         // Create our script processor with a compromise buffer size
-        sp = ac.ecSP[options.ms.id] = ac[name](4096, 1, 1);
+        sp = ac.ecSP[options.ms.id] = (<any> ac)[name](4096, 1, 1);
 
         // Keep track of who's using it
         sp.ecUsers = [];

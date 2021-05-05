@@ -88,7 +88,7 @@ export function createCompressor(idx: number, ac: AudioContext & {ecDestination?
         if (supported) {
             let waveviewCap: capture.Capture;
             let waveview;
-            let wf;
+            let wf: waveform.Waveform;
             let compressorCap: capture.Capture;
             let compressor;
             let la: any, frame: any;

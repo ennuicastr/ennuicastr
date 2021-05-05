@@ -72,11 +72,11 @@ var flushTimeout: null|number = null;
 class ReconnectableWebSocket {
     sock: WebSocket;
     url: string;
-    connecter: (WebSocket)=>Promise<unknown>;
-    closeHandler: (CloseEvent)=>unknown;
+    connecter: (arg0:WebSocket)=>Promise<unknown>;
+    closeHandler: (arg0:CloseEvent)=>unknown;
     promise: Promise<unknown>;
 
-    constructor(url: string, closeHandler: (CloseEvent)=>unknown, connecter: (WebSocket)=>Promise<unknown>) {
+    constructor(url: string, closeHandler: (arg0:CloseEvent)=>unknown, connecter: (arg0:WebSocket)=>Promise<unknown>) {
         this.url = url;
         this.closeHandler = closeHandler;
         this.connecter = connecter;
@@ -85,7 +85,7 @@ class ReconnectableWebSocket {
 
     // Perform the initial connection
     connect() {
-        let sock;
+        let sock: WebSocket;
         this.promise = this.promise.then(() => {
             // Set up the web socket
             sock = this.sock = new WebSocket(this.url);
@@ -153,7 +153,7 @@ export function connect() {
         let out = new DataView(connMsg.buffer.slice(0));
         out.setUint32(p.flags, f.connectionType.ping | flags, true);
 
-        function connecter(sock) {
+        function connecter(sock: WebSocket) {
             sock.send(out.buffer);
             sock.addEventListener("message", pingSockMsg);
             return Promise.all([]);
@@ -167,7 +167,7 @@ export function connect() {
         let out = new DataView(connMsg.buffer.slice(0));
         out.setUint32(p.flags, f.connectionType.data | flags, true);
 
-        function connecter(sock) {
+        function connecter(sock: WebSocket) {
             sock.send(out.buffer);
             sock.addEventListener("message", dataSockMsg);
             return Promise.all([]);
@@ -177,7 +177,7 @@ export function connect() {
 
     }).then(function() {
         // (3) The master socket
-        let out;
+        let out: DataView;
         if ("master" in config.config) {
             masterSock = new ReconnectableWebSocket(config.wsUrl, disconnect, connecter);
             out = new DataView(connMsg.buffer.slice(0));
@@ -188,7 +188,7 @@ export function connect() {
 
         }
 
-        function connecter(sock) {
+        function connecter(sock: WebSocket) {
             sock.send(out.buffer);
             sock.addEventListener("message", masterSockMsg);
             return Promise.all([]);
