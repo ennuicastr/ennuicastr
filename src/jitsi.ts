@@ -295,6 +295,8 @@ function jitsiTrackRemoved(track: any) {
     if ((<any> inc)[type] !== track)
         return;
     (<any> inc)[type] = null;
+    if (!inc.audio && !inc.video)
+        delete incoming[id];
 
     // Remove it from the UI
     if (ui.ui.video.users[id]) {
@@ -478,10 +480,12 @@ function sendMsg(msg: Uint8Array, peer?: number) {
     let msgj = {type: "ennuicastr", ec: msgs};
 
     // Send it to the peer or broadcast it to all peers
-    if (jid === null)
-        room.broadcastEndpointMessage(msgj);
-    else
+    if (jid === null) {
+        if (Object.keys(incoming).length > 0)
+            room.broadcastEndpointMessage(msgj);
+    } else {
         room.sendEndpointMessage(jid, msgj);
+    }
 }
 
 // Send a video recording subcommand to a peer
