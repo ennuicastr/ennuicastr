@@ -56,6 +56,7 @@ function doEncoder(msg: any) {
     var channelCount: number = msg.channelCount || 1;
     var p: Promise<unknown> = Promise.all([]);
     var pts = 0;
+    let seq = 0;
 
     var libav: any;
     var encOptions: any = {
@@ -152,7 +153,8 @@ function doEncoder(msg: any) {
                 packets.push(encPackets[pi].data);
 
             // Send the encoded packets to the *host*
-            postMessage({c: "packets", t: Date.now() - msg.t, ts: msg.t, d: packets});
+            postMessage({c: "packets", t: Date.now() - msg.t, ts: msg.t, s: seq, d: packets});
+            seq += packets.length;
 
         }).catch(console.error);
     }

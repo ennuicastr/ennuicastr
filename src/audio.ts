@@ -350,6 +350,11 @@ function encoderStart() {
                 pktTime += 960;
             }
 
+            // Check for sequence issues
+            if (msg.s > last)
+                net.errorHandler("Sequence error! " + msg.s + " " + last);
+            last = msg.s + p.length;
+
             handlePackets();
         };
 
@@ -400,8 +405,7 @@ function handlePackets() {
                 sendSilence--;
 
             } else if (sentZeroes < 3) {
-                /* Send an empty packet in its stead (FIXME: We should have
-                 * these prepared in advance) */
+                /* Send an empty packet in its stead */
                 if (granulePos < 0) continue;
                 sendPacket(granulePos, zeroPacket, 0);
                 sentZeroes++;
@@ -414,10 +418,6 @@ function handlePackets() {
         // VAD is on, so send packets
         packets.forEach(function (packet) {
             var data = packet[1];
-
-            // Ignore header packets (start with "Opus")
-            if (data.byteLength >= 4 && data.getUint32(0, true) === 0x7375704F)
-                return;
 
             var granulePos = adjustTime(packet);
             if (granulePos < 0)
