@@ -20,7 +20,7 @@ declare var webkitAudioContext: any;
 import * as audio from "./audio";
 
 // Worker paths to use
-const workerVer = "9";
+const workerVer = "a";
 const awpPath = "awp/ennuicastr-awp.js?v=" + workerVer;
 export const workerPath = "awp/ennuicastr-worker.js?v=" + workerVer;
 
@@ -337,7 +337,8 @@ function createOnAudioProcess(workerPort: MessagePort, worker: Worker) {
             input.push(ev.inputBuffer.getChannelData(i));
 
         // Send inputs to the worker
-        workerPort.postMessage({c: "data", t: Date.now(), d: input});
+        workerPort.postMessage(Date.now());
+        workerPort.postMessage(input);
 
         // Drain any excess buffer
         while (buffer.length >= 3 &&

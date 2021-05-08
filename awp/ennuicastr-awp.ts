@@ -91,8 +91,12 @@ class WorkerProcessor extends AudioWorkletProcessor {
         this.ct++;
         */
 
-        // Send inputs to the worker
-        this.workerPort.postMessage({c: "data", t: Date.now(), d: inputs[0]} /*, inputs[0].map(x => x.buffer)*/);
+        /* Send inputs to the worker. We use a convoluted protocol so that this
+         * does not require allocation on this thread. */
+        this.workerPort.postMessage(Date.now());
+        this.workerPort.postMessage(inputs[0]);
+
+        // The rest is for output, which is less mission-critical, and so can allocate
 
         // Drain any excess buffer
         while (this.buffer.length >= 3 &&

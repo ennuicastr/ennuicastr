@@ -25,6 +25,13 @@ const vadExtension = 2000;
 // Similar, for RTC transmission
 const rtcVadExtension = 1000;
 
+// Incoming data in its unusual format
+interface Incoming {
+    time?: number;
+    data?: Float32Array[];
+}
+
+// Our initial message tells us what kind of worker to be
 onmessage = function(ev) {
     var msg = ev.data;
     switch (msg.c) {
@@ -46,6 +53,19 @@ onmessage = function(ev) {
     }
 }
 
+// Get incoming data
+function getIncoming(into: Incoming, msg: any) {
+    // The format is time, length, then data
+    if (typeof msg === "number") {
+        into.time = msg;
+        return !!into.data;
+
+    } else { // Must be a Float32Array[]
+        into.data = msg;
+        return !!into.time;
+    }
+}
+
 // Encode with libav
 function doEncoder(msg: any) {
     var inPort: MessagePort = msg.port;
@@ -57,6 +77,7 @@ function doEncoder(msg: any) {
     var p: Promise<unknown> = Promise.all([]);
     var pts = 0;
     let seq = 0;
+    let incoming: Incoming = {};
 
     var libav: any;
     var encOptions: any = {
@@ -117,9 +138,14 @@ function doEncoder(msg: any) {
     }).catch(console.error);
 
     function onmessage(ev: MessageEvent) {
+        // Get the data
+        if (!getIncoming(incoming, ev.data))
+            return;
+        let msg = incoming;
+        incoming = {};
+
         // Put it in libav format
-        var msg = ev.data;
-        var data = msg.d;
+        let data = msg.data;
         if (data.length === 0 || data[0].length === 0) return;
         while (data.length < channelCount)
             data = data.concat(data);
@@ -153,7 +179,7 @@ function doEncoder(msg: any) {
                 packets.push(encPackets[pi].data);
 
             // Send the encoded packets to the *host*
-            postMessage({c: "packets", t: Date.now() - msg.t, ts: msg.t, s: seq, d: packets});
+            postMessage({c: "packets", t: Date.now() - msg.time, ts: msg.time, s: seq, d: packets});
             seq += packets.length;
 
         }).catch(console.error);
@@ -167,6 +193,7 @@ function doFilter(msg: any) {
     let sampleRate: number = msg.sampleRate;
     let useNR: boolean = msg.useNR;
     let sentRecently: boolean = msg.sentRecently;
+    let incoming: Incoming = {};
 
     // Let them update it
     onmessage = function(ev) {
@@ -245,8 +272,12 @@ function doFilter(msg: any) {
     }).catch(console.error);
 
     function onInMessage(ev: MessageEvent) {
-        let msg = ev.data;
-        let data = msg.d;
+        if (!getIncoming(incoming, ev.data))
+            return;
+        let msg = incoming;
+        incoming = {};
+
+        let data = msg.data;
         if (data.length === 0 || data[0].length === 0) return;
 
         // Merge together the channels
@@ -407,6 +438,8 @@ function doFilter(msg: any) {
 
 // Do simply histogram generation
 function doMax(msg: any) {
+    let incoming: Incoming = {};
+
     // Get out our info
     let inPort: MessagePort = msg.port;
 
@@ -415,7 +448,12 @@ function doMax(msg: any) {
     let maxCtr: number = 0;
 
     inPort.onmessage = function(ev: MessageEvent) {
-        let data = ev.data.d;
+        if (!getIncoming(incoming, ev.data))
+            return;
+        let msg = incoming;
+        incoming = {};
+
+        let data = msg.data;
         if (data.length === 0 || data[0].length === 0) return;
         let ib = data[0];
         for (let i = 0; i < ib.length; i++) {
@@ -434,6 +472,8 @@ function doMax(msg: any) {
 
 // Do compression/normalization
 function doDynaudnorm(msg: any) {
+    let incoming: Incoming = {};
+
     // Get out our info
     let inPort: MessagePort = msg.port;
     let sampleRate: number = msg.sampleRate;
@@ -477,8 +517,13 @@ function doDynaudnorm(msg: any) {
     }).catch(console.error);
 
     function onmessage(ev: MessageEvent) {
+        if (!getIncoming(incoming, ev.data))
+            return;
+        let msg = incoming;
+        incoming = {};
+
         // Handle input
-        let data = ev.data.d;
+        let data = msg.data;
         if (data.length === 0 || data[0].length === 0) return;
         let ib = data[0];
 
