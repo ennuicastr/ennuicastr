@@ -77,10 +77,35 @@ export function initJitsi() {
             return util.loadLibrary("lib-jitsi-meet.min.js");
 
     }).then(() => {
-        JitsiMeetJS.setLogLevel(JitsiMeetJS.logLevels.ERROR);
-        JitsiMeetJS.init({
-            disableAudioLevels: true
-        });
+        // Get rid of any old Jitsi instance. First, clear tracks.
+        for (let id in incoming) {
+            let inc = incoming[id];
+            if (inc.video)
+                jitsiTrackRemoved(inc.video);
+            if (inc.audio)
+                jitsiTrackRemoved(inc.audio);
+        }
+        incoming = {};
+
+        if (room) {
+            room.removeEventListener(JitsiMeetJS.events.conference.CONFERENCE_LEFT, net.disconnect);
+            return room.leave();
+        }
+
+    }).then(() => {
+        room = null;
+        if (connection) {
+            connection.removeEventListener(JitsiMeetJS.events.connection.CONNECTION_DISCONNECTED, net.disconnect);
+            connection.disconnect();
+            connection = null;
+
+        } else {
+            JitsiMeetJS.setLogLevel(JitsiMeetJS.logLevels.ERROR);
+            JitsiMeetJS.init({
+                disableAudioLevels: true
+            });
+
+        }
 
         // Create our connection
         return new Promise(function(res, rej) {

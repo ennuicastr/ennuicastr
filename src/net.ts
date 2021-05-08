@@ -48,6 +48,9 @@ export var recName: null|string = null;
 // We connect assuming our mode is not-yet-recording
 export var mode = prot.mode.init;
 
+// If we're using FLAC, we get the sample rate to send to the server
+var flacInfoBuf: ArrayBuffer = null;
+
 // ICE servers for RTC
 export var iceServers = [
     {
@@ -75,17 +78,20 @@ class ReconnectableWebSocket {
     connecter: (arg0:WebSocket)=>Promise<unknown>;
     closeHandler: (arg0:CloseEvent)=>unknown;
     promise: Promise<unknown>;
+    keepaliveTimeout: null|number;
 
     constructor(url: string, closeHandler: (arg0:CloseEvent)=>unknown, connecter: (arg0:WebSocket)=>Promise<unknown>) {
         this.url = url;
         this.closeHandler = closeHandler;
         this.connecter = connecter;
         this.promise = Promise.all([]);
+        this.keepaliveTimeout = null;
     }
 
     // Perform the initial connection
     connect() {
         let sock: WebSocket;
+        let connectTimeout: null|number = null;
         this.promise = this.promise.then(() => {
             // Set up the web socket
             sock = this.sock = new WebSocket(this.url);
@@ -97,14 +103,18 @@ class ReconnectableWebSocket {
                 sock.onopen = () => {
                     this.connecter(sock).then(res).catch(rej);
                 };
+
+                connectTimeout = setTimeout(rej, 10000);
             });
 
         }).then(() => {
+            clearTimeout(connectTimeout);
+
             // Now the connecter is done. Give it a second, then set up automatic reconnection.
             setTimeout(() => {
                 if (sock !== this.sock) return;
                 sock.onclose = () => {
-                    this.connect();
+                    this.connect().catch(this.closeHandler);
                 };
             }, 1000);
 
@@ -123,10 +133,25 @@ class ReconnectableWebSocket {
     // Close the connection
     close() {
         this.promise = this.promise.then(() => {
-            //this.sock.onclose = this.closeHandler;
+            this.sock.onclose = this.closeHandler;
             this.sock.close();
         });
         return this.promise;
+    }
+
+    // Mark the connection as alive and set a timeout
+    keepalive(duration?: number) {
+        duration = duration || 30000;
+        if (this.keepaliveTimeout !== null)
+            clearTimeout(this.keepaliveTimeout);
+        let stack = new Error().stack;
+        this.keepaliveTimeout = setTimeout(() => {
+            log.pushStatus("tmp", "keepdead!");
+            console.log(stack);
+            this.promise = this.promise.then(() => {
+                this.sock.close();
+            });
+        }, duration);
     }
 }
 
@@ -169,6 +194,8 @@ export function connect() {
 
         function connecter(sock: WebSocket) {
             sock.send(out.buffer);
+            if (flacInfoBuf)
+                sock.send(flacInfoBuf);
             sock.addEventListener("message", dataSockMsg);
             return Promise.all([]);
         }
@@ -247,6 +274,8 @@ function pingSockMsg(ev: MessageEvent) {
     var msg = new DataView(ev.data);
     var cmd = msg.getUint32(0, true);
 
+    pingSock.keepalive();
+
     switch (cmd) {
         case prot.ids.ack:
             var ackd = msg.getUint32(prot.parts.ack.ackd, true);
@@ -285,6 +314,8 @@ function pingSockMsg(ev: MessageEvent) {
 function dataSockMsg(ev: MessageEvent) {
     var msg = new DataView(ev.data);
     var cmd = msg.getUint32(0, true);
+
+    dataSock.keepalive();
 
     switch (cmd) {
         case prot.ids.nack:
@@ -441,6 +472,8 @@ function masterSockMsg(ev: MessageEvent) {
     var cmd = msg.getUint32(0, true);
     var p;
 
+    masterSock.keepalive();
+
     switch (cmd) {
         case prot.ids.info:
             p = prot.parts.info;
@@ -496,6 +529,12 @@ function masterSockMsg(ev: MessageEvent) {
             break;
         }
     }
+}
+
+// Set our FLAC info
+export function flacInfo(to: ArrayBuffer) {
+    flacInfoBuf = to;
+    dataSock.send(to);
 }
 
 // Flush our buffers

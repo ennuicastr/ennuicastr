@@ -294,7 +294,7 @@ function encoderStart() {
         info.setUint32(0, prot.ids.info, true);
         info.setUint32(p.key, prot.info.sampleRate, true);
         info.setUint32(p.value, sampleRate, true);
-        net.dataSock.send(info.buffer);
+        net.flacInfo(info.buffer);
     }
 
     // Set our zero packet as appropriate
