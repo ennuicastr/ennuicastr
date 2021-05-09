@@ -28,16 +28,16 @@ ennuicastr-test.min.js: src/*.ts node_modules/.bin/browserify
 	./src/build.js -m > $@
 
 awp/ennuicastr-awp.js: awp/ennuicastr-awp.ts node_modules/.bin/tsc
-	./node_modules/.bin/tsc -t es2015 --lib es2015,dom $<
+	./node_modules/.bin/tsc -t es2015 --lib es2017,dom $<
 
 awp/ennuicastr-awp-test.js: awp/ennuicastr-awp.ts node_modules/.bin/tsc
-	./node_modules/.bin/tsc -t es2015 --lib es2015,dom $< --outFile $@
+	./node_modules/.bin/tsc -t es2015 --lib es2017,dom $< --outFile $@
 
 awp/ennuicastr-worker.js: awp/ennuicastr-worker.ts node_modules/.bin/tsc
-	./node_modules/.bin/tsc --lib es2015,webworker $<
+	./node_modules/.bin/tsc --lib es2017,webworker $<
 
 awp/ennuicastr-worker-test.js: awp/ennuicastr-worker.ts node_modules/.bin/tsc
-	./node_modules/.bin/tsc --lib es2015,webworker $< --outFile $@
+	./node_modules/.bin/tsc --lib es2017,webworker $< --outFile $@
 
 protocol.min.js: protocol.js node_modules/.bin/minify
 	./node_modules/.bin/minify --js < $< | cat src/license.js - > $@

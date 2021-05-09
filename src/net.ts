@@ -146,8 +146,6 @@ class ReconnectableWebSocket {
             clearTimeout(this.keepaliveTimeout);
         let stack = new Error().stack;
         this.keepaliveTimeout = setTimeout(() => {
-            log.pushStatus("tmp", "keepdead!");
-            console.log(stack);
             this.promise = this.promise.then(() => {
                 this.sock.close();
             });

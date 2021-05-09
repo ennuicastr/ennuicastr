@@ -20,7 +20,7 @@ declare var webkitAudioContext: any;
 import * as audio from "./audio";
 
 // Worker paths to use
-const workerVer = "b";
+const workerVer = "c";
 const awpPath = "awp/ennuicastr-awp.js?v=" + workerVer;
 export const workerPath = "awp/ennuicastr-worker.js?v=" + workerVer;
 
@@ -70,6 +70,7 @@ export function createCapture(ac: AudioContext, options: CaptureOptions): Promis
         return createCaptureAWP(ac, options);
 
     } else {
+        console.log("[INFO] Not using AWP");
         return createCaptureSP(ac, options);
 
     }
