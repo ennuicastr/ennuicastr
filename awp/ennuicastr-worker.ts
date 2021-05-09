@@ -68,7 +68,6 @@ class AWPHandler {
 
     onmessage(ev: MessageEvent) {
         let msg = ev.data;
-        console.log(msg);
 
         // We could be receiving a command, or just data
         if (typeof msg === "object" &&
