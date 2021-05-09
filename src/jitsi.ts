@@ -70,11 +70,11 @@ export function initJitsi() {
     let timeout: number = null;
     return Promise.all([]).then(() => {
         if (typeof JitsiMeetJS === "undefined")
-            return util.loadLibrary("https://code.jquery.com/jquery-3.6.0.min.js");
+            return util.loadLibrary("libs/jquery.min.js");
 
     }).then(() => {
         if (typeof JitsiMeetJS === "undefined")
-            return util.loadLibrary("lib-jitsi-meet.min.js");
+            return util.loadLibrary("libs/lib-jitsi-meet.min.js");
 
     }).then(() => {
         // Get rid of any old Jitsi instance. First, clear tracks.

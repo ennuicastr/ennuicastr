@@ -784,10 +784,10 @@ export function recordVideoButton(loading?: boolean) {
 // Load the StreamSaver library, needed only for video recording
 function loadStreamSaver(): Promise<unknown> {
     if (typeof streamSaver === "undefined") {
-        return util.loadLibrary("web-streams-ponyfill.js").then(function() {
-            return util.loadLibrary("StreamSaver.js?v=5");
+        return util.loadLibrary("libs/web-streams-ponyfill.js").then(function() {
+            return util.loadLibrary("libs/StreamSaver.js?v=5");
         }).then(function() {
-            streamSaver.mitm = "StreamSaver/mitm.html";
+            streamSaver.mitm = "libs/StreamSaver/mitm.html?v=2";
         });
     }
     return Promise.all([]);

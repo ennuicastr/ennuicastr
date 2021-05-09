@@ -32,8 +32,7 @@ import * as util from "./util";
 function main() {
     return Promise.all([]).then(function() {
         // Load the keyboard indirection library
-        //return util.loadLibrary("https://unpkg.com/ennuiboard@^1.0.0/ennuiboard.min.js");
-        return util.loadLibrary("https://unpkg.com/ennuiboard@1.0.0/ennuiboard.min.js");
+        return util.loadLibrary("libs/ennuiboard.min.js");
 
     }).catch(function(){}).then(function() {
         // Gamepads can be supported by default
@@ -47,7 +46,7 @@ function main() {
     }).then(function() {
         // This can be loaded lazily
         ECDefaultHotkeys = {"0000c": "ecmenu-chat"};
-        util.loadLibrary("hotkeys.min.js?v=4");
+        util.loadLibrary("hotkeys.min.js?v=5");
 
         // Now connect
         return net.connect();

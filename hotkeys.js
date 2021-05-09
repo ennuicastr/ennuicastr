@@ -306,7 +306,6 @@ ECHotkeys = (function() {
         // Find a relevant target
         var target = ev.target;
         while (target) {
-            console.error(target);
             if (target.id &&
                 (target.nodeName === "BUTTON" || target.nodeName === "A"))
                 break;

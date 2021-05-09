@@ -1,11 +1,17 @@
+LIBS=\
+     libs/NoSleep.min.js libs/web-streams-ponyfill.js libs/jquery.min.js \
+     libs/ennuiboard.min.js
+
 all: ennuicastr.js ennuicastr.min.js \
      protocol.min.js \
      awp/ennuicastr-awp.js awp/ennuicastr-worker.js \
-     hotkeys.min.js NoSleep.min.js web-streams-ponyfill.js
+     hotkeys.min.js \
+     $(LIBS)
 
 test: ennuicastr-test.js ennuicastr-test.min.js \
       awp/ennuicastr-awp-test.js awp/ennuicastr-worker-test.js \
-      NoSleep.min.js web-streams-ponyfill.js
+      hotkeys.min.js \
+      $(LIBS)
 
 ennuicastr.js: src/*.ts node_modules/.bin/browserify
 	./src/build.js > $@.tmp
@@ -46,11 +52,17 @@ node_modules/.bin/minify: node_modules/.bin/browserify
 
 node_modules/.bin/tsc: node_modules/.bin/browserify
 
-NoSleep.min.js: node_modules/.bin/browserify
+libs/NoSleep.min.js: node_modules/.bin/browserify
 	cp node_modules/nosleep.js/dist/NoSleep.min.js $@
 
-web-streams-ponyfill.js: node_modules/.bin/browserify
+libs/web-streams-ponyfill.js: node_modules/.bin/browserify
 	cp node_modules/web-streams-polyfill/dist/ponyfill.js $@
+
+libs/jquery.min.js: node_modules/.bin/browserify
+	cp node_modules/jquery/dist/jquery.min.js $@
+
+libs/ennuiboard.min.js: node_modules/.bin/browserify
+	cp node_modules/ennuiboard/ennuiboard.min.js $@
 
 clean:
 	rm -f ennuicastr.js ennuicastr.min.js protocol.min.js web-streams-ponyfill.js

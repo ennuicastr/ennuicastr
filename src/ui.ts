@@ -643,7 +643,7 @@ export function mkUI() {
     // If we're on mobile, now is the time to NoSleep
     if (mobile) {
         return Promise.all([]).then(function() {
-            return util.loadLibrary("NoSleep.min.js");
+            return util.loadLibrary("libs/NoSleep.min.js");
 
         }).then(function() {
             noSleep = new NoSleep();

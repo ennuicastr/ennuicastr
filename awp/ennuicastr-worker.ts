@@ -16,7 +16,7 @@
 
 declare var LibAV: any, NoiseRepellent: any, NoiseRepellentFactory: any, WebRtcVad: any, __filename: string;
 
-const libavVersion = "2.3.4.3.1";
+const libavVersion = "2.3.4.4";
 const libavPath = "../libav/libav-" + libavVersion + "-ennuicastr.js";
 
 // Number of milliseconds to run the VAD for before/after talking
@@ -230,7 +230,7 @@ function doFilter(msg: any) {
     // Load everything
     Promise.all([]).then(function() {
         // Load the VAD
-        __filename = "../vad/vad-m.wasm.js";
+        __filename = "../libs/vad/vad-m.wasm.js";
         importScripts(__filename);
         return WebRtcVad();
 
@@ -253,10 +253,10 @@ function doFilter(msg: any) {
         m.set_mode(3);
 
         // And load noise-repellent
-        __filename = "../noise-repellent/noise-repellent-m.wasm.js";
+        __filename = "../noise-repellent/noise-repellent-m.wasm.js?v=2";
         importScripts(__filename);
         NoiseRepellent = {NoiseRepellentFactory: NoiseRepellentFactory};
-        __filename = "../noise-repellent/noise-repellent-m.js";
+        __filename = "../noise-repellent/noise-repellent-m.js?v=2";
         importScripts(__filename);
         return NoiseRepellent.NoiseRepellent(sampleRate);
 

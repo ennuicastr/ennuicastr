@@ -20,7 +20,7 @@ declare var webkitAudioContext: any;
 import * as audio from "./audio";
 
 // Worker paths to use
-const workerVer = "a";
+const workerVer = "b";
 const awpPath = "awp/ennuicastr-awp.js?v=" + workerVer;
 export const workerPath = "awp/ennuicastr-worker.js?v=" + workerVer;
 

@@ -5,6 +5,8 @@
   "main": "src/main.ts",
   "dependencies": {
     "browserify": "^17.0.0",
+    "ennuiboard": "^1.0.0",
+    "jquery": "^3.6.0",
     "minify": "^6.0.1",
     "nosleep.js": "^0.12.0",
     "tinyify": "^3.0.0",

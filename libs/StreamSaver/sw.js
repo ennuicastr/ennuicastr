@@ -122,6 +122,8 @@ self.onfetch = event => {
     responseHeaders.set('Content-Disposition', "attachment; filename*=UTF-8''" + fileName)
   }
 
+  responseHeaders.set('Cross-Origin-Embedder-Policy', "require-corp");
+
   event.respondWith(new Response(stream, { headers: responseHeaders }))
 
   port.postMessage({ debug: 'Download started' })
