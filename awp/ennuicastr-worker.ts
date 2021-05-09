@@ -16,7 +16,7 @@
 
 declare var LibAV: any, NoiseRepellent: any, NoiseRepellentFactory: any, WebRtcVad: any, __filename: string;
 
-const libavVersion = "2.3.4.4";
+const libavVersion = "2.3.4.3.1";
 const libavPath = "../libav/libav-" + libavVersion + "-ennuicastr.js";
 
 // Number of milliseconds to run the VAD for before/after talking
@@ -24,156 +24,6 @@ const vadExtension = 2000;
 
 // Similar, for RTC transmission
 const rtcVadExtension = 1000;
-
-// Code for an atomic waiter, which simply informs us whenever the write head changes
-let waitWorkerCode = `
-onmessage = function(ev) {
-    var prevVal = 0;
-    var buf = ev.data;
-    while (Atomics.wait(buf, 1, prevVal)) {
-        var ts = Date.now();
-        var newVal = Atomics.load(buf, 1);
-        if (prevVal !== newVal) {
-            postMessage([ts, prevVal, newVal]);
-            prevVal = newVal;
-        }
-    }
-};
-`;
-
-// Handler for data from AWP
-class AWPHandler {
-    // Port for AWP
-    port: MessagePort;
-
-    // Handler for incoming data
-    ondata: (ts: number, data: Float32Array[]) => unknown;
-
-    // If we're using shared buffers, these are set
-    incoming: Float32Array[];
-    incomingRW: Int32Array;
-    outgoing: Float32Array[];
-    outgoingRW: Int32Array;
-    waitWorker: Worker;
-
-    // Otherwise, these are used
-    ts: number;
-    buf: Float32Array[];
-
-    constructor(port: MessagePort, ondata: (ts: number, data: Float32Array[]) => unknown) {
-        this.port = port;
-        this.ondata = ondata;
-        port.onmessage = this.onmessage.bind(this);
-    }
-
-    onmessage(ev: MessageEvent) {
-        let msg = ev.data;
-
-        // We could be receiving a command, or just data
-        if (typeof msg === "object" &&
-            msg.c === "buffers") {
-            // Buffers command
-            this.incoming = msg.outgoing;
-            this.incomingRW = msg.outgoingRW;
-            this.outgoing = msg.incoming;
-            this.outgoingRW = msg.incomingRW;
-
-            // Create a worker to inform us when we have incoming data
-            let ww = this.waitWorker = new Worker("data:application/javascript," + encodeURIComponent(waitWorkerCode));
-            let self = this;
-            ww.onmessage = function(ev: MessageEvent) {
-                let msg: number[] = ev.data;
-                let ts = msg[0];
-                let start = msg[1];
-                let end = msg[2];
-                let buf: Float32Array[] = [];
-                let bufSz = self.incoming[0].length;
-                let len = end - start;
-
-                /* We still need an atomic load just to guarantee a memory
-                 * fence in this thread */
-                Atomics.load(self.incomingRW, 1);
-
-                if (end < start) {
-                    // We wrapped around
-                    len += bufSz;
-                    let brk = bufSz - start;
-                    for (let i = 0; i < self.incoming.length; i++) {
-                        let sbuf = new Float32Array(len);
-                        sbuf.set(self.incoming[i].subarray(start), 0);
-                        sbuf.set(self.incoming[i].subarray(0, end), brk);
-                        buf.push(sbuf);
-                    }
-
-                } else {
-                    // Simple case
-                    for (let i = 0; i < self.incoming.length; i++)
-                        buf.push(self.incoming[i].slice(start, end));
-
-                }
-
-                self.ondata(ts, buf);
-            };
-
-            // Start it up
-            ww.postMessage(this.incomingRW);
-
-            return;
-
-        } else if (typeof msg === "number") {
-            // Timestamp
-            this.ts = msg;
-
-        } else {
-            // Must be data
-            this.buf = msg;
-
-        }
-
-        if (this.ts && this.buf) {
-            let ts = this.ts;
-            let buf = this.buf;
-            this.ts = null;
-            this.buf = null;
-            this.ondata(ts, buf);
-        }
-    }
-
-    sendData(buf: Float32Array[]) {
-        if (this.outgoing) {
-            // Using shared memory
-            let bufSz = this.outgoing[0].length;
-            let len = buf[0].length;
-            if (len > bufSz) {
-                // This is bad!
-                len = bufSz;
-            }
-            let writeHead = this.outgoingRW[1];
-            if (writeHead + len > bufSz) {
-                // We wrap around
-                let brk = bufSz - writeHead;
-                for (let i = 0; i < this.outgoing.length; i++) {
-                    this.outgoing[i].set(buf[i%buf.length].subarray(0, brk), writeHead);
-                    this.outgoing[i].set(buf[i%buf.length].subarray(brk), 0);
-                }
-            } else {
-                // Simple case
-                for (let i = 0; i < this.outgoing.length; i++)
-                    this.outgoing[i].set(buf[i%buf.length], writeHead);
-            }
-            writeHead = (writeHead + len) % bufSz;
-
-            // Inform AWP
-            Atomics.store(this.outgoingRW, 1, writeHead);
-            Atomics.notify(this.outgoingRW, 1);
-
-        } else {
-            // Just message passing
-            this.port.postMessage({c: "data", d: buf});
-
-        }
-    }
-}
 
 // Incoming data in its unusual format
 interface Incoming {
@@ -203,9 +53,21 @@ onmessage = function(ev) {
     }
 }
 
+// Get incoming data
+function getIncoming(into: Incoming, msg: any) {
+    // The format is time, length, then data
+    if (typeof msg === "number") {
+        into.time = msg;
+        return !!into.data;
+
+    } else { // Must be a Float32Array[]
+        into.data = msg;
+        return !!into.time;
+    }
+}
+
 // Encode with libav
 function doEncoder(msg: any) {
-    let awpHandler: AWPHandler;
     var inPort: MessagePort = msg.port;
     var inSampleRate: number = msg.inSampleRate || 48000;
     var outSampleRate: number = msg.outSampleRate || 48000;
@@ -215,6 +77,7 @@ function doEncoder(msg: any) {
     var p: Promise<unknown> = Promise.all([]);
     var pts = 0;
     let seq = 0;
+    let incoming: Incoming = {};
 
     var libav: any;
     var encOptions: any = {
@@ -270,12 +133,20 @@ function doEncoder(msg: any) {
         buffersink_ctx = ret[2];
 
         // Now we're prepared for input
-        awpHandler = new AWPHandler(inPort, ondata);
+        inPort.onmessage = onmessage;
 
     }).catch(console.error);
 
-    function ondata(ts: number, data: Float32Array[]) {
+    function onmessage(ev: MessageEvent) {
+        // Get the data
+        if (!getIncoming(incoming, ev.data))
+            return;
+        let msg = incoming;
+        incoming = {};
+
         // Put it in libav format
+        let data = msg.data;
+        if (data.length === 0 || data[0].length === 0) return;
         while (data.length < channelCount)
             data = data.concat(data);
         var frames = [{
@@ -308,7 +179,7 @@ function doEncoder(msg: any) {
                 packets.push(encPackets[pi].data);
 
             // Send the encoded packets to the *host*
-            postMessage({c: "packets", t: Date.now() - ts, ts: ts, s: seq, d: packets});
+            postMessage({c: "packets", t: Date.now() - msg.time, ts: msg.time, s: seq, d: packets});
             seq += packets.length;
 
         }).catch(console.error);
@@ -317,13 +188,12 @@ function doEncoder(msg: any) {
 
 // Do a live filter
 function doFilter(msg: any) {
-    let awpHandler: AWPHandler;
-
     // Get out our info
     let inPort: MessagePort = msg.port;
     let sampleRate: number = msg.sampleRate;
     let useNR: boolean = msg.useNR;
     let sentRecently: boolean = msg.sentRecently;
+    let incoming: Incoming = {};
 
     // Let them update it
     onmessage = function(ev) {
@@ -360,7 +230,7 @@ function doFilter(msg: any) {
     // Load everything
     Promise.all([]).then(function() {
         // Load the VAD
-        __filename = "../libs/vad/vad-m.wasm.js";
+        __filename = "../vad/vad-m.wasm.js";
         importScripts(__filename);
         return WebRtcVad();
 
@@ -383,10 +253,10 @@ function doFilter(msg: any) {
         m.set_mode(3);
 
         // And load noise-repellent
-        __filename = "../noise-repellent/noise-repellent-m.wasm.js?v=2";
+        __filename = "../noise-repellent/noise-repellent-m.wasm.js";
         importScripts(__filename);
         NoiseRepellent = {NoiseRepellentFactory: NoiseRepellentFactory};
-        __filename = "../noise-repellent/noise-repellent-m.js?v=2";
+        __filename = "../noise-repellent/noise-repellent-m.js";
         importScripts(__filename);
         return NoiseRepellent.NoiseRepellent(sampleRate);
 
@@ -397,15 +267,25 @@ function doFilter(msg: any) {
         nr.set(NoiseRepellent.WHITENING, 50);
 
         // Now we're ready to receive messages
-        awpHandler = new AWPHandler(inPort, ondata);
+        inPort.onmessage = onInMessage;
 
     }).catch(console.error);
 
-    function ondata(ts: number, data: Float32Array[]) {
+    function onInMessage(ev: MessageEvent) {
+        if (!getIncoming(incoming, ev.data))
+            return;
+        let msg = incoming;
+        incoming = {};
+
+        let data = msg.data;
+        if (data.length === 0 || data[0].length === 0) return;
+
         // Merge together the channels
         let ib = data[0];
         let cc = data.length;
         if (cc !== 1) {
+            ib = ib.slice(0);
+
             // Mix it
             for (let i = 1; i < cc; i++) {
                 let ibc = data[i];
@@ -433,7 +313,7 @@ function doFilter(msg: any) {
             }
             while (od.length < data.length)
                 od.push(ob.slice(0));
-            awpHandler.sendData(od);
+            inPort.postMessage({c: "data", d: od});
         }
 
 
@@ -558,7 +438,7 @@ function doFilter(msg: any) {
 
 // Do simply histogram generation
 function doMax(msg: any) {
-    let awpHandler: AWPHandler;
+    let incoming: Incoming = {};
 
     // Get out our info
     let inPort: MessagePort = msg.port;
@@ -567,9 +447,14 @@ function doMax(msg: any) {
     let max: number = 0;
     let maxCtr: number = 0;
 
-    awpHandler = new AWPHandler(inPort, ondata);
+    inPort.onmessage = function(ev: MessageEvent) {
+        if (!getIncoming(incoming, ev.data))
+            return;
+        let msg = incoming;
+        incoming = {};
 
-    function ondata(ts: number, data: Float32Array[]) {
+        let data = msg.data;
+        if (data.length === 0 || data[0].length === 0) return;
         let ib = data[0];
         for (let i = 0; i < ib.length; i++) {
             let v = ib[i];
@@ -581,13 +466,13 @@ function doMax(msg: any) {
                 max = maxCtr = 0;
             }
         }
-        awpHandler.sendData(data);
+        inPort.postMessage({c: "data", d: data});
     };
 }
 
 // Do compression/normalization
 function doDynaudnorm(msg: any) {
-    let awpHandler: AWPHandler;
+    let incoming: Incoming = {};
 
     // Get out our info
     let inPort: MessagePort = msg.port;
@@ -627,12 +512,19 @@ function doDynaudnorm(msg: any) {
         buffersink_ctx = ret[2];
 
         // Now we're ready for input
-        awpHandler = new AWPHandler(inPort, ondata);
+        inPort.onmessage = onmessage;
 
     }).catch(console.error);
 
-    function ondata(ts: number, data: Float32Array[]) {
+    function onmessage(ev: MessageEvent) {
+        if (!getIncoming(incoming, ev.data))
+            return;
+        let msg = incoming;
+        incoming = {};
+
         // Handle input
+        let data = msg.data;
+        if (data.length === 0 || data[0].length === 0) return;
         let ib = data[0];
 
         var frames = [{
@@ -652,7 +544,7 @@ function doDynaudnorm(msg: any) {
                 while (frame.length < data.length)
                     frame.push(frame[0]);
                 // Send it back
-                awpHandler.sendData(frame);
+                inPort.postMessage({c: "data", d: frame});
             }
 
         }).catch(console.error);

@@ -39,55 +39,38 @@ declare function registerProcessor(
     }
 );
 
-// Size of our shared buffer
-const bufSz = 96000;
-
 // General-purpose processor for doing work in a Worker
 class WorkerProcessor extends AudioWorkletProcessor {
     workerPort: MessagePort;
-    canShared: boolean;
+    buffer: Float32Array[][];
+    lenPerBuf: number;
 
-    /* OUTGOING: a number of shared buffers equal to the number of channels,
-     * and a shared read/write head */
-    outgoing: Float32Array[];
-    outgoingRW: Int32Array;
-
-    // INCOMING
-    incoming: Float32Array[];
-    incomingRW: Int32Array;
+    /*
+    last: number;
+    ct: number;
+    */
 
     constructor(options?: AudioWorkletNodeOptions) {
         super(options);
 
-        // Can we use shared memory?
-        this.canShared =
-            typeof SharedArrayBuffer !== "undefined";
+        this.buffer = [];
+        this.lenPerBuf = 0;
+        /*
+        this.last = 0;
+        this.ct = 0;
+        */
 
-        // The only message from the AWP port is the worker port
         this.port.onmessage = ev => {
             var msg = ev.data;
             switch (msg.c) {
                 case "workerPort":
                     this.workerPort = msg.p;
                     this.workerPort.onmessage = ev => {
-                        // Message-passing data receipt
-                        let writeHead = this.incomingRW[1];
                         let buf = ev.data.d;
                         let len = buf[0].length;
-                        if (writeHead + len > bufSz) {
-                            // We loop around
-                            let brk = bufSz - writeHead;
-                            for (let i = 0; i < this.incoming.length; i++) {
-                                this.incoming[i].set(buf[i%buf.length].subarray(0, brk), writeHead);
-                                this.incoming[i].set(buf[i%buf.length].subarray(brk), 0);
-                            }
-                        } else {
-                            // Simple case
-                            for (let i = 0; i < this.incoming.length; i++)
-                                this.incoming[i].set(buf[i%buf.length], writeHead);
-                        }
-                        writeHead = (writeHead + len) % bufSz;
-                        this.incomingRW[1] = writeHead;
+                        if (len > this.lenPerBuf)
+                            this.lenPerBuf = len;
+                        this.buffer.push(buf);
                     };
                     break;
             }
@@ -95,131 +78,54 @@ class WorkerProcessor extends AudioWorkletProcessor {
     }
 
     process(inputs: Float32Array[][], outputs: Float32Array[][], parameters: Record<string, Float32Array>) {
-        if (!this.workerPort || inputs.length === 0 || inputs[0].length === 0)
+        if (!this.workerPort)
             return true;
 
-        // SETUP
-
-        if (!this.incoming) {
-            let chans = inputs[0].length;
-            this.incoming = [];
-            for (let i = 0; i < chans; i++) {
-                this.incoming.push(new Float32Array(
-                    this.canShared ?
-                        new SharedArrayBuffer(bufSz * 4)
-                      : new ArrayBuffer(bufSz * 4)
-                ));
-            }
-            this.incomingRW = new Int32Array(
-                this.canShared ?
-                    new SharedArrayBuffer(8)
-                  : new ArrayBuffer(8)
-            );
-
-            if (this.canShared) {
-                // Don't need outgoing at all if we can't use shared memory
-                this.outgoing = [];
-                for (let i = 0; i < chans; i++) {
-                    this.outgoing.push(new Float32Array(new SharedArrayBuffer(bufSz * 4)));
-                }
-                this.outgoingRW = new Int32Array(new SharedArrayBuffer(8));
-
-                // Tell the worker about our buffers
-                console.log("[INFO] AWP: Using shared memory");
-                this.workerPort.postMessage({
-                    c: "buffers",
-                    incoming: this.incoming,
-                    incomingRW: this.incomingRW,
-                    outgoing: this.outgoing,
-                    outgoingRW: this.outgoingRW
-                });
-            } else {
-                console.log("[INFO] AWP: Not using shared memory");
-            }
+        /*
+        var now = Date.now();
+        if (now > this.last + 1000) {
+            console.log(this.ct);
+            this.last = now;
+            this.ct = 0;
         }
+        this.ct++;
+        */
 
-        // INPUT (outgoing)
+        /* Send inputs to the worker. We use a convoluted protocol so that this
+         * does not require allocation on this thread. */
+        this.workerPort.postMessage(Date.now());
+        this.workerPort.postMessage(inputs[0]);
 
-        // Transmit our current data
-        let inp = inputs[0];
-        if (this.canShared) {
-            // Write it into the buffer
-            let writeHead = this.outgoingRW[1];
-            let len = inp[0].length;
-            if (writeHead + len > bufSz) {
-                // We wrap around
-                let brk = bufSz - writeHead;
-                for (let i = 0; i < this.outgoing.length; i++) {
-                    this.outgoing[i].set(inp[i%inp.length].subarray(0, brk), writeHead);
-                    this.outgoing[i].set(inp[i%inp.length].subarray(brk), 0);
-                }
-            } else {
-                // Simple case
-                for (let i = 0; i < this.outgoing.length; i++)
-                    this.outgoing[i].set(inp[i%inp.length], writeHead);
-            }
-            writeHead = (writeHead + len) % bufSz;
-            Atomics.store(this.outgoingRW, 1, writeHead);
-
-            // Notify the worker
-            Atomics.notify(this.outgoingRW, 1);
-
-        } else {
-            /* Just send the data, along with a timestamp. Minimize allocation
-             * by sending plain */
-            this.workerPort.postMessage(Date.now());
-            this.workerPort.postMessage(inputs[0]);
-
-        }
-
-        // OUTPUT (incoming)
-
-        let readHead: number = this.incomingRW[0];
-        let writeHead: number;
-        if (this.canShared)
-            writeHead = Atomics.load(this.incomingRW, 1);
-        else
-            writeHead = this.incomingRW[1];
-        if (readHead === writeHead)
-            return true;
-        let len = writeHead - readHead;
-        if (len < 0)
-            len += bufSz;
+        // The rest is for output, which is less mission-critical, and so can allocate
 
         // Drain any excess buffer
-        if (len > 4800) {
-            readHead = writeHead - 4800;
-            if (readHead < 0)
-                readHead += bufSz;
-        }
+        while (this.buffer.length >= 3 &&
+            (this.buffer.length * this.lenPerBuf >= 4800))
+            this.buffer.shift();
 
-        // Don't use too little data
-        if (len < outputs[0].length)
-            return true;
+        // And send buffered output out
+        var out = outputs[0];
+        var i = 0, len = out[0].length;
+        while (i < len && this.buffer.length) {
+            var remain = len - i;
+            var first = this.buffer[0];
 
-        // Finally, send the buffered output
-        let out = outputs[0];
-        let readEnd = (readHead + outputs[0].length) % bufSz;
-        if (readEnd < readHead) {
-            // We wrap around
-            let brk = bufSz - readHead;
-            for (let i = 0; i < out.length; i++) {
-                out[i].set(this.incoming[i%this.incoming.length].subarray(readHead), 0);
-                out[i].set(this.incoming[i%this.incoming.length].subarray(0, readEnd), brk);
+            if (first[0].length > remain) {
+                // First has enough to fill out the remainder
+                for (var c = 0; c < out.length; c++)
+                    out[c].set(first[c%first.length].subarray(0, remain), i);
+                for (var c = 0; c < first.length; c++)
+                    first[c] = first[c].subarray(remain);
+                i += remain;
+
+            } else {
+                // Use all of the data from first
+                for (var c = 0; c < out.length; c++)
+                    out[c].set(first[c%first.length], i);
+                i += first[0].length;
+                this.buffer.shift();
+
             }
-        } else {
-            // Simple case
-            for (let i = 0; i < out.length; i++) {
-                out[i].set(this.incoming[i%this.incoming.length].subarray(readHead, readEnd), 0);
-            }
-        }
-
-        // And update the read head
-        if (this.canShared) {
-            Atomics.store(this.incomingRW, 0, readEnd);
-            Atomics.notify(this.incomingRW, 0);
-        } else {
-            this.incomingRW[0] = readEnd;
         }
 
         return true;
