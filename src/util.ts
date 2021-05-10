@@ -14,6 +14,24 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/* We need an event target we can use. "usermediaready" fires when userMedia is
+ * ready. "usermediastopped" fires when it stops. "usermediavideoready" fires
+ * when video is ready. "spmediaready" fires when the media device that's
+ * processed through the ScriptProcessor is ready. */
+// FIXME: This is before all the imports because of some nasty dependencies
+export var events: EventTarget;
+try {
+    events = new EventTarget();
+} catch (ex) {
+    // No EventTarget
+    events = window;
+}
+
+// Dispatch an event
+export function dispatchEvent(name: string, arg: any) {
+    events.dispatchEvent(new CustomEvent(name, arg));
+}
+
 // Basic DOM stuff
 export const dce = document.createElement.bind(document);
 export const gebi = document.getElementById.bind(document);

@@ -17,19 +17,6 @@
 // extern
 declare var MediaRecorder: any, webkitAudioContext: any;
 
-/* We need an event target we can use. "usermediaready" fires when userMedia is
- * ready. "usermediastopped" fires when it stops. "usermediavideoready" fires
- * when video is ready. "spmediaready" fires when the media device that's
- * processed through the ScriptProcessor is ready. */
-// FIXME: This is before all the imports because of some nasty dependencies
-export var userMediaAvailableEvent: EventTarget;
-try {
-    userMediaAvailableEvent = new EventTarget();
-} catch (ex) {
-    // No EventTarget
-    userMediaAvailableEvent = window;
-}
-
 import * as config from "./config";
 import * as log from "./log";
 import * as master from "./master";
@@ -98,7 +85,7 @@ var recordingTimerTicking = false;
 export function disconnect() {
     if (ac) {
         try {
-            ac.dispatchEvent(new CustomEvent("disconnected", {}));
+            util.dispatchEvent("disconnected", {});
         } catch (ex) {}
         ac.close();
         ac = null;
@@ -142,7 +129,7 @@ export function getMic(deviceId?: string) {
             userMediaRTC.getTracks().forEach(function(track) { track.stop(); });
             userMediaRTC = null;
         }
-        userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediastopped", {}));
+        util.dispatchEvent("usermediastopped", {});
     }
 
     // Then request the new ones
@@ -201,7 +188,7 @@ function userMediaSet() {
     }
 
     // Now UserMedia and AudioContext are ready
-    userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediaready", {}));
+    util.dispatchEvent("usermediaready", {});
 
     return Promise.all([]).then(function() {
         /* On Safari on mobile devices, AudioContexts start paused, and sometimes
@@ -359,7 +346,7 @@ function encoderStart() {
         };
 
         // Terminate when user media stops
-        userMediaAvailableEvent.addEventListener("usermediastopped", capture.disconnect, {once: true});
+        util.events.addEventListener("usermediastopped", capture.disconnect, {once: true});
 
     }).catch(net.promiseFail());
 

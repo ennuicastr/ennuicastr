@@ -794,5 +794,5 @@ function loadStreamSaver(): Promise<unknown> {
 }
 
 // Make sure the record button updates when the video state updates
-audio.userMediaAvailableEvent.addEventListener("usermediavideoready", function() { recordVideoButton(); });
-audio.userMediaAvailableEvent.addEventListener("usermediavideostopped", function() { recordVideoButton(); });
+util.events.addEventListener("usermediavideoready", function() { recordVideoButton(); });
+util.events.addEventListener("usermediavideostopped", function() { recordVideoButton(); });

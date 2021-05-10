@@ -144,9 +144,9 @@ export function initJitsi() {
             room.addEventListener(JitsiMeetJS.events.conference.ENDPOINT_MESSAGE_RECEIVED, jitsiMessage);
 
             // Add our local tracks
-            audio.userMediaAvailableEvent.addEventListener("usermediartcready", jitsiSetUserMediaRTC);
+            util.events.addEventListener("usermediartcready", jitsiSetUserMediaRTC);
             jitsiSetUserMediaRTC();
-            audio.userMediaAvailableEvent.addEventListener("usermediavideoready", jitsiSetUserMediaVideo);
+            util.events.addEventListener("usermediavideoready", jitsiSetUserMediaVideo);
             jitsiSetUserMediaVideo();
 
             // And join
@@ -183,7 +183,7 @@ function jitsiSetUserMediaRTC() {
 
     }).then(() => {
         // And prepare to remove it
-        audio.userMediaAvailableEvent.addEventListener("usermediastopped", jitsiUnsetUserMediaRTC, {once: true});
+        util.events.addEventListener("usermediastopped", jitsiUnsetUserMediaRTC, {once: true});
 
     }).catch(net.promiseFail());
 
@@ -226,7 +226,7 @@ function jitsiSetUserMediaVideo() {
 
     }).then(() => {
         // And prepare to remove it
-        audio.userMediaAvailableEvent.addEventListener("usermediavideostopped", jitsiUnsetUserMediaVideo, {once: true});
+        util.events.addEventListener("usermediavideostopped", jitsiUnsetUserMediaVideo, {once: true});
 
     }).catch(net.promiseFail());
 

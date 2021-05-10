@@ -67,7 +67,7 @@ export function localProcessing() {
         if (!audio.userMedia) {
             // Need our MediaSource first!
             return new Promise(function(res) {
-                audio.userMediaAvailableEvent.addEventListener("usermediaready", res, {once: true});
+                util.events.addEventListener("usermediaready", res, {once: true});
             });
         }
 
@@ -177,10 +177,10 @@ function localProcessingWorker() {
 
         // The output from this is our RTC audio
         audio.setUserMediaRTC(capture.destination);
-        audio.userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediartcready", {}));
+        util.dispatchEvent("usermediartcready", {});
 
         // Restart if we change devices
-        audio.userMediaAvailableEvent.addEventListener("usermediastopped", function() {
+        util.events.addEventListener("usermediastopped", function() {
             capture.disconnect();
             localProcessing();
         }, {once: true});

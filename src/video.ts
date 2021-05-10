@@ -19,6 +19,7 @@ import * as config from "./config";
 import * as log from "./log";
 import * as net from "./net";
 import * as ui from "./ui";
+import * as util from "./util";
 
 // The video device being read
 export var userMediaVideo: MediaStream = null;
@@ -45,7 +46,7 @@ export function getCamera(id: string, res: number) {
                 track.stop();
             });
             userMediaVideo = null;
-            audio.userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediavideostopped", {}));
+            util.dispatchEvent("usermediavideostopped", {});
         }
 
         // Now request the new one
@@ -97,7 +98,7 @@ export function getCamera(id: string, res: number) {
         var s = ui.ui.video.users[net.selfId].standin;
         if (userMediaVideo) {
             // Inform RTC
-            audio.userMediaAvailableEvent.dispatchEvent(new CustomEvent("usermediavideoready", {}));
+            util.dispatchEvent("usermediavideoready", {});
 
             // And update the display
             v.srcObject = userMediaVideo;

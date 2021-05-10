@@ -1413,7 +1413,7 @@ export function setOutputAudioContext(ac: AudioContext & {ecDestination?: MediaS
 
     if (!audio.userMediaRTC) {
         // We may not yet be allowed to play sound, so wait
-        audio.userMediaAvailableEvent.addEventListener("usermediartcready", function() {
+        util.events.addEventListener("usermediartcready", function() {
             setOutputAudioContext(ac);
         }, {once: true});
         return;
