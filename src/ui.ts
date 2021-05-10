@@ -257,7 +257,46 @@ export const ui = {
             // Actions
             kick: HTMLButtonElement,
             mute: HTMLButtonElement,
-            echo: HTMLButtonElement
+            echo: HTMLButtonElement,
+            reqFull: HTMLButtonElement
+        }> null,
+
+        // User administration for a particular user, full interface
+        userAdminFull: <{
+            wrapper: HTMLElement,
+
+            // Which user are we administrating?
+            user: number,
+
+            // Box for this user's name
+            name: HTMLElement,
+
+            // Active elements
+            kick: HTMLButtonElement,
+            mute: HTMLInputElement,
+            echo: HTMLInputElement,
+            audioInput: HTMLSelectElement,
+            videoHider: HTMLElement,
+            videoInput: HTMLSelectElement,
+            videoRes: HTMLSelectElement,
+            videoBR: HTMLInputElement,
+            videoRec: HTMLButtonElement
+        }> null,
+
+        // User administration request
+        userAdminReq: <{
+            wrapper: HTMLElement,
+
+            // Which user is requesting access?
+            user: number,
+
+            // Box for the user's name
+            name: HTMLElement,
+
+            // Response options
+            yes: HTMLButtonElement,
+            audio: HTMLButtonElement,
+            no: HTMLButtonElement
         }> null,
 
         // Soundboard
@@ -926,7 +965,47 @@ function loadUserAdmin() {
         name: gebi("ecuser-admin-interface-user-name"),
         kick: gebi("ecuser-admin-kick"),
         mute: gebi("ecuser-admin-mute"),
-        echo: gebi("ecuser-admin-echo")
+        echo: gebi("ecuser-admin-echo"),
+        reqFull: gebi("ecuser-admin-request-full")
+    };
+
+    ui.panels.userAdminFull = {
+        wrapper: gebi("ecuser-admin-interface-user-full"),
+        user: -1,
+        name: gebi("ecuser-admin-interface-user-full-name"),
+        kick: gebi("ecuser-admin-full-kick"),
+        mute: gebi("ecuser-admin-full-mute"),
+        echo: gebi("ecuser-admin-full-echo"),
+        audioInput: gebi("ecuser-admin-full-audio-dev"),
+        videoHider: gebi("ecuser-admin-interface-user-full-video-hider"),
+        videoInput: gebi("ecuser-admin-full-video-dev"),
+        videoRes: gebi("ecuser-admin-full-video-res"),
+        videoBR: gebi("ecuser-admin-full-video-record"),
+        videoRec: gebi("ecuser-admin-full-video-record")
+    };
+
+    let req = ui.panels.userAdminReq = {
+        wrapper: gebi("ecuser-admin-permission"),
+        user: -1,
+        name: gebi("ecuser-admin-permission-requester"),
+        yes: gebi("ecuser-admin-permission-yes"),
+        audio: gebi("ecuser-admin-permission-audio"),
+        no: gebi("ecuser-admin-permission-no")
+    };
+
+    req.yes.onclick = function() {
+        net.setAdminPerm(req.user, true, true);
+        showPanel(null, ui.persistent.main);
+    };
+
+    req.audio.onclick = function() {
+        net.setAdminPerm(req.user, true, false);
+        showPanel(null, ui.persistent.main);
+    };
+
+    req.no.onclick = function() {
+        net.setAdminPerm(req.user, false, false);
+        showPanel(null, ui.persistent.main);
     };
 }
 
@@ -1038,6 +1117,7 @@ export function mkAudioUI() {
      *******************/
     function inputChange() {
         showPanel(null, ui.persistent.main);
+        net.updateAdminPerm({audioDevice: input.device.value});
         audio.getMic(input.device.value);
     }
 
@@ -1083,7 +1163,8 @@ export function mkAudioUI() {
                 log.popStatus("echo-cancellation");
             }, 10000);
         }
-        inputChange();
+        showPanel(null, ui.persistent.main);
+        audio.setEchoCancel(input.echo.checked);
     });
     saveConfigCheckbox(input.agc, "agc3", inputChange);
 
@@ -1221,6 +1302,7 @@ export function mkAudioUI() {
     // When it's changed, start video
     function videoChange() {
         showPanel(null, ui.persistent.main);
+        net.updateAdminPerm({videoDevice: videoConfig.device.value, videoRes: +videoConfig.res.value}, true);
         video.getCamera(videoConfig.device.value, +videoConfig.res.value);
     };
     videoConfig.device.onchange = videoChange;
@@ -1563,7 +1645,8 @@ export function userListAdd(idx: number, name: string, fromMaster: boolean) {
         master.users[idx] = {
             name: name,
             online: true,
-            transmitting: false
+            transmitting: false,
+            fullAccess: null
         };
         master.updateMasterAdmin();
     }
@@ -1741,6 +1824,7 @@ export function userListRemove(idx: number, fromMaster: boolean) {
 
     if (fromMaster) {
         master.users[idx].online = false;
+        master.users[idx].fullAccess = false;
         master.updateMasterAdmin();
     }
 

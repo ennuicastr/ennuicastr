@@ -153,6 +153,13 @@ class ReconnectableWebSocket {
     }
 }
 
+// Admins who are allowed access
+interface AdminAccess {
+    audio: boolean;
+    video: boolean;
+};
+var adminAccess: Record<number, AdminAccess> = {};
+
 // Connect to the server (our first step)
 export function connect() {
     let p = prot.parts.login;
@@ -452,12 +459,61 @@ function dataSockMsg(ev: MessageEvent) {
             var action = msg.getUint32(p.action, true);
             if (action === acts.mute) {
                 audio.toggleMute(false);
+
             } else if (action === acts.echoCancel) {
-                var ec = ui.ui.panels.inputConfig.echo;
-                if (!ec.checked) {
-                    // Don't onchange, so we don't save this
-                    ec.checked = true;
-                    audio.getMic(ui.ui.panels.inputConfig.device.value);
+                audio.setEchoCancel(true);
+
+            } else if (action === acts.request) {
+                // Request for admin access
+                let reqNick = util.decodeText(msg.buffer.slice(p.argument));
+                let target = msg.getUint32(p.target, true);
+                ui.ui.panels.userAdminReq.user = target;
+                ui.ui.panels.userAdminReq.name.innerText = reqNick;
+                ui.showPanel("userAdminReq", "audio");
+
+            } else {
+                // All other actions require permission
+                let src = msg.getUint32(p.target, true);
+                let acc = adminAccess[src];
+                if (!acc || !acc.audio) break;
+
+                // Beyond videoInput also require video permission
+                if (action >= acts.videoInput && !acc.video) break;
+
+                let arg = util.decodeText(msg.buffer.slice(p.argument));
+
+                switch (action) {
+                    case acts.unmute:
+                        audio.toggleMute(true);
+                        break;
+
+                    case acts.unechoCancel:
+                        audio.setEchoCancel(false);
+                        break;
+
+                    case acts.audioInput:
+                        // FIXME: Better way to do this setting
+                        ui.ui.panels.inputConfig.device.value = arg;
+                        updateAdminPerm({audioDevice: arg});
+                        audio.getMic(arg);
+                        break;
+
+                    case acts.videoInput:
+                        // FIXME: Better way to do this setting
+                        ui.ui.panels.videoConfig.device.value = arg;
+                        updateAdminPerm({videoDevice: arg});
+                        video.getCamera(arg, +ui.ui.panels.videoConfig.res.value);
+                        break;
+
+                    case acts.videoRes:
+                        // FIXME: Better way to do this setting
+                        ui.ui.panels.videoConfig.res.value = arg;
+                        updateAdminPerm({videoRes: +arg});
+                        video.getCamera(ui.ui.panels.videoConfig.device.value, +arg);
+                        break;
+
+                    default:
+                        console.log("Admin action " + action.toString(16));
                 }
             }
             break;
@@ -501,6 +557,33 @@ function masterSockMsg(ev: MessageEvent) {
                     var valS = util.decodeText(msg.buffer.slice(p.value));
                     master.addSoundButtons(JSON.parse(valS));
                     break;
+
+                case prot.info.allowAdmin:
+                {
+                    // A user has allowed or disallowed us to administrate them
+                    if (msg.byteLength < p.length + 1) break;
+                    let allowed = !!msg.getUint8(p.length);
+                    let props = null;
+                    if (msg.byteLength > p.length + 1) {
+                        try {
+                            props = JSON.parse(util.decodeText(msg.buffer.slice(p.length + 1)));
+                        } catch (ex) {}
+                    }
+                    master.allowAdmin(val, allowed, props);
+                    break;
+                }
+
+                case prot.info.adminState:
+                {
+                    if (msg.byteLength <= p.length) break;
+                    let props = null;
+                    try {
+                        props = JSON.parse(util.decodeText(msg.buffer.slice(p.length)));
+                    } catch (ex) {}
+                    if (!props || typeof props !== "object") break;
+                    master.updateAdmin(val, props);
+                    break;
+                }
             }
             break;
 
@@ -559,6 +642,60 @@ function flushBuffers() {
 // If our data socket is connected, the buffered amount
 export function bufferedAmount() {
     return dataSock ? dataSock.sock.bufferedAmount : 0;
+}
+
+// Send to an admin that we accept or reject admin privileges
+export function setAdminPerm(target: number, allowAudio: boolean, allowVideo: boolean) {
+    // Set it
+    if (allowAudio)
+        adminAccess[target] = {audio: true, video: allowVideo};
+    else
+        delete adminAccess[target];
+
+    // And send it
+    let permMessage;
+    return Promise.all([]).then(() => {
+        if (allowAudio)
+            return audio.deviceInfo(allowVideo);
+        else
+            return null;
+
+    }).then(ret => {
+        if (ret)
+            permMessage = JSON.stringify(ret);
+        else
+            permMessage = "";
+
+        let permBuf = util.encodeText(permMessage);
+        let p = prot.parts.info;
+        let out = new DataView(new ArrayBuffer(p.length + 1 + permBuf.length));
+        out.setUint32(0, prot.ids.info, true);
+        out.setUint32(p.key, prot.info.allowAdmin, true);
+        out.setUint32(p.value, target, true);
+        out.setUint8(p.length, allowAudio?1:0);
+        new Uint8Array(out.buffer).set(permBuf, p.length + 1);
+        dataSock.send(out.buffer);
+
+    }).catch(promiseFail());
+}
+
+// Send a state update to any admins with permission
+export function updateAdminPerm(val: any, video?: boolean) {
+    // Set up the message
+    let permBuf = util.encodeText(JSON.stringify(val));
+    let p = prot.parts.info;
+    let out = new DataView(new ArrayBuffer(p.length + permBuf.length));
+    out.setUint32(0, prot.ids.info, true);
+    out.setUint32(p.key, prot.info.adminState, true);
+    new Uint8Array(out.buffer).set(permBuf, p.length);
+
+    // And send it
+    for (let target in adminAccess) {
+        let access = adminAccess[target];
+        if (video && !access.video) continue;
+        out.setUint32(p.value, +target, true);
+        dataSock.send(out.buffer.slice(0));
+    }
 }
 
 // Generic phone-home error handler

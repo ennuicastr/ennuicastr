@@ -184,6 +184,54 @@
             <button id="ecuser-admin-kick" class="row"><i class="fas fa-user-slash"></i> Kick user</button>
             <button id="ecuser-admin-mute" class="row"><i class="fas fa-microphone-alt-slash"></i> Mute</button>
             <button id="ecuser-admin-echo" class="row"><span style="background: url('images/no-echo-white.svg') no-repeat center/contain; display: inline-block; width: 2em;">&nbsp;</span> Force echo cancellation</button>
+            <button id="ecuser-admin-request-full" class="row"><i class="fas fa-user-cog"></i> Request administrative access</button>
+        </div>
+
+        <!-- User administration interface (particular user, full access) -->
+        <div id="ecuser-admin-interface-user-full" class="panel" role="dialog" aria-label="User administration">
+            <button id="ecuser-admin-interface-user-full-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
+            <div id="ecuser-admin-interface-user-full-name" class="row" style="text-align: center;"></div>
+            <button id="ecuser-admin-full-kick" class="row"><i class="fas fa-user-slash"></i> Kick user</button>
+            <input id="ecuser-admin-full-mute" type="checkbox" /><label for="ecuser-admin-full-mute">&nbsp;Mute</label><br/>
+            <input id="ecuser-admin-full-echo" type="checkbox" /><label for="ecuser-admin-full-echo">&nbsp;Echo cancellation</label><br/>
+            <div class="rflex row">
+                <label for="ecuser-admin-full-audio-dev" style="min-width: 10em;">Audio device:&nbsp;</label>
+                <select id="ecuser-admin-full-audio-dev" style="flex: auto;"></select>
+            </div>
+
+            <div id="ecuser-admin-interface-user-full-video-hider">
+                <div class="rflex row">
+                    <label for="ecuser-admin-full-video-dev" style="min-width: 10em;">Video device:&nbsp;</label>
+                    <select id="ecuser-admin-full-video-dev" style="flex: auto;"></select>
+                </div>
+                <div class="rflex row">
+                    <label for="ecuser-admin-full-video-res" style="min-width: 10em;">Max resolution:&nbsp;</label>
+                    <select id="ecuser-admin-full-video-res" style="flex: auto;">
+                        <option value="360">360p</option>
+                        <option value="480">480p</option>
+                        <option value="720">720p</option>
+                        <option value="1080">1080p</option>
+                        <option value="0">Unlimited</option>
+                    </select>
+                </div>
+                <div class="rflex row" style="display: none">
+                    <label for="ecuser-admin-full-bitrate" style="min-width: 6em">Video bitrate:&nbsp;</label>
+                    <input id="ecuser-admin-full-bitrate" style="flex: auto" />
+                    &nbsp;
+                    <button id="ecuser-admin-full-video-record" title="Record video" aria-label="Record video"><i class="fas fa-circle"></i> Rec</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- User administration permission request -->
+        <div id="ecuser-admin-permission" class="panel" role="dialog" aria-label="Administrator request">
+            <div>The user <span id="ecuser-admin-permission-requester"></span> has requested permission to control your input device settings. Is this OK?</div>
+
+            <div class="rflex row">
+                <button id="ecuser-admin-permission-yes" style="flex: auto">Yes</button>&nbsp;
+                <button id="ecuser-admin-permission-audio" style="flex: auto">Audio only</button>&nbsp;
+                <button id="ecuser-admin-permission-no" style="flex: auto">No</button>
+            </div>
         </div>
 
         <!-- The soundboard -->
@@ -338,7 +386,8 @@
             });
 
             var wcw = gebi("ecwaveform-wrapper");
-            var wc = gebi("ecwaveform");
+            var wc = document.createElement("canvas");
+            wcw.appendChild(wc);
             wc.width = wcw.offsetWidth;
             wc.height = wcw.offsetHeight;
             var form = [];
@@ -447,6 +496,7 @@
             btn("ecmenu-master", "ecmaster-interface");
             btn("ecmaster-admin", "ecuser-admin-interface");
             btn("ecuser-admin-all-b", "ecuser-admin-interface-user");
+            btn("ecuser-admin-kick", "ecuser-admin-interface-user-full");
             gebi("ecmenu-sounds-hider").style.display = "";
             btn("ecmenu-sounds", "ecsounds-wrapper");
             btn("ecmenu-main", "ecmenu");

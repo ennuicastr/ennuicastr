@@ -15,7 +15,7 @@
  */
 
 // extern
-declare var webkitAudioContext: any;
+declare var MediaRecorder: any, webkitAudioContext: any;
 
 /* We need an event target we can use. "usermediaready" fires when userMedia is
  * ready. "usermediastopped" fires when it stops. "usermediavideoready" fires
@@ -150,7 +150,7 @@ export function getMic(deviceId?: string) {
         audio: {
             deviceId: deviceId,
             autoGainControl: {ideal: ui.ui.panels.inputConfig.agc.checked},
-            echoCancellation: {ideal: ui.ui.panels.inputConfig.echo.checked},
+            echoCancellation: {ideal: getEchoCancel()},
             noiseSuppression: {ideal: false},
             sampleRate: {ideal: 48000},
             sampleSize: {ideal: 24}
@@ -465,7 +465,18 @@ function adjustTime(packet: Packet) {
     return Math.round(packet[0] + timeOffset*48 + startTime*48);
 }
 
-// Toggle the mute state of the input audio
+// Get the state of muting (true=MUTED)
+function getMute() {
+    let track = userMedia.getAudioTracks()[0];
+    return !track.enabled;
+}
+
+// Get the echo cancellation state
+export function getEchoCancel() {
+    return ui.ui.panels.inputConfig.echo.checked;
+}
+
+// Toggle the mute state of the input audio (true=UNMUTED)
 export function toggleMute(to?: boolean) {
     if (!userMedia) return;
     var track = userMedia.getAudioTracks()[0];
@@ -473,6 +484,19 @@ export function toggleMute(to?: boolean) {
         to = !track.enabled;
     track.enabled = to;
     ui.updateMuteButton();
+    net.updateAdminPerm({mute: !to});
+}
+
+// Set the echo cancellation state of the input audio
+export function setEchoCancel(to: boolean) {
+    // Update the UI
+    ui.ui.panels.inputConfig.echo.checked = to;
+
+    // Update any admins
+    net.updateAdminPerm({echo: to});
+
+    // And make it so
+    return getMic(ui.ui.panels.inputConfig.device.value);
 }
 
 // Play or stop a sound
@@ -574,4 +598,34 @@ function tickRecordingTimer() {
     var timer = ui.ui.log.timer;
     timer.style.color = recordingTimerTicking ? "#080" : "#800";
     timer.innerText = (h?(h+":"):"") + m + ":" + s;
+}
+
+// Get the available device info, for admin users
+export function deviceInfo(allowVideo: boolean) {
+    return navigator.mediaDevices.enumerateDevices().then((devices) => {
+        let audio = [];
+        let video = allowVideo ? [] : null;
+        let ctr = 1, ctrv = 1;
+        devices.forEach((dev) => {
+            if (dev.kind === "audioinput") {
+                audio.push({id: dev.deviceId, label: dev.label || ("Mic " + ctr++)});
+
+            } else if (dev.kind === "videoinput" && allowVideo) {
+                video.push({id: dev.deviceId, label: dev.label || ("Camera " + ctrv++)});
+
+            }
+        });
+
+        return {
+            audioDevices: audio,
+            audioDevice: ui.ui.panels.inputConfig.device.value,
+            videoDevices: video,
+            videoDevice: allowVideo ? ui.ui.panels.videoConfig.device.value : null,
+            videoRes: allowVideo ? +ui.ui.panels.videoConfig.res.value : null,
+            videoRec: (typeof MediaRecorder !== "undefined"),
+            mute: getMute(),
+            echo: getEchoCancel()
+        };
+
+    });
 }

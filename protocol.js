@@ -155,7 +155,8 @@
             "admin": {
                 "length": 12,
                 "target": 4,
-                "action": 8
+                "action": 8,
+                "argument": 12 // only in certain actions
             }
         },
 
@@ -198,7 +199,16 @@
                 "actions": {
                     "kick": 0,
                     "mute": 1,
-                    "echoCancel": 2
+                    "echoCancel": 2,
+                    "unmute": 0x11,
+                    "unechoCancel": 0x12,
+                    "audioInput": 0x18, // arg: string
+                    "videoInput": 0x30, // arg: string
+                    "videoRes": 0x31, // arg: int (as string)
+                    "videoRec": 0x32, // arg: int bitrate (as string)
+                    "request": 0x80 /* request for privileged actions, arg:
+                                     * uint32 id of host, string name of host,
+                                     * only sent to target */
                 }
             }
         },
@@ -247,6 +257,19 @@
              * JSON array of objects with i (ID), u (playback URL), and n
              * (name) fields. */
             "sounds": 0x22,
+
+            /* C->S->M: uint32, uint8, string. Inform a master that you are
+             * willing or unwilling to receive privileged admin actions from
+             * them. First uint32 is target ID on transmission, source ID on
+             * receipt. uint8 is 1 to allow, 0 to refuse. String is JSON object
+             * with information on devices and capabilities, if not refused. */
+            "allowAdmin": 0x30,
+
+            /* C->S->M: uint32, string. Inform a master in a change in
+             * administratable state. uint32 is target ID on transmission,
+             * source ID on receipt. String is a JSON object to update the
+             * existing perms with. */
+            "adminState": 0x31,
 
             // S->C, JSON: Give an eligible ICE server for RTC
             "ice": 0x50

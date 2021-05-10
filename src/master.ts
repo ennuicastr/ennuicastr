@@ -32,7 +32,8 @@ export const credits = {
 export const users = <{
     name: string,
     online: boolean,
-    transmitting: boolean
+    transmitting: boolean,
+    fullAccess: any
 }[]> [];
 
 // Our mapping if sound IDs to sounds
@@ -271,20 +272,125 @@ export function updateMasterAdmin() {
 }
 
 // Display the interface to perform administration on this user
-export function userAdmin(user: number) {
-    var userAdminUser = ui.ui.panels.userAdminUser;
+export function userAdmin(target: number) {
+    let user = users[target] || null;
+    let fullAccess = user ? user.fullAccess : null;
+    let userAdminFull = ui.ui.panels.userAdminFull;
+    let userAdminUser = fullAccess ? userAdminFull : ui.ui.panels.userAdminUser;
+    let acts = prot.flags.admin.actions;
+    userAdminUser.user = target;
 
-    if (user >= 0) {
-        userAdminUser.name.innerText = users[user].name;
+    if (target >= 0) {
+        userAdminUser.name.innerText = user ? user.name : "";
         userAdminUser.kick.style.display = "";
     } else {
         userAdminUser.name.innerHTML = '<i class="fas fa-users"></i> All users';
         userAdminUser.kick.style.display = "none";
     }
 
-    userAdminUser.kick.onclick = function() { adminAction(user, prot.flags.admin.actions.kick); };
-    userAdminUser.mute.onclick = function() { adminAction(user, prot.flags.admin.actions.mute); };
-    userAdminUser.echo.onclick = function() { adminAction(user, prot.flags.admin.actions.echoCancel); };
+    // Actions
+    userAdminUser.kick.onclick = function() { adminAction(target, acts.kick); };
+
+    if (fullAccess) {
+        // Mute
+        userAdminFull.mute.onchange = function() {
+            userAdminFull.mute.disabled = true;
+            if (userAdminFull.mute.checked)
+                adminAction(target, acts.mute, {nohide: true});
+            else
+                adminAction(target, acts.unmute, {nohide: true});
+        };
+        userAdminFull.mute.checked = fullAccess.mute;
+        userAdminFull.mute.disabled = false;
+
+        // Echo cancellation
+        userAdminFull.echo.onchange = function() {
+            userAdminFull.echo.disabled = true;
+            if (userAdminFull.echo.checked)
+                adminAction(target, acts.echoCancel, {nohide: true});
+            else
+                adminAction(target, acts.unechoCancel, {nohide: true});
+        };
+        userAdminFull.echo.checked = fullAccess.mute;
+        userAdminFull.echo.disabled = false;
+
+
+        // Audio input device
+        let audioInput = userAdminFull.audioInput;
+        audioInput.onchange = function() {
+            audioInput.disabled = true;
+            adminAction(target, acts.audioInput, {nohide: true, arg: audioInput.value});
+        };
+        audioInput.disabled = false;
+
+        // Add the devices
+        audioInput.innerHTML = "";
+        try {
+            for (let dev of fullAccess.audioDevices) {
+                let el = dce("option");
+                el.value = dev.id;
+                el.innerText = dev.label;
+                audioInput.appendChild(el);
+            }
+            audioInput.value = fullAccess.audioDevice;
+        } catch (ex) {}
+
+
+        // Shall we handle video at all?
+        if (!fullAccess.videoDevices) {
+            userAdminFull.videoHider.style.display = "none";
+
+        } else {
+            userAdminFull.videoHider.style.display = "";
+
+            // Video input device
+            let videoInput = userAdminFull.videoInput;
+            videoInput.onchange = function() {
+                videoInput.disabled = true;
+                adminAction(target, acts.videoInput, {nohide: true, arg: videoInput.value});
+            };
+            videoInput.disabled = false;
+
+            // Add the devices
+            videoInput.innerHTML = "";
+            let el = dce("option");
+            el.value = "-none";
+            el.innerText = "-";
+            videoInput.appendChild(el);
+            try {
+                for (let dev of fullAccess.videoDevices) {
+                    let el = dce("option");
+                    el.value = dev.id;
+                    el.innerText = dev.label;
+                    videoInput.appendChild(el);
+                }
+                videoInput.value = fullAccess.videoDevice;
+            } catch (ex) {}
+
+
+            // Video resolution
+            let videoRes = userAdminFull.videoRes;
+            videoRes.onchange = function() {
+                videoRes.disabled = true;
+                adminAction(target, acts.videoRes, {nohide: true, arg: videoRes.value});
+            };
+            videoRes.value = fullAccess.videoRes;
+            videoRes.disabled = false;
+
+        }
+
+    } else {
+        userAdminUser.mute.onclick = function() { adminAction(target, prot.flags.admin.actions.mute); };
+        userAdminUser.echo.onclick = function() { adminAction(target, prot.flags.admin.actions.echoCancel); };
+        ui.ui.panels.userAdminUser.reqFull.onclick = function() {
+            log.pushStatus("adminRequest", "Access requested...");
+            setTimeout(function() {
+                log.popStatus("adminRequest");
+            }, 3000);
+            adminAction(target, prot.flags.admin.actions.request);
+            ui.showPanel(null, ui.ui.persistent.main);
+        };
+    }
     ui.showPanel(userAdminUser.wrapper, null);
 }
 
@@ -370,14 +476,23 @@ export function soundButtonUpdate(url: string, play: unknown, el: HTMLAudioEleme
 }
 
 // Admin actions
-function adminAction(target: number, action: number) {
+function adminAction(target: number, action: number, opts?: any) {
+    // Optional argument
+    let arg = (opts ? opts.arg : "") || "";
+    let argBuf = util.encodeText(arg);
+
+    // Admin command
     var p = prot.parts.admin;
-    var out = new DataView(new ArrayBuffer(p.length));
+    var out = new DataView(new ArrayBuffer(p.length + argBuf.length));
     out.setUint32(0, prot.ids.admin, true);
     out.setUint32(p.target, target, true);
     out.setUint32(p.action, action, true);
+    (new Uint8Array(out.buffer)).set(argBuf, p.argument);
     net.masterSock.send(out.buffer);
-    ui.showPanel(null, ui.ui.persistent.main);
+
+    // Hide the admin action window
+    if (!opts || !opts.nohide)
+        ui.showPanel(null, ui.ui.persistent.main);
 }
 
 // The change handler for accepting remote video
@@ -385,4 +500,73 @@ function acceptRemoteVideoChange() {
     var arv = ui.ui.panels.master.acceptRemoteVideo;
     localStorage.setItem("ecmaster-video-record-host", JSON.stringify(arv.checked));
     jitsi.videoRecSend(void 0, prot.videoRec.videoRecHost, ~~arv.checked);
+}
+
+// Allow or disallow admin access for this user
+export function allowAdmin(target: number, allowed: boolean, props: any) {
+    if (!users[target]) return;
+    let user = users[target];
+    let name = user.name || "Anonymous";
+    if (allowed) {
+        user.fullAccess = props;
+        log.pushStatus("allowAdmin", "User " + name + " has allowed admin access.");
+    } else {
+        user.fullAccess = null;
+        log.pushStatus("allowAdmin", "User " + name + " has disallowed admin access.");
+    }
+    setTimeout(function() {
+        log.popStatus("allowAdmin");
+    }, 5000);
+}
+
+// Update admin information for this user
+export function updateAdmin(target: number, props: any) {
+    if (!users[target]) return;
+    let user = users[target];
+    if (!user.fullAccess) return;
+
+    // Update the info in the structure
+    [
+        "audioDevices",
+        "audioDevice",
+        "videoDevices",
+        "videoDevice",
+        "videoRes",
+        "videoRec",
+        "mute",
+        "echo"
+    ].forEach(prop => {
+        if (!(prop in props)) return;
+        user.fullAccess[prop] = props[prop];
+    });
+
+    // And the UI
+    let userAdminFull = ui.ui.panels.userAdminFull;
+    if (userAdminFull.user === target) {
+        if ("mute" in props) {
+            userAdminFull.mute.checked = props.mute;
+            userAdminFull.mute.disabled = false;
+        }
+
+        if ("echo" in props) {
+            userAdminFull.echo.checked = props.echo;
+            userAdminFull.echo.disabled = false;
+        }
+
+        if ("audioDevice" in props) {
+            userAdminFull.audioInput.value = props.audioDevice;
+            userAdminFull.audioInput.disabled = false;
+        }
+
+        if ("videoDevice" in props) {
+            userAdminFull.videoInput.value = props.videoDevice;
+            userAdminFull.videoInput.disabled = false;
+        }
+
+        if ("videoRes" in props) {
+            userAdminFull.videoRes.value = props.videoRes;
+            userAdminFull.videoRes.disabled = false;
+        }
+
+    }
 }
