@@ -22,6 +22,7 @@ declare var ECHotkeys: any;
 import * as audio from "./audio";
 import * as net from "./net";
 import * as ui from "./ui";
+import * as util from "./util";
 
 // PTT settings
 const ptt = {
@@ -29,9 +30,11 @@ const ptt = {
 };
 
 // Configure push-to-talk based on saved settings
-export function loadPTT() {
+function loadPTT() {
     configurePTT(localStorage.getItem("ec-ptt"));
 }
+
+util.events.addEventListener("usermediaready", loadPTT, {once: true});
 
 // Configure push-to-talk based on the given hotkey
 function configurePTT(hotkey: null|string) {

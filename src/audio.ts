@@ -21,7 +21,6 @@ import * as config from "./config";
 import * as log from "./log";
 import * as net from "./net";
 import { prot } from "./protocol";
-import * as ptt from "./ptt";
 import * as capture from "./capture";
 import * as ui from "./ui";
 import * as util from "./util";
@@ -198,7 +197,6 @@ function userMediaSet() {
         return;
 
     util.dispatchEvent("audio.mute");
-    ptt.loadPTT();
 
     log.pushStatus("initenc", "Initializing encoder...");
     log.popStatus("getmic");
