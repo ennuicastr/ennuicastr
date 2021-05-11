@@ -268,7 +268,6 @@ function loadMainMenu() {
         inputB: gebi("ecmenu-input-devices"),
         outputB: gebi("ecmenu-output-devices"),
         videoB: gebi("ecmenu-video-devices"),
-        videoRecordB: gebi("ecmenu-record"),
         userListB: gebi("ecmenu-user-list")
     };
 
@@ -296,7 +295,6 @@ function loadMainMenu() {
     btn(m.outputB, "outputConfig", null);
     if (!config.useRTC) m.outputB.style.display = "none";
     btn(m.videoB, "videoConfig", null);
-    videoRecord.recordVideoButton();
     btn(m.userListB, "userList", null);
     if (!config.useRTC && !("master" in config.config))
         m.userListB.style.display = "none";
@@ -512,28 +510,35 @@ function loadOutputConfig() {
 }
 
 function loadVideoConfig() {
-    ui.panels.videoConfig = {
+    let vc = ui.panels.videoConfig = {
         wrapper: gebi("ecvideo-device-wrapper"),
         device: gebi("ecvideo-device-list"),
         res: gebi("ecvideo-res"),
         outputHider: gebi("ecvideo-output-hider"),
+
+        recording: {
+            hider: gebi("ecvideo-record-hider"),
+            record: gebi("ecvideo-record"),
+            optHider: gebi("ecvideo-record-opt-hider"),
+            remote: gebi("ecvideo-record-remote"),
+            local: gebi("ecvideo-record-local"),
+            manualBitrate: gebi("ecvideo-record-bitrate-sel"),
+            bitrateHider: gebi("ecvideo-record-bitrate-hider"),
+            bitrate: gebi("ecvideo-record-bitrate")
+        },
+
         streamerModeHider: gebi("ecstreamer-mode-hider"),
         streamerMode: gebi("ecstreamer-mode")
     };
 
-    var vr = ui.panels.videoRecord = {
-        wrapper: gebi("ecvideo-record-wrapper"),
-        bitrate: gebi("ecvideo-record-bitrate"),
-        local: gebi("ecvideo-record-local"),
-        remote: gebi("ecvideo-record-remote"),
-        both: gebi("ecvideo-record-local-remote")
+    let bitrate = vc.recording.bitrate;
+    bitrate.oninput = function() {
+        var f = bitrate.value.replace(/[^0-9\.]/g, "");
+        if (bitrate.value !== f)
+            bitrate.value = f;
     };
 
-    vr.bitrate.oninput = function() {
-        var f = vr.bitrate.value.replace(/[^0-9\.]/g, "");
-        if (vr.bitrate.value !== f)
-            vr.bitrate.value = f;
-    };
+    videoRecord.loadVideoRecordPanel();
 }
 
 function loadUserList() {

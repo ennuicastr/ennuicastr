@@ -112,11 +112,7 @@
 
             <button id="ecmenu-input-devices" class="row"><i class="fas fa-microphone-alt"></i> Input settings</button>
             <button id="ecmenu-output-devices" class="row"><i class="fas fa-headphones-alt"></i> Output settings</button>
-            <div class="rflex row">
-                <button id="ecmenu-video-devices" style="flex: auto;"><i class="fas fa-video"></i> Video settings</button>
-                &nbsp;
-                <button id="ecmenu-record" class="off" title="Record video" aria-label="Record video"><i class="fas fa-circle"></i> Rec</button>
-            </div>
+            <button id="ecmenu-video-devices" class="row"><i class="fas fa-video"></i> Video settings</button>
             <span id="ecmenu-user-list-hider">
                 <button id="ecmenu-user-list" class="row"><i class="fas fa-users"></i> User volume</button>
             </span>
@@ -330,26 +326,45 @@
                 </select>
             </div>
 
+            <!-- Video recording -->
+            <div id="ecvideo-record-hider" class="invite row" style="box-sizing: border-box; padding: 0.25em 0.25em 0.01em 0.25em;">
+                <div class="rflex row">
+                    <input id="ecvideo-record" type="checkbox" />
+                    <label for="ecvideo-record">&nbsp;Record video</label>
+                </div>
+
+                <div id="ecvideo-record-opt-hider" style="display: none">
+                    <div class="rflex row">
+                        &nbsp;
+                        <input id="ecvideo-record-remote" type="checkbox" />
+                        <label for="ecvideo-record-remote">&nbsp;and send it to the host</label>
+                    </div>
+                    <div class="rflex row">
+                        &nbsp;
+                        <input id="ecvideo-record-local" type="checkbox" />
+                        <label for="ecvideo-record-local">&nbsp;and save it locally</label>
+                    </div>
+
+                    <div class="rflex row">
+                        <input id="ecvideo-record-bitrate-sel" type="checkbox" />
+                        <label for="ecvideo-record-bitrate-sel">&nbsp;Select bitrate</label>
+                    </div>
+
+                    <div id="ecvideo-record-bitrate-hider" style="display: none">
+                        <div class="rflex row">
+                            <label for="ecvideo-record-bitrate">Bitrate (Mbit):&nbsp;</label>
+                            <input id="ecvideo-record-bitrate" style="flex: auto;" type="text" size="3" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Options -->
             <div id="ecvideo-output-hider" class="row">
                 <div id="ecstreamer-mode-hider" class="row">
                     <input id="ecstreamer-mode" type="checkbox" />
                     <label for="ecstreamer-mode">&nbsp;Streamer-friendly popout windows</label>
                 </div>
-            </div>
-        </div>
-
-        <!-- Video recording -->
-        <div id="ecvideo-record-wrapper" class="panel" style="text-align: right;" role="dialog" aria-label="Video recording">
-            <button id="ecvideo-record-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
-            <div class="rflex row">
-                <label for="ecvideo-record-bitrate">Bitrate (Mbit):&nbsp;</label>
-                <input id="ecvideo-record-bitrate" style="flex: auto;" type="text" />
-            </div>
-            <div class="bigrflex">
-                <button id="ecvideo-record-local">Record locally</button>&nbsp;
-                <button id="ecvideo-record-remote">Record and send to host</button>&nbsp;
-                <button id="ecvideo-record-local-remote">Both</button>
             </div>
         </div>
 
@@ -504,6 +519,16 @@
             btn("ecmenu-output-devices", "ecoutput-device-wrapper");
             btn("ecmenu-video-devices", "ecvideo-device-wrapper");
             btn("ecmenu-user-list", "ecuser-list-wrapper");
+
+            var videoRecord = gebi("ecvideo-record");
+            videoRecord.onchange = function() {
+                gebi("ecvideo-record-hider").style.display = videoRecord.checked ? "" : "none";
+            };
+
+            var videoBitrateSel = gebi("ecvideo-record-bitrate-sel");
+            videoBitrateSel.onchange = function() {
+                gebi("ecvideo-record-bitrate-hider").style.display = videoBitrateSel.checked ? "" : "none";
+            };
 
             var chatWrapper = gebi("ecchat-wrapper");
             gebi("ecmenu-chat").onclick = function() {

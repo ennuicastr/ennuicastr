@@ -180,7 +180,6 @@ export const ui = {
             inputB: HTMLButtonElement,
             outputB: HTMLButtonElement,
             videoB: HTMLButtonElement,
-            videoRecordB: HTMLButtonElement,
             userListB: HTMLButtonElement
         }> null,
 
@@ -368,22 +367,36 @@ export const ui = {
             // Hider for output options
             outputHider: HTMLElement,
 
+            // Recording-related options
+            recording: {
+                // Hider for recording options if unsupported
+                hider: HTMLElement,
+
+                // Do or do not record
+                record: HTMLInputElement,
+
+                // Hider for specific recording options
+                optHider: HTMLElement,
+
+                // Send to host?
+                remote: HTMLInputElement,
+
+                // Save locally?
+                local: HTMLInputElement,
+
+                // Manual bitrate?
+                manualBitrate: HTMLInputElement,
+
+                // Hider for manual bitrate option
+                bitrateHider: HTMLInputElement,
+
+                // Manual bitrate selection
+                bitrate: HTMLInputElement
+            },
+
             // Streamer mode
             streamerModeHider: HTMLElement,
             streamerMode: HTMLInputElement
-        }> null,
-
-        // Video recording
-        videoRecord: <{
-            wrapper: HTMLElement,
-
-            // Bitrate
-            bitrate: HTMLInputElement,
-
-            // Options
-            local: HTMLButtonElement,
-            remote: HTMLButtonElement,
-            both: HTMLButtonElement
         }> null,
 
         // User list
@@ -503,7 +516,7 @@ export function mouseenter() {
 }
 
 // Saveable config for a box with a string value
-export function saveConfigValue(sel: HTMLSelectElement, name: string, onchange?: (arg0:Event)=>void) {
+export function saveConfigValue(sel: HTMLSelectElement|HTMLInputElement, name: string, onchange?: (arg0:Event)=>void) {
     var cur = localStorage.getItem(name);
     if (cur !== null)
         sel.value = cur;

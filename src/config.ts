@@ -22,7 +22,8 @@ import { dce, gebi } from "./util";
 var featuresMask = 0xF;
 export var features = {
     "continuous": 0x1,
-    "rtc": 0x2
+    "rtc": 0x2,
+    "videorec": 0x4
 };
 
 // Configuration parameters come out of the URL search query
@@ -200,6 +201,7 @@ export const useFlac = ((config.format&prot.flags.dataTypeMask) === prot.flags.d
 // Which features to use
 export const useContinuous = !!(config.format&features.continuous);
 export const useRTC = !!(config.format&features.rtc);
+export const useVideoRec = !!(config.format&features.videorec);
 
 // Color sets for wave vad colors
 const waveVADColorSets = {

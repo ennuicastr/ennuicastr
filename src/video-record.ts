@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Yahweasel
+ * Copyright (c) 2020, 2021 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -29,12 +29,18 @@ import * as util from "./util";
 import { gebi } from "./util";
 import * as video from "./video";
 
+export const supported = (typeof MediaRecorder !== "undefined");
+
 // Function to stop the current video recording, or null if there is none
-export var recordVideoStop: any = null;
+export var recordVideoStop: ()=>Promise<unknown> = null;
 
 // Function to call to verify remote willingness to accept video data
 export var recordVideoRemoteOK: any = null;
 var recordVideoRemoteOKTimeout: null|number = null;
+
+/* Any ongoing video recording steps *other* than actually recording pile
+ * together into this Promise */
+var recordPromise: Promise<unknown> = Promise.all([]);
 
 interface RecordVideoOptions {
     local?: boolean;
@@ -73,8 +79,8 @@ const fixedTimeBase = {
 };
 
 // Record video
-function recordVideo(opts: RecordVideoOptions) {
-    recordVideoButton(true);
+function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
+    recordVideoUI(true);
 
     // Which format?
     var formats: [string, string, boolean][] = [
@@ -107,47 +113,64 @@ function recordVideo(opts: RecordVideoOptions) {
         filename = net.recName + "-";
     filename += config.username + "-video." + outFormat;
 
-    // Create a write stream early, so it's in response to the button click
-    var localWriter: WritableStreamDefaultWriter = null,
+    let localWriter: WritableStreamDefaultWriter = null,
         remoteWriter: {idx: number, write: (arg0:Uint8Array)=>void, close: ()=>void} = null;
-    if (opts.local) {
-        if (opts.localWriter) {
-            localWriter = opts.localWriter;
-        } else {
-            var fileStream = streamSaver.createWriteStream(filename);
-            localWriter = fileStream.getWriter();
-            window.addEventListener("unload", function() {
-                localWriter.close();
-            });
-            opts.localWriter = localWriter;
-        }
-    }
 
-    if (opts.remote) {
-        if (!("remotePeer" in opts)) {
-            // Verify first!
-            jitsi.videoRecSend(jitsi.videoRecHost, prot.videoRec.startVideoRecReq, {ext: outFormat});
+    // If we aren't actually recording anything, this will become true
+    let noRecording = false;
 
-            recordVideoRemoteOK = function(peer: number) {
-                opts.remotePeer = peer;
-                recordVideo(opts);
-            };
+    // We decide the bitrate based on the height
+    let videoSettings = video.userMediaVideo.getVideoTracks()[0].getSettings();
+    let bitrate: number;
+    if (opts.bitrate)
+        bitrate = Math.min(opts.bitrate * 1000000, videoSettings.height * 50000);
+    else
+        bitrate = videoSettings.height * 5000;
+    let globalFrameTime = 1/videoSettings.frameRate * 1000;
+    let libav: any;
+    let transtate: TranscodeState = {};
+    let c: number;
 
-            recordVideoRemoteOKTimeout = setTimeout(function() {
-                recordVideoRemoteOK = null;
-                if (localWriter)
-                    localWriter.close();
-                recordVideoButton();
-            }, 5000);
-            return;
+    recordPromise = recordPromise.then(() => {
+        // Make sure we've loaded StreamSaver
+        if (typeof streamSaver === "undefined")
+            return loadStreamSaver();
 
-        } else {
-            recordVideoRemoteOK = null;
-            if (recordVideoRemoteOKTimeout) {
-                clearTimeout(recordVideoRemoteOKTimeout);
-                recordVideoRemoteOKTimeout = null;
+    }).then(() => {
+        if (opts.remote) {
+            if (!("remotePeer" in opts)) {
+                // Verify first!
+                jitsi.videoRecSend(jitsi.videoRecHost, prot.videoRec.startVideoRecReq, {ext: outFormat});
+
+                return new Promise((res, rej) => {
+                    recordVideoRemoteOK = function(peer: number) {
+                        opts.remotePeer = peer;
+                        res(0);
+                    };
+
+                    recordVideoRemoteOKTimeout = setTimeout(function() {
+                        recordVideoRemoteOK = null;
+                        if (localWriter)
+                            localWriter.close();
+                        recordVideoUI();
+                        res(0);
+                    }, 5000);
+                });
             }
 
+        }
+
+    }).then(() => {
+        recordVideoRemoteOK = null;
+        if (recordVideoRemoteOKTimeout) {
+            clearTimeout(recordVideoRemoteOKTimeout);
+            recordVideoRemoteOKTimeout = null;
+        }
+
+        if (!("remotePeer" in opts))
+            opts.remote = false;
+
+        if (opts.remote) {
             remoteWriter = {
                 idx: 0,
                 write: function(chunk) {
@@ -161,34 +184,41 @@ function recordVideo(opts: RecordVideoOptions) {
                 }
             };
 
+        } else if (!opts.local) {
+            opts.local = true;
+
         }
 
-    }
+        if (opts.local) {
+            // Create a write stream
+            if (opts.localWriter) {
+                localWriter = opts.localWriter;
+            } else {
+                let fileStream = streamSaver.createWriteStream(filename);
+                localWriter = fileStream.getWriter();
+                window.addEventListener("unload", function() {
+                    localWriter.close();
+                });
+                opts.localWriter = localWriter;
+            }
+        }
 
-    if (recordVideoStop) {
-        // Can't have two videos recording at once!
-        recordVideoStop();
-    }
+        if (recordVideoStop) {
+            // Can't have two videos recording at once!
+            return recordVideoStop();
+        }
 
-    // Make sure they know what's what
-    log.pushStatus("video-beta", "Video recording is a beta feature.");
-    setTimeout(function() { log.popStatus("video-beta"); }, 10000);
+    }).then(() => {
+        if (noRecording) return;
+        return avloader.loadLibAV();
 
-    // We decide the bitrate based on the height (FIXME: Configurability)
-    var videoSettings = video.userMediaVideo.getVideoTracks()[0].getSettings();
-    var bitrate: number;
-    if (opts.bitrate)
-        bitrate = Math.min(opts.bitrate * 1000000, videoSettings.height * 50000);
-    else
-        bitrate = videoSettings.height * 5000;
-    var globalFrameTime = 1/videoSettings.frameRate * 1000;
-    var libav: any;
-    var transtate: TranscodeState = {};
-    var c: number;
-
-    return avloader.loadLibAV().then(function() {
+    }).then(() => {
+        if (noRecording) return;
         return LibAV.LibAV();
-    }).then(function(la) {
+
+    }).then((la) => {
+        if (noRecording) return;
+
         // Set up our forwarder in LibAV
         transtate.libav = libav = la;
         if (!libav.onwrite) {
@@ -201,7 +231,9 @@ function recordVideo(opts: RecordVideoOptions) {
             };
         }
 
-    }).then(function() {
+    }).then(() => {
+        if (noRecording) return;
+
         // Create our LibAV input
         transtate.format = (format[0] === "x-matroska") ? "mkv" : format[0];
         transtate.mimeType = mimeType;
@@ -211,7 +243,9 @@ function recordVideo(opts: RecordVideoOptions) {
         transtate.outF = "out-" + Math.random() + "." + outFormat;
         return recordVideoInput(transtate);
 
-    }).then(function() {
+    }).then(() => {
+        if (noRecording) return;
+
         // And output
         transtate.written = 0;
         libav.onwriteto[transtate.outF] = function(pos: number, buf: Uint8Array) {
@@ -461,23 +495,29 @@ function recordVideo(opts: RecordVideoOptions) {
                 transtate.write(null);
                 transtate.write = null;
                 recordVideoStop = null;
-                recordVideoButton();
+                recordVideoUI();
             }
         });
         mediaRecorder.start(200);
 
         // Set up a way to stop it
         recordVideoStop = function() {
-            // And end the translation
+            recordVideoUI(true);
+
+            // End the translation
             if (transtate.write) {
                 transtate.write(null);
                 transtate.write = null;
             }
             mediaRecorder.stop();
             recordVideoStop = null;
-            recordVideoButton();
+
+            // Give it a second
+            return new Promise(res => {
+                setTimeout(res, 1000);
+            }).then(recordVideoUI);
         };
-        recordVideoButton();
+        recordVideoUI();
 
     }).catch(net.promiseFail());
 }
@@ -509,51 +549,6 @@ export function recordVideoRemoteIncoming(peer: number, opts: any) {
 
         return fileWriter;
     }).catch(net.promiseFail());
-}
-
-// Show the video recording panel if we need to, or just start recording
-function recordVideoPanel() {
-    var vr = ui.ui.panels.videoRecord;
-
-    // Get a default bitrate (FIXME: Save their configuration?)
-    var bri = vr.bitrate;
-    var sbr = Math.round(video.userMediaVideo.getVideoTracks()[0].getSettings().height * 0.05) / 10;
-    if (sbr < 1) sbr = 1;
-    bri.value = "" + sbr;
-
-    // Use it in the buttons
-    vr.local.onclick = function() {
-        ui.showPanel(null, ui.ui.persistent.main);
-        recordVideo({local: true, bitrate: +bri.value});
-    };
-
-    vr.remote.onclick = function() {
-        ui.showPanel(null, ui.ui.persistent.main);
-        recordVideo({remote: true, bitrate: +bri.value});
-    };
-
-    vr.both.onclick = function() {
-        ui.showPanel(null, ui.ui.persistent.main);
-        recordVideo({local: true, remote: true, bitrate: +bri.value});
-    };
-
-    // En/disable the buttons based on presence of a remote host
-    var focus: HTMLElement;
-    if (jitsi.videoRecHost >= 0) {
-        vr.remote.disabled = false;
-        vr.remote.classList.remove("off");
-        vr.both.disabled = false;
-        vr.both.classList.remove("off");
-        focus = vr.remote;
-    } else {
-        vr.remote.disabled = true;
-        vr.remote.classList.add("off");
-        vr.both.disabled = true;
-        vr.both.classList.add("off");
-        focus = vr.local;
-    }
-
-    ui.showPanel("videoRecord", focus);
 }
 
 // Convert from a Blob to an ArrayBuffer
@@ -740,63 +735,107 @@ function recordVideoRemoteClose(peer: number) {
     jitsi.videoRecSend(peer, prot.videoRec.endVideoRec);
 }
 
-// Configure the video recording button based on the current state
-export function recordVideoButton(loading?: boolean) {
-    var btn = ui.ui.panels.main.videoRecordB;
-    if (!btn) return;
+// Configure the video recording UI based on the current state
+export function recordVideoUI(loading?: boolean) {
+    let recording = ui.ui.panels.videoConfig.recording;
+    recording.record.disabled = !!loading;
+    recording.optHider.style.display = (loading || !recording.record.checked) ? "none" : "";
+    recording.bitrateHider.style.display = recording.manualBitrate.checked ? "" : "none";
+}
 
-    function disabled(to: boolean) {
-        btn.disabled = to;
-        if (to)
-            btn.classList.add("off");
-        else
-            btn.classList.remove("off");
+// Set to true if we're in the middle of reconsidering recording
+let reconsidering = false;
+
+// Called whenever we should reconsider whether/how we're recording
+function maybeRecord() {
+    let recording = ui.ui.panels.videoConfig.recording;
+
+    if (reconsidering) {
+        // Already being done
+        return;
     }
 
-    var start = '<i class="fas fa-file-video"></i> ';
-    if (loading) {
-        // Currently loading, don't mess with it
-        btn.innerHTML = start + '<i class="fas fa-ellipsis-h"></i>';
-        disabled(true);
+    reconsidering = true;
+    recordPromise = recordPromise.then(() => {
+        if (recordVideoStop)
+            return recordVideoStop();
 
-    } else if (recordVideoStop) {
-        // Current recording is stoppable
-        btn.innerHTML = start + '<i class="fas fa-stop"></i>';
-        btn.disabled = false;
-        disabled(false);
-        btn.onclick = function() {
-            disabled(true);
-            recordVideoStop();
-        };
-
-    } else {
-        // Not currently recording
-        btn.innerHTML = start + '<i class="fas fa-circle"></i>';
-        if (typeof MediaRecorder !== "undefined" && video.userMediaVideo) {
-            // But we could be!
-
-            // Make sure we've loaded StreamSaver
-            if (typeof streamSaver === "undefined") {
-                disabled(true);
-                loadStreamSaver().then(function() {
-                    disabled(false);
-                }).catch(net.promiseFail());
-            } else {
-                disabled(false);
-            }
-
-            btn.onclick = function() {
-                disabled(false);
-                recordVideoPanel();
+    }).then(() => {
+        if (supported && video.userMediaVideo && recording.record.checked) {
+            // We should be recording
+            let opts: RecordVideoOptions = {
+                remote: !("master" in config.config) && recording.remote.checked,
+                local: ("master" in config.config) || recording.local.checked
             };
+            if (recording.manualBitrate.checked) {
+                let br = +recording.bitrate.value;
+                if (br)
+                    opts.bitrate = br;
+            }
+            recordVideo(opts);
 
-        } else {
-            // And we can't
-            disabled(true);
+        } else if (!supported && video.userMediaVideo && recording.record.checked && config.useVideoRec) {
+            // Warn that they're not "contributing"
+            log.pushStatus("video-rec-unsupported", "WARNING: Your browser does not support video recording!");
+            setTimeout(() => { log.popStatus("video-rec-unsupported"); }, 10000);
 
         }
+        reconsidering = false;
 
+    });
+}
+
+// Load the video recording UI
+export function loadVideoRecordPanel() {
+    let recording = ui.ui.panels.videoConfig.recording;
+
+    // Is it even supported?
+    recording.hider.style.display = supported ? "" : "none";
+
+    // Do or do not record
+    recording.record.checked = config.useVideoRec;
+    ui.saveConfigCheckbox(recording.record, "record-video-" + config.useVideoRec, function() {
+        recordVideoUI();
+        maybeRecord();
+    });
+
+    // Host/local options
+    ui.saveConfigCheckbox(recording.remote, "record-video-remote-" + config.useVideoRec, function(ev) {
+        if (!recording.remote.checked && !recording.local.checked) {
+            // Invalid
+            recording.local.checked = true;
+            recording.local.onchange(ev);
+            return;
+        }
+        maybeRecord();
+    });
+    ui.saveConfigCheckbox(recording.local, "record-video-local-" + config.useVideoRec, function(ev) {
+        if (!recording.remote.checked && !recording.local.checked) {
+            // Invalid
+            recording.remote.checked = true;
+            recording.remote.onchange(ev);
+            return;
+        }
+        maybeRecord();
+    });
+    if (!recording.remote.checked && !recording.local.checked) {
+        if (config.useVideoRec)
+            recording.remote.checked = true;
+        else
+            recording.local.checked = true;
     }
+
+    // Set manual bitrate?
+    ui.saveConfigCheckbox(recording.manualBitrate, "record-video-bitrate-sel", function() {
+        recordVideoUI();
+        if (recording.bitrate.value !== "")
+            maybeRecord();
+    });
+
+    // Manual bitrate value
+    ui.saveConfigValue(recording.bitrate, "record-video-bitrate", maybeRecord);
+
+    recordVideoUI();
 }
 
 // Load the StreamSaver library, needed only for video recording
@@ -811,6 +850,6 @@ function loadStreamSaver(): Promise<unknown> {
     return Promise.all([]);
 }
 
-// Make sure the record button updates when the video state updates
-util.events.addEventListener("usermediavideoready", function() { recordVideoButton(); });
-util.events.addEventListener("usermediavideostopped", function() { recordVideoButton(); });
+// Make sure the recording updates when the video state updates
+util.events.addEventListener("usermediavideoready", maybeRecord);
+util.events.addEventListener("usermediavideostopped", maybeRecord);

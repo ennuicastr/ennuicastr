@@ -67,7 +67,8 @@ export function createMasterInterface() {
     ui.ui.panels.userAdmin.allB.onclick = function() { userAdmin(-1); };
 
     // Accept remote recordings
-    ui.saveConfigCheckbox(masterUI.acceptRemoteVideo, "master-video-record-host3", acceptRemoteVideoChange);
+    masterUI.acceptRemoteVideo.checked = config.useVideoRec;
+    ui.saveConfigCheckbox(masterUI.acceptRemoteVideo, "master-video-record-host-" + config.useVideoRec, acceptRemoteVideoChange);
 
     // Put everything in the proper state
     configureMasterInterface();
