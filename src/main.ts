@@ -26,6 +26,7 @@ import * as net from "./net";
 import * as proc from "./proc";
 import { prot } from "./protocol";
 import * as ui from "./ui";
+import * as uiImpl from "./ui-impl";
 import * as util from "./util";
 
 // The main entry point
@@ -41,7 +42,7 @@ function main() {
 
     }).catch(function(){}).then(function() {
         // Build the UI
-        return <any> ui.mkUI();
+        return <any> uiImpl.mkUI();
 
     }).then(function() {
         // This can be loaded lazily
@@ -52,7 +53,7 @@ function main() {
         return net.connect();
     }).then(function() {
         proc.localProcessing(); // This will start up on its own in the background
-        return audio.getAudioPerms();
+        return audio.getAudioPerms(uiImpl.mkAudioUI);
     }).catch(function(ex) {
         log.pushStatus("error", ex + "\n\n" + ex.stack);
     });

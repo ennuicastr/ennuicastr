@@ -613,9 +613,13 @@ export function videoDataSend(peer: number, idx: number, buf: Uint8Array) {
 }
 
 // Set the "major" (primary speaker) for video quality
-export function setMajor(peer: number) {
+function setMajor(peer: number) {
     if (!(peer in incoming) || !room)
         return;
     let jid = incoming[peer].id;
     room.selectParticipant(jid);
 }
+
+util.events.addEventListener("ui.video.major", function() {
+    setMajor(ui.ui.video.major);
+});

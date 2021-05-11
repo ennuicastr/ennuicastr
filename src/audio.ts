@@ -132,10 +132,10 @@ util.netEvent("ping", "pong", function(ev) {
 });
 
 // Get audio permission. First audio step of the process.
-export function getAudioPerms() {
+export function getAudioPerms(mkAudioUI: ()=>string) {
     return navigator.mediaDevices.getUserMedia({audio: true}).then(function(userMediaIn) {
         userMedia = userMediaIn; // So that it gets deleted by getMic
-        return getMic(ui.mkAudioUI());
+        return getMic(mkAudioUI());
     }).catch(function(err) {
         net.disconnect();
         log.pushStatus("fail", "Cannot get microphone: " + err);
@@ -198,7 +198,7 @@ function userMediaSet() {
     if (!net.connected)
         return;
 
-    ui.updateMuteButton();
+    util.dispatchEvent("audio.mute");
     ptt.loadPTT();
 
     log.pushStatus("initenc", "Initializing encoder...");
@@ -216,7 +216,20 @@ function userMediaSet() {
             ac = new webkitAudioContext();
         }
 
-        ui.setOutputAudioContext(ac);
+        // Make an output context for it
+        let msd = (<any> ac).ecDestination = ac.createMediaStreamDestination();
+
+        // Start playing it when we're (relatively) sure we can
+        util.events.addEventListener("usermediartcready", function() {
+            if (!ui.ui.audioOutput) {
+                let a = ui.ui.audioOutput = dce("audio");
+                a.style.display = "none";
+                document.body.appendChild(a);
+            }
+
+            ui.ui.audioOutput.srcObject = msd.stream;
+            ui.ui.audioOutput.play().catch(console.error);
+        });
     }
 
     // Now UserMedia and AudioContext are ready
@@ -502,7 +515,7 @@ export function toggleMute(to?: boolean) {
     if (typeof to === "undefined")
         to = !track.enabled;
     track.enabled = to;
-    ui.updateMuteButton();
+    util.dispatchEvent("audio.mute");
     net.updateAdminPerm({mute: !to});
 }
 

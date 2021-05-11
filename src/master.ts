@@ -403,6 +403,8 @@ export function userAdmin(target: number) {
     ui.showPanel(userAdminUser.wrapper, null);
 }
 
+ui.ui.masterUserAdmin = userAdmin;
+
 // Add a soundboard button
 function addSoundButton(sid: string, url: string, name: string) {
     var soundboard = ui.ui.panels.soundboard;
@@ -656,10 +658,29 @@ if ("master" in config.config) {
         let nick = util.decodeText(msg.buffer.slice(p.nick));
 
         // Add it to the UI
-        if (status)
+        if (status) {
             ui.userListAdd(index, nick, true);
-        else
+
+            while (users.length <= index)
+                users.push(null);
+            users[index] = {
+                name: nick,
+                online: true,
+                transmitting: false,
+                fullAccess: null
+            };
+            updateMasterAdmin();
+
+        } else {
             ui.userListRemove(index, true);
+
+            if (users[index]) {
+                users[index].online = false;
+                users[index].fullAccess = null;
+                updateMasterAdmin();
+            }
+
+        }
     });
 
     util.netEvent("master", "speech", function(ev) {
@@ -668,7 +689,11 @@ if ("master" in config.config) {
         let p = prot.parts.speech;
         let indexStatus = msg.getUint32(p.indexStatus, true);
         let index = indexStatus>>>1;
-        let status = (indexStatus&1);
-        ui.userListUpdate(index, !!status, true);
+        let status = !!(indexStatus&1);
+        ui.userListUpdate(index, status, true);
+        if (users[index]) {
+            users[index].transmitting = status;
+            updateMasterAdmin();
+        }
     });
 }

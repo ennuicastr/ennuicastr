@@ -27,6 +27,7 @@ import * as audio from "./audio";
 import * as avloader from "./avloader";
 import * as capture from "./capture";
 import * as net from "./net";
+import * as ui from "./ui";
 import * as waveform from "./waveform";
 
 // Can we do compression?
@@ -250,7 +251,7 @@ export function setGlobalGain(to: number) {
 }
 
 // Change the per-user gain
-export function setPerUserGain(idx: number, to: number) {
+function setPerUserGain(idx: number, to: number) {
     rtcCompression.perUserGain[idx] = to;
 
     var com = rtcCompression.compressors[idx];
@@ -259,3 +260,5 @@ export function setPerUserGain(idx: number, to: number) {
     var target = rtcCompression.gain * to;
     com.gain.gain.setTargetAtTime(target, 0, 0.003);
 }
+
+ui.ui.outprocSetPerUserGain = setPerUserGain;
