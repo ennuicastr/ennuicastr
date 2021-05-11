@@ -14,17 +14,11 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-import * as audio from "./audio";
-import * as chat from "./chat";
 import * as config from "./config";
-import * as jitsi from "./jitsi";
 import * as log from "./log";
-import * as master from "./master";
 import { prot } from "./protocol";
 import * as util from "./util";
-import * as ui from "./ui";
 import { dce } from "./util";
-import * as video from "./video";
 
 /* We have multiple connections to the server:
  * One for pings,
@@ -57,13 +51,6 @@ export var iceServers = [
         urls: "stun:stun.l.google.com:19302"
     }
 ];
-
-// The delays on the pongs we've received back
-var pongs: number[] = [];
-
-/* So that the time offset doesn't jump all over the place, we adjust it
- * *slowly*. This is the target time offset */
-export var targetTimeOffset: null|number = null;
 
 // The remote start time, i.e., when recording began
 export var remoteBeginTime: null|number = null;
@@ -158,7 +145,7 @@ interface AdminAccess {
     audio: boolean;
     video: boolean;
 };
-var adminAccess: Record<number, AdminAccess> = {};
+export var adminAccess: Record<number, AdminAccess> = {};
 
 // Connect to the server (our first step)
 export function connect() {
@@ -260,13 +247,11 @@ export function disconnect(ev?: Event) {
     dataSock = close(dataSock);
     masterSock = close(masterSock);
 
-    audio.disconnect();
-    video.disconnect();
-    jitsi.disconnect();
+    util.dispatchEvent("net.disconnect", {});
 }
 
 // Ping the ping socket
-function ping() {
+export function ping() {
     var p = prot.parts.ping;
     var msg = new DataView(new ArrayBuffer(p.length));
     msg.setUint32(0, prot.ids.ping, true);
@@ -290,28 +275,8 @@ function pingSockMsg(ev: MessageEvent) {
             }
             break;
 
-        // All we really care about
-        case prot.ids.pong:
-            var p = prot.parts.pong;
-            var sent = msg.getFloat64(p.clientTime, true);
-            var recvd = performance.now();
-            pongs.push(recvd - sent);
-            while (pongs.length > 5)
-                pongs.shift();
-            if (pongs.length < 5) {
-                // Get more pongs now!
-                setTimeout(ping, 150);
-            } else {
-                // Get more pongs... eventually
-                setTimeout(ping, 10000);
-
-                // And figure out our offset
-                var latency = pongs.reduce(function(a,b){return a+b;})/10;
-                var remoteTime = msg.getFloat64(p.serverTime, true) + latency;
-                targetTimeOffset = remoteTime - recvd;
-                if (audio.timeOffset === null) audio.setFirstTimeOffset(targetTimeOffset);
-            }
-            break;
+        default:
+            util.dispatchEvent("net.pingSock." + cmd, msg);
     }
 }
 
@@ -341,19 +306,6 @@ function dataSockMsg(ev: MessageEvent) {
                 case prot.info.id:
                     // Our own ID
                     selfId = val;
-
-                    // Cogito ergo sum
-                    ui.userListAdd(val, config.username, false);
-
-                    if (config.useRTC) {
-                        // Now is when we have enough information to start Jitsi
-                        jitsi.initJitsi();
-                    }
-                    break;
-
-                case prot.info.peerLost:
-                    if (config.useRTC)
-                        jitsi.closeRTC(val);
                     break;
 
                 case prot.info.mode:
@@ -374,13 +326,6 @@ function dataSockMsg(ev: MessageEvent) {
                     else if (mode > prot.mode.rec)
                         log.pushStatus("mode", "Not recording");
 
-                    // Update the timer
-                    if (msg.byteLength >= p.length + 16) {
-                        var sTime = msg.getFloat64(p.value + 4, true);
-                        var recTime = msg.getFloat64(p.value + 12, true);
-                        audio.setRecordingTimer(sTime, recTime, (mode === prot.mode.rec));
-                    }
-
                     // Mention flushing buffers if we are
                     if (mode === prot.mode.buffering) {
                         flushBuffers();
@@ -388,11 +333,6 @@ function dataSockMsg(ev: MessageEvent) {
                         clearTimeout(flushTimeout);
                         flushTimeout = null;
                     }
-
-                    // Update the master interface
-                    if ("master" in config.config)
-                        master.configureMasterInterface();
-
                     break;
 
                 case prot.info.startTime:
@@ -409,114 +349,13 @@ function dataSockMsg(ev: MessageEvent) {
                     iceServers.push(iceServer);
                     break;
             }
+
+            // Let others use this info too
+            util.dispatchEvent("net.info." + key, {val: val, msg: msg});
             break;
 
-        case prot.ids.sound:
-            p = prot.parts.sound.sc;
-            var time = msg.getFloat64(p.time, true);
-            var status = msg.getUint8(p.status);
-            var url = util.decodeText(msg.buffer.slice(p.url));
-            audio.playStopSound(url, status, time);
-            break;
-
-        case prot.ids.user:
-            // Master gets this info elsewhere
-            p = prot.parts.user;
-            var index = msg.getUint32(p.index, true);
-            var status = msg.getUint32(p.status, true);
-            var nick = util.decodeText(msg.buffer.slice(p.nick));
-
-            // Add it to the UI
-            if (status)
-                ui.userListAdd(index, nick, false);
-            else
-                ui.userListRemove(index, false);
-            break;
-
-        case prot.ids.speech:
-        {
-            if (config.useRTC) {
-                // Handled through master interface or RTC
-                break;
-            }
-            p = prot.parts.speech;
-            var indexStatus = msg.getUint32(p.indexStatus, true);
-            let index = indexStatus>>>1;
-            let status = (indexStatus&1);
-            ui.userListUpdate(index, !!status, false);
-            break;
-        }
-
-        case prot.ids.text:
-            var p = prot.parts.text;
-            var text = util.decodeText(msg.buffer.slice(p.text));
-            chat.recvChat(text);
-            break;
-
-        case prot.ids.admin:
-            var p = prot.parts.admin;
-            var acts = prot.flags.admin.actions;
-            var action = msg.getUint32(p.action, true);
-            if (action === acts.mute) {
-                audio.toggleMute(false);
-
-            } else if (action === acts.echoCancel) {
-                audio.setEchoCancel(true);
-
-            } else if (action === acts.request) {
-                // Request for admin access
-                let reqNick = util.decodeText(msg.buffer.slice(p.argument));
-                let target = msg.getUint32(p.target, true);
-                ui.ui.panels.userAdminReq.user = target;
-                ui.ui.panels.userAdminReq.name.innerText = reqNick;
-                ui.showPanel("userAdminReq", "audio");
-
-            } else {
-                // All other actions require permission
-                let src = msg.getUint32(p.target, true);
-                let acc = adminAccess[src];
-                if (!acc || !acc.audio) break;
-
-                // Beyond videoInput also require video permission
-                if (action >= acts.videoInput && !acc.video) break;
-
-                let arg = util.decodeText(msg.buffer.slice(p.argument));
-
-                switch (action) {
-                    case acts.unmute:
-                        audio.toggleMute(true);
-                        break;
-
-                    case acts.unechoCancel:
-                        audio.setEchoCancel(false);
-                        break;
-
-                    case acts.audioInput:
-                        // FIXME: Better way to do this setting
-                        ui.ui.panels.inputConfig.device.value = arg;
-                        updateAdminPerm({audioDevice: arg});
-                        audio.getMic(arg);
-                        break;
-
-                    case acts.videoInput:
-                        // FIXME: Better way to do this setting
-                        ui.ui.panels.videoConfig.device.value = arg;
-                        updateAdminPerm({videoDevice: arg});
-                        video.getCamera(arg, +ui.ui.panels.videoConfig.res.value);
-                        break;
-
-                    case acts.videoRes:
-                        // FIXME: Better way to do this setting
-                        ui.ui.panels.videoConfig.res.value = arg;
-                        updateAdminPerm({videoRes: +arg});
-                        video.getCamera(ui.ui.panels.videoConfig.device.value, +arg);
-                        break;
-
-                    default:
-                        console.log("Admin action " + action.toString(16));
-                }
-            }
-            break;
+        default:
+            util.dispatchEvent("net.dataSock." + cmd, msg);
     }
 }
 
@@ -524,92 +363,11 @@ function dataSockMsg(ev: MessageEvent) {
 function masterSockMsg(ev: MessageEvent) {
     var msg = new DataView(ev.data);
     var cmd = msg.getUint32(0, true);
-    var p;
 
     masterSock.keepalive();
 
-    switch (cmd) {
-        case prot.ids.info:
-            p = prot.parts.info;
-            var key = msg.getUint32(p.key, true);
-            var val = 0;
-            if (msg.byteLength >= p.length)
-                val = msg.getUint32(p.value, true);
-            switch (key) {
-                case prot.info.creditCost:
-                    // Informing us of the cost of credits
-                    var v2 = msg.getUint32(p.value + 4, true);
-                    master.credits.creditCost = {
-                        currency: val,
-                        credits: v2
-                    };
-                    break;
-
-                case prot.info.creditRate:
-                    // Informing us of the total cost and rate in credits
-                    var v2 = msg.getUint32(p.value + 4, true);
-                    master.credits.creditRate = [val, v2];
-                    master.updateCreditCost();
-                    break;
-
-                case prot.info.sounds:
-                    // Soundboard items
-                    var valS = util.decodeText(msg.buffer.slice(p.value));
-                    master.addSoundButtons(JSON.parse(valS));
-                    break;
-
-                case prot.info.allowAdmin:
-                {
-                    // A user has allowed or disallowed us to administrate them
-                    if (msg.byteLength < p.length + 1) break;
-                    let allowed = !!msg.getUint8(p.length);
-                    let props = null;
-                    if (msg.byteLength > p.length + 1) {
-                        try {
-                            props = JSON.parse(util.decodeText(msg.buffer.slice(p.length + 1)));
-                        } catch (ex) {}
-                    }
-                    master.allowAdmin(val, allowed, props);
-                    break;
-                }
-
-                case prot.info.adminState:
-                {
-                    if (msg.byteLength <= p.length) break;
-                    let props = null;
-                    try {
-                        props = JSON.parse(util.decodeText(msg.buffer.slice(p.length)));
-                    } catch (ex) {}
-                    if (!props || typeof props !== "object") break;
-                    master.updateAdmin(val, props);
-                    break;
-                }
-            }
-            break;
-
-        case prot.ids.user:
-            p = prot.parts.user;
-            var index = msg.getUint32(p.index, true);
-            var status = msg.getUint32(p.status, true);
-            var nick = util.decodeText(msg.buffer.slice(p.nick));
-
-            // Add it to the UI
-            if (status)
-                ui.userListAdd(index, nick, true);
-            else
-                ui.userListRemove(index, true);
-            break;
-
-        case prot.ids.speech:
-        {
-            p = prot.parts.speech;
-            let indexStatus = msg.getUint32(p.indexStatus, true);
-            let index = indexStatus>>>1;
-            let status = (indexStatus&1);
-            ui.userListUpdate(index, !!status, true);
-            break;
-        }
-    }
+    // All of these are handled in the master module
+    util.dispatchEvent("net.masterSock." + cmd, msg);
 }
 
 // Set our FLAC info
@@ -645,7 +403,7 @@ export function bufferedAmount() {
 }
 
 // Send to an admin that we accept or reject admin privileges
-export function setAdminPerm(target: number, allowAudio: boolean, allowVideo: boolean) {
+export function setAdminPerm(target: number, deviceInfo: (allowVideo: boolean)=>any, allowAudio: boolean, allowVideo: boolean) {
     // Set it
     if (allowAudio)
         adminAccess[target] = {audio: true, video: allowVideo};
@@ -656,7 +414,7 @@ export function setAdminPerm(target: number, allowAudio: boolean, allowVideo: bo
     let permMessage;
     return Promise.all([]).then(() => {
         if (allowAudio)
-            return audio.deviceInfo(allowVideo);
+            return deviceInfo(allowVideo);
         else
             return null;
 

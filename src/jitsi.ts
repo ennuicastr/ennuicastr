@@ -66,7 +66,7 @@ interface VideoRecIncoming {
 let videoRecIncoming: Record<number, VideoRecIncoming> = {};
 
 // Initialize the Jitsi connection
-export function initJitsi() {
+function initJitsi() {
     let timeout: number = null;
     return Promise.all([]).then(() => {
         if (typeof JitsiMeetJS === "undefined")
@@ -160,6 +160,15 @@ export function initJitsi() {
 
     }).catch(net.promiseFail());
 }
+
+
+// We initialize Jitsi once we know our own ID
+if (config.useRTC) {
+    util.events.addEventListener("net.info." + prot.info.id, function() {
+        initJitsi();
+    });
+}
+
 
 // Set our UserMediaRTC track
 function jitsiSetUserMediaRTC() {
@@ -545,7 +554,7 @@ export function videoRecSend(peer: number, cmd: number, payloadData?: unknown) {
 }
 
 // Catastrophic disconnection
-export function disconnect() {
+function disconnect() {
     if (!room)
         return Promise.all([]);
 
@@ -553,9 +562,10 @@ export function disconnect() {
     room = null;
     return ret;
 }
+util.events.addEventListener("net.disconnect", disconnect);
 
 // Close a given peer's RTC connection
-export function closeRTC(peer: number) {
+function closeRTC(peer: number) {
     // Even if they're still on RTC, this should be considered catastrophic
     if (!(peer in incoming))
         return;
@@ -565,6 +575,12 @@ export function closeRTC(peer: number) {
     if (inc.audio)
         jitsiTrackRemoved(inc.audio);
     delete incoming[peer];
+}
+
+if (config.useRTC) {
+    util.events.addEventListener("net.info." + prot.info.peerLost, function(ev: CustomEvent) {
+        closeRTC(ev.detail.val);
+    });
 }
 
 // Send a speech message over RTC

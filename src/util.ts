@@ -14,6 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+import { prot } from "./protocol";
+
 /* We need an event target we can use. "usermediaready" fires when userMedia is
  * ready. "usermediastopped" fires when it stops. "usermediavideoready" fires
  * when video is ready. "spmediaready" fires when the media device that's
@@ -28,8 +30,13 @@ try {
 }
 
 // Dispatch an event
-export function dispatchEvent(name: string, arg: any) {
-    events.dispatchEvent(new CustomEvent(name, arg));
+export function dispatchEvent(name: string, arg?: any) {
+    events.dispatchEvent(new CustomEvent(name, {detail: arg}));
+}
+
+// Add an event listener for a net packet
+export function netEvent(sock: string, cmd: string, handler: (ev: CustomEvent)=>unknown) {
+    events.addEventListener("net." + sock + "Sock." + prot.ids[cmd], handler);
 }
 
 // Basic DOM stuff

@@ -23,8 +23,8 @@ import * as ui from "./ui";
 import * as util from "./util";
 import { dce, gebi } from "./util";
 
-// For direct manipulation by net
-export const credits = {
+// Credit information
+const credits = {
     creditCost: <{currency: number, credits: number}> null,
     creditRate: <[number, number]> null
 };
@@ -74,7 +74,7 @@ export function createMasterInterface() {
 }
 
 // (Re)configure the master interface
-export function configureMasterInterface() {
+function configureMasterInterface() {
     var masterUI = ui.ui.panels.master;
 
     var pauseResume = masterUI.pauseResumeB;
@@ -116,6 +116,15 @@ export function configureMasterInterface() {
     updateCreditCost();
     ui.resizeUI();
 }
+
+// Update the interface when our mode changes
+if ("master" in config.config) {
+    util.events.addEventListener("net.info." + prot.info.mode, function() {
+        // Update the master interface
+        configureMasterInterface();
+    });
+}
+
 
 // Generic "send this mode change" function
 function sendMode(mode: number) {
@@ -204,7 +213,7 @@ function copyInvite() {
 }
 
 // Update the credit cost/rate meter
-export function updateCreditCost() {
+function updateCreditCost() {
     var masterUI = ui.ui.panels.master;
     if (!credits.creditCost || !credits.creditRate)
         return;
@@ -432,7 +441,7 @@ function addSoundButton(sid: string, url: string, name: string) {
 }
 
 // Add many soundboard buttons
-export function addSoundButtons(arr: {i: string, u: string, n: string}[]) {
+function addSoundButtons(arr: {i: string, u: string, n: string}[]) {
     arr.forEach(function(s) {
         addSoundButton(s.i, s.u, s.n);
     });
@@ -452,7 +461,7 @@ function playStopSound(b: HTMLButtonElement, sid: string, play: boolean) {
 }
 
 // Update the state of a playback button
-export function soundButtonUpdate(url: string, play: unknown, el: HTMLAudioElement) {
+function soundButtonUpdate(url: string, play: unknown, el: HTMLAudioElement) {
     var soundboard = ui.ui.panels.soundboard;
     var sid = sounds.url2sid[url];
     if (!sid)
@@ -473,6 +482,13 @@ export function soundButtonUpdate(url: string, play: unknown, el: HTMLAudioEleme
             soundButtonUpdate(url, false, el);
         }, {once: true});
     }
+}
+
+// We update the state of the button whenever a sound starts or stops
+if ("master" in config.config) {
+    util.events.addEventListener("audio.sound", function(ev: CustomEvent) {
+        soundButtonUpdate(ev.detail.url, ev.detail.status, ev.detail.el);
+    });
 }
 
 // Admin actions
@@ -503,7 +519,7 @@ function acceptRemoteVideoChange() {
 }
 
 // Allow or disallow admin access for this user
-export function allowAdmin(target: number, allowed: boolean, props: any) {
+function allowAdmin(target: number, allowed: boolean, props: any) {
     if (!users[target]) return;
     let user = users[target];
     let name = user.name || "Anonymous";
@@ -520,7 +536,7 @@ export function allowAdmin(target: number, allowed: boolean, props: any) {
 }
 
 // Update admin information for this user
-export function updateAdmin(target: number, props: any) {
+function updateAdmin(target: number, props: any) {
     if (!users[target]) return;
     let user = users[target];
     if (!user.fullAccess) return;
@@ -569,4 +585,90 @@ export function updateAdmin(target: number, props: any) {
         }
 
     }
+}
+
+// Messages from the master socket
+if ("master" in config.config) {
+    util.netEvent("master", "info", function(ev) {
+        let msg: DataView = ev.detail;
+        let p = prot.parts.info;
+        let key = msg.getUint32(p.key, true);
+        let val = 0;
+        if (msg.byteLength >= p.length)
+            val = msg.getUint32(p.value, true);
+        switch (key) {
+            case prot.info.creditCost:
+                // Informing us of the cost of credits
+                var v2 = msg.getUint32(p.value + 4, true);
+                credits.creditCost = {
+                    currency: val,
+                    credits: v2
+                };
+                break;
+
+            case prot.info.creditRate:
+                // Informing us of the total cost and rate in credits
+                var v2 = msg.getUint32(p.value + 4, true);
+                credits.creditRate = [val, v2];
+                updateCreditCost();
+                break;
+
+            case prot.info.sounds:
+                // Soundboard items
+                var valS = util.decodeText(msg.buffer.slice(p.value));
+                addSoundButtons(JSON.parse(valS));
+                break;
+
+            case prot.info.allowAdmin:
+            {
+                // A user has allowed or disallowed us to administrate them
+                if (msg.byteLength < p.length + 1) break;
+                let allowed = !!msg.getUint8(p.length);
+                let props = null;
+                if (msg.byteLength > p.length + 1) {
+                    try {
+                        props = JSON.parse(util.decodeText(msg.buffer.slice(p.length + 1)));
+                    } catch (ex) {}
+                }
+                allowAdmin(val, allowed, props);
+                break;
+            }
+
+            case prot.info.adminState:
+            {
+                if (msg.byteLength <= p.length) break;
+                let props = null;
+                try {
+                    props = JSON.parse(util.decodeText(msg.buffer.slice(p.length)));
+                } catch (ex) {}
+                if (!props || typeof props !== "object") break;
+                updateAdmin(val, props);
+                break;
+            }
+        }
+    });
+
+    util.netEvent("master", "user", function(ev) {
+        let msg: DataView = ev.detail;
+        let p = prot.parts.user;
+        let index = msg.getUint32(p.index, true);
+        let status = msg.getUint32(p.status, true);
+        let nick = util.decodeText(msg.buffer.slice(p.nick));
+
+        // Add it to the UI
+        if (status)
+            ui.userListAdd(index, nick, true);
+        else
+            ui.userListRemove(index, true);
+    });
+
+    util.netEvent("master", "speech", function(ev) {
+        // Master "speech" is really data-receive
+        let msg: DataView = ev.detail;
+        let p = prot.parts.speech;
+        let indexStatus = msg.getUint32(p.indexStatus, true);
+        let index = indexStatus>>>1;
+        let status = (indexStatus&1);
+        ui.userListUpdate(index, !!status, true);
+    });
 }

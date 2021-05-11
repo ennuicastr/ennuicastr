@@ -18,6 +18,7 @@ import * as audio from "./audio";
 import * as config from "./config";
 import * as log from "./log";
 import * as net from "./net";
+import { prot } from "./protocol";
 import * as ui from "./ui";
 import * as util from "./util";
 
@@ -28,7 +29,7 @@ export var userMediaVideo: MediaStream = null;
 export var videoLatency = 0;
 
 // Called when there's a network disconnection
-export function disconnect() {
+function disconnect() {
     if (userMediaVideo) {
         userMediaVideo.getTracks().forEach(function(track) {
             track.stop();
@@ -36,6 +37,7 @@ export function disconnect() {
         userMediaVideo = null;
     }
 }
+util.events.addEventListener("net.disconnect", disconnect);
 
 // Get a camera/video device
 export function getCamera(id: string, res: number) {
@@ -129,3 +131,26 @@ export function getCamera(id: string, res: number) {
     });
 
 }
+
+// Video admin events
+util.events.addEventListener("net.admin.video", function(ev: CustomEvent) {
+    let action: number = ev.detail.action;
+    let arg: string = ev.detail.arg;
+    let acts = prot.flags.admin.actions;
+
+    switch (action) {
+        case acts.videoInput:
+            // FIXME: Better way to do this setting
+            ui.ui.panels.videoConfig.device.value = arg;
+            net.updateAdminPerm({videoDevice: arg});
+            getCamera(arg, +ui.ui.panels.videoConfig.res.value);
+            break;
+
+        case acts.videoRes:
+            // FIXME: Better way to do this setting
+            ui.ui.panels.videoConfig.res.value = arg;
+            net.updateAdminPerm({videoRes: +arg});
+            getCamera(ui.ui.panels.videoConfig.device.value, +arg);
+            break;
+    }
+});

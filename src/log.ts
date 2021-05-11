@@ -14,7 +14,6 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-import * as ui from "./ui";
 import * as util from "./util";
 
 export const log = util.gebi("log");
@@ -45,6 +44,5 @@ function updateStatus() {
         txt = "Recording";
     log.innerText = txt;
 
-    if (ui.ui.log)
-        ui.resizeUI();
+    util.dispatchEvent("ui.resize-needed");
 }

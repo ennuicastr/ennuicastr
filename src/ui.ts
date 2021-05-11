@@ -26,6 +26,7 @@ import * as master from "./master";
 import * as net from "./net";
 import * as outproc from "./outproc";
 import * as proc from "./proc";
+import { prot } from "./protocol";
 import * as ptt from "./ptt";
 import * as uiCode from "./uicode";
 import * as util from "./util";
@@ -994,17 +995,17 @@ function loadUserAdmin() {
     };
 
     req.yes.onclick = function() {
-        net.setAdminPerm(req.user, true, true);
+        net.setAdminPerm(req.user, audio.deviceInfo, true, true);
         showPanel(null, ui.persistent.main);
     };
 
     req.audio.onclick = function() {
-        net.setAdminPerm(req.user, true, false);
+        net.setAdminPerm(req.user, audio.deviceInfo, true, false);
         showPanel(null, ui.persistent.main);
     };
 
     req.no.onclick = function() {
-        net.setAdminPerm(req.user, false, false);
+        net.setAdminPerm(req.user, audio.deviceInfo, false, false);
         showPanel(null, ui.persistent.main);
     };
 }
@@ -1520,6 +1521,9 @@ export function resizeUI(second?: boolean) {
     window.resizeTo(window.outerWidth, ui.outerInnerHeightDiff + idealSize);
 }
 
+// Resize when requested
+util.events.addEventListener("ui.resize-needed", function() { resizeUI(); });
+
 // React to the UI resizing
 function onResize() {
     ui.resized = true;
@@ -1651,6 +1655,13 @@ export function userListAdd(idx: number, name: string, fromMaster: boolean) {
         master.updateMasterAdmin();
     }
 }
+
+// Cogito ergo sum
+util.events.addEventListener("net.info." + prot.info.id, function(ev: CustomEvent) {
+    let val: number = ev.detail.val;
+    userListAdd(val, config.username, false);
+});
+
 
 // Add a video element for this user, if they don't already have one
 export function videoAdd(idx: number, name: string) {
@@ -1833,6 +1844,23 @@ export function userListRemove(idx: number, fromMaster: boolean) {
         ui.sounds.chimeDown.play().catch(console.error);
 }
 
+
+// Add or remove users based on net commands
+util.netEvent("data", "user", function(ev) {
+    let msg: DataView = ev.detail;
+    let p = prot.parts.user;
+    let index = msg.getUint32(p.index, true);
+    let status = msg.getUint32(p.status, true);
+    let nick = util.decodeText(msg.buffer.slice(p.nick));
+
+    // Add it to the UI
+    if (status)
+        userListAdd(index, nick, false);
+    else
+        userListRemove(index, false);
+});
+
+
 // Update the speaking status of an element in the user list
 export function userListUpdate(idx: number, speaking: boolean, fromMaster: boolean) {
     // The user list style follows the live info so it's somewhere
@@ -1853,6 +1881,18 @@ export function userListUpdate(idx: number, speaking: boolean, fromMaster: boole
         master.users[idx].transmitting = speaking;
         master.updateMasterAdmin();
     }
+}
+
+// If we're *not* using RTC, then speech status comes from the data socket
+if (!config.useRTC) {
+    util.netEvent("data", "speech", function(ev) {
+        let msg: DataView = ev.detail;
+        let p = prot.parts.speech;
+        let indexStatus = msg.getUint32(p.indexStatus, true);
+        let index = indexStatus>>>1;
+        let status = (indexStatus&1);
+        userListUpdate(index, !!status, false);
+    });
 }
 
 // Update the video UI based on new information about this peer

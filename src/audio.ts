@@ -52,10 +52,16 @@ var zeroPacket = new Uint8Array([0xF8, 0xFF, 0xFE]);
 // Our start time is in local ticks, and our offset is updated every so often
 var startTime = 0;
 export var timeOffset: null|number = null;
-export function setFirstTimeOffset(to: number) { if (timeOffset === null) timeOffset = to; }
+
+/* So that the time offset doesn't jump all over the place, we adjust it
+ * *slowly*. This is the target time offset */
+var targetTimeOffset: null|number = null;
 
 // And this is the amount to adjust it per frame (1%)
 const timeOffsetAdjPerFrame = 0.0002;
+
+// The delays on the pongs we've received back
+var pongs: number[] = [];
 
 /* To help with editing by sending a clean silence sample, we send the
  * first few (arbitrarily, 8) seconds of VAD-off silence */
@@ -82,7 +88,7 @@ var recordingTimerBase = 0;
 var recordingTimerTicking = false;
 
 // Called when the network is disconnection
-export function disconnect() {
+function disconnect() {
     if (ac) {
         try {
             util.dispatchEvent("disconnected", {});
@@ -98,6 +104,32 @@ export function disconnect() {
         userMedia = null;
     }
 }
+util.events.addEventListener("net.disconnect", disconnect);
+
+// Handle pongs for our time offset
+util.netEvent("ping", "pong", function(ev) {
+    let msg: DataView = ev.detail;
+
+    let p = prot.parts.pong;
+    let sent = msg.getFloat64(p.clientTime, true);
+    let recvd = performance.now();
+    pongs.push(recvd - sent);
+    while (pongs.length > 5)
+        pongs.shift();
+    if (pongs.length < 5) {
+        // Get more pongs now!
+        setTimeout(net.ping, 150);
+    } else {
+        // Get more pongs... eventually
+        setTimeout(net.ping, 10000);
+
+        // And figure out our offset
+        let latency = pongs.reduce(function(a,b){return a+b;})/10;
+        let remoteTime = msg.getFloat64(p.serverTime, true) + latency;
+        targetTimeOffset = remoteTime - recvd;
+        if (timeOffset === null) timeOffset = targetTimeOffset;
+    }
+});
 
 // Get audio permission. First audio step of the process.
 export function getAudioPerms() {
@@ -436,16 +468,16 @@ function sendPacket(granulePos: number, data: {buffer: ArrayBuffer}, vadVal: num
 // Adjust the time for a packet, and adjust the time-adjustment parameters
 function adjustTime(packet: Packet) {
     // Adjust our offsets
-    if (net.targetTimeOffset > timeOffset) {
-        if (net.targetTimeOffset > timeOffset + timeOffsetAdjPerFrame)
+    if (targetTimeOffset > timeOffset) {
+        if (targetTimeOffset > timeOffset + timeOffsetAdjPerFrame)
             timeOffset += timeOffsetAdjPerFrame;
         else
-            timeOffset = net.targetTimeOffset;
-    } else if (net.targetTimeOffset < timeOffset) {
-        if (net.targetTimeOffset < timeOffset - timeOffsetAdjPerFrame)
+            timeOffset = targetTimeOffset;
+    } else if (targetTimeOffset < timeOffset) {
+        if (targetTimeOffset < timeOffset - timeOffsetAdjPerFrame)
             timeOffset -= timeOffsetAdjPerFrame;
         else
-            timeOffset = net.targetTimeOffset;
+            timeOffset = targetTimeOffset;
     }
 
     // And adjust the time
@@ -487,7 +519,7 @@ export function setEchoCancel(to: boolean) {
 }
 
 // Play or stop a sound
-export function playStopSound(url: string, status: number, time: number) {
+function playStopSound(url: string, status: number, time: number) {
     var sound = ui.ui.sounds.soundboard[url];
     if (!sound) {
         // Create an element for it
@@ -554,9 +586,17 @@ export function playStopSound(url: string, status: number, time: number) {
         }
     }
 
-    if ("master" in config.config)
-        master.soundButtonUpdate(url, status, el);
+    util.dispatchEvent("audio.sound", {url: url, status: status, el: el});
 }
+
+util.netEvent("data", "sound", function(ev) {
+    let msg: DataView = ev.detail;
+    let p = prot.parts.sound.sc;
+    let time = msg.getFloat64(p.time, true);
+    let status = msg.getUint8(p.status);
+    let url = util.decodeText(msg.buffer.slice(p.url));
+    playStopSound(url, status, time);
+});
 
 
 // Set the recording timer
@@ -567,6 +607,18 @@ export function setRecordingTimer(serverTime: number, recTime: number, ticking: 
     if (!recordingTimerInterval)
         recordingTimerInterval = setInterval(tickRecordingTimer, 500);
 }
+
+util.events.addEventListener("net.info." + prot.info.mode, function(ev: CustomEvent) {
+    let val: number = ev.detail.val;
+    let msg: DataView = ev.detail.msg;
+    let p = prot.parts.info;
+
+    if (msg.byteLength >= p.length + 16) {
+        let sTime = msg.getFloat64(p.value + 4, true);
+        let recTime = msg.getFloat64(p.value + 12, true);
+        setRecordingTimer(sTime, recTime, (val === prot.mode.rec));
+    }
+});
 
 // Tick the recording timer
 function tickRecordingTimer() {
@@ -616,3 +668,60 @@ export function deviceInfo(allowVideo: boolean) {
 
     });
 }
+
+// Administration of our various settings
+util.netEvent("data", "admin", function(ev) {
+    let msg: DataView = ev.detail;
+    let p = prot.parts.admin;
+    let acts = prot.flags.admin.actions;
+    let action = msg.getUint32(p.action, true);
+
+    // Some commands apply to all users
+    if (action === acts.mute) {
+        toggleMute(false);
+
+    } else if (action === acts.echoCancel) {
+        setEchoCancel(true);
+
+    } else if (action === acts.request) {
+        // Request for admin access
+        let reqNick = util.decodeText(msg.buffer.slice(p.argument));
+        let target = msg.getUint32(p.target, true);
+        ui.ui.panels.userAdminReq.user = target;
+        ui.ui.panels.userAdminReq.name.innerText = reqNick;
+        ui.showPanel("userAdminReq", "audio");
+
+    } else {
+        // All other actions require permission
+        let src = msg.getUint32(p.target, true);
+        let acc = net.adminAccess[src];
+        if (!acc || !acc.audio) return;
+
+        // Beyond videoInput also require video permission
+        if (action >= acts.videoInput && !acc.video) return;
+
+        let arg = util.decodeText(msg.buffer.slice(p.argument));
+
+        switch (action) {
+            case acts.unmute:
+                toggleMute(true);
+                break;
+
+            case acts.unechoCancel:
+                setEchoCancel(false);
+                break;
+
+            case acts.audioInput:
+                // FIXME: Better way to do this setting
+                ui.ui.panels.inputConfig.device.value = arg;
+                net.updateAdminPerm({audioDevice: arg});
+                getMic(arg);
+                break;
+
+            default:
+                // The rest are video-admin-related, so pass them off
+                util.dispatchEvent("net.admin.video", {action: action, arg: arg});
+        }
+    }
+});
+

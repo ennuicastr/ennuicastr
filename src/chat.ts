@@ -30,6 +30,14 @@ export function recvChat(text: string) {
     ui.ui.chat.incoming.scroll(0, 1000000);
 }
 
+// Chat messages come from the data sock
+util.netEvent("data", "text", function(ev) {
+    let msg: DataView = ev.detail;
+    let p = prot.parts.text;
+    let text = util.decodeText(msg.buffer.slice(p.text));
+    recvChat(text);
+});
+
 // Send a chat message
 function sendChat(text: string) {
     var textBuf = util.encodeText(text);
