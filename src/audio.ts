@@ -19,15 +19,14 @@ declare var MediaRecorder: any, webkitAudioContext: any;
 
 import * as config from "./config";
 import * as log from "./log";
-import * as master from "./master";
 import * as net from "./net";
-import * as proc from "./proc";
 import { prot } from "./protocol";
 import * as ptt from "./ptt";
 import * as capture from "./capture";
 import * as ui from "./ui";
 import * as util from "./util";
 import { dce } from "./util";
+import * as vad from "./vad";
 
 // The audio device being read
 export var userMedia: MediaStream = null;
@@ -423,9 +422,9 @@ function handlePackets() {
     else
         log.popStatus("buffering");
 
-    if (!proc.vadOn) {
+    if (!vad.vadOn) {
         // Drop any sufficiently old packets, or send them marked as silence in continuous mode
-        var old = curGranulePos - proc.vadExtension*48;
+        var old = curGranulePos - vad.vadExtension*48;
         while (packets[0][0] < old) {
             var packet = packets.shift();
             var granulePos = adjustTime(packet);
@@ -445,7 +444,7 @@ function handlePackets() {
         }
 
     } else {
-        var vadVal = (proc.rawVadOn?2:1);
+        var vadVal = (vad.rawVadOn?2:1);
 
         // VAD is on, so send packets
         packets.forEach(function (packet) {

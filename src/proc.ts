@@ -25,20 +25,10 @@ import * as net from "./net";
 import * as capture from "./capture";
 import * as ui from "./ui";
 import * as util from "./util";
+import * as vad from "./vad";
 import * as waveform from "./waveform";
 
-// WebRTCVAD's raw output
-export var rawVadOn = false;
-
-// Recording VAD after warmup and cooldown
-export var vadOn = false;
-
-// RTC VAD after cooldown
-export var rtcVadOn = false;
 var rtcVadOnTime: null|number = null;
-
-// Number of milliseconds to run the VAD for before/after talking
-export const vadExtension = 2000;
 
 // Set if we've sent data recently
 let sentRecently = false;
@@ -51,7 +41,7 @@ export var useNR = false;
 export function setUseNR(to: boolean) { useNR = to; }
 
 function rtcVad(destination: MediaStream, to: boolean) {
-    rtcVadOn = to;
+    vad.setRTCVadOn(to);
     if (to)
         rtcVadOnTime = performance.now();
     else
@@ -138,12 +128,12 @@ function localProcessingWorker() {
             let msg = ev.data;
             if (msg.c === "state") {
                 // VAD state
-                rawVadOn = msg.rawVadOn;
-                if (msg.rtcVadOn !== rtcVadOn)
+                vad.setRawVadOn(msg.rawVadOn);
+                if (msg.rtcVadOn !== vad.rtcVadOn)
                     rtcVad(capture.destination, msg.rtcVadOn);
-                if (msg.vadOn !== vadOn) {
+                if (msg.vadOn !== vad.vadOn) {
                     if (msg.vadOn)
-                        wd.updateWaveRetroactive(vadExtension);
+                        wd.updateWaveRetroactive(vad.vadExtension);
                     updateSpeech(null, msg.vadOn);
                 }
 
@@ -158,7 +148,7 @@ function localProcessingWorker() {
                 }
 
                 // Display
-                wd.push(msg.m, net.transmitting?(rawVadOn?3:(vadOn?2:1)):0);
+                wd.push(msg.m, net.transmitting?(vad.rawVadOn?3:(vad.vadOn?2:1)):0);
                 wd.updateWave(msg.m, sentRecently);
 
             }
@@ -195,7 +185,7 @@ export function updateSpeech(peer: number, status: boolean) {
 
     if (peer === null) {
         // Set the VAD
-        vadOn = status;
+        vad.setVadOn(status);
 
         // Send the update to all RTC peers
         jitsi.speech(status);

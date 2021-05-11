@@ -17,8 +17,6 @@
 // extern
 declare var webkitAudioContext: any;
 
-import * as audio from "./audio";
-
 // Worker paths to use
 const workerVer = "g";
 const awpPath = "awp/ennuicastr-awp.js?v=" + workerVer;
