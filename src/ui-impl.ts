@@ -792,7 +792,7 @@ export function mkAudioUI() {
             video.getCamera(videoConfig.device.value, +videoConfig.res.value);
         }
     }
-    uiFE.saveConfigValue(videoConfig.res, "video-res", resChange);
+    uiFE.saveConfigValue(videoConfig.res, "video-res2", resChange);
 
     // View mode
     function viewModeChange(ev: Event) {
