@@ -946,6 +946,15 @@ export function userListUpdate(idx: number, speaking: boolean, fromMaster: boole
     updateVideoUI(idx, speaking, fromMaster);
 }
 
+// Update the user list when we get speech info
+util.events.addEventListener("ui.speech", function(ev: CustomEvent) {
+    let user = ev.detail.user;
+    let status = ev.detail.status;
+    if (user === null)
+        user = net.selfId;
+    userListUpdate(user, status, false);
+});
+
 // If we're *not* using RTC, then speech status comes from the data socket
 if (!config.useRTC) {
     util.netEvent("data", "speech", function(ev) {

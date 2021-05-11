@@ -421,7 +421,7 @@ function jitsiMessage(user: any, jmsg: any) {
             let p = prot.parts.speech;
             if (msg.byteLength < p.length) return;
             let status = !!msg.getUint32(p.indexStatus, true);
-            proc.updateSpeech(peer, status);
+            util.dispatchEvent("ui.speech", {user: peer, status: status});
             break;
         }
 
@@ -598,6 +598,12 @@ export function speech(status: boolean, peer?: number) {
     // Send it
     sendMsg(msg, peer);
 }
+
+// If we get a speech event from us, send it out
+util.events.addEventListener("ui.speech", function(ev: CustomEvent) {
+    if (ev.detail.user === null)
+        speech(ev.detail.status);
+});
 
 // Send a chunk of video data to a peer
 export function videoDataSend(peer: number, idx: number, buf: Uint8Array) {

@@ -19,7 +19,6 @@ declare var Ennuiboard: any, NoiseRepellent: any, WebRtcVad: any;
 
 import * as audio from "./audio";
 import * as config from "./config";
-import * as jitsi from "./jitsi";
 import * as log from "./log";
 import * as net from "./net";
 import * as capture from "./capture";
@@ -134,7 +133,8 @@ function localProcessingWorker() {
                 if (msg.vadOn !== vad.vadOn) {
                     if (msg.vadOn)
                         wd.updateWaveRetroactive(vad.vadExtension);
-                    updateSpeech(null, msg.vadOn);
+                    vad.setVadOn(msg.vadOn);
+                    util.dispatchEvent("ui.speech", {user: null, status: msg.vadOn});
                 }
 
             } else if (msg.c === "max") {
@@ -176,23 +176,4 @@ function localProcessingWorker() {
         }, {once: true});
 
     });
-}
-
-// Update speech info everywhere that needs it. peer===null is self
-export function updateSpeech(peer: number, status: boolean) {
-    // In video, to avoid races, peer 0 is us, not selfId
-    var vpeer = peer;
-
-    if (peer === null) {
-        // Set the VAD
-        vad.setVadOn(status);
-
-        // Send the update to all RTC peers
-        jitsi.speech(status);
-        peer = net.selfId;
-        vpeer = 0;
-    }
-
-    // Update the user list
-    ui.userListUpdate(peer, status, false);
 }
