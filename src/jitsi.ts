@@ -319,7 +319,7 @@ function jitsiTrackAdded(track: any) {
 
     // If they're the major, ask for higher quality
     if (ui.ui.video.major === id)
-        room.selectParticipant(inc.id);
+        setMajor(id);
 }
 
 // Called when a remote track is removed
@@ -632,7 +632,30 @@ function setMajor(peer: number) {
     if (!(peer in incoming) || !room)
         return;
     let jid = incoming[peer].id;
-    room.selectParticipant(jid);
+
+    if (peer < 0) {
+        // No primary = everyone is primary!
+        room.setReceiverConstraints({
+            lastN: 64,
+            selectedEndpoints: [],
+            onStageEndpoints: [],
+            defaultConstraints: { maxHeight: 1080 },
+            constraints: {}
+        });
+
+    } else {
+        // Set this individual as preferred
+        let constraints: any = {};
+        constraints[jid] = { maxHeight: 1080 };
+        room.setReceiverConstraints({
+            lastN: 64,
+            selectedEndpoints: [jid],
+            onStageEndpoints: [jid],
+            defaultConstraints: { maxHeight: 360 },
+            constraints: constraints
+        });
+
+    }
 }
 
 util.events.addEventListener("ui.video.major", function() {
