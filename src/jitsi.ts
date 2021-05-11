@@ -289,7 +289,13 @@ function jitsiTrackAdded(track: any) {
     let id = getUserId(track);
     if (!(id in incoming)) {
         incoming[id] = {id: null, audio: null, video: null};
+
+        // Initial "connection". Tell them our current speech status.
         speech(vad.vadOn, id);
+
+        // And if we're a master, tell them whether we accept remote video.
+        if ("master" in config.config)
+            videoRecSend(id, prot.videoRec.videoRecHost, ~~ui.ui.panels.master.acceptRemoteVideo.checked);
     }
     let inc = incoming[id];
     inc.id = track.getParticipantId();
