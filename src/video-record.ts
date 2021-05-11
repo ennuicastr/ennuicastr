@@ -764,8 +764,8 @@ function maybeRecord() {
         if (supported && video.userMediaVideo && recording.record.checked) {
             // We should be recording
             let opts: RecordVideoOptions = {
-                remote: !("master" in config.config) && recording.remote.checked,
-                local: ("master" in config.config) || recording.local.checked
+                remote: !("master" in config.config) && recording.remote.checked && config.useRTC,
+                local: ("master" in config.config) || recording.local.checked || !config.useRTC
             };
             if (recording.manualBitrate.checked) {
                 let br = +recording.bitrate.value;
