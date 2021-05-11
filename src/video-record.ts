@@ -123,9 +123,9 @@ function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
     let videoSettings = video.userMediaVideo.getVideoTracks()[0].getSettings();
     let bitrate: number;
     if (opts.bitrate)
-        bitrate = Math.min(opts.bitrate * 1000000, videoSettings.height * 50000);
+        bitrate = Math.min(opts.bitrate * 1000000, videoSettings.height * 75000);
     else
-        bitrate = videoSettings.height * 5000;
+        bitrate = videoSettings.height * 7500;
     let globalFrameTime = 1/videoSettings.frameRate * 1000;
     let libav: any;
     let transtate: TranscodeState = {};
