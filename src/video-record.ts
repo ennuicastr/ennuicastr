@@ -556,6 +556,24 @@ function recordVideoPanel() {
     ui.showPanel("videoRecord", focus);
 }
 
+// Convert from a Blob to an ArrayBuffer
+function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
+    if (blob.arrayBuffer) {
+        return blob.arrayBuffer();
+
+    } else {
+        // Use FileReader
+        return new Promise(res => {
+            let fr = new FileReader();
+            fr.onloadend = function() {
+                res(<ArrayBuffer> fr.result);
+            };
+            fr.readAsArrayBuffer(blob);
+        });
+
+    }
+}
+
 // Input handler for video recording
 function recordVideoInput(transtate: TranscodeState) {
     var libav = transtate.libav;
@@ -576,7 +594,7 @@ function recordVideoInput(transtate: TranscodeState) {
             var p: Promise<unknown> = Promise.all([]);
             mediaRecorder.addEventListener("dataavailable", function(chunk: {data: Blob}) {
                 p = p.then(function() {
-                    return chunk.data.arrayBuffer();
+                    return blobToArrayBuffer(chunk.data);
                 }).then(function(ab) {
                     var chunk = new Uint8Array(ab);
                     var newData = new Uint8Array(data.length + chunk.length);
@@ -679,7 +697,7 @@ function recordVideoInput(transtate: TranscodeState) {
             inputPromise = inputPromise.then(function() {
                 // Convert to an ArrayBuffer
                 if (blob)
-                    return blob.arrayBuffer();
+                    return blobToArrayBuffer(blob);
                 else
                     return null;
 
