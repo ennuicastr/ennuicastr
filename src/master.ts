@@ -188,6 +188,7 @@ function genInvite() {
     var f = (
         (ui.ui.panels.master.inviteContinuous.checked?config.features.continuous:0) +
         ((config.config.format&config.features.rtc)?config.features.rtc:0) +
+        (config.useVideoRec?config.features.videorec:0) +
         (ui.ui.panels.master.inviteFLAC.checked?prot.flags.dataType.flac:0)
     );
     var sb = "?" + config.config.id.toString(36) + "-" + config.config.key.toString(36);
