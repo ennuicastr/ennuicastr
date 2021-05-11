@@ -25,6 +25,7 @@ import * as proc from "./proc";
 import { prot } from "./protocol";
 import * as ui from "./ui";
 import * as util from "./util";
+import * as vad from "./vad";
 import * as video from "./video";
 import * as videoRecord from "./video-record";
 
@@ -286,8 +287,10 @@ function jitsiTrackAdded(track: any) {
 
     // Get the user
     let id = getUserId(track);
-    if (!(id in incoming))
+    if (!(id in incoming)) {
         incoming[id] = {id: null, audio: null, video: null};
+        speech(vad.vadOn, id);
+    }
     let inc = incoming[id];
     inc.id = track.getParticipantId();
     (<any> inc)[type] = track;
