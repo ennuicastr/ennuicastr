@@ -50,13 +50,17 @@ let jAudio: any;
 // Jitsi outgoing video track
 let jVideo: any;
 
-// Incoming tracks by user
-interface TrackPair {
+// Jitsi peer information
+interface JitsiPeer {
     id: string; // Jitsi ID
     audio: any;
     video: any;
+    rtc: RTCPeerConnection;
+    data: RTCDataChannel;
+    signal: (msg:any)=>unknown;
+    rtcReady: boolean;
 }
-let incoming: Record<number, TrackPair> = {};
+let jitsiPeers: Record<number, JitsiPeer> = {};
 
 // If we're a video recording receiver, the write stream for each user
 interface VideoRecIncoming {
@@ -65,6 +69,27 @@ interface VideoRecIncoming {
     writer: WritableStreamDefaultWriter;
 }
 let videoRecIncoming: Record<number, VideoRecIncoming> = {};
+
+// Assert that a Jitsi peer exists
+function assertJitsiPeer(id: number, jid: string) {
+    if (jitsiPeers[id])
+        return jitsiPeers[id];
+
+    let ret = jitsiPeers[id] = {
+        id: jid,
+        audio: null,
+        video: null,
+        rtc: null,
+        data: null,
+        signal: null,
+        rtcReady: false
+    };
+
+    // Once we know they exist, we start trying to connect via RTC as well
+    startRTC(id, ret);
+
+    return ret;
+}
 
 // Initialize the Jitsi connection
 function initJitsi() {
@@ -79,14 +104,16 @@ function initJitsi() {
 
     }).then(() => {
         // Get rid of any old Jitsi instance. First, clear tracks.
-        for (let id in incoming) {
-            let inc = incoming[id];
+        for (let id in jitsiPeers) {
+            let inc = jitsiPeers[id];
             if (inc.video)
                 jitsiTrackRemoved(inc.video);
             if (inc.audio)
                 jitsiTrackRemoved(inc.audio);
+            if (inc.rtc)
+                inc.rtc.close();
         }
-        incoming = {};
+        jitsiPeers = {};
 
         if (room) {
             room.removeEventListener(JitsiMeetJS.events.conference.CONFERENCE_LEFT, net.disconnect);
@@ -287,8 +314,9 @@ function jitsiTrackAdded(track: any) {
 
     // Get the user
     let id = getUserId(track);
-    if (!(id in incoming)) {
-        incoming[id] = {id: null, audio: null, video: null};
+    let jid = track.getParticipantId();
+    if (!(id in jitsiPeers)) {
+        assertJitsiPeer(id, jid);
 
         // Initial "connection". Tell them our current speech status.
         speech(vad.vadOn, id);
@@ -297,8 +325,7 @@ function jitsiTrackAdded(track: any) {
         if ("master" in config.config)
             videoRecSend(id, prot.videoRec.videoRecHost, ~~ui.ui.panels.master.acceptRemoteVideo.checked);
     }
-    let inc = incoming[id];
-    inc.id = track.getParticipantId();
+    let inc = jitsiPeers[id];
     (<any> inc)[type] = track;
 
     // Make sure they have a video element
@@ -330,16 +357,20 @@ function jitsiTrackRemoved(track: any) {
 
     // Get the user
     let id = getUserId(track);
-    if (!(id in incoming))
+    if (!(id in jitsiPeers))
         return;
-    let inc = incoming[id];
+    let inc = jitsiPeers[id];
 
     // If this isn't even their current track, ignore it
     if ((<any> inc)[type] !== track)
         return;
     (<any> inc)[type] = null;
-    if (!inc.audio && !inc.video)
-        delete incoming[id];
+    if (!inc.audio && !inc.video && !inc.rtcReady) {
+        try {
+            inc.rtc.close();
+        } catch (ex) {}
+        delete jitsiPeers[id];
+    }
 
     // Remove it from the UI
     if (ui.ui.video.users[id]) {
@@ -356,12 +387,9 @@ function jitsiTrackRemoved(track: any) {
         outproc.destroyCompressor(id);
 }
 
-// Incoming end-to-end messages
+// Incoming Jitsi end-to-end messages
 function jitsiMessage(user: any, jmsg: any) {
-    if (jmsg.type !== "ennuicastr")
-        return;
-
-    if (typeof jmsg.ec !== "string")
+    if (jmsg.type !== "ennuicastr" && jmsg.type !== "ennuicastr-rtc")
         return;
 
     // Get the peer number
@@ -369,8 +397,17 @@ function jitsiMessage(user: any, jmsg: any) {
     let peer = +user.getDisplayName();
     if (Number.isNaN(peer))
         return;
-    if (!(peer in incoming))
-        incoming[peer] = {id: jid, audio: null, video: null};
+    let inc = assertJitsiPeer(peer, jid);
+
+    if (jmsg.type === "ennuicastr-rtc") {
+        // Just send it along
+        if (inc.signal)
+            inc.signal(jmsg);
+        return;
+    }
+
+    if (typeof jmsg.ec !== "string")
+        return;
 
     // Turn it back into raw data
     let ec = jmsg.ec;
@@ -379,11 +416,17 @@ function jitsiMessage(user: any, jmsg: any) {
         buf[i] = ec.charCodeAt(i);
     let msg = new DataView(buf.buffer);
 
-    // Then process it
+    return peerMessage(peer, msg);
+}
+
+
+// Incoming RTC or Jitsi end-to-end messages
+function peerMessage(peer: number, msg: DataView) {
     if (msg.byteLength < 4)
         return;
     let cmd = msg.getUint32(0, true);
 
+    // Process the command
     switch (cmd) {
         case prot.ids.data:
             try {
@@ -508,12 +551,22 @@ function sendMsg(msg: Uint8Array, peer?: number) {
         return;
 
     // Get the target ID
+    let inc: JitsiPeer = null;
     let jid: string = null;
     if (typeof peer !== "undefined") {
-        if (!(peer in incoming))
+        if (!(peer in jitsiPeers))
             return;
-        jid = incoming[peer].id;
+        inc = jitsiPeers[peer];
+        jid = inc.id;
     }
+
+    // If we can, send it directly
+    if (inc && inc.rtcReady) {
+        inc.data.send(msg.buffer);
+        return;
+    }
+
+    // Otherwise, we'll send it via the bridge
 
     // Convert the message to a string (gross)
     let msga: string[] = [];
@@ -523,8 +576,8 @@ function sendMsg(msg: Uint8Array, peer?: number) {
     let msgj = {type: "ennuicastr", ec: msgs};
 
     // Send it to the peer or broadcast it to all peers
-    if (jid === null) {
-        if (Object.keys(incoming).length > 0)
+    if (inc === null) {
+        if (Object.keys(jitsiPeers).length > 0)
             room.broadcastEndpointMessage(msgj);
     } else {
         room.sendEndpointMessage(jid, msgj);
@@ -576,14 +629,14 @@ util.events.addEventListener("net.disconnect", disconnect);
 // Close a given peer's RTC connection
 function closeRTC(peer: number) {
     // Even if they're still on RTC, this should be considered catastrophic
-    if (!(peer in incoming))
+    if (!(peer in jitsiPeers))
         return;
-    let inc = incoming[peer];
+    let inc = jitsiPeers[peer];
     if (inc.video)
         jitsiTrackRemoved(inc.video);
     if (inc.audio)
         jitsiTrackRemoved(inc.audio);
-    delete incoming[peer];
+    delete jitsiPeers[peer];
 }
 
 if (config.useRTC) {
@@ -629,9 +682,9 @@ export function videoDataSend(peer: number, idx: number, buf: Uint8Array) {
 
 // Set the "major" (primary speaker) for video quality
 function setMajor(peer: number) {
-    if (!(peer in incoming) || !room)
+    if (!(peer in jitsiPeers) || !room)
         return;
-    let jid = incoming[peer].id;
+    let jid = jitsiPeers[peer].id;
 
     if (peer < 0) {
         // No primary = everyone is primary!
@@ -661,3 +714,104 @@ function setMajor(peer: number) {
 util.events.addEventListener("ui.video.major", function() {
     setMajor(ui.ui.video.major);
 });
+
+
+/* The RTC side: using Jitsi as a bridge, try to establish a direct (RTC)
+ * connection for data */
+function startRTC(id: number, j: JitsiPeer) {
+    // Perfect negotiation pattern
+    const polite = (net.selfId > id);
+    let makingOffer = false, ignoreOffer = false;
+
+    // Create our peer connection
+    j.rtc = new RTCPeerConnection({
+        iceServers: net.iceServers
+    });
+
+    // Incoming data channels
+    j.rtc.ondatachannel = function(ev: RTCDataChannelEvent) {
+        let data = ev.channel;
+        data.binaryType = "arraybuffer";
+        data.onmessage = function(ev: MessageEvent) {
+            let msg = new DataView(ev.data);
+            peerMessage(id, msg);
+        };
+    };
+
+    // Negotiation
+    j.rtc.onnegotiationneeded = onnegotiationneeded;
+    function onnegotiationneeded() {
+        makingOffer = true;
+        j.rtc.createOffer().then(offer => {
+            return j.rtc.setLocalDescription(offer);
+        }).then(() => {
+            // Tell them our local description
+            if (room)
+                room.sendEndpointMessage(j.id, {type: "ennuicastr-rtc", desc: j.rtc.localDescription});
+        }).catch(()=>{}).then(() => {
+            makingOffer = false;
+        });
+    };
+
+    // ICE candidates
+    j.rtc.onicecandidate = function(ev: RTCPeerConnectionIceEvent) {
+        if (room)
+            room.sendEndpointMessage(j.id, {type: "ennuicastr-rtc", cand: ev.candidate});
+    };
+
+    // Incoming signals
+    j.signal = function(msg: any) {
+        if (msg.desc) {
+            // An offer or answer
+            let desc = msg.desc;
+            let rollbackLocal = false;
+            if (desc.type === "offer" && j.rtc.signalingState !== "stable") {
+                if (!polite)
+                    return;
+                rollbackLocal = true;
+            }
+
+            return Promise.all([]).then(() => {
+                // Maybe rollback local
+                if (rollbackLocal)
+                    return j.rtc.setLocalDescription({type: "rollback"});
+
+            }).then(() => {
+                // Set the remote description
+                return j.rtc.setRemoteDescription(desc);
+
+            }).then(() => {
+                if (desc.type === "offer") {
+                    // And create our answer
+                    return j.rtc.createAnswer().then(answer => {
+                        return j.rtc.setLocalDescription(answer);
+                    }).then(() => {
+                        if (room)
+                            room.sendEndpointMessage(j.id, {type: "ennuicastr-rtc", desc: j.rtc.localDescription });
+                    });
+                }
+
+            }).catch(console.error);
+
+        } else if (msg.cand) {
+            j.rtc.addIceCandidate(msg.cand).catch(()=>{});
+
+        }
+    };
+
+    // Create our data channel
+    j.data = j.rtc.createDataChannel("ennuicastr");
+    j.data.onopen = function() {
+        j.rtcReady = true;
+    };
+    j.data.onclose = j.data.onerror = function() {
+        j.rtcReady = false;
+
+        if (jitsiPeers[id] === j && !j.audio && !j.video) {
+            // There's nothing left
+            delete jitsiPeers[id];
+        }
+    };
+
+    onnegotiationneeded();
+}
