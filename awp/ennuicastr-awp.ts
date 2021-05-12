@@ -25,7 +25,7 @@ interface AudioWorkletProcessor {
     ): boolean;
 }
 
-declare var AudioWorkletProcessor: {
+declare const AudioWorkletProcessor: {
     prototype: AudioWorkletProcessor;
     new (options?: AudioWorkletNodeOptions): AudioWorkletProcessor;
 };
@@ -65,18 +65,18 @@ class WorkerProcessor extends AudioWorkletProcessor {
 
         // The only message from the AWP port is the worker port
         this.port.onmessage = ev => {
-            var msg = ev.data;
+            const msg = ev.data;
             switch (msg.c) {
                 case "workerPort":
                     this.workerPort = msg.p;
                     this.workerPort.onmessage = ev => {
                         // Message-passing data receipt
                         let writeHead = this.incomingRW[1];
-                        let buf = ev.data.d;
-                        let len = buf[0].length;
+                        const buf = ev.data.d;
+                        const len = buf[0].length;
                         if (writeHead + len > bufSz) {
                             // We loop around
-                            let brk = bufSz - writeHead;
+                            const brk = bufSz - writeHead;
                             for (let i = 0; i < this.incoming.length; i++) {
                                 this.incoming[i].set(buf[i%buf.length].subarray(0, brk), writeHead);
                                 this.incoming[i].set(buf[i%buf.length].subarray(brk), 0);
@@ -94,6 +94,7 @@ class WorkerProcessor extends AudioWorkletProcessor {
         };
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     process(inputs: Float32Array[][], outputs: Float32Array[][], parameters: Record<string, Float32Array>) {
         if (!this.workerPort || inputs.length === 0 || inputs[0].length === 0)
             return true;
@@ -101,7 +102,7 @@ class WorkerProcessor extends AudioWorkletProcessor {
         // SETUP
 
         if (!this.incoming) {
-            let chans = inputs[0].length;
+            const chans = inputs[0].length;
             this.incoming = [];
             for (let i = 0; i < chans; i++) {
                 this.incoming.push(new Float32Array(
@@ -141,14 +142,14 @@ class WorkerProcessor extends AudioWorkletProcessor {
         // INPUT (outgoing)
 
         // Transmit our current data
-        let inp = inputs[0];
+        const inp = inputs[0];
         if (this.canShared) {
             // Write it into the buffer
             let writeHead = this.outgoingRW[1];
-            let len = inp[0].length;
+            const len = inp[0].length;
             if (writeHead + len > bufSz) {
                 // We wrap around
-                let brk = bufSz - writeHead;
+                const brk = bufSz - writeHead;
                 for (let i = 0; i < this.outgoing.length; i++) {
                     this.outgoing[i].set(inp[i%inp.length].subarray(0, brk), writeHead);
                     this.outgoing[i].set(inp[i%inp.length].subarray(brk), 0);
@@ -198,11 +199,11 @@ class WorkerProcessor extends AudioWorkletProcessor {
             return true;
 
         // Finally, send the buffered output
-        let out = outputs[0];
-        let readEnd = (readHead + out[0].length) % bufSz;
+        const out = outputs[0];
+        const readEnd = (readHead + out[0].length) % bufSz;
         if (readEnd < readHead) {
             // We wrap around
-            let brk = bufSz - readHead;
+            const brk = bufSz - readHead;
             for (let i = 0; i < out.length; i++) {
                 out[i].set(this.incoming[i%this.incoming.length].subarray(readHead), 0);
                 out[i].set(this.incoming[i%this.incoming.length].subarray(0, readEnd), brk);

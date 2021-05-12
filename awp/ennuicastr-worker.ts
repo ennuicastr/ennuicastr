@@ -14,7 +14,7 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-declare var LibAV: any, NoiseRepellent: any, NoiseRepellentFactory: any, WebRtcVad: any, __filename: string;
+declare let LibAV: any, NoiseRepellent: any, NoiseRepellentFactory: any, WebRtcVad: any, __filename: string;
 
 const libavVersion = "2.3.4.4";
 const libavPath = "../libav/libav-" + libavVersion + "-ennuicastr.js";
@@ -26,7 +26,7 @@ const vadExtension = 2000;
 const rtcVadExtension = 1000;
 
 // Code for an atomic waiter, which simply informs us whenever the write head changes
-let waitWorkerCode = `
+const waitWorkerCode = `
 onmessage = function(ev) {
     var prevVal = 0;
     var buf = ev.data;
@@ -67,7 +67,7 @@ class AWPHandler {
     }
 
     onmessage(ev: MessageEvent) {
-        let msg = ev.data;
+        const msg = ev.data;
 
         // We could be receiving a command, or just data
         if (typeof msg === "object" &&
@@ -79,40 +79,39 @@ class AWPHandler {
             this.outgoingRW = msg.incomingRW;
 
             // Create a worker to inform us when we have incoming data
-            let ww = this.waitWorker = new Worker("data:application/javascript," + encodeURIComponent(waitWorkerCode));
-            let self = this;
-            ww.onmessage = function(ev: MessageEvent) {
-                let msg: number[] = ev.data;
-                let ts = msg[0];
-                let start = msg[1];
-                let end = msg[2];
-                let buf: Float32Array[] = [];
-                let bufSz = self.incoming[0].length;
+            const ww = this.waitWorker = new Worker("data:application/javascript," + encodeURIComponent(waitWorkerCode));
+            ww.onmessage = (ev: MessageEvent) => {
+                const msg: number[] = ev.data;
+                const ts = msg[0];
+                const start = msg[1];
+                const end = msg[2];
+                const buf: Float32Array[] = [];
+                const bufSz = this.incoming[0].length;
                 let len = end - start;
 
                 /* We still need an atomic load just to guarantee a memory
                  * fence in this thread */
-                Atomics.load(self.incomingRW, 1);
+                Atomics.load(this.incomingRW, 1);
 
                 if (end < start) {
                     // We wrapped around
                     len += bufSz;
-                    let brk = bufSz - start;
-                    for (let i = 0; i < self.incoming.length; i++) {
-                        let sbuf = new Float32Array(len);
-                        sbuf.set(self.incoming[i].subarray(start), 0);
-                        sbuf.set(self.incoming[i].subarray(0, end), brk);
+                    const brk = bufSz - start;
+                    for (let i = 0; i < this.incoming.length; i++) {
+                        const sbuf = new Float32Array(len);
+                        sbuf.set(this.incoming[i].subarray(start), 0);
+                        sbuf.set(this.incoming[i].subarray(0, end), brk);
                         buf.push(sbuf);
                     }
 
                 } else {
                     // Simple case
-                    for (let i = 0; i < self.incoming.length; i++)
-                        buf.push(self.incoming[i].slice(start, end));
+                    for (let i = 0; i < this.incoming.length; i++)
+                        buf.push(this.incoming[i].slice(start, end));
 
                 }
 
-                self.ondata(ts, buf);
+                this.ondata(ts, buf);
             };
 
             // Start it up
@@ -131,8 +130,8 @@ class AWPHandler {
         }
 
         if (this.ts && this.buf) {
-            let ts = this.ts;
-            let buf = this.buf;
+            const ts = this.ts;
+            const buf = this.buf;
             this.ts = null;
             this.buf = null;
             this.ondata(ts, buf);
@@ -142,7 +141,7 @@ class AWPHandler {
     sendData(buf: Float32Array[]) {
         if (this.outgoing) {
             // Using shared memory
-            let bufSz = this.outgoing[0].length;
+            const bufSz = this.outgoing[0].length;
             let len = buf[0].length;
             if (len > bufSz) {
                 // This is bad!
@@ -151,7 +150,7 @@ class AWPHandler {
             let writeHead = this.outgoingRW[1];
             if (writeHead + len > bufSz) {
                 // We wrap around
-                let brk = bufSz - writeHead;
+                const brk = bufSz - writeHead;
                 for (let i = 0; i < this.outgoing.length; i++) {
                     this.outgoing[i].set(buf[i%buf.length].subarray(0, brk), writeHead);
                     this.outgoing[i].set(buf[i%buf.length].subarray(brk), 0);
@@ -175,15 +174,9 @@ class AWPHandler {
     }
 }
 
-// Incoming data in its unusual format
-interface Incoming {
-    time?: number;
-    data?: Float32Array[];
-}
-
 // Our initial message tells us what kind of worker to be
 onmessage = function(ev) {
-    var msg = ev.data;
+    const msg = ev.data;
     switch (msg.c) {
         case "encoder":
             doEncoder(msg);
@@ -205,27 +198,26 @@ onmessage = function(ev) {
 
 // Encode with libav
 function doEncoder(msg: any) {
-    let awpHandler: AWPHandler;
-    var inPort: MessagePort = msg.port;
-    var inSampleRate: number = msg.inSampleRate || 48000;
-    var outSampleRate: number = msg.outSampleRate || 48000;
-    var format: string = msg.format || "opus";
-    var channelLayout: number = msg.channelLayout || 4;
-    var channelCount: number = msg.channelCount || 1;
-    var p: Promise<unknown> = Promise.all([]);
-    var pts = 0;
+    const inPort: MessagePort = msg.port;
+    const inSampleRate: number = msg.inSampleRate || 48000;
+    const outSampleRate: number = msg.outSampleRate || 48000;
+    const format: string = msg.format || "opus";
+    const channelLayout: number = msg.channelLayout || 4;
+    const channelCount: number = msg.channelCount || 1;
+    let p: Promise<unknown> = Promise.all([]);
+    let pts = 0;
     let seq = 0;
 
-    var libav: any;
-    var encOptions: any = {
+    let libav: any;
+    const encOptions: any = {
         sample_rate: outSampleRate,
         frame_size: outSampleRate * 20 / 1000,
         channel_layout: 4,
         channels: 1
     };
 
-    var codec: number, c: number, frame: number, pkt: number;
-    var filter_graph: number, buffersrc_ctx: number, buffersink_ctx: number;
+    let c: number, frame: number, pkt: number;
+    let buffersrc_ctx: number, buffersink_ctx: number;
 
     // Load libav
     LibAV = {nolibavworker: true, base: "../libav"};
@@ -245,7 +237,6 @@ function doEncoder(msg: any) {
         return libav.ff_init_encoder((format==="flac")?"flac":"libopus", encOptions, 1, outSampleRate);
 
     }).then((ret: any) => {
-        codec = ret[0];
         c = ret[1];
         frame = ret[2];
         pkt = ret[3];
@@ -265,12 +256,11 @@ function doEncoder(msg: any) {
         });
 
     }).then((ret: any) => {
-        filter_graph = ret[0];
         buffersrc_ctx = ret[1];
         buffersink_ctx = ret[2];
 
         // Now we're prepared for input
-        awpHandler = new AWPHandler(inPort, ondata);
+        new AWPHandler(inPort, ondata);
 
     }).catch(console.error);
 
@@ -278,7 +268,7 @@ function doEncoder(msg: any) {
         // Put it in libav format
         while (data.length < channelCount)
             data = data.concat(data);
-        var frames = [{
+        const frames = [{
             data: data,
             channels: channelCount,
             channel_layout: channelLayout,
@@ -303,8 +293,8 @@ function doEncoder(msg: any) {
                 return;
 
             // They only need the raw data
-            var packets = [];
-            for (var pi = 0; pi < encPackets.length; pi++)
+            const packets = [];
+            for (let pi = 0; pi < encPackets.length; pi++)
                 packets.push(encPackets[pi].data);
 
             // Send the encoded packets to the *host*
@@ -320,25 +310,25 @@ function doFilter(msg: any) {
     let awpHandler: AWPHandler;
 
     // Get out our info
-    let inPort: MessagePort = msg.port;
-    let sampleRate: number = msg.sampleRate;
+    const inPort: MessagePort = msg.port;
+    const sampleRate: number = msg.sampleRate;
     let useNR: boolean = msg.useNR;
     let sentRecently: boolean = msg.sentRecently;
 
     // Let them update it
     onmessage = function(ev) {
-        let msg = ev.data;
+        const msg = ev.data;
         if (msg.c !== "state") return;
         useNR = msg.useNR;
         sentRecently = msg.sentRecently;
     };
 
     // State for transfer to the host
-    let rawVadOn: boolean = false;
-    let rtcVadOn: boolean = false;
-    let vadOn: boolean = false;
-    let max: number = 0;
-    let maxCtr: number = 0;
+    let rawVadOn = false;
+    let rtcVadOn = false;
+    let vadOn = false;
+    let max = 0;
+    let maxCtr = 0;
 
     // Libraries
     let m: any = null;
@@ -347,9 +337,9 @@ function doFilter(msg: any) {
     const bufSz = 640 /* 20ms at 32000Hz */;
     let dataPtr: number = null;
     let buf: Int16Array = null;
-    let bi: number = 0;
+    let bi = 0;
     let timeout: null|number = null, rtcTimeout: null|number = null;
-    let step = sampleRate / 32000;
+    const step = sampleRate / 32000;
 
     /* WebRTC VAD is pretty finicky, so also keep track of volume as a
      * secondary gate */
@@ -403,12 +393,12 @@ function doFilter(msg: any) {
 
     function ondata(ts: number, data: Float32Array[]) {
         // Merge together the channels
-        let ib = data[0];
-        let cc = data.length;
+        const ib = data[0];
+        const cc = data.length;
         if (cc !== 1) {
             // Mix it
             for (let i = 1; i < cc; i++) {
-                let ibc = data[i];
+                const ibc = data[i];
                 for (let j = 0; j < ib.length; j++)
                     ib[j] += ibc[j];
             }
@@ -426,7 +416,7 @@ function doFilter(msg: any) {
             nrbuf = nr.run(ib);
             if (useNR)
                 ob = nrbuf;
-            let od = [];
+            const od = [];
             if (!sentRecently) {
                 ob = ob.slice(0);
                 ob.fill(0);
@@ -440,8 +430,8 @@ function doFilter(msg: any) {
         // Transfer data for the VAD
         let vadSet = rawVadOn;
         for (let i = 0; i < ib.length; i += step) {
-            let v = nrbuf[~~i];
-            let a = Math.abs(v);
+            const v = nrbuf[~~i];
+            const a = Math.abs(v);
             curVadVolume += a;
 
             buf[bi++] = v * 0x7FFF;
@@ -453,7 +443,7 @@ function doFilter(msg: any) {
 
                 if (vadSet) {
                     // Adjust the trigger value quickly up or slowly down
-                    let triggerTarget = curVadVolume/bufSz;
+                    const triggerTarget = curVadVolume/bufSz;
                     if (triggerTarget > triggerVadCeil) {
                         triggerVadCeil = triggerTarget;
                     } else {
@@ -463,7 +453,7 @@ function doFilter(msg: any) {
                         ) / 1024;
                     }
                 } else {
-                    let triggerTarget = curVadVolume/bufSz*2;
+                    const triggerTarget = curVadVolume/bufSz*2;
                     triggerVadFloor = (
                         triggerVadFloor * 511 +
                         triggerTarget
@@ -476,7 +466,7 @@ function doFilter(msg: any) {
 
         // Gate the VAD by volume
         if (vadSet) {
-            let relVolume = lastVolume/bufSz;
+            const relVolume = lastVolume/bufSz;
             vadSet = false;
             // We must be over the floor...
             if (relVolume >= triggerVadFloor) {
@@ -558,19 +548,17 @@ function doFilter(msg: any) {
 
 // Do simply histogram generation
 function doMax(msg: any) {
-    let awpHandler: AWPHandler;
-
     // Get out our info
-    let inPort: MessagePort = msg.port;
+    const inPort: MessagePort = msg.port;
 
     // State for transfer to the host
-    let max: number = 0;
-    let maxCtr: number = 0;
+    let max = 0;
+    let maxCtr = 0;
 
-    awpHandler = new AWPHandler(inPort, ondata);
+    const awpHandler: AWPHandler = new AWPHandler(inPort, ondata);
 
     function ondata(ts: number, data: Float32Array[]) {
-        let ib = data[0];
+        const ib = data[0];
         for (let i = 0; i < ib.length; i++) {
             let v = ib[i];
             if (v < 0) v = -v;
@@ -582,7 +570,7 @@ function doMax(msg: any) {
             }
         }
         awpHandler.sendData(data);
-    };
+    }
 }
 
 // Do compression/normalization
@@ -590,13 +578,13 @@ function doDynaudnorm(msg: any) {
     let awpHandler: AWPHandler;
 
     // Get out our info
-    let inPort: MessagePort = msg.port;
-    let sampleRate: number = msg.sampleRate;
+    const inPort: MessagePort = msg.port;
+    const sampleRate: number = msg.sampleRate;
 
     let la: any; // libav
     let frame: number;
-    let filter_graph: number, buffersrc_ctx: number, buffersink_ctx: number;
-    let pts: number = 0;
+    let buffersrc_ctx: number, buffersink_ctx: number;
+    let pts = 0;
 
     // Load libav
     LibAV = {nolibavworker: true, base: "../libav"};
@@ -622,7 +610,6 @@ function doDynaudnorm(msg: any) {
         });
 
     }).then((ret: any) => {
-        filter_graph = ret[0];
         buffersrc_ctx = ret[1];
         buffersink_ctx = ret[2];
 
@@ -633,9 +620,9 @@ function doDynaudnorm(msg: any) {
 
     function ondata(ts: number, data: Float32Array[]) {
         // Handle input
-        let ib = data[0];
+        const ib = data[0];
 
-        var frames = [{
+        const frames = [{
             data: ib,
             channels: 1,
             channel_layout: 4,
@@ -648,7 +635,7 @@ function doDynaudnorm(msg: any) {
         return la.ff_filter_multi(buffersrc_ctx, buffersink_ctx, frame, frames, false).then((frames: any) => {
 
             for (let fi = 0; fi < frames.length; fi++) {
-                let frame = [frames[fi].data];
+                const frame = [frames[fi].data];
                 while (frame.length < data.length)
                     frame.push(frame[0]);
                 // Send it back
