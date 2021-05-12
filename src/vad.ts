@@ -15,16 +15,16 @@
  */
 
 // WebRTCVAD's raw output
-export var rawVadOn = false;
-export function setRawVadOn(to: boolean) { rawVadOn = to; }
+export let rawVadOn = false;
+export function setRawVadOn(to: boolean): void { rawVadOn = to; }
 
 // Recording VAD after warmup and cooldown
-export var vadOn = false;
-export function setVadOn(to: boolean) { vadOn = to; }
+export let vadOn = false;
+export function setVadOn(to: boolean): void { vadOn = to; }
 
 // RTC VAD after cooldown
-export var rtcVadOn = false;
-export function setRTCVadOn(to: boolean) { rtcVadOn = to; }
+export let rtcVadOn = false;
+export function setRTCVadOn(to: boolean): void { rtcVadOn = to; }
 
 // Number of milliseconds to run the VAD for before/after talking
 export const vadExtension = 2000;

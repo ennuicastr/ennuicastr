@@ -1,2 +1,2 @@
-declare var EnnuiCastrProtocol: any;
+declare let EnnuiCastrProtocol: any;
 export const prot = EnnuiCastrProtocol;

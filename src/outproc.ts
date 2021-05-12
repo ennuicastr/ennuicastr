@@ -21,10 +21,8 @@
  * of it is called "compress". */
 
 // extern
-declare var LibAV: any, webkitAudioContext: any;
+declare let webkitAudioContext: any;
 
-import * as audio from "./audio";
-import * as avloader from "./avloader";
 import * as capture from "./capture";
 import * as net from "./net";
 import * as ui from "./ui";
@@ -46,7 +44,7 @@ interface Compressor {
     gain: GainNode;
 }
 
-export var rtcCompression = {
+export const rtcCompression = {
     // Should we be displaying waveforms?
     waveviewing: false,
 
@@ -64,12 +62,16 @@ export var rtcCompression = {
 };
 
 // Create a compressor and gain node
-export function createCompressor(idx: number, ac: AudioContext & {ecDestination?: MediaStreamAudioDestinationNode}, inputStream: MediaStream, wrapper: HTMLElement) {
+export function createCompressor(
+    idx: number,
+    ac: AudioContext & {ecDestination?: MediaStreamAudioDestinationNode},
+    inputStream: MediaStream, wrapper: HTMLElement): Promise<void|Compressor> {
+
     // Destroy any previous compressor
     if (rtcCompression.compressors[idx])
         destroyCompressor(idx);
 
-    var com: Compressor = {
+    const com: Compressor = {
         ac: ac,
         inputStream: inputStream,
         input: null,
@@ -82,17 +84,14 @@ export function createCompressor(idx: number, ac: AudioContext & {ecDestination?
     };
 
     // Create the input
-    var input = com.input = ac.createMediaStreamSource(inputStream);
+    const input = com.input = ac.createMediaStreamSource(inputStream);
 
     return Promise.all([]).then(() => {
         // Only build the waveview and compressor if supported
         if (supported) {
             let waveviewCap: capture.Capture;
-            let waveview;
             let wf: waveform.Waveform;
             let compressorCap: capture.Capture;
-            let compressor;
-            let la: any, frame: any;
 
             return Promise.all([]).then(() => {
                 // Create a waveform node
@@ -104,10 +103,10 @@ export function createCompressor(idx: number, ac: AudioContext & {ecDestination?
 
             }).then(ret => {
                 waveviewCap = ret;
-                waveview = com.waveview = waveviewCap.node;
+                com.waveview = waveviewCap.node;
                 wf = new waveform.Waveform(ac.sampleRate / 1024, wrapper, null);
                 waveviewCap.worker.onmessage = function(ev) {
-                    let max = ev.data.m;
+                    const max = ev.data.m;
                     wf.push(max, (max < 0.0001) ? 1 : 3);
                     wf.updateWave(max, true);
                 };
@@ -121,19 +120,19 @@ export function createCompressor(idx: number, ac: AudioContext & {ecDestination?
 
             }).then(ret => {
                 compressorCap = ret;
-                compressor = com.compressor = compressorCap.node;
+                com.compressor = compressorCap.node;
 
             });
         }
 
     }).then(() => {
         // Create the final gain node
-        var gain = com.gain = ac.createGain();
+        const gain = com.gain = ac.createGain();
         gain.gain.value = rtcCompression.gain *
             ((idx in rtcCompression.perUserGain) ? rtcCompression.perUserGain[idx] : 1);
 
         // Link them together
-        var cur: AudioNode = input;
+        let cur: AudioNode = input;
         if (com.waveview && rtcCompression.waveviewing) {
             input.connect(com.waveview);
             cur = com.waveview;
@@ -146,7 +145,7 @@ export function createCompressor(idx: number, ac: AudioContext & {ecDestination?
         gain.connect(ac.ecDestination);
 
         // And add it to the list
-        var cs = rtcCompression.compressors;
+        const cs = rtcCompression.compressors;
         while (cs.length <= idx)
             cs.push(null);
         cs[idx] = com;
@@ -157,13 +156,13 @@ export function createCompressor(idx: number, ac: AudioContext & {ecDestination?
 }
 
 // Destroy a compressor
-export function destroyCompressor(idx: number) {
-    var com = rtcCompression.compressors[idx];
+export function destroyCompressor(idx: number): void {
+    const com = rtcCompression.compressors[idx];
     if (!com)
         return;
     rtcCompression.compressors[idx] = null;
 
-    var cur: AudioNode = com.input;
+    let cur: AudioNode = com.input;
     if (com.waveview && rtcCompression.waveviewing) {
         cur.disconnect(com.waveview);
         cur = com.waveview;
@@ -180,7 +179,7 @@ export function destroyCompressor(idx: number) {
 function disconnectNodes() {
     rtcCompression.compressors.forEach(function(com) {
         if (!com) return;
-        var cur: AudioNode = com.input;
+        let cur: AudioNode = com.input;
         if (rtcCompression.waveviewing) {
             cur.disconnect(com.waveview);
             cur = com.waveview;
@@ -197,7 +196,7 @@ function disconnectNodes() {
 function reconnectNodes() {
     rtcCompression.compressors.forEach(function(com) {
         if (!com) return;
-        var cur: AudioNode = com.input;
+        let cur: AudioNode = com.input;
         if (rtcCompression.waveviewing) {
             cur.connect(com.waveview);
             cur = com.waveview;
@@ -211,7 +210,7 @@ function reconnectNodes() {
 }
 
 // En/disable waveviewing
-export function setWaveviewing(to: boolean) {
+export function setWaveviewing(to: boolean): void {
     if (rtcCompression.waveviewing === to || !supported)
         return;
 
@@ -224,7 +223,7 @@ export function setWaveviewing(to: boolean) {
 }
 
 // En/disable compression
-export function setCompressing(to: boolean) {
+export function setCompressing(to: boolean): void {
     if (rtcCompression.compressing === to || !supported)
         return;
 
@@ -237,14 +236,14 @@ export function setCompressing(to: boolean) {
 }
 
 // Change the global gain
-export function setGlobalGain(to: number) {
+export function setGlobalGain(to: number): void {
     rtcCompression.gain = to;
 
     // Update all the gain nodes
-    for (var idx = 0; idx < rtcCompression.compressors.length; idx++) {
-        var com = rtcCompression.compressors[idx];
+    for (let idx = 0; idx < rtcCompression.compressors.length; idx++) {
+        const com = rtcCompression.compressors[idx];
         if (!com) continue;
-        var target = to *
+        const target = to *
             ((idx in rtcCompression.perUserGain) ? rtcCompression.perUserGain[idx] : 1);
         com.gain.gain.setTargetAtTime(target, 0, 0.003);
     }
@@ -254,10 +253,10 @@ export function setGlobalGain(to: number) {
 function setPerUserGain(idx: number, to: number) {
     rtcCompression.perUserGain[idx] = to;
 
-    var com = rtcCompression.compressors[idx];
+    const com = rtcCompression.compressors[idx];
     if (!com) return;
 
-    var target = rtcCompression.gain * to;
+    const target = rtcCompression.gain * to;
     com.gain.gain.setTargetAtTime(target, 0, 0.003);
 }
 

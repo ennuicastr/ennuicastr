@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Yahweasel
+ * Copyright (c) 2018-2021 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -19,24 +19,24 @@ import * as util from "./util";
 export const log = util.gebi("log");
 
 // Current status messages
-var curStatus: {[key: string]: string} = {};
+const curStatus: {[key: string]: string} = {};
 
 // "Log" is really status (whoops), and in order to control that we keep a status index
-export function pushStatus(id: string, text: string) {
+export function pushStatus(id: string, text: string): void {
     if (id in curStatus && curStatus[id] === text) return;
     curStatus[id] = text;
     updateStatus();
 }
 
-export function popStatus(id: string) {
+export function popStatus(id: string): void {
     if (!(id in curStatus)) return;
     delete curStatus[id];
     updateStatus();
 }
 
 function updateStatus() {
-    var txt = "";
-    for (var id in curStatus) {
+    let txt = "";
+    for (const id in curStatus) {
         txt += curStatus[id] + "\n";
     }
     txt = txt.trim();

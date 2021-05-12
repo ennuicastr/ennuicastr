@@ -15,7 +15,7 @@
  */
 
 // extern
-declare var Ennuiboard: any, NoSleep: any;
+declare let Ennuiboard: any, NoSleep: any;
 
 import * as audio from "./audio";
 import * as chat from "./chat";
@@ -41,12 +41,12 @@ const mobile = (ua.indexOf("android") >= 0) ||
                (ua.indexOf("ipad") >= 0);
 
 // The NoSleep interface
-var noSleep: any = null;
+let noSleep: any = null;
 
 // Make the UI
-export function mkUI() {
+export function mkUI(): Promise<unknown> {
     // Snag the original log before we overwrite it
-    var log = gebi("log");
+    const log = gebi("log");
 
     // Load in the UI
     document.body.style.margin =
@@ -54,7 +54,7 @@ export function mkUI() {
     document.body.innerHTML = uiCode.code;
 
     // Get the colors
-    var cs = getComputedStyle(document.documentElement);
+    const cs = getComputedStyle(document.documentElement);
     [
         "bg", "bg-hover", "bg-off", "bg-plain", "bg-invite", "bg-status",
         "bg-wave", "fg", "fg-status", "border-plain", "link-color",
@@ -113,16 +113,16 @@ export function mkUI() {
 
     // Poppable panels
     if ("master" in config.config) {
-        let m = ui.panels.master;
+        const m = ui.panels.master;
         poppable(m.recordingCostPopoutWrapper, m.recordingCostPopout, null,
             "recording-cost-popout3", m.wrapper, m.recordingCostDock);
     }
     {
-        let s = ui.panels.soundboard;
+        const s = ui.panels.soundboard;
         poppable(s.popoutWrapper, s.popout, ui.persistent.sounds, "sounds-popout3", s.wrapper, s.dock);
     }
     {
-        let u = ui.panels.userList;
+        const u = ui.panels.userList;
         poppable(u.popoutWrapper, u.popout, ui.panels.main.userListB, "user-list-popout3", u.wrapper, u.dock);
     }
 
@@ -138,7 +138,7 @@ export function mkUI() {
         }).then(function() {
             noSleep = new NoSleep();
             uiFE.showPanel(ui.panels.mobile.wrapper, ui.persistent.main, true);
-            return new Promise((res, rej) => {
+            return new Promise((res) => {
                 ui.panels.mobile.button.onclick = res;
             });
 
@@ -171,7 +171,7 @@ function loadVideo() {
         mode: uiFE.ViewMode.Normal,
         css: dce("style")
     };
-    var video = ui.video;
+    const video = ui.video;
 
     video.css.type = "text/css";
     document.head.appendChild(video.css);
@@ -211,7 +211,7 @@ function loadChat() {
 }
 
 function loadWave() {
-    var wave = ui.wave = {
+    const wave = ui.wave = {
         wrapper: gebi("ecwaveform-wrapper"),
         watcher: gebi("ecwave-watcher")
     };
@@ -223,7 +223,7 @@ function loadWave() {
     if (!window.createImageBitmap || !window.fetch) {
         usePng();
     } else {
-        var sample = "data:image/webp;base64,UklGRh4AAABXRUJQVlA4TBEAAAAvAAAAAAfQ//73v/+BiOh/AAA=";
+        const sample = "data:image/webp;base64,UklGRh4AAABXRUJQVlA4TBEAAAAvAAAAAAfQ//73v/+BiOh/AAA=";
         fetch(sample).then(function(res) {
             return res.blob();
         }).then(function(blob) {
@@ -235,7 +235,7 @@ function loadWave() {
 }
 
 function loadLog(logEl: HTMLElement) {
-    var log = ui.log = {
+    const log = ui.log = {
         wrapper: gebi("ecstatus"),
         logWrapper: gebi("eclog"),
         log: logEl,
@@ -245,7 +245,7 @@ function loadLog(logEl: HTMLElement) {
 }
 
 function loadMainMenu() {
-    var p = ui.persistent = {
+    const p = ui.persistent = {
         masterHider: gebi("ecmenu-master-hider"),
         master: gebi("ecmenu-master"),
         soundsHider: gebi("ecmenu-sounds-hider"),
@@ -256,12 +256,12 @@ function loadMainMenu() {
         videoPopout: gebi("ecmenu-video-popout")
     };
 
-    var mobile = ui.panels.mobile = {
+    ui.panels.mobile = {
         wrapper: gebi("ecmobile-join"),
         button: gebi("ecmobile-join-b")
     };
 
-    var m = ui.panels.main = {
+    const m = ui.panels.main = {
         wrapper: gebi("ecmenu"),
         modeHider: gebi("ecview-mode-hider"),
         modeS: gebi("ecview-mode"),
@@ -281,7 +281,7 @@ function loadMainMenu() {
     btn(p.sounds, "soundboard", null);
     btn(p.main, "main", "inputB");
     p.chat.onclick = function() {
-        var chat = ui.chat.wrapper;
+        const chat = ui.chat.wrapper;
         if (chat.style.display === "none") {
             chat.style.display = "";
             ui.chat.outgoing.focus();
@@ -308,7 +308,7 @@ function loadMainMenu() {
     });
 
     // Support for popping out the entire video block
-    var w: WindowProxy = null;
+    let w: WindowProxy = null;
     function popoutOpen() {
         w = ui.video.window = window.open("", "", "width=1280,height=720,menubar=0,toolbar=0,location=0,personalbar=0,status=0");
         if (!w) return;
@@ -316,8 +316,9 @@ function loadMainMenu() {
         w.document.title = "Video — " + document.title;
 
         // To make it flex properly, it needs the CSS
-        var ssurl = new URL(<any> window.location);
+        const ssurl = new URL(<any> window.location);
         ssurl.search = "?v=6";
+        // eslint-disable-next-line no-useless-escape
         ssurl.pathname = ssurl.pathname.replace(/\/[^\/]*$/, "/ennuicastr2.css");
         w.document.head.innerHTML = '<link href="' + (<any> ssurl) + '" rel="stylesheet" />';
         w.document.head.appendChild(ui.video.css);
@@ -337,8 +338,8 @@ function loadMainMenu() {
         ui.wave.wrapper.style.flex = "auto";
 
         // Play them
-        for (var vi = 0; vi < ui.video.users.length; vi++) {
-            var v = ui.video.users[vi];
+        for (let vi = 0; vi < ui.video.users.length; vi++) {
+            const v = ui.video.users[vi];
             if (!v) continue;
             v.video.play().catch(console.error);
         }
@@ -356,8 +357,8 @@ function loadMainMenu() {
         ui.wave.wrapper.style.flex = "";
 
         // Play them
-        for (var vi = 0; vi < ui.video.users.length; vi++) {
-            var v = ui.video.users[vi];
+        for (let vi = 0; vi < ui.video.users.length; vi++) {
+            const v = ui.video.users[vi];
             if (!v) continue;
             v.video.play().catch(console.error);
         }
@@ -377,7 +378,7 @@ function loadMainMenu() {
 }
 
 function loadMasterUI() {
-    var m = ui.panels.master = {
+    ui.panels.master = {
         wrapper: gebi("ecmaster-interface"),
         pauseResumeB: gebi("ecmaster-pause-resume"),
         startStopB: gebi("ecmaster-start-stop"),
@@ -432,7 +433,7 @@ function loadUserAdmin() {
         videoRec: gebi("ecuser-admin-full-video-record")
     };
 
-    let req = ui.panels.userAdminReq = {
+    const req = ui.panels.userAdminReq = {
         wrapper: gebi("ecuser-admin-permission"),
         user: -1,
         name: gebi("ecuser-admin-permission-requester"),
@@ -458,7 +459,7 @@ function loadUserAdmin() {
 }
 
 function loadSoundboard() {
-    var s = ui.panels.soundboard = {
+    ui.panels.soundboard = {
         wrapper: gebi("ecsounds-wrapper"),
         popout: gebi("ecsounds-popout"),
         popoutWrapper: gebi("ecsounds-popout-wrapper"),
@@ -469,7 +470,7 @@ function loadSoundboard() {
 }
 
 function loadInputConfig() {
-    var input = ui.panels.inputConfig = {
+    const input = ui.panels.inputConfig = {
         wrapper: gebi("ecinput-device-wrapper"),
         device: gebi("ecinput-device-list"),
         ptt: gebi("ecpttb"),
@@ -487,7 +488,7 @@ function loadInputConfig() {
 }
 
 function loadOutputConfig() {
-    var output = ui.panels.outputConfig = {
+    const output = ui.panels.outputConfig = {
         wrapper: gebi("ecoutput-device-wrapper"),
         deviceHider: gebi("ecoutput-device-list-hider"),
         device: gebi("ecoutput-device-list"),
@@ -510,7 +511,7 @@ function loadOutputConfig() {
 }
 
 function loadVideoConfig() {
-    let vc = ui.panels.videoConfig = {
+    const vc = ui.panels.videoConfig = {
         wrapper: gebi("ecvideo-device-wrapper"),
         device: gebi("ecvideo-device-list"),
         res: gebi("ecvideo-res"),
@@ -531,9 +532,10 @@ function loadVideoConfig() {
         streamerMode: gebi("ecstreamer-mode")
     };
 
-    let bitrate = vc.recording.bitrate;
+    const bitrate = vc.recording.bitrate;
     bitrate.oninput = function() {
-        var f = bitrate.value.replace(/[^0-9\.]/g, "");
+        // eslint-disable-next-line no-useless-escape
+        const f = bitrate.value.replace(/[^0-9\.]/g, "");
         if (bitrate.value !== f)
             bitrate.value = f;
     };
@@ -561,8 +563,8 @@ function loadInterfaceSounds() {
 }
 
 // Load elements which require audio first
-export function mkAudioUI() {
-    var main = ui.panels.main,
+export function mkAudioUI(): string {
+    const main = ui.panels.main,
         input = ui.panels.inputConfig,
         output = ui.panels.outputConfig,
         videoConfig = ui.panels.videoConfig;
@@ -577,13 +579,13 @@ export function mkAudioUI() {
     }
 
     navigator.mediaDevices.enumerateDevices().then(function(devices) {
-        var ctr = 1;
+        let ctr = 1;
         devices.forEach(function(dev) {
             if (dev.kind !== "audioinput") return;
 
             // Create an option for this
-            var opt = dce("option");
-            var label = dev.label || ("Mic " + ctr++);
+            const opt = dce("option");
+            const label = dev.label || ("Mic " + ctr++);
             opt.innerText = label;
             opt.value = dev.deviceId;
             input.device.appendChild(opt);
@@ -591,6 +593,7 @@ export function mkAudioUI() {
 
         uiFE.saveConfigValue(input.device, "input-device3", inputChange);
 
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     }).catch(function() {}); // Nothing really to do here
 
     // Gamepad PTT configuration
@@ -629,7 +632,7 @@ export function mkAudioUI() {
      *******************/
 
     // Add a pseudo-device so nothing is selected at first
-    var opt = dce("option");
+    let opt = dce("option");
     opt.innerText = "-";
     opt.value = "-none";
     output.device.appendChild(opt);
@@ -638,7 +641,7 @@ export function mkAudioUI() {
         if (output.device.value === "-none") return;
         uiFE.showPanel(null, ui.persistent.main);
 
-        var v = output.device.value;
+        const v = output.device.value;
 
         // Set the main audio output
         if (ui.audioOutput) {
@@ -661,13 +664,13 @@ export function mkAudioUI() {
 
     // Fill it with the available devices
     navigator.mediaDevices.enumerateDevices().then(function(devices) {
-        var ctr = 1;
+        let ctr = 1;
         devices.forEach(function(dev) {
             if (dev.kind !== "audiooutput") return;
 
             // Create an option for this
-            var opt = dce("option");
-            var label = dev.label || ("Output " + ctr++);
+            const opt = dce("option");
+            const label = dev.label || ("Output " + ctr++);
             opt.innerText = label;
             opt.value = dev.deviceId;
             output.device.appendChild(opt);
@@ -675,6 +678,7 @@ export function mkAudioUI() {
 
         uiFE.saveConfigValue(output.device, "output-device3", outputChange);
 
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     }).catch(function() {}); // Nothing really to do here
 
     // Volume
@@ -682,10 +686,10 @@ export function mkAudioUI() {
 
     // But, separate save for snapping
     function volumeChange() {
-        var vol = output.volume;
+        const vol = output.volume;
 
         // Snap to x00%
-        for (var i = 100; i <= 300; i += 100)
+        for (let i = 100; i <= 300; i += 100)
             if (+vol.value >= i - 10 && +vol.value <= i + 10)
                 vol.value = <any> i;
 
@@ -704,13 +708,13 @@ export function mkAudioUI() {
 
     // SFX volume
     function sfxVolumeChange() {
-        var vol = output.sfxVolume;
+        const vol = output.sfxVolume;
         output.sfxVolumeStatus.innerHTML = "&nbsp;" + vol.value + "%";
 
-        var v = (+vol.value) / 100;
+        const v = (+vol.value) / 100;
 
-        for (let url in ui.sounds.soundboard) {
-            let sound = ui.sounds.soundboard[url];
+        for (const url in ui.sounds.soundboard) {
+            const sound = ui.sounds.soundboard[url];
             sound.el.volume = v;
         }
 
@@ -723,7 +727,7 @@ export function mkAudioUI() {
 
     // Dynamic range compression
     function drcChange() {
-        var c = output.compression.checked;
+        const c = output.compression.checked;
         outproc.setCompressing(c);
 
         if (c) {
@@ -759,35 +763,36 @@ export function mkAudioUI() {
         uiFE.showPanel(null, ui.persistent.main);
         net.updateAdminPerm({videoDevice: videoConfig.device.value, videoRes: +videoConfig.res.value}, true);
         video.getCamera(videoConfig.device.value, +videoConfig.res.value);
-    };
+    }
     videoConfig.device.onchange = videoChange;
 
     // Add a pseudo-device so nothing is selected at first
-    var opt = dce("option");
+    opt = dce("option");
     opt.innerText = "None";
     opt.value = "-none";
     videoConfig.device.appendChild(opt);
 
     // Fill it with the available devices
     navigator.mediaDevices.enumerateDevices().then(function(devices) {
-        var ctr = 1;
+        let ctr = 1;
         devices.forEach(function(dev) {
             if (dev.kind !== "videoinput") return;
 
             // Create an option for this
-            var opt = dce("option");
-            var label = dev.label || ("Camera " + ctr++);
+            const opt = dce("option");
+            const label = dev.label || ("Camera " + ctr++);
             opt.innerText = label;
             opt.value = dev.deviceId;
             videoConfig.device.appendChild(opt);
         });
 
         // Add a special pseudo-device for screen capture
-        var opt = dce("option");
+        const opt = dce("option");
         opt.innerText = "Capture screen";
         opt.value = "-screen";
         videoConfig.device.appendChild(opt);
 
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     }).catch(function() {}); // Nothing really to do here
 
     // Resolution selector
@@ -802,8 +807,8 @@ export function mkAudioUI() {
     // View mode
     function viewModeChange(ev: Event) {
         // Set the view
-        var mode = ui.video.mode = +main.modeS.value;
-        var smode = ["normal", "small", "gallery", "studio"][mode] || "";
+        const mode = ui.video.mode = +main.modeS.value;
+        const smode = ["normal", "small", "gallery", "studio"][mode] || "";
         document.body.setAttribute("data-view-mode", smode);
 
         // Reset UI elements
@@ -835,7 +840,7 @@ export function mkAudioUI() {
 
     // Streamer mode
     function streamerModeChange(ev: Event) {
-        var s = videoConfig.streamerMode.checked;
+        const s = videoConfig.streamerMode.checked;
         document.body.setAttribute("data-streamer-interface", s?"show":"hide");
         if (s) {
             // Tell them how much browser chrome they need to compete with
@@ -863,7 +868,7 @@ export function mkAudioUI() {
 function poppable(popout: HTMLElement, button: HTMLButtonElement,
                   panelButton: HTMLButtonElement, name: string,
                   panel: HTMLElement, dock: HTMLElement) {
-    var cur = false;
+    let cur = false;
     button.onclick = function() {
         // Swap the state
         cur = !cur;
@@ -895,14 +900,14 @@ function poppable(popout: HTMLElement, button: HTMLButtonElement,
         localStorage.setItem(name, cur?"1":"0");
     };
 
-    var saved = localStorage.getItem(name);
+    const saved = localStorage.getItem(name);
     if (saved !== null && !!~~saved)
         button.onclick(null);
 }
 
 // Update the mute button when the mute state changes
 util.events.addEventListener("audio.mute", function() {
-    let muteB = ui.persistent.mute;
+    const muteB = ui.persistent.mute;
     if (audio.userMedia.getAudioTracks()[0].enabled) {
         // It's unmuted
         muteB.innerHTML = '<i class="fas fa-microphone-alt" style="width: 1em;"></i><span class="menu-extra">Mute</span>';

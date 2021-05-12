@@ -18,7 +18,7 @@ import * as config from "./config";
 import * as net from "./net";
 import { prot } from "./protocol";
 import * as util from "./util";
-import { dce, gebi } from "./util";
+import { dce } from "./util";
 
 // Interface modes
 export enum ViewMode {
@@ -30,7 +30,7 @@ export enum ViewMode {
 
 /* A panel can be modal, in which case showPanel(null) won't hide it. Actually
  * only used for the mobile forced-click to disable sleep. */
-var modal: HTMLElement = null;
+let modal: HTMLElement = null;
 
 // The entire user interface
 export const ui = {
@@ -439,7 +439,7 @@ export const ui = {
 };
 
 // When did each user last speak, for video selection purposes
-var lastSpeech: number[] = [];
+const lastSpeech: number[] = [];
 
 // Video standin's SVG code
 const standinSVG = [
@@ -453,9 +453,9 @@ const standinSVG = [
 ];
 
 // Show the given panel, or none
-export function showPanel(panelName: HTMLElement|string, autoFocusName: HTMLElement|string, makeModal?: boolean) {
-    var panel: HTMLElement;
-    var autoFocus: HTMLElement = null;
+export function showPanel(panelName: HTMLElement|string, autoFocusName: HTMLElement|string, makeModal?: boolean): void {
+    let panel: HTMLElement;
+    let autoFocus: HTMLElement = null;
     if (typeof autoFocusName === "string")
         autoFocus = (<any> ui.panels)[<string> panelName][autoFocusName];
     else if (typeof autoFocus !== "undefined")
@@ -471,7 +471,7 @@ export function showPanel(panelName: HTMLElement|string, autoFocusName: HTMLElem
     modal = makeModal ? panel : null;
 
     // Hide all existing panels
-    for (var o in ui.panels) {
+    for (const o in ui.panels) {
         (<any> ui.panels)[o].wrapper.style.display = "none";
     }
 
@@ -499,13 +499,13 @@ export function showPanel(panelName: HTMLElement|string, autoFocusName: HTMLElem
 }
 
 // Unset the modal panel so it can be hidden
-export function unsetModal() {
+export function unsetModal(): void {
     modal = null;
 }
 
 // Functionality for auto-hiding the persistent panel
-var metimeout: null|number = null;
-export function mouseenter() {
+let metimeout: null|number = null;
+export function mouseenter(): void {
     if (metimeout)
         clearTimeout(metimeout);
     document.body.setAttribute("data-interface", "show");
@@ -516,8 +516,8 @@ export function mouseenter() {
 }
 
 // Saveable config for a box with a string value
-export function saveConfigValue(sel: HTMLSelectElement|HTMLInputElement, name: string, onchange?: (arg0:Event)=>void) {
-    var cur = localStorage.getItem(name);
+export function saveConfigValue(sel: HTMLSelectElement|HTMLInputElement, name: string, onchange?: (arg0:Event)=>void): void {
+    const cur = localStorage.getItem(name);
     if (cur !== null)
         sel.value = cur;
     sel.onchange = function(ev) {
@@ -528,8 +528,8 @@ export function saveConfigValue(sel: HTMLSelectElement|HTMLInputElement, name: s
 }
 
 // Saveable configuration for a checkbox
-export function saveConfigCheckbox(cb: HTMLInputElement, name: string, onchange?: (arg0:Event)=>void) {
-    var cur = localStorage.getItem(name);
+export function saveConfigCheckbox(cb: HTMLInputElement, name: string, onchange?: (arg0:Event)=>void): void {
+    const cur = localStorage.getItem(name);
     if (cur !== null)
         cb.checked = !!~~cur;
     cb.onchange = function(ev) {
@@ -540,12 +540,12 @@ export function saveConfigCheckbox(cb: HTMLInputElement, name: string, onchange?
 }
 
 // Saveable configuration for a slider
-export function saveConfigSlider(sl: HTMLInputElement, name: string, onchange?: (arg0:Event)=>void) {
-    var cur = localStorage.getItem(name);
+export function saveConfigSlider(sl: HTMLInputElement, name: string, onchange?: (arg0:Event)=>void): void {
+    const cur = localStorage.getItem(name);
     if (cur !== null)
         sl.value = ""+(+cur);
     sl.onchange = function(ev) {
-        var ret;
+        let ret;
         if (onchange)
             ret = onchange(ev);
         localStorage.setItem(name, ""+sl.value);
@@ -554,7 +554,7 @@ export function saveConfigSlider(sl: HTMLInputElement, name: string, onchange?: 
 }
 
 // Resize the UI to fit visible components
-export function resizeUI(second?: boolean) {
+export function resizeUI(second?: boolean): void {
     /* Since elements sometimes take an event loop to actually assert their
      * sizes, resizeUI automatically runs itself twice */
     if (!second)
@@ -571,11 +571,11 @@ export function resizeUI(second?: boolean) {
     }
 
     // Figure out the ideal size for the UI based on what's visible
-    var idealSize = 0;
+    let idealSize = 0;
 
     // First, the standard elements
-    for (var ci = 0; ci < ui.wrapper.childNodes.length; ci++) {
-        var c = <HTMLElement> ui.wrapper.childNodes[ci];
+    for (let ci = 0; ci < ui.wrapper.childNodes.length; ci++) {
+        const c = <HTMLElement> ui.wrapper.childNodes[ci];
         if (c.style.display === "none")
             continue;
         if (c === ui.video.wrapper) {
@@ -596,8 +596,8 @@ export function resizeUI(second?: boolean) {
     }
 
     // Then, any visible panel
-    for (var pn in ui.panels) {
-        var panel: HTMLElement = (<any> ui.panels)[pn].wrapper;
+    for (const pn in ui.panels) {
+        const panel: HTMLElement = (<any> ui.panels)[pn].wrapper;
         if (panel.style.display === "block")
             idealSize = Math.max(idealSize, panel.scrollHeight + 40);
     }
@@ -630,7 +630,7 @@ export function resizeUI(second?: boolean) {
 util.events.addEventListener("ui.resize-needed", function() { resizeUI(); });
 
 // React to the UI resizing
-export function onResize() {
+export function onResize(): void {
     ui.resized = true;
     ui.manualSize = !ui.resizing;
 
@@ -643,16 +643,16 @@ export function onResize() {
 }
 
 // Add a user to the user list
-export function userListAdd(idx: number, name: string, fromMaster: boolean) {
+export function userListAdd(idx: number, name: string, fromMaster: boolean): void {
     if (("master" in config.config) !== fromMaster)
         return;
 
     // First to the normal user list
-    var userList = ui.panels.userList;
+    const userList = ui.panels.userList;
     while (userList.users.length <= idx)
         userList.users.push(null);
 
-    var user = userList.users[idx];
+    let user = userList.users[idx];
     if (user) {
         // Just update their name
         if (name) {
@@ -671,7 +671,7 @@ export function userListAdd(idx: number, name: string, fromMaster: boolean) {
         volume: dce("input"),
         volumeStatus: dce("div")
     };
-    var volumeWrapper = dce("div");
+    const volumeWrapper = dce("div");
 
     /* Here's how it all lays out:
      *  <div wrapper bigrflex row>
@@ -710,13 +710,13 @@ export function userListAdd(idx: number, name: string, fromMaster: boolean) {
     volumeWrapper.appendChild(user.volumeStatus);
 
     // When we change the volume, pass that to the compressors
-    var mousing = false;
-    function volChange(ev: InputEvent) {
-        var vol = user.volume;
+    let mousing = false;
+    function volChange() {
+        const vol = user.volume;
 
         // Snap to x00%
         if (mousing) {
-            for (var i = 100; i <= 300; i += 100)
+            for (let i = 100; i <= 300; i += 100)
                 if (+vol.value >= i - 10 && +vol.value <= i + 10)
                     vol.value = ""+i;
         }
@@ -732,7 +732,7 @@ export function userListAdd(idx: number, name: string, fromMaster: boolean) {
     user.volume.onmouseup = function() { mousing = false; };
 
     saveConfigSlider(user.volume, "user-volume3-" + name, volChange);
-    volChange(null);
+    volChange();
 
     // Give them a user element
     videoAdd(idx, name);
@@ -745,19 +745,19 @@ export function userListAdd(idx: number, name: string, fromMaster: boolean) {
 
 // Cogito ergo sum
 util.events.addEventListener("net.info." + prot.info.id, function(ev: CustomEvent) {
-    let val: number = ev.detail.val;
+    const val: number = ev.detail.val;
     userListAdd(val, config.username, false);
 });
 
 
 // Add a video element for this user, if they don't already have one
-export function videoAdd(idx: number, name: string) {
+export function videoAdd(idx: number, name: string): void {
     if (ui.video.users[idx])
         return;
     while (ui.video.users.length <= idx)
         ui.video.users.push(null);
 
-    var ctx = ui.video.users[idx] = {
+    const ctx = ui.video.users[idx] = {
         boxA: dce("div"),
         boxB: dce("div"),
         video: dce("video"),
@@ -770,17 +770,17 @@ export function videoAdd(idx: number, name: string) {
     };
 
     /* The outer box */
-    var boxA = ctx.boxA;
+    const boxA = ctx.boxA;
     boxA.classList.add("ecvideo-a");
 
     /* The inner box */
-    var box = ctx.boxB;
+    const box = ctx.boxB;
     box.classList.add("ecvideo");
     box.style.border = "4px solid " + ui.colors["video-silent"];
     boxA.appendChild(box);
 
     // The video element itself
-    var video = ctx.video;
+    const video = ctx.video;
     video.height = 0; // Use CSS for style
     video.muted = true; // Audio goes through a different system
     Object.assign(video.style, {
@@ -793,7 +793,7 @@ export function videoAdd(idx: number, name: string) {
     box.appendChild(video);
 
     // The audio element, just used to make sure audio is actually playing
-    let audio = ctx.audio;
+    const audio = ctx.audio;
     audio.muted = true;
     audio.style.display = "none";
     box.appendChild(audio);
@@ -808,7 +808,7 @@ export function videoAdd(idx: number, name: string) {
     };
 
     // The standin for when there is no video
-    var standin = ctx.standin;
+    const standin = ctx.standin;
     Object.assign(standin.style, {
         position: "absolute",
         left: "8px",
@@ -823,7 +823,7 @@ export function videoAdd(idx: number, name: string) {
     styleVideoEl(ctx, name);
 
     // Their personal label
-    var nspan = ctx.name;
+    const nspan = ctx.name;
     nspan.classList.add("namelabel");
     nspan.innerText = name || "";
     nspan.setAttribute("role", "note");
@@ -831,21 +831,21 @@ export function videoAdd(idx: number, name: string) {
     box.appendChild(nspan);
 
     // And popout button
-    var popout = ctx.popout;
+    const popout = ctx.popout;
     popout.classList.add("pobutton", "tbutton", "interface", "streamer-interface");
     popout.innerHTML = '<i class="fa fa-window-restore"></i>';
     popout.title = "Pop out";
     popout.setAttribute("aria-label", "Pop out");
     box.appendChild(popout);
 
-    var w: WindowProxy = null;
+    let w: WindowProxy = null;
 
     function popoutOpen() {
-        var width = 800, height = 450;
+        let width = 800, height = 450;
         if (video.srcObject) {
-            let vt = video.srcObject.getVideoTracks();
+            const vt = video.srcObject.getVideoTracks();
             if (vt && vt.length) {
-                let s = vt[0].getSettings();
+                const s = vt[0].getSettings();
                 width = s.width;
                 height = s.height;
             }
@@ -875,7 +875,7 @@ export function videoAdd(idx: number, name: string) {
 
     // The admin button
     if ("master" in config.config) {
-        let admin = ctx.admin = dce("button");
+        const admin = ctx.admin = dce("button");
         admin.classList.add("ecstudio-admin-button");
         admin.innerHTML = '<i class="fas fa-user-cog"></i>';
         admin.title = "Administrate " + name;
@@ -888,7 +888,7 @@ export function videoAdd(idx: number, name: string) {
     }
 
     // The waveform wrapper (only in studio mode)
-    var waveformWrapper = ctx.waveformWrapper;
+    const waveformWrapper = ctx.waveformWrapper;
     waveformWrapper.classList.add("ecvideo-waveform");
     boxA.appendChild(waveformWrapper);
 }
@@ -896,24 +896,24 @@ export function videoAdd(idx: number, name: string) {
 // Style a video element given a user's name
 function styleVideoEl(ctx: {video: HTMLVideoElement, boxA: HTMLElement, standin: HTMLElement}, name: string) {
     if (!name) return;
-    var x = parseInt(btoa(unescape(encodeURIComponent(name.slice(-6)))).replace(/[^A-Za-z0-9]/g, ""), 36);
-    var r = x % 4;
+    let x = parseInt(btoa(unescape(encodeURIComponent(name.slice(-6)))).replace(/[^A-Za-z0-9]/g, ""), 36);
+    const r = x % 4;
     x = Math.floor(x / 4);
-    var g = x % 4;
+    const g = x % 4;
     x = Math.floor(x / 4);
-    var b = x % 4;
+    const b = x % 4;
     x = Math.floor(x / 4);
-    var s = x % standinSVG.length;
+    const s = x % standinSVG.length;
     ctx.video.style.backgroundColor =
         ctx.boxA.style.backgroundColor = "#" + r + g + b;
     ctx.standin.innerHTML = standinSVG[s].replace("##", genStandinName(name || ""));
 }
 
 // Remove a user from the user list
-export function userListRemove(idx: number, fromMaster: boolean) {
+export function userListRemove(idx: number, fromMaster: boolean): void {
     if (("master" in config.config) !== fromMaster)
         return;
-    var user = ui.panels.userList.users[idx];
+    const user = ui.panels.userList.users[idx];
     if (!user) return;
     user.wrapper.parentNode.removeChild(user.wrapper);
     ui.panels.userList.users[idx] = null;
@@ -928,11 +928,11 @@ export function userListRemove(idx: number, fromMaster: boolean) {
 
 // Add or remove users based on net commands
 util.netEvent("data", "user", function(ev) {
-    let msg: DataView = ev.detail;
-    let p = prot.parts.user;
-    let index = msg.getUint32(p.index, true);
-    let status = msg.getUint32(p.status, true);
-    let nick = util.decodeText(msg.buffer.slice(p.nick));
+    const msg: DataView = ev.detail;
+    const p = prot.parts.user;
+    const index = msg.getUint32(p.index, true);
+    const status = msg.getUint32(p.status, true);
+    const nick = util.decodeText(msg.buffer.slice(p.nick));
 
     // Add it to the UI
     if (status)
@@ -943,10 +943,10 @@ util.netEvent("data", "user", function(ev) {
 
 
 // Update the speaking status of an element in the user list
-export function userListUpdate(idx: number, speaking: boolean, fromMaster: boolean) {
+export function userListUpdate(idx: number, speaking: boolean, fromMaster: boolean): void {
     // The user list style follows the live info so it's somewhere
     if (!fromMaster) {
-        var user = ui.panels.userList.users[idx];
+        const user = ui.panels.userList.users[idx];
         if (!user) return;
         user.name.style.backgroundColor = ui.colors["user-list-" + (speaking?"speaking":"silent")];
         user.name.setAttribute("aria-label", user.name.innerText + ": " + (speaking?"Speaking":"Not speaking"));
@@ -962,7 +962,7 @@ export function userListUpdate(idx: number, speaking: boolean, fromMaster: boole
 // Update the user list when we get speech info
 util.events.addEventListener("ui.speech", function(ev: CustomEvent) {
     let user = ev.detail.user;
-    let status = ev.detail.status;
+    const status = ev.detail.status;
     if (user === null)
         user = net.selfId;
     userListUpdate(user, status, false);
@@ -971,23 +971,23 @@ util.events.addEventListener("ui.speech", function(ev: CustomEvent) {
 // If we're *not* using RTC, then speech status comes from the data socket
 if (!config.useRTC) {
     util.netEvent("data", "speech", function(ev) {
-        let msg: DataView = ev.detail;
-        let p = prot.parts.speech;
-        let indexStatus = msg.getUint32(p.indexStatus, true);
-        let index = indexStatus>>>1;
-        let status = (indexStatus&1);
+        const msg: DataView = ev.detail;
+        const p = prot.parts.speech;
+        const indexStatus = msg.getUint32(p.indexStatus, true);
+        const index = indexStatus>>>1;
+        const status = (indexStatus&1);
         userListUpdate(index, !!status, false);
     });
 }
 
 // Update the video UI based on new information about this peer
-export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boolean) {
-    var ctx = ui.video.users[peer];
-    var users = ui.panels.userList.users;
-    var user = users[peer];
-    var pi, prevMajor = ui.video.major;
-    var gallery = (ui.video.mode === ViewMode.Gallery);
-    var studio = (ui.video.mode === ViewMode.Studio);
+export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boolean): void {
+    const ctx = ui.video.users[peer];
+    const users = ui.panels.userList.users;
+    const user = users[peer];
+    const prevMajor = ui.video.major;
+    const gallery = (ui.video.mode === ViewMode.Gallery);
+    const studio = (ui.video.mode === ViewMode.Studio);
 
     // Update their speech
     while (lastSpeech.length <= peer)
@@ -998,7 +998,7 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
         else
             lastSpeech[peer] = null;
 
-        var sw = "";
+        let sw = "";
         if (fromMaster) {
             if (speaking)
                 sw = "Transmitting";
@@ -1032,8 +1032,8 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
         } else if (ui.video.major === net.selfId ||
                    lastSpeech[ui.video.major] === null) {
             // Otherwise, choose a major based on speech
-            var earliest = -1;
-            for (pi = 1; pi < users.length; pi++) {
+            let earliest = -1;
+            for (let pi = 1; pi < users.length; pi++) {
                 if (users[pi] && ui.video.users[pi] && pi !== net.selfId && lastSpeech[pi] !== null &&
                     (earliest === -1 || lastSpeech[pi] < lastSpeech[earliest]))
                     earliest = pi;
@@ -1050,7 +1050,7 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
 
         // If we still have no major, just choose one
         if (ui.video.major === -1) {
-            for (pi = users.length - 1; pi >= 0; pi--) {
+            for (let pi = users.length - 1; pi >= 0; pi--) {
                 if (users[pi] && ui.video.users[pi]) {
                     ui.video.major = pi;
                     break;
@@ -1068,18 +1068,15 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
     util.dispatchEvent("ui.video.major");
 
     // First rearrange them all in the side box
-    var active = 0;
     let moved = 0;
-    for (pi = 0; pi < users.length; pi++) {
-        let v = ui.video.users[pi];
-        let u = users[pi];
+    for (let pi = 0; pi < users.length; pi++) {
+        const v = ui.video.users[pi];
+        const u = users[pi];
         if (!v) continue;
 
         // Speech status
         if (u) {
-            active++;
-
-            var selected = (ui.video.selected === pi);
+            const selected = (ui.video.selected === pi);
             if (lastSpeech[pi] !== null)
                 v.boxB.style.borderColor = ui.colors["video-speaking" + (selected?"-sel":"")];
             else
@@ -1108,13 +1105,13 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
          * (9 * deviceWidth * elementCount) / (16 * deviceHeight) = w*w
          * w = sqrt((9 * deviceWidth * elementCount) / (16 * deviceHeight))
          */
-        let side = ui.video.side;
-        let total = side.childNodes.length;
+        const side = ui.video.side;
+        const total = side.childNodes.length;
         let w = Math.round(Math.sqrt((9 * side.offsetWidth * total) / (16 * side.offsetHeight)));
         if (w < 1)
             w = 1;
-        let ew = Math.max((100 / w) - 1, 1);
-        let mw = 100 / w;
+        const ew = Math.max((100 / w) - 1, 1);
+        const mw = 100 / w;
         ui.video.css.innerHTML = '[data-view-mode="gallery"] #ecvideo-side .ecvideo-a { flex: auto; width: ' + ew +  '%; max-width: ' + mw + '%; }';
     }
 
@@ -1132,7 +1129,7 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
 
     // And highlight it
     if (ui.video.major !== -1) {
-        let v = ui.video.users[ui.video.major];
+        const v = ui.video.users[ui.video.major];
         ui.video.main.appendChild(v.boxA);
     }
 }
@@ -1144,7 +1141,7 @@ function genStandinName(name: string) {
     if (name.length <= 2)
         return name;
 
-    var out = name[0];
+    const out = name[0];
     name = name.slice(1);
 
     // Ideal: Last capital character
@@ -1154,7 +1151,7 @@ function genStandinName(name: string) {
     } catch (ex) {
         re = RegExp("[A-Z]", "g");
     }
-    var uc = name.match(re);
+    const uc = name.match(re);
     if (uc)
         return out + uc[uc.length-1];
 

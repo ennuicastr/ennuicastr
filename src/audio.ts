@@ -15,7 +15,7 @@
  */
 
 // extern
-declare var MediaRecorder: any, webkitAudioContext: any;
+declare let MediaRecorder: any, webkitAudioContext: any;
 
 import * as config from "./config";
 import * as log from "./log";
@@ -28,62 +28,58 @@ import { dce } from "./util";
 import * as vad from "./vad";
 
 // The audio device being read
-export var userMedia: MediaStream = null;
-
-// Input latency on said device, in ms
-var inputLatency = 0;
+export let userMedia: MediaStream = null;
 
 // The pseudodevice as processed to reduce noise, for RTC
-export var userMediaRTC: MediaStream = null;
-export function setUserMediaRTC(to: MediaStream) { userMediaRTC = to; }
+export let userMediaRTC: MediaStream = null;
+export function setUserMediaRTC(to: MediaStream): void { userMediaRTC = to; }
 
 // Audio context
-export var ac: AudioContext = null;
+export let ac: AudioContext = null;
 
 // The Opus or FLAC packets to be handled. Format: [granulePos, data]
 type Packet = [number, DataView];
-var packets: Packet[] = [];
+let packets: Packet[] = [];
 
 // Opus zero packet, will be replaced with FLAC's version if needed
-var zeroPacket = new Uint8Array([0xF8, 0xFF, 0xFE]);
+let zeroPacket = new Uint8Array([0xF8, 0xFF, 0xFE]);
 
-// Our start time is in local ticks, and our offset is updated every so often
-var startTime = 0;
-export var timeOffset: null|number = null;
+// Our offset is updated every so often
+export let timeOffset: null|number = null;
 
 /* So that the time offset doesn't jump all over the place, we adjust it
  * *slowly*. This is the target time offset */
-var targetTimeOffset: null|number = null;
+let targetTimeOffset: null|number = null;
 
 // And this is the amount to adjust it per frame (1%)
 const timeOffsetAdjPerFrame = 0.0002;
 
 // The delays on the pongs we've received back
-var pongs: number[] = [];
+const pongs: number[] = [];
 
 /* To help with editing by sending a clean silence sample, we send the
  * first few (arbitrarily, 8) seconds of VAD-off silence */
-var sendSilence = 400;
+let sendSilence = 400;
 
 // When we're not sending real data, we have to send a few (arbitrarily, 3) empty frames
-var sentZeroes = 999;
+let sentZeroes = 999;
 
 /* We keep track of the last time we successfully encoded data for
  * transfer, to determine if anything's gone wrong */
-export var lastSentTime = 0;
-export function setLastSentTime(to: number) { lastSentTime = to; }
+export let lastSentTime = 0;
+export function setLastSentTime(to: number): void { lastSentTime = to; }
 
 // Recording timer updater
-var recordingTimerInterval: null|number = null;
+let recordingTimerInterval: null|number = null;
 
 // Current base of recording timer, in server time ms
-var recordingTimerBaseST = 0;
+let recordingTimerBaseST = 0;
 
 // Current base of recording timer, in recording time ms
-var recordingTimerBase = 0;
+let recordingTimerBase = 0;
 
 // Whether the recording timer should be ticking
-var recordingTimerTicking = false;
+let recordingTimerTicking = false;
 
 // Called when the network is disconnection
 function disconnect() {
@@ -106,11 +102,11 @@ util.events.addEventListener("net.disconnect", disconnect);
 
 // Handle pongs for our time offset
 util.netEvent("ping", "pong", function(ev) {
-    let msg: DataView = ev.detail;
+    const msg: DataView = ev.detail;
 
-    let p = prot.parts.pong;
-    let sent = msg.getFloat64(p.clientTime, true);
-    let recvd = performance.now();
+    const p = prot.parts.pong;
+    const sent = msg.getFloat64(p.clientTime, true);
+    const recvd = performance.now();
     pongs.push(recvd - sent);
     while (pongs.length > 5)
         pongs.shift();
@@ -122,15 +118,15 @@ util.netEvent("ping", "pong", function(ev) {
         setTimeout(net.ping, 10000);
 
         // And figure out our offset
-        let latency = pongs.reduce(function(a,b){return a+b;})/10;
-        let remoteTime = msg.getFloat64(p.serverTime, true) + latency;
+        const latency = pongs.reduce(function(a,b){return a+b;})/10;
+        const remoteTime = msg.getFloat64(p.serverTime, true) + latency;
         targetTimeOffset = remoteTime - recvd;
         if (timeOffset === null) timeOffset = targetTimeOffset;
     }
 });
 
 // Get audio permission. First audio step of the process.
-export function getAudioPerms(mkAudioUI: ()=>string) {
+export function getAudioPerms(mkAudioUI: ()=>string): Promise<unknown> {
     return navigator.mediaDevices.getUserMedia({audio: true}).then(function(userMediaIn) {
         userMedia = userMediaIn; // So that it gets deleted by getMic
         return getMic(mkAudioUI());
@@ -143,7 +139,7 @@ export function getAudioPerms(mkAudioUI: ()=>string) {
 
 /* The starting point for enabling encoding. Get our microphone input. Returns
  * a promise that resolves when encoding is active. */
-export function getMic(deviceId?: string) {
+export function getMic(deviceId?: string): Promise<unknown> {
     if (!net.connected)
         return;
 
@@ -175,11 +171,6 @@ export function getMic(deviceId?: string) {
     }).then(function(userMediaIn) {
         // Figure out our latency
         userMedia = userMediaIn;
-        var inl = userMedia.getAudioTracks()[0].getSettings().latency;
-        if (inl)
-            inputLatency = inl * 1000;
-        else
-            inputLatency = 0;
 
         // And move on to the next step
         return userMediaSet();
@@ -201,9 +192,6 @@ function userMediaSet() {
     log.pushStatus("initenc", "Initializing encoder...");
     log.popStatus("getmic");
 
-    // Get the sample rate from the user media
-    var sampleRate = userMedia.getAudioTracks()[0].getSettings().sampleRate;
-
     // Create our AudioContext if needed
     if (!ac) {
         try {
@@ -214,12 +202,12 @@ function userMediaSet() {
         }
 
         // Make an output context for it
-        let msd = (<any> ac).ecDestination = ac.createMediaStreamDestination();
+        const msd = (<any> ac).ecDestination = ac.createMediaStreamDestination();
 
         // Start playing it when we're (relatively) sure we can
         util.events.addEventListener("usermediartcready", function() {
             if (!ui.ui.audioOutput) {
-                let a = ui.ui.audioOutput = dce("audio");
+                const a = ui.ui.audioOutput = dce("audio");
                 a.style.display = "none";
                 document.body.appendChild(a);
             }
@@ -244,9 +232,9 @@ function userMediaSet() {
 
     }).then(function() {
         if (ac.state !== "running") {
-            return new Promise(function(res, rej) {
+            return new Promise(function(res) {
                 // This browser won't let us resume an AudioContext outside of an event handler
-                var btn = dce("button");
+                const btn = dce("button");
                 btn.classList.add("plain");
                 btn.style.position = "absolute";
                 btn.style.left = "1%";
@@ -270,7 +258,7 @@ function userMediaSet() {
         // At this point, we want to start catching errors
         window.addEventListener("error", function(error) {
             try {
-                let msg: string = "";
+                let msg = "";
                 if (error.error)
                     msg = error.error + "\n\n" + error.error.stack;
                 else
@@ -284,7 +272,7 @@ function userMediaSet() {
             if (error instanceof Error) {
                 net.errorHandler(error + "\n\n" + error.stack);
             } else {
-                var msg;
+                let msg;
                 try {
                     msg = JSON.stringify(error);
                 } catch (ex) {
@@ -318,8 +306,8 @@ function encoderStart() {
 
     // The server needs to be informed of FLAC's sample rate
     if (config.useFlac) {
-        let p = prot.parts.info;
-        let info = new DataView(new ArrayBuffer(p.length));
+        const p = prot.parts.info;
+        const info = new DataView(new ArrayBuffer(p.length));
         info.setUint32(0, prot.ids.info, true);
         info.setUint32(p.key, prot.info.sampleRate, true);
         info.setUint32(p.value, sampleRate, true);
@@ -339,7 +327,7 @@ function encoderStart() {
 
     // Figure out our channel layout based on the number of channels
     let channelLayout = 4;
-    let channelCount = ~~(userMedia.getAudioTracks()[0].getSettings().channelCount);
+    const channelCount = ~~(userMedia.getAudioTracks()[0].getSettings().channelCount);
     if (channelCount > 1)
         channelLayout = Math.pow(2, channelCount) - 1;
 
@@ -362,14 +350,14 @@ function encoderStart() {
         // Accept encoded packets
         let last = 0;
         capture.worker.onmessage = function(ev) {
-            let msg = ev.data;
+            const msg = ev.data;
             if (msg.c !== "packets") return;
 
             // Figure out the packet start time
-            let p = msg.d;
-            let now = msg.ts + performance.now() - Date.now(); // time adjusted from Date.now to performance.now
+            const p = msg.d;
+            const now = msg.ts + performance.now() - Date.now(); // time adjusted from Date.now to performance.now
             let pktTime = Math.round(
-                (now - startTime) * 48 -
+                now * 48 -
                 p.length * 960
             );
 
@@ -399,7 +387,7 @@ function encoderStart() {
 function handlePackets() {
     if (!packets.length || timeOffset === null) return;
 
-    var curGranulePos = packets[packets.length-1][0];
+    const curGranulePos = packets[packets.length-1][0];
     net.setTransmitting(true);
 
     // We have *something* to handle
@@ -414,7 +402,7 @@ function handlePackets() {
     }
 
     // Warn if we're buffering
-    let ba = net.bufferedAmount();
+    const ba = net.bufferedAmount();
     if (ba > 1024*1024)
         log.pushStatus("buffering", util.bytesToRepr(ba) + " audio data buffered");
     else
@@ -422,10 +410,10 @@ function handlePackets() {
 
     if (!vad.vadOn) {
         // Drop any sufficiently old packets, or send them marked as silence in continuous mode
-        var old = curGranulePos - vad.vadExtension*48;
+        const old = curGranulePos - vad.vadExtension*48;
         while (packets[0][0] < old) {
-            var packet = packets.shift();
-            var granulePos = adjustTime(packet);
+            const packet = packets.shift();
+            const granulePos = adjustTime(packet);
             if (granulePos < 0)
                 continue;
             if (config.useContinuous || sendSilence > 0) {
@@ -442,13 +430,13 @@ function handlePackets() {
         }
 
     } else {
-        var vadVal = (vad.rawVadOn?2:1);
+        const vadVal = (vad.rawVadOn?2:1);
 
         // VAD is on, so send packets
         packets.forEach(function (packet) {
-            var data = packet[1];
+            const data = packet[1];
 
-            var granulePos = adjustTime(packet);
+            const granulePos = adjustTime(packet);
             if (granulePos < 0)
                 return;
 
@@ -463,14 +451,14 @@ function handlePackets() {
 
 // Send an audio packet
 function sendPacket(granulePos: number, data: {buffer: ArrayBuffer}, vadVal: number) {
-    var p = prot.parts.data;
-    var msg = new DataView(new ArrayBuffer(p.length + (config.useContinuous?1:0) + data.buffer.byteLength));
+    const p = prot.parts.data;
+    const msg = new DataView(new ArrayBuffer(p.length + (config.useContinuous?1:0) + data.buffer.byteLength));
     msg.setUint32(0, prot.ids.data, true);
     msg.setUint32(p.granulePos, granulePos & 0xFFFFFFFF, true);
     msg.setUint16(p.granulePos + 4, (granulePos / 0x100000000) & 0xFFFF, true);
     if (config.useContinuous)
         msg.setUint8(p.packet, vadVal);
-    var data8 = new Uint8Array(data.buffer);
+    const data8 = new Uint8Array(data.buffer);
     (new Uint8Array(msg.buffer)).set(data8, p.packet + (config.useContinuous?1:0));
     net.dataSock.send(msg.buffer);
 }
@@ -491,24 +479,24 @@ function adjustTime(packet: Packet) {
     }
 
     // And adjust the time
-    return Math.round(packet[0] + timeOffset*48 + startTime*48);
+    return Math.round(packet[0] + timeOffset*48);
 }
 
 // Get the state of muting (true=MUTED)
 function getMute() {
-    let track = userMedia.getAudioTracks()[0];
+    const track = userMedia.getAudioTracks()[0];
     return !track.enabled;
 }
 
 // Get the echo cancellation state
-export function getEchoCancel() {
+export function getEchoCancel(): boolean {
     return ui.ui.panels.inputConfig.echo.checked;
 }
 
 // Toggle the mute state of the input audio (true=UNMUTED)
-export function toggleMute(to?: boolean) {
+export function toggleMute(to?: boolean): void {
     if (!userMedia) return;
-    var track = userMedia.getAudioTracks()[0];
+    const track = userMedia.getAudioTracks()[0];
     if (typeof to === "undefined")
         to = !track.enabled;
     track.enabled = to;
@@ -517,7 +505,7 @@ export function toggleMute(to?: boolean) {
 }
 
 // Set the echo cancellation state of the input audio
-export function setEchoCancel(to: boolean) {
+export function setEchoCancel(to: boolean): Promise<unknown> {
     // Update the UI
     ui.ui.panels.inputConfig.echo.checked = to;
 
@@ -530,7 +518,7 @@ export function setEchoCancel(to: boolean) {
 
 // Play or stop a sound
 function playStopSound(url: string, status: number, time: number) {
-    var sound = ui.ui.sounds.soundboard[url];
+    let sound = ui.ui.sounds.soundboard[url];
     if (!sound) {
         // Create an element for it
         sound = ui.ui.sounds.soundboard[url] = {
@@ -538,7 +526,7 @@ function playStopSound(url: string, status: number, time: number) {
         };
 
         // Choose a format
-        var format = "m4a";
+        let format = "m4a";
         if (typeof MediaSource !== "undefined" && MediaSource.isTypeSupported("audio/webm; codecs=opus"))
             format = "webm"
 
@@ -548,7 +536,7 @@ function playStopSound(url: string, status: number, time: number) {
             ui.ui.panels.outputConfig.sfxVolumeHider.style.display = "";
         }
     }
-    var el = sound.el;
+    const el = sound.el;
 
     // Play or stop playing
     el.pause();
@@ -574,8 +562,8 @@ function playStopSound(url: string, status: number, time: number) {
         }
 
         // OK, it might be worth catching up. Figure out our time.
-        var elCurTime = el.ecStartTime + el.currentTime * 1000;
-        var realCurTime = performance.now() + timeOffset;
+        const elCurTime = el.ecStartTime + el.currentTime * 1000;
+        const realCurTime = performance.now() + timeOffset;
         if (elCurTime < realCurTime - 100 || elCurTime > realCurTime + 100) {
             // Adjust our time so that we catch up in exactly one second
             let rate;
@@ -600,17 +588,17 @@ function playStopSound(url: string, status: number, time: number) {
 }
 
 util.netEvent("data", "sound", function(ev) {
-    let msg: DataView = ev.detail;
-    let p = prot.parts.sound.sc;
-    let time = msg.getFloat64(p.time, true);
-    let status = msg.getUint8(p.status);
-    let url = util.decodeText(msg.buffer.slice(p.url));
+    const msg: DataView = ev.detail;
+    const p = prot.parts.sound.sc;
+    const time = msg.getFloat64(p.time, true);
+    const status = msg.getUint8(p.status);
+    const url = util.decodeText(msg.buffer.slice(p.url));
     playStopSound(url, status, time);
 });
 
 
 // Set the recording timer
-export function setRecordingTimer(serverTime: number, recTime: number, ticking: boolean) {
+export function setRecordingTimer(serverTime: number, recTime: number, ticking: boolean): void {
     recordingTimerBaseST = serverTime;
     recordingTimerBase = recTime;
     recordingTimerTicking = ticking;
@@ -619,41 +607,41 @@ export function setRecordingTimer(serverTime: number, recTime: number, ticking: 
 }
 
 util.events.addEventListener("net.info." + prot.info.mode, function(ev: CustomEvent) {
-    let val: number = ev.detail.val;
-    let msg: DataView = ev.detail.msg;
-    let p = prot.parts.info;
+    const val: number = ev.detail.val;
+    const msg: DataView = ev.detail.msg;
+    const p = prot.parts.info;
 
     if (msg.byteLength >= p.length + 16) {
-        let sTime = msg.getFloat64(p.value + 4, true);
-        let recTime = msg.getFloat64(p.value + 12, true);
+        const sTime = msg.getFloat64(p.value + 4, true);
+        const recTime = msg.getFloat64(p.value + 12, true);
         setRecordingTimer(sTime, recTime, (val === prot.mode.rec));
     }
 });
 
 // Tick the recording timer
 function tickRecordingTimer() {
-    var time = recordingTimerBase;
+    let time = recordingTimerBase;
     if (recordingTimerTicking && timeOffset !== null)
         time += performance.now() + timeOffset - recordingTimerBaseST;
 
     time = ~~(time / 1000);
-    var s = "" + ~~(time % 60);
+    let s = "" + ~~(time % 60);
     if (s.length < 2) s = "0" + s;
     time = ~~(time / 60);
-    var m = "" + ~~(time % 60);
+    let m = "" + ~~(time % 60);
     time = ~~(time / 60);
-    var h = ~~time;
+    const h = ~~time;
     if (h && m.length < 2) m = "0" + m;
-    var timer = ui.ui.log.timer;
+    const timer = ui.ui.log.timer;
     timer.style.color = recordingTimerTicking ? "#080" : "#800";
     timer.innerText = (h?(h+":"):"") + m + ":" + s;
 }
 
 // Get the available device info, for admin users
-export function deviceInfo(allowVideo: boolean) {
+export function deviceInfo(allowVideo: boolean): any {
     return navigator.mediaDevices.enumerateDevices().then((devices) => {
-        let audio = [];
-        let video = allowVideo ? [] : null;
+        const audio = [];
+        const video = allowVideo ? [] : null;
         let ctr = 1, ctrv = 1;
         devices.forEach((dev) => {
             if (dev.kind === "audioinput") {
@@ -681,10 +669,10 @@ export function deviceInfo(allowVideo: boolean) {
 
 // Administration of our various settings
 util.netEvent("data", "admin", function(ev) {
-    let msg: DataView = ev.detail;
-    let p = prot.parts.admin;
-    let acts = prot.flags.admin.actions;
-    let action = msg.getUint32(p.action, true);
+    const msg: DataView = ev.detail;
+    const p = prot.parts.admin;
+    const acts = prot.flags.admin.actions;
+    const action = msg.getUint32(p.action, true);
 
     // Some commands apply to all users
     if (action === acts.mute) {
@@ -695,22 +683,22 @@ util.netEvent("data", "admin", function(ev) {
 
     } else if (action === acts.request) {
         // Request for admin access
-        let reqNick = util.decodeText(msg.buffer.slice(p.argument));
-        let target = msg.getUint32(p.target, true);
+        const reqNick = util.decodeText(msg.buffer.slice(p.argument));
+        const target = msg.getUint32(p.target, true);
         ui.ui.panels.userAdminReq.user = target;
         ui.ui.panels.userAdminReq.name.innerText = reqNick;
         ui.showPanel("userAdminReq", "audio");
 
     } else {
         // All other actions require permission
-        let src = msg.getUint32(p.target, true);
-        let acc = net.adminAccess[src];
+        const src = msg.getUint32(p.target, true);
+        const acc = net.adminAccess[src];
         if (!acc || !acc.audio) return;
 
         // Beyond videoInput also require video permission
         if (action >= acts.videoInput && !acc.video) return;
 
-        let arg = util.decodeText(msg.buffer.slice(p.argument));
+        const arg = util.decodeText(msg.buffer.slice(p.argument));
 
         switch (action) {
             case acts.unmute:

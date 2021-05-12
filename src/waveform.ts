@@ -25,22 +25,22 @@ const log10 = Math.log(10);
 const log1036 = log10 * 3.6;
 
 // Global display timer
-var displayInterval: number|null = null;
+let displayInterval: number|null = null;
 
 // Array of waveforms to display
-var toDisplay: Waveform[] = [];
+let toDisplay: Waveform[] = [];
 
 // Set of waveforms to display
-var toDisplaySet: Record<number, boolean> = {};
+let toDisplaySet: Record<number, boolean> = {};
 
 // Increasing index of waveforms allocated
-var waveformId = 0;
+let waveformId = 0;
 
 // Width of the peak meter
 const peakWidth = 6;
 
 // Whether to persist the peak labels
-var persistPeak = false;
+let persistPeak = false;
 
 // Our waveform display class
 export class Waveform {
@@ -113,7 +113,7 @@ export class Waveform {
         });
 
         // Main canvas
-        let canvas = this.canvas = document.createElement("canvas");
+        const canvas = this.canvas = document.createElement("canvas");
         Object.assign(canvas.style, {
             position: "absolute",
             left: "0px",
@@ -125,7 +125,7 @@ export class Waveform {
         this.ctx = canvas.getContext("2d", {alpha: false});
 
         // Wrapper for the label and stats canvases
-        let lblStatsWrapper = document.createElement("div");
+        const lblStatsWrapper = document.createElement("div");
         lblStatsWrapper.classList.add("ecwaveform-label");
         Object.assign(lblStatsWrapper.style, {
             position: "absolute",
@@ -137,7 +137,7 @@ export class Waveform {
         wrapper.appendChild(lblStatsWrapper);
 
         // The label canvas
-        let lblCanvas = this.lblCanvas = document.createElement("canvas");
+        const lblCanvas = this.lblCanvas = document.createElement("canvas");
         Object.assign(lblCanvas.style, {
             position: "absolute",
             left: "0px",
@@ -151,7 +151,7 @@ export class Waveform {
         this.lblCtx = lblCanvas.getContext("2d");
 
         // And the stats box
-        let statsBox = this.statsBox = document.createElement("span");
+        const statsBox = this.statsBox = document.createElement("span");
         Object.assign(statsBox.style, {
             position: "absolute",
             right: (peakWidth + 8) + "px",
@@ -197,7 +197,7 @@ export class Waveform {
     }
 
     // Push data
-    push(val: number, vad: number) {
+    push(val: number, vad: number): void {
         // Bump up surrounding ones to make the wave look nicer
         if (this.waveData.length > 0) {
             let last = this.waveData.pop();
@@ -219,7 +219,7 @@ export class Waveform {
         this.peakData.push(val);
         if (val > this.curPeak)
             this.curPeak = val;
-        let root = Math.sqrt(val);
+        const root = Math.sqrt(val);
         if (vad >= 2) {
             this.rmsData.push(root);
             this.rootSum += root;
@@ -229,13 +229,13 @@ export class Waveform {
         }
 
         // Shift over obsolete data
-        let max = 30 * this.sampleRate;
+        const max = 30 * this.sampleRate;
         let recalculate = false;
         while (this.peakData.length > max) {
             if (this.peakData[0] === this.curPeak)
                 recalculate = true;
             this.peakData.shift();
-            let root = this.rmsData.shift();
+            const root = this.rmsData.shift();
             if (root !== null)
                 this.rootSum -= root;
             else
@@ -245,8 +245,8 @@ export class Waveform {
             this.curPeak = Math.max.apply(Math, this.peakData);
 
         // And report
-        let peakDb = Math.round(10 * Math.log(this.curPeak) / log10);
-        let rmsDb = Math.round(10 * Math.log(Math.pow(this.rootSum / (this.rmsData.length - this.rmsPlaceholders), 2)) / log10);
+        const peakDb = Math.round(10 * Math.log(this.curPeak) / log10);
+        const rmsDb = Math.round(10 * Math.log(Math.pow(this.rootSum / (this.rmsData.length - this.rmsPlaceholders), 2)) / log10);
         let stats = "30 second peak " + peakDb + " decibels, RMS " + rmsDb + " decibels";
         this.wrapper.setAttribute("aria-label", stats);
         stats = stats.replace(/ decibels/g, "dB");
@@ -254,10 +254,10 @@ export class Waveform {
     }
 
     // Update the wave display when we retroactively promote VAD data
-    updateWaveRetroactive(vadExtension: number) {
-        let timeout = Math.ceil(audio.ac.sampleRate*vadExtension/1024000);
+    updateWaveRetroactive(vadExtension: number): void {
+        const timeout = Math.ceil(audio.ac.sampleRate*vadExtension/1024000);
         let i = Math.max(this.waveVADs.length - timeout, 0);
-        let s = this.waveVADs.length - i;
+        const s = this.waveVADs.length - i;
         if (s > this.staleData)
             this.staleData = s;
         for (; i < this.waveVADs.length; i++)
@@ -265,7 +265,7 @@ export class Waveform {
     }
 
     // Queue the wave to be displayed
-    updateWave(value: number, sentRecently: boolean) {
+    updateWave(value: number, sentRecently: boolean): void {
         this.sentRecently = sentRecently;
         if (toDisplaySet[this.id])
             return;
@@ -274,14 +274,14 @@ export class Waveform {
     }
 
     // Display this wave
-    display() {
-        var sentRecently = this.sentRecently;
-        var wc = this.canvas;
-        var lwc = this.lblCanvas;
+    display(): void {
+        const sentRecently = this.sentRecently;
+        const wc = this.canvas;
+        const lwc = this.lblCanvas;
 
         // Start from the element size
-        var w = this.wrapper.offsetWidth;
-        var h = this.wrapper.offsetHeight;
+        let w = this.wrapper.offsetWidth;
+        let h = this.wrapper.offsetHeight;
 
         // Rotate if our view is vertical
         if (w/h < 4/3) {
@@ -297,7 +297,7 @@ export class Waveform {
         }
 
         // Set if we need to refresh all data
-        var allNew = false;
+        let allNew = false;
 
         // Make sure the canvases are correct
         if (+wc.width !== w) {
@@ -312,7 +312,7 @@ export class Waveform {
         }
 
         if (this.rotate) {
-            var tmp = w;
+            const tmp = w;
             w = h;
             h = tmp;
         }
@@ -325,12 +325,12 @@ export class Waveform {
         h = Math.floor(h/2);
 
         // Figure out the width of each sample
-        var sw = Math.max(Math.floor(w/468), 1);
-        var dw = Math.ceil(w/sw);
+        const sw = Math.max(Math.floor(w/468), 1);
+        const dw = Math.ceil(w/sw);
 
         // Make sure we have an appropriate amount of data
-        var waveData = this.waveData;
-        var waveVADs = this.waveVADs;
+        const waveData = this.waveData;
+        const waveVADs = this.waveVADs;
         while (waveData.length > dw) {
             waveData.shift();
             waveVADs.shift();
@@ -341,7 +341,7 @@ export class Waveform {
         }
 
         // Figure out the height of the display
-        var dh = Math.min(Math.max.apply(Math, waveData) * 1.5, 1);
+        let dh = Math.min(Math.max.apply(Math, waveData) * 1.5, 1);
         if (dh < 0.06) dh = 0.06; // Make sure the too-quiet bars are always visible
         if (this.lastDisplayHeight !== dh) {
             this.lastDisplayHeight = dh;
@@ -349,7 +349,7 @@ export class Waveform {
         }
 
         // Figure out whether it should be colored at all
-        var good = net.connected && net.transmitting && audio.timeOffset && sentRecently;
+        const good = net.connected && net.transmitting && audio.timeOffset && sentRecently;
         if (this.lastGood !== good) {
             this.lastGood = good;
             allNew = true;
@@ -368,9 +368,9 @@ export class Waveform {
         }
 
         // And draw it
-        var ctx = this.ctx;
-        var lctx = this.lblCtx;
-        var i, p;
+        const ctx = this.ctx;
+        const lctx = this.lblCtx;
+        let i, p;
 
         // Make room for new data
         try {
@@ -382,7 +382,7 @@ export class Waveform {
         this.newData += this.staleData;
 
         // Get the x location where new data starts
-        var ndx = w - sw * this.newData;
+        const ndx = w - sw * this.newData;
 
         // Transform the canvas if we're rotating
         ctx.save();
@@ -397,7 +397,7 @@ export class Waveform {
         // A function for drawing our level warning bars
         function levelBar(at: number, color: string) {
             if (dh <= at) return;
-            var y = Math.log(at/dh * e4) / 4 * h;
+            const y = Math.log(at/dh * e4) / 4 * h;
             ctx.fillStyle = color;
             ctx.fillRect(ndx, h-y-1, w-ndx, 1);
             ctx.fillRect(ndx, h+y, w-ndx, 1);
@@ -412,7 +412,7 @@ export class Waveform {
 
         // Each column
         for (i = dw - this.newData, p = w - sw * this.newData; i < dw; i++, p += sw) {
-            var d = Math.max(Math.log((waveData[i] / dh) * e4) / 4, 0) * h;
+            let d = Math.max(Math.log((waveData[i] / dh) * e4) / 4, 0) * h;
             if (d === 0) d = 1;
             ctx.fillStyle = good ? config.waveVADColors[waveVADs[i]] : "#000";
             ctx.fillRect(p, h-d, sw, 2*d);
@@ -423,9 +423,9 @@ export class Waveform {
 
         // Possibly draw the peak labels
         function drawLabel(db: number, t: number) {
-            let txt = db + "dB";
-            let m = lctx.measureText(txt);
-            let l = w - m.width - peakWidth - 2;
+            const txt = db + "dB";
+            const m = lctx.measureText(txt);
+            const l = w - m.width - peakWidth - 2;
             t = ~~(t + m.actualBoundingBoxAscent/2);
             lctx.fillStyle = "#fff";
             lctx.fillText(txt, l, t);
@@ -443,8 +443,8 @@ export class Waveform {
             peak = (this.lastPeak * 3 + peak) / 4;
         this.lastPeak = peak;
         for (let pi = 0; pi < 3; pi++) {
-            let c = pi + 1;
-            let pl = (2-pi)/3, pu = (3-pi)/3;
+            const c = pi + 1;
+            const pl = (2-pi)/3, pu = (3-pi)/3;
             if (peak <= pu) {
                 ctx.fillStyle = ui.ui.colors["nopeak-" + c];
                 ctx.fillRect(w, ~~(h*pi/3), peakWidth, ~~(h*2*(3-pi)/3));

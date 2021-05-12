@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Yahweasel
+ * Copyright (c) 2018-2021 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,17 +15,16 @@
  */
 
 // extern
-declare var Ennuiboard: any, ECDefaultHotkeys: any;
+declare let Ennuiboard: any, ECDefaultHotkeys: any;
 
 // Since config is imported for side effects, it needs to come first
-import * as config from "./config";
+import "./config";
 
 import * as audio from "./audio";
 import * as log from "./log";
 import * as net from "./net";
 import * as proc from "./proc";
 import { prot } from "./protocol";
-import * as ui from "./ui";
 import * as uiImpl from "./ui-impl";
 import * as util from "./util";
 
@@ -35,17 +34,20 @@ function main() {
         // Load the keyboard indirection library
         return util.loadLibrary("libs/ennuiboard.min.js");
 
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     }).catch(function(){}).then(function() {
         // Gamepads can be supported by default
         if (typeof Ennuiboard !== "undefined")
             Ennuiboard.enable("gamepad", {auto: true, manualPoll: true});
 
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     }).catch(function(){}).then(function() {
         // Build the UI
         return <any> uiImpl.mkUI();
 
     }).then(function() {
         // This can be loaded lazily
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         ECDefaultHotkeys = {"0000c": "ecmenu-chat"};
         util.loadLibrary("hotkeys.min.js?v=5");
 

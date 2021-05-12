@@ -17,11 +17,10 @@
 // Push to talk
 
 // extern
-declare var ECHotkeys: any;
+declare let ECHotkeys: any;
 
 import * as audio from "./audio";
 import * as net from "./net";
-import * as ui from "./ui";
 import * as util from "./util";
 
 // PTT settings
@@ -60,7 +59,7 @@ function configurePTT(hotkey: null|string) {
 }
 
 // Configure push-to-talk based on user selection
-export function userConfigurePTT() {
+export function userConfigurePTT(): Promise<unknown> {
     if (typeof ECHotkeys === "undefined")
         return;
     return ECHotkeys.getUserKey().then(function(key: {key: string}) {

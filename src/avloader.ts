@@ -15,7 +15,7 @@
  */
 
 // extern
-declare var LibAV: any;
+declare let LibAV: any;
 
 import * as util from "./util";
 

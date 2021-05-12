@@ -15,13 +15,12 @@
  */
 
 // extern
-declare var JitsiMeetJS: any;
+declare let JitsiMeetJS: any;
 
 import * as audio from "./audio";
 import * as config from "./config";
 import * as net from "./net";
 import * as outproc from "./outproc";
-import * as proc from "./proc";
 import { prot } from "./protocol";
 import * as ui from "./ui";
 import * as util from "./util";
@@ -30,7 +29,7 @@ import * as video from "./video";
 import * as videoRecord from "./video-record";
 
 // Host which has indicated that it's willing to receive video recordings
-export let videoRecHost: number = -1;
+export let videoRecHost = -1;
 
 // Jitsi connection
 let connection: any;
@@ -42,7 +41,7 @@ let room: any;
 let jPromise: Promise<unknown> = Promise.all([]);
 
 // Jitsi tracks need a unique ID. Use this as a counter to generate them.
-let jCounter: number = 0;
+let jCounter = 0;
 
 // Jitsi outgoing audio track
 let jAudio: any;
@@ -68,14 +67,14 @@ interface VideoRecIncoming {
     buf: {idx: number, buf: Uint8Array}[];
     writer: WritableStreamDefaultWriter;
 }
-let videoRecIncoming: Record<number, VideoRecIncoming> = {};
+const videoRecIncoming: Record<number, VideoRecIncoming> = {};
 
 // Assert that a Jitsi peer exists
 function assertJitsiPeer(id: number, jid: string) {
     if (jitsiPeers[id])
         return jitsiPeers[id];
 
-    let ret = jitsiPeers[id] = {
+    const ret = jitsiPeers[id] = {
         id: jid,
         audio: null,
         video: null,
@@ -104,8 +103,8 @@ function initJitsi() {
 
     }).then(() => {
         // Get rid of any old Jitsi instance. First, clear tracks.
-        for (let id in jitsiPeers) {
-            let inc = jitsiPeers[id];
+        for (const id in jitsiPeers) {
+            const inc = jitsiPeers[id];
             if (inc.video)
                 jitsiTrackRemoved(inc.video);
             if (inc.audio)
@@ -287,9 +286,9 @@ function jitsiUnsetUserMediaVideo() {
 
 // Get an Ennuicastr user ID from a Jitsi track
 function getUserId(track: any) {
-    let jid: string = track.getParticipantId();
+    const jid: string = track.getParticipantId();
     let user: any = null;
-    let parts: any[] = room.getParticipants();
+    const parts: any[] = room.getParticipants();
     for (let i = 0; i < parts.length; i++) {
         if (parts[i].getId() === jid) {
             user = parts[i];
@@ -299,7 +298,7 @@ function getUserId(track: any) {
     if (!user)
         return null;
 
-    let id: number = +user.getDisplayName();
+    const id: number = +user.getDisplayName();
     if (Number.isNaN(id))
         return null;
 
@@ -309,12 +308,12 @@ function getUserId(track: any) {
 // Called when a remote track is added
 function jitsiTrackAdded(track: any) {
     if (track.isLocal()) return;
-    let stream: MediaStream = track.getOriginalStream();
-    let type: string = track.getType();
+    const stream: MediaStream = track.getOriginalStream();
+    const type: string = track.getType();
 
     // Get the user
-    let id = getUserId(track);
-    let jid = track.getParticipantId();
+    const id = getUserId(track);
+    const jid = track.getParticipantId();
     if (!(id in jitsiPeers)) {
         assertJitsiPeer(id, jid);
 
@@ -325,14 +324,14 @@ function jitsiTrackAdded(track: any) {
         if ("master" in config.config)
             videoRecSend(id, prot.videoRec.videoRecHost, ~~ui.ui.panels.master.acceptRemoteVideo.checked);
     }
-    let inc = jitsiPeers[id];
+    const inc = jitsiPeers[id];
     (<any> inc)[type] = track;
 
     // Make sure they have a video element
     ui.videoAdd(id, null);
 
     // Set this in the appropriate element
-    let el: HTMLMediaElement = (<any> ui.ui.video.users[id])[type];
+    const el: HTMLMediaElement = (<any> ui.ui.video.users[id])[type];
     el.srcObject = stream;
     el.play().catch(console.error);
 
@@ -352,14 +351,13 @@ function jitsiTrackAdded(track: any) {
 // Called when a remote track is removed
 function jitsiTrackRemoved(track: any) {
     if (track.isLocal()) return;
-    let stream: MediaStream = track.getOriginalStream();
-    let type: string = track.getType();
+    const type: string = track.getType();
 
     // Get the user
-    let id = getUserId(track);
+    const id = getUserId(track);
     if (!(id in jitsiPeers))
         return;
-    let inc = jitsiPeers[id];
+    const inc = jitsiPeers[id];
 
     // If this isn't even their current track, ignore it
     if ((<any> inc)[type] !== track)
@@ -374,7 +372,7 @@ function jitsiTrackRemoved(track: any) {
 
     // Remove it from the UI
     if (ui.ui.video.users[id]) {
-        let el: HTMLMediaElement = (<any> ui.ui.video.users[id])[type];
+        const el: HTMLMediaElement = (<any> ui.ui.video.users[id])[type];
         el.srcObject = null;
 
         // Show the standin if applicable
@@ -393,11 +391,11 @@ function jitsiMessage(user: any, jmsg: any) {
         return;
 
     // Get the peer number
-    let jid: string = user.getId();
-    let peer = +user.getDisplayName();
+    const jid: string = user.getId();
+    const peer = +user.getDisplayName();
     if (Number.isNaN(peer))
         return;
-    let inc = assertJitsiPeer(peer, jid);
+    const inc = assertJitsiPeer(peer, jid);
 
     if (jmsg.type === "ennuicastr-rtc") {
         // Just send it along
@@ -410,11 +408,11 @@ function jitsiMessage(user: any, jmsg: any) {
         return;
 
     // Turn it back into raw data
-    let ec = jmsg.ec;
-    let buf = new Uint8Array(ec.length);
+    const ec = jmsg.ec;
+    const buf = new Uint8Array(ec.length);
     for (let i = 0; i < buf.length; i++)
         buf[i] = ec.charCodeAt(i);
-    let msg = new DataView(buf.buffer);
+    const msg = new DataView(buf.buffer);
 
     return peerMessage(peer, msg);
 }
@@ -424,15 +422,15 @@ function jitsiMessage(user: any, jmsg: any) {
 function peerMessage(peer: number, msg: DataView) {
     if (msg.byteLength < 4)
         return;
-    let cmd = msg.getUint32(0, true);
+    const cmd = msg.getUint32(0, true);
 
     // Process the command
     switch (cmd) {
         case prot.ids.data:
             try {
-                let vr = videoRecIncoming[peer];
-                let idx = msg.getFloat64(4, true);
-                let buf = new Uint8Array(msg.buffer).subarray(12);
+                const vr = videoRecIncoming[peer];
+                const idx = msg.getFloat64(4, true);
+                const buf = new Uint8Array(msg.buffer).subarray(12);
                 if (idx !== vr.nextIdx) {
                     // Data out of order. Push it for later.
                     vr.buf.push({idx: idx, buf: buf});
@@ -451,7 +449,7 @@ function peerMessage(peer: number, msg: DataView) {
                     while (vr.buf.length) {
                         let cont = false;
                         for (let i = 0; i < vr.buf.length; i++) {
-                            let part = vr.buf[i];
+                            const part = vr.buf[i];
                             if (part.idx === vr.nextIdx) {
                                 vr.writer.write(part.buf);
                                 vr.nextIdx += part.buf.length;
@@ -470,9 +468,9 @@ function peerMessage(peer: number, msg: DataView) {
         case prot.ids.speech:
         {
             // Speech status
-            let p = prot.parts.speech;
+            const p = prot.parts.speech;
             if (msg.byteLength < p.length) return;
-            let status = !!msg.getUint32(p.indexStatus, true);
+            const status = !!msg.getUint32(p.indexStatus, true);
             util.dispatchEvent("ui.speech", {user: peer, status: status});
             break;
         }
@@ -480,10 +478,10 @@ function peerMessage(peer: number, msg: DataView) {
         case prot.ids.videoRec:
         {
             // Video recording sub-message
-            let p = prot.parts.videoRec;
-            let pv = prot.videoRec;
+            const p = prot.parts.videoRec;
+            const pv = prot.videoRec;
             if (msg.byteLength < p.length) return;
-            let cmd = msg.getUint32(p.cmd, true);
+            const cmd = msg.getUint32(p.cmd, true);
 
             switch (cmd) {
                 case pv.videoRecHost:
@@ -569,11 +567,11 @@ function sendMsg(msg: Uint8Array, peer?: number) {
     // Otherwise, we'll send it via the bridge
 
     // Convert the message to a string (gross)
-    let msga: string[] = [];
+    const msga: string[] = [];
     for (let i = 0; i < msg.length; i++)
         msga.push(String.fromCharCode(msg[i]));
-    let msgs = msga.join("");
-    let msgj = {type: "ennuicastr", ec: msgs};
+    const msgs = msga.join("");
+    const msgj = {type: "ennuicastr", ec: msgs};
 
     // Send it to the peer or broadcast it to all peers
     if (inc === null) {
@@ -585,7 +583,7 @@ function sendMsg(msg: Uint8Array, peer?: number) {
 }
 
 // Send a video recording subcommand to a peer
-export function videoRecSend(peer: number, cmd: number, payloadData?: unknown) {
+export function videoRecSend(peer: number, cmd: number, payloadData?: unknown): void {
     if (!config.useRTC)
         return;
 
@@ -593,7 +591,7 @@ export function videoRecSend(peer: number, cmd: number, payloadData?: unknown) {
     let payload: Uint8Array;
     if (typeof payloadData === "number") {
         payload = new Uint8Array(4);
-        let dv = new DataView(payload.buffer);
+        const dv = new DataView(payload.buffer);
         dv.setUint32(0, payloadData, true);
 
     } else if (typeof payloadData === "object") {
@@ -605,8 +603,8 @@ export function videoRecSend(peer: number, cmd: number, payloadData?: unknown) {
     }
 
     // Build the message
-    let p = prot.parts.videoRec;
-    let msg = new DataView(new ArrayBuffer(p.length + payload.length));
+    const p = prot.parts.videoRec;
+    const msg = new DataView(new ArrayBuffer(p.length + payload.length));
     msg.setUint32(0, prot.ids.videoRec, true);
     msg.setUint32(p.cmd, cmd, true);
     new Uint8Array(msg.buffer).set(new Uint8Array(payload.buffer), p.length);
@@ -620,7 +618,7 @@ function disconnect() {
     if (!room)
         return Promise.all([]);
 
-    let ret = room.leave();
+    const ret = room.leave();
     room = null;
     return ret;
 }
@@ -631,7 +629,7 @@ function closeRTC(peer: number) {
     // Even if they're still on RTC, this should be considered catastrophic
     if (!(peer in jitsiPeers))
         return;
-    let inc = jitsiPeers[peer];
+    const inc = jitsiPeers[peer];
     if (inc.video)
         jitsiTrackRemoved(inc.video);
     if (inc.audio)
@@ -646,16 +644,16 @@ if (config.useRTC) {
 }
 
 // Send a speech message over RTC
-export function speech(status: boolean, peer?: number) {
+export function speech(status: boolean, peer?: number): void {
     if (!config.useRTC)
         return;
 
     // Build the message
-    let p = prot.parts.speech;
-    let msgv = new DataView(new ArrayBuffer(p.length));
+    const p = prot.parts.speech;
+    const msgv = new DataView(new ArrayBuffer(p.length));
     msgv.setUint32(0, prot.ids.speech, true);
     msgv.setUint32(p.indexStatus, status?1:0, true);
-    let msg = new Uint8Array(msgv.buffer);
+    const msg = new Uint8Array(msgv.buffer);
 
     // Send it
     sendMsg(msg, peer);
@@ -668,11 +666,11 @@ util.events.addEventListener("ui.speech", function(ev: CustomEvent) {
 });
 
 // Send a chunk of video data to a peer
-export function videoDataSend(peer: number, idx: number, buf: Uint8Array) {
+export function videoDataSend(peer: number, idx: number, buf: Uint8Array): void {
     // Send 16k at a time
     for (let start = 0; start < buf.length; start += 16380) {
-        let part = buf.subarray(start, start + 16380);
-        let msg = new DataView(new ArrayBuffer(12 + part.length));
+        const part = buf.subarray(start, start + 16380);
+        const msg = new DataView(new ArrayBuffer(12 + part.length));
         msg.setUint32(0, prot.ids.data, true);
         msg.setFloat64(4, idx + start, true);
         new Uint8Array(msg.buffer).set(part, 12);
@@ -684,7 +682,7 @@ export function videoDataSend(peer: number, idx: number, buf: Uint8Array) {
 function setMajor(peer: number) {
     if (!(peer in jitsiPeers) || !room)
         return;
-    let jid = jitsiPeers[peer].id;
+    const jid = jitsiPeers[peer].id;
 
     if (peer < 0) {
         // No primary = everyone is primary!
@@ -698,7 +696,7 @@ function setMajor(peer: number) {
 
     } else {
         // Set this individual as preferred
-        let constraints: any = {};
+        const constraints: any = {};
         constraints[jid] = { maxHeight: 1080 };
         room.setReceiverConstraints({
             lastN: 64,
@@ -721,7 +719,6 @@ util.events.addEventListener("ui.video.major", function() {
 function startRTC(id: number, j: JitsiPeer) {
     // Perfect negotiation pattern
     const polite = (net.selfId > id);
-    let makingOffer = false, ignoreOffer = false;
 
     // Create our peer connection
     j.rtc = new RTCPeerConnection({
@@ -730,10 +727,10 @@ function startRTC(id: number, j: JitsiPeer) {
 
     // Incoming data channels
     j.rtc.ondatachannel = function(ev: RTCDataChannelEvent) {
-        let data = ev.channel;
+        const data = ev.channel;
         data.binaryType = "arraybuffer";
         data.onmessage = function(ev: MessageEvent) {
-            let msg = new DataView(ev.data);
+            const msg = new DataView(ev.data);
             peerMessage(id, msg);
         };
     };
@@ -741,17 +738,15 @@ function startRTC(id: number, j: JitsiPeer) {
     // Negotiation
     j.rtc.onnegotiationneeded = onnegotiationneeded;
     function onnegotiationneeded() {
-        makingOffer = true;
         j.rtc.createOffer().then(offer => {
             return j.rtc.setLocalDescription(offer);
         }).then(() => {
             // Tell them our local description
             if (room)
                 room.sendEndpointMessage(j.id, {type: "ennuicastr-rtc", desc: j.rtc.localDescription});
-        }).catch(()=>{}).then(() => {
-            makingOffer = false;
-        });
-    };
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        }).catch(()=>{});
+    }
 
     // ICE candidates
     j.rtc.onicecandidate = function(ev: RTCPeerConnectionIceEvent) {
@@ -763,7 +758,7 @@ function startRTC(id: number, j: JitsiPeer) {
     j.signal = function(msg: any) {
         if (msg.desc) {
             // An offer or answer
-            let desc = msg.desc;
+            const desc = msg.desc;
             let rollbackLocal = false;
             if (desc.type === "offer" && j.rtc.signalingState !== "stable") {
                 if (!polite)
@@ -794,6 +789,7 @@ function startRTC(id: number, j: JitsiPeer) {
             }).catch(console.error);
 
         } else if (msg.cand) {
+            // eslint-disable-next-line @typescript-eslint/no-empty-function
             j.rtc.addIceCandidate(msg.cand).catch(()=>{});
 
         }

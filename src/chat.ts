@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Yahweasel
+ * Copyright (c) 2020, 2021 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -18,13 +18,13 @@ import * as net from "./net";
 import { prot } from "./protocol";
 import * as ui from "./ui";
 import * as util from "./util";
-import { dce, gebi } from "./util";
+import { dce } from "./util";
 
 // Receive a chat message
-export function recvChat(text: string) {
+export function recvChat(text: string): void {
     // FIXME: Better output selection
     ui.ui.chat.wrapper.style.display = "";
-    var line = dce("div");
+    const line = dce("div");
     line.innerText = text;
     ui.ui.chat.incoming.appendChild(line);
     ui.ui.chat.incoming.scroll(0, 1000000);
@@ -32,17 +32,17 @@ export function recvChat(text: string) {
 
 // Chat messages come from the data sock
 util.netEvent("data", "text", function(ev) {
-    let msg: DataView = ev.detail;
-    let p = prot.parts.text;
-    let text = util.decodeText(msg.buffer.slice(p.text));
+    const msg: DataView = ev.detail;
+    const p = prot.parts.text;
+    const text = util.decodeText(msg.buffer.slice(p.text));
     recvChat(text);
 });
 
 // Send a chat message
 function sendChat(text: string) {
-    var textBuf = util.encodeText(text);
-    var p = prot.parts.text;
-    var out = new DataView(new ArrayBuffer(p.length + textBuf.length));
+    const textBuf = util.encodeText(text);
+    const p = prot.parts.text;
+    const out = new DataView(new ArrayBuffer(p.length + textBuf.length));
     out.setUint32(0, prot.ids.text, true);
     out.setUint32(p.reserved, 0, true);
     new Uint8Array(out.buffer).set(textBuf, p.text);
@@ -50,9 +50,9 @@ function sendChat(text: string) {
 }
 
 // Build the chat box behavior
-export function mkChatBox() {
-    var chat = ui.ui.chat;
-    var outgoing = chat.outgoing;
+export function mkChatBox(): void {
+    const chat = ui.ui.chat;
+    const outgoing = chat.outgoing;
 
     // Make outgoing work
     function handleOutgoing() {

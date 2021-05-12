@@ -21,7 +21,7 @@ import * as net from "./net";
 import { prot } from "./protocol";
 import * as ui from "./ui";
 import * as util from "./util";
-import { dce, gebi } from "./util";
+import { dce } from "./util";
 
 // Credit information
 const credits = {
@@ -42,8 +42,8 @@ const sounds = {
 };
 
 // Set up the master interface
-export function createMasterInterface() {
-    var masterUI = ui.ui.panels.master;
+export function createMasterInterface(): void {
+    const masterUI = ui.ui.panels.master;
 
     // Show the button
     ui.ui.persistent.masterHider.style.display = "";
@@ -76,10 +76,10 @@ export function createMasterInterface() {
 
 // (Re)configure the master interface
 function configureMasterInterface() {
-    var masterUI = ui.ui.panels.master;
+    const masterUI = ui.ui.panels.master;
 
-    var pauseResume = masterUI.pauseResumeB;
-    var startStop = masterUI.startStopB;
+    const pauseResume = masterUI.pauseResumeB;
+    const startStop = masterUI.startStopB;
     masterUI.yesNo.style.display = "none";
 
     // Start/stop button
@@ -109,6 +109,7 @@ function configureMasterInterface() {
             startStop.innerText = "Waiting for audio from clients...";
         else
             startStop.innerHTML = '<i class="fas fa-check"></i> Recording finished';
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         startStop.onclick = function() {};
         startStop.disabled = true;
 
@@ -129,8 +130,8 @@ if ("master" in config.config) {
 
 // Generic "send this mode change" function
 function sendMode(mode: number) {
-    var p = prot.parts.mode;
-    var out = new DataView(new ArrayBuffer(p.length));
+    const p = prot.parts.mode;
+    const out = new DataView(new ArrayBuffer(p.length));
     out.setUint32(0, prot.ids.mode, true);
     out.setUint32(p.mode, mode, true);
     net.masterSock.send(out.buffer);
@@ -156,7 +157,7 @@ function resumeRecording() {
 
 // Stop the recording (stop button clicked)
 function stopRecording() {
-    var startStop = ui.ui.panels.master.startStopB;
+    const startStop = ui.ui.panels.master.startStopB;
 
     startStop.disabled = true;
     startStop.innerText = "Are you sure?";
@@ -185,20 +186,20 @@ function stopRecordingNo() {
 // Generate the invite link
 function genInvite() {
     // Generate the search string
-    var f = (
+    const f = (
         (ui.ui.panels.master.inviteContinuous.checked?config.features.continuous:0) +
         ((config.config.format&config.features.rtc)?config.features.rtc:0) +
         (config.useVideoRec?config.features.videorec:0) +
         (ui.ui.panels.master.inviteFLAC.checked?prot.flags.dataType.flac:0)
     );
-    var sb = "?" + config.config.id.toString(36) + "-" + config.config.key.toString(36);
+    let sb = "?" + config.config.id.toString(36) + "-" + config.config.key.toString(36);
     if (config.config.port !== 36678)
         sb += "-p" + config.config.port.toString(36);
     if (f !== 0)
         sb += "-f" + f.toString(36);
 
     // Make the URL
-    var url = new URL(<any> config.url);
+    const url = new URL(<any> config.url);
     url.search = sb;
     ui.ui.panels.master.inviteLink.value = url.toString();
 }
@@ -216,11 +217,11 @@ function copyInvite() {
 
 // Update the credit cost/rate meter
 function updateCreditCost() {
-    var masterUI = ui.ui.panels.master;
+    const masterUI = ui.ui.panels.master;
     if (!credits.creditCost || !credits.creditRate)
         return;
-    var cc = credits.creditCost;
-    var cr = credits.creditRate;
+    const cc = credits.creditCost;
+    const cr = credits.creditRate;
     if (net.mode === prot.mode.rec)
         cr[0] += cr[1]; // Report the *next* minute so you're not surprised
     masterUI.recordingCost.value = creditsToDollars(cr[0], cc);
@@ -237,8 +238,8 @@ function creditsToDollars(c: number, creditCost: {currency: number, credits: num
     else if (c < 100)
         return c + "¢";
 
-    var d = Math.floor(c / 100);
-    var ce = (c % 100)+"";
+    const d = Math.floor(c / 100);
+    let ce = (c % 100)+"";
     if (ce === "0") {
         return "$" + d;
     } else {
@@ -248,15 +249,15 @@ function creditsToDollars(c: number, creditCost: {currency: number, credits: num
 }
 
 // Update the administrative interface for the master
-export function updateMasterAdmin() {
-    var userAdminP = ui.ui.panels.userAdmin;
-    var bs = userAdminP.buttons;
+export function updateMasterAdmin(): void {
+    const userAdminP = ui.ui.panels.userAdmin;
+    const bs = userAdminP.buttons;
 
-    for (var i = 0; i < users.length; i++) {
-        var u = users[i];
+    for (let i = 0; i < users.length; i++) {
+        const u = users[i];
         if (!u) continue;
 
-        var b: HTMLButtonElement;
+        let b: HTMLButtonElement;
         if (!bs[i]) {
             // Create a button for this user
             b = bs[i] = dce("button");
@@ -283,12 +284,12 @@ export function updateMasterAdmin() {
 }
 
 // Display the interface to perform administration on this user
-export function userAdmin(target: number) {
-    let user = users[target] || null;
-    let fullAccess = user ? user.fullAccess : null;
-    let userAdminFull = ui.ui.panels.userAdminFull;
-    let userAdminUser = fullAccess ? userAdminFull : ui.ui.panels.userAdminUser;
-    let acts = prot.flags.admin.actions;
+export function userAdmin(target: number): void {
+    const user = users[target] || null;
+    const fullAccess = user ? user.fullAccess : null;
+    const userAdminFull = ui.ui.panels.userAdminFull;
+    const userAdminUser = fullAccess ? userAdminFull : ui.ui.panels.userAdminUser;
+    const acts = prot.flags.admin.actions;
     userAdminUser.user = target;
 
     if (target >= 0) {
@@ -327,7 +328,7 @@ export function userAdmin(target: number) {
 
 
         // Audio input device
-        let audioInput = userAdminFull.audioInput;
+        const audioInput = userAdminFull.audioInput;
         audioInput.onchange = function() {
             audioInput.disabled = true;
             adminAction(target, acts.audioInput, {nohide: true, arg: audioInput.value});
@@ -337,8 +338,8 @@ export function userAdmin(target: number) {
         // Add the devices
         audioInput.innerHTML = "";
         try {
-            for (let dev of fullAccess.audioDevices) {
-                let el = dce("option");
+            for (const dev of fullAccess.audioDevices) {
+                const el = dce("option");
                 el.value = dev.id;
                 el.innerText = dev.label;
                 audioInput.appendChild(el);
@@ -355,7 +356,7 @@ export function userAdmin(target: number) {
             userAdminFull.videoHider.style.display = "";
 
             // Video input device
-            let videoInput = userAdminFull.videoInput;
+            const videoInput = userAdminFull.videoInput;
             videoInput.onchange = function() {
                 videoInput.disabled = true;
                 adminAction(target, acts.videoInput, {nohide: true, arg: videoInput.value});
@@ -364,13 +365,13 @@ export function userAdmin(target: number) {
 
             // Add the devices
             videoInput.innerHTML = "";
-            let el = dce("option");
+            const el = dce("option");
             el.value = "-none";
             el.innerText = "-";
             videoInput.appendChild(el);
             try {
-                for (let dev of fullAccess.videoDevices) {
-                    let el = dce("option");
+                for (const dev of fullAccess.videoDevices) {
+                    const el = dce("option");
                     el.value = dev.id;
                     el.innerText = dev.label;
                     videoInput.appendChild(el);
@@ -380,7 +381,7 @@ export function userAdmin(target: number) {
 
 
             // Video resolution
-            let videoRes = userAdminFull.videoRes;
+            const videoRes = userAdminFull.videoRes;
             videoRes.onchange = function() {
                 videoRes.disabled = true;
                 adminAction(target, acts.videoRes, {nohide: true, arg: videoRes.value});
@@ -409,14 +410,14 @@ ui.ui.masterUserAdmin = userAdmin;
 
 // Add a soundboard button
 function addSoundButton(sid: string, url: string, name: string) {
-    var soundboard = ui.ui.panels.soundboard;
+    const soundboard = ui.ui.panels.soundboard;
 
     if (sid in soundboard.sounds)
         return;
     sounds.url2sid[url] = sid;
 
     // Make the button
-    var b = soundboard.sounds[sid] = {
+    const b = soundboard.sounds[sid] = {
         b: dce("button"),
         i: dce("i"),
         n: dce("span")
@@ -429,11 +430,11 @@ function addSoundButton(sid: string, url: string, name: string) {
     b.n.innerText = " " + name;
     b.b.appendChild(b.n);
 
-    var spacer = dce("span");
+    const spacer = dce("span");
     spacer.innerHTML = "&nbsp;";
 
     b.b.onclick = function() {
-        var play = true;
+        let play = true;
         if (url in ui.ui.sounds.soundboard)
             play = ui.ui.sounds.soundboard[url].el.paused;
         playStopSound(b.b, sid, play);
@@ -455,9 +456,9 @@ function addSoundButtons(arr: {i: string, u: string, n: string}[]) {
 function playStopSound(b: HTMLButtonElement, sid: string, play: boolean) {
     b.disabled = true;
     b.classList.add("off");
-    var p = prot.parts.sound.cs;
-    var sidBuf = util.encodeText(sid);
-    var msg = new DataView(new ArrayBuffer(p.length + sidBuf.length));
+    const p = prot.parts.sound.cs;
+    const sidBuf = util.encodeText(sid);
+    const msg = new DataView(new ArrayBuffer(p.length + sidBuf.length));
     msg.setUint32(0, prot.ids.sound, true);
     msg.setUint8(p.status, play?1:0);
     new Uint8Array(msg.buffer).set(sidBuf, p.id);
@@ -466,11 +467,11 @@ function playStopSound(b: HTMLButtonElement, sid: string, play: boolean) {
 
 // Update the state of a playback button
 function soundButtonUpdate(url: string, play: unknown, el: HTMLAudioElement) {
-    var soundboard = ui.ui.panels.soundboard;
-    var sid = sounds.url2sid[url];
+    const soundboard = ui.ui.panels.soundboard;
+    const sid = sounds.url2sid[url];
     if (!sid)
         return;
-    var b = soundboard.sounds[sid];
+    const b = soundboard.sounds[sid];
 
     // Un-disable the button
     b.b.disabled = false;
@@ -498,12 +499,12 @@ if ("master" in config.config) {
 // Admin actions
 function adminAction(target: number, action: number, opts?: any) {
     // Optional argument
-    let arg = (opts ? opts.arg : "") || "";
-    let argBuf = util.encodeText(arg);
+    const arg = (opts ? opts.arg : "") || "";
+    const argBuf = util.encodeText(arg);
 
     // Admin command
-    var p = prot.parts.admin;
-    var out = new DataView(new ArrayBuffer(p.length + argBuf.length));
+    const p = prot.parts.admin;
+    const out = new DataView(new ArrayBuffer(p.length + argBuf.length));
     out.setUint32(0, prot.ids.admin, true);
     out.setUint32(p.target, target, true);
     out.setUint32(p.action, action, true);
@@ -517,7 +518,7 @@ function adminAction(target: number, action: number, opts?: any) {
 
 // The change handler for accepting remote video
 function acceptRemoteVideoChange() {
-    var arv = ui.ui.panels.master.acceptRemoteVideo;
+    const arv = ui.ui.panels.master.acceptRemoteVideo;
     localStorage.setItem("ecmaster-video-record-host", JSON.stringify(arv.checked));
     jitsi.videoRecSend(void 0, prot.videoRec.videoRecHost, ~~arv.checked);
 }
@@ -525,8 +526,8 @@ function acceptRemoteVideoChange() {
 // Allow or disallow admin access for this user
 function allowAdmin(target: number, allowed: boolean, props: any) {
     if (!users[target]) return;
-    let user = users[target];
-    let name = user.name || "Anonymous";
+    const user = users[target];
+    const name = user.name || "Anonymous";
     if (allowed) {
         user.fullAccess = props;
         log.pushStatus("allowAdmin", "User " + name + " has allowed admin access.");
@@ -542,7 +543,7 @@ function allowAdmin(target: number, allowed: boolean, props: any) {
 // Update admin information for this user
 function updateAdmin(target: number, props: any) {
     if (!users[target]) return;
-    let user = users[target];
+    const user = users[target];
     if (!user.fullAccess) return;
 
     // Update the info in the structure
@@ -561,7 +562,7 @@ function updateAdmin(target: number, props: any) {
     });
 
     // And the UI
-    let userAdminFull = ui.ui.panels.userAdminFull;
+    const userAdminFull = ui.ui.panels.userAdminFull;
     if (userAdminFull.user === target) {
         if ("mute" in props) {
             userAdminFull.mute.checked = props.mute;
@@ -594,40 +595,46 @@ function updateAdmin(target: number, props: any) {
 // Messages from the master socket
 if ("master" in config.config) {
     util.netEvent("master", "info", function(ev) {
-        let msg: DataView = ev.detail;
-        let p = prot.parts.info;
-        let key = msg.getUint32(p.key, true);
+        const msg: DataView = ev.detail;
+        const p = prot.parts.info;
+        const key = msg.getUint32(p.key, true);
         let val = 0;
         if (msg.byteLength >= p.length)
             val = msg.getUint32(p.value, true);
         switch (key) {
             case prot.info.creditCost:
+            {
                 // Informing us of the cost of credits
-                var v2 = msg.getUint32(p.value + 4, true);
+                const v2 = msg.getUint32(p.value + 4, true);
                 credits.creditCost = {
                     currency: val,
                     credits: v2
                 };
                 break;
+            }
 
             case prot.info.creditRate:
+            {
                 // Informing us of the total cost and rate in credits
-                var v2 = msg.getUint32(p.value + 4, true);
+                const v2 = msg.getUint32(p.value + 4, true);
                 credits.creditRate = [val, v2];
                 updateCreditCost();
                 break;
+            }
 
             case prot.info.sounds:
+            {
                 // Soundboard items
-                var valS = util.decodeText(msg.buffer.slice(p.value));
+                const valS = util.decodeText(msg.buffer.slice(p.value));
                 addSoundButtons(JSON.parse(valS));
                 break;
+            }
 
             case prot.info.allowAdmin:
             {
                 // A user has allowed or disallowed us to administrate them
                 if (msg.byteLength < p.length + 1) break;
-                let allowed = !!msg.getUint8(p.length);
+                const allowed = !!msg.getUint8(p.length);
                 let props = null;
                 if (msg.byteLength > p.length + 1) {
                     try {
@@ -653,11 +660,11 @@ if ("master" in config.config) {
     });
 
     util.netEvent("master", "user", function(ev) {
-        let msg: DataView = ev.detail;
-        let p = prot.parts.user;
-        let index = msg.getUint32(p.index, true);
-        let status = msg.getUint32(p.status, true);
-        let nick = util.decodeText(msg.buffer.slice(p.nick));
+        const msg: DataView = ev.detail;
+        const p = prot.parts.user;
+        const index = msg.getUint32(p.index, true);
+        const status = msg.getUint32(p.status, true);
+        const nick = util.decodeText(msg.buffer.slice(p.nick));
 
         // Add it to the UI
         if (status) {
@@ -687,11 +694,11 @@ if ("master" in config.config) {
 
     util.netEvent("master", "speech", function(ev) {
         // Master "speech" is really data-receive
-        let msg: DataView = ev.detail;
-        let p = prot.parts.speech;
-        let indexStatus = msg.getUint32(p.indexStatus, true);
-        let index = indexStatus>>>1;
-        let status = !!(indexStatus&1);
+        const msg: DataView = ev.detail;
+        const p = prot.parts.speech;
+        const indexStatus = msg.getUint32(p.indexStatus, true);
+        const index = indexStatus>>>1;
+        const status = !!(indexStatus&1);
         ui.userListUpdate(index, status, true);
         if (users[index]) {
             users[index].transmitting = status;

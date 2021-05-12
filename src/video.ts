@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Yahweasel
+ * Copyright (c) 2018-2021 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -23,10 +23,10 @@ import * as ui from "./ui";
 import * as util from "./util";
 
 // The video device being read
-export var userMediaVideo: MediaStream = null;
+export let userMediaVideo: MediaStream = null;
 
 // Input latency of the video, in ms
-export var videoLatency = 0;
+export let videoLatency = 0;
 
 // Called when there's a network disconnection
 function disconnect() {
@@ -40,7 +40,7 @@ function disconnect() {
 util.events.addEventListener("net.disconnect", disconnect);
 
 // Get a camera/video device
-export function getCamera(id: string, res: number) {
+export function getCamera(id: string, res: number): Promise<unknown> {
     return Promise.all([]).then(function() {
         // If we already have a video device, stop it first
         if (userMediaVideo) {
@@ -64,7 +64,7 @@ export function getCamera(id: string, res: number) {
 
         } else {
             // Try max res, then ideal res
-            let opts = {
+            const opts = {
                 deviceId: id,
                 aspectRatio: {ideal: 16/9},
                 facingMode: {ideal: "user"},
@@ -85,7 +85,7 @@ export function getCamera(id: string, res: number) {
 
     }).then(function(userMediaIn) {
         userMediaVideo = userMediaIn;
-        var inl: number;
+        let inl: number;
         if (userMediaVideo)
             inl = userMediaVideo.getVideoTracks()[0].getSettings().latency;
         else
@@ -96,14 +96,15 @@ export function getCamera(id: string, res: number) {
             videoLatency = 0;
 
         ui.videoAdd(net.selfId, config.username);
-        var v = ui.ui.video.users[net.selfId].video;
-        var s = ui.ui.video.users[net.selfId].standin;
+        const v = ui.ui.video.users[net.selfId].video;
+        const s = ui.ui.video.users[net.selfId].standin;
         if (userMediaVideo) {
             // Inform RTC
             util.dispatchEvent("usermediavideoready", {});
 
             // And update the display
             v.srcObject = userMediaVideo;
+            // eslint-disable-next-line @typescript-eslint/no-empty-function
             v.play().catch(function(){});
             s.style.display = "none";
 
@@ -122,7 +123,7 @@ export function getCamera(id: string, res: number) {
             ui.resizeUI();
         }
 
-    }).catch(function(err) {
+    }).catch(() => {
         log.pushStatus("video", "Failed to capture video!");
         setTimeout(function() {
             log.popStatus("video");
@@ -134,9 +135,9 @@ export function getCamera(id: string, res: number) {
 
 // Video admin events
 util.events.addEventListener("net.admin.video", function(ev: CustomEvent) {
-    let action: number = ev.detail.action;
-    let arg: string = ev.detail.arg;
-    let acts = prot.flags.admin.actions;
+    const action: number = ev.detail.action;
+    const arg: string = ev.detail.arg;
+    const acts = prot.flags.admin.actions;
 
     switch (action) {
         case acts.videoInput:

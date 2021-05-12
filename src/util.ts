@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 Yahweasel
+ * Copyright (c) 2018-2021 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -21,7 +21,7 @@ import { prot } from "./protocol";
  * when video is ready. "spmediaready" fires when the media device that's
  * processed through the ScriptProcessor is ready. */
 // FIXME: This is before all the imports because of some nasty dependencies
-export var events: EventTarget;
+export let events: EventTarget;
 try {
     events = new EventTarget();
 } catch (ex) {
@@ -30,12 +30,13 @@ try {
 }
 
 // Dispatch an event
-export function dispatchEvent(name: string, arg?: any) {
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+export function dispatchEvent(name: string, arg?: any): void {
     events.dispatchEvent(new CustomEvent(name, {detail: arg}));
 }
 
 // Add an event listener for a net packet
-export function netEvent(sock: string, cmd: string, handler: (ev: CustomEvent)=>unknown) {
+export function netEvent(sock: string, cmd: string, handler: (ev: CustomEvent)=>unknown): void {
     events.addEventListener("net." + sock + "Sock." + prot.ids[cmd], handler);
 }
 
@@ -43,14 +44,14 @@ export function netEvent(sock: string, cmd: string, handler: (ev: CustomEvent)=>
 export const dce = document.createElement.bind(document);
 export const gebi = document.getElementById.bind(document);
 
-export function encodeText(text: string) {
+export function encodeText(text: string): Uint8Array {
     if (window.TextEncoder) {
         return new TextEncoder().encode(text);
     } else {
         // I don't care to do this right, ASCII only
-        var ret = new Uint8Array(text.length);
-        for (var ni = 0; ni < text.length; ni++) {
-            var cc = text.charCodeAt(ni);
+        const ret = new Uint8Array(text.length);
+        for (let ni = 0; ni < text.length; ni++) {
+            let cc = text.charCodeAt(ni);
             if (cc > 127)
                 cc = 95;
             ret[ni] = cc;
@@ -59,21 +60,21 @@ export function encodeText(text: string) {
     }
 }
 
-export function decodeText(text: ArrayBuffer) {
+export function decodeText(text: ArrayBuffer): string {
     if (window.TextDecoder) {
         return new TextDecoder("utf-8").decode(text);
     } else {
-        var ret = "";
-        var t8 = new Uint8Array(text);
-        for (var ni = 0; ni < t8.length; ni++) {
+        let ret = "";
+        const t8 = new Uint8Array(text);
+        for (let ni = 0; ni < t8.length; ni++) {
             ret += String.fromCharCode(t8[ni]);
         }
         return ret;
     }
 }
 
-export function bytesToRepr(x: number) {
-    var suffixes = ["B", "KiB", "MiB", "GiB"];
+export function bytesToRepr(x: number): string {
+    const suffixes = ["B", "KiB", "MiB", "GiB"];
     while (suffixes.length > 1 && x >= 1024) {
         x /= 1024;
         suffixes.shift();
@@ -81,24 +82,10 @@ export function bytesToRepr(x: number) {
     return Math.round(x) + suffixes[0];
 }
 
-export function isWebAssemblySupported() {
-    try {
-        if (typeof WebAssembly === "object" &&
-            typeof WebAssembly.instantiate === "function") {
-            var module = new WebAssembly.Module(
-                new Uint8Array([0x0, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]));
-            if (module instanceof WebAssembly.Module)
-                return new WebAssembly.Instance(module) instanceof WebAssembly.Instance;
-        }
-    } catch (e) {
-    }
-    return false;
-}
-
 // Generic library loader
-export function loadLibrary(name: string) {
+export function loadLibrary(name: string): Promise<unknown> {
     return new Promise(function(res, rej) {
-        var scr = dce("script");
+        const scr = dce("script");
         scr.addEventListener("load", res);
         scr.addEventListener("error", rej);
         scr.src = name;

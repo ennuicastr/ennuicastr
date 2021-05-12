@@ -24,39 +24,39 @@ import { dce } from "./util";
  * One for pings,
  * one to send data, and
  * if we're the master, one for master communication */
-export var pingSock: ReconnectableWebSocket = null;
-export var dataSock: ReconnectableWebSocket = null;
-export var masterSock: ReconnectableWebSocket = null;
+export let pingSock: ReconnectableWebSocket = null;
+export let dataSock: ReconnectableWebSocket = null;
+export let masterSock: ReconnectableWebSocket = null;
 
 // Global connection state
-export var connected = false;
-export var transmitting = false;
-export function setTransmitting(to: boolean) { transmitting = to; }
+export let connected = false;
+export let transmitting = false;
+export function setTransmitting(to: boolean): void { transmitting = to; }
 
 // Our own ID
-export var selfId = 0;
+export let selfId = 0;
 
 // The name of this recording, which may never be set
-export var recName: null|string = null;
+export let recName: null|string = null;
 
 // We connect assuming our mode is not-yet-recording
-export var mode = prot.mode.init;
+export let mode = prot.mode.init;
 
 // If we're using FLAC, we get the sample rate to send to the server
-var flacInfoBuf: ArrayBuffer = null;
+let flacInfoBuf: ArrayBuffer = null;
 
 // ICE servers for RTC
-export var iceServers = [
+export const iceServers = [
     {
         urls: "stun:stun.l.google.com:19302"
     }
 ];
 
 // The remote start time, i.e., when recording began
-export var remoteBeginTime: null|number = null;
+export let remoteBeginTime: null|number = null;
 
 // If we're flushing our buffers, this will be a timeout to re-check
-var flushTimeout: null|number = null;
+let flushTimeout: null|number = null;
 
 // A WebSocket that can automatically reconnect if it's unexpectedly disconnected
 class ReconnectableWebSocket {
@@ -131,7 +131,6 @@ class ReconnectableWebSocket {
         duration = duration || 30000;
         if (this.keepaliveTimeout !== null)
             clearTimeout(this.keepaliveTimeout);
-        let stack = new Error().stack;
         this.keepaliveTimeout = setTimeout(() => {
             this.promise = this.promise.then(() => {
                 this.sock.close();
@@ -144,19 +143,19 @@ class ReconnectableWebSocket {
 interface AdminAccess {
     audio: boolean;
     video: boolean;
-};
-export var adminAccess: Record<number, AdminAccess> = {};
+}
+export const adminAccess: Record<number, AdminAccess> = {};
 
 // Connect to the server (our first step)
-export function connect() {
-    let p = prot.parts.login;
-    let f = prot.flags;
-    let nickBuf = util.encodeText(config.username);
+export function connect(): Promise<unknown> {
+    const p = prot.parts.login;
+    const f = prot.flags;
+    const nickBuf = util.encodeText(config.username);
 
     // The connection message is largely the same for all, so start with a generic one
-    let connMsg = new DataView(new ArrayBuffer(p.length + nickBuf.length));
+    const connMsg = new DataView(new ArrayBuffer(p.length + nickBuf.length));
     connMsg.setUint32(0, prot.ids.login, true);
-    let flags = (config.useFlac?f.dataType.flac:0) | (config.useContinuous?f.features.continuous:0);
+    const flags = (config.useFlac?f.dataType.flac:0) | (config.useContinuous?f.features.continuous:0);
     connMsg.setUint32(p.id, config.config.id, true);
     connMsg.setUint32(p.key, config.config.key, true);
     new Uint8Array(connMsg.buffer).set(nickBuf, p.length);
@@ -167,7 +166,7 @@ export function connect() {
 
         // (1) The ping socket
         pingSock = new ReconnectableWebSocket(config.wsUrl, disconnect, connecter);
-        let out = new DataView(connMsg.buffer.slice(0));
+        const out = new DataView(connMsg.buffer.slice(0));
         out.setUint32(p.flags, f.connectionType.ping | flags, true);
 
         function connecter(sock: WebSocket) {
@@ -181,7 +180,7 @@ export function connect() {
     }).then(() => {
         // (2) The data socket
         dataSock = new ReconnectableWebSocket(config.wsUrl, disconnect, connecter);
-        let out = new DataView(connMsg.buffer.slice(0));
+        const out = new DataView(connMsg.buffer.slice(0));
         out.setUint32(p.flags, f.connectionType.data | flags, true);
 
         function connecter(sock: WebSocket) {
@@ -216,25 +215,25 @@ export function connect() {
 }
 
 // Called to disconnect explicitly, or implicitly on error
-export function disconnect(ev?: Event) {
+export function disconnect(ev?: Event): void {
     if (!connected)
         return;
     connected = false;
 
     log.log.innerHTML = "";
-    var sp = dce("span");
+    const sp = dce("span");
     sp.innerText = "Disconnected! ";
     log.log.appendChild(sp);
-    var a = dce("a");
-    var href = "?";
-    for (var key in config.config)
+    const a = dce("a");
+    let href = "?";
+    for (const key in config.config)
         href += key[0] + "=" + (<any> config.config)[key].toString(36) + "&";
     href += "nm=" + encodeURIComponent(config.username);
     a.href = href;
     a.innerText = "Attempt reconnection";
     log.log.appendChild(a);
 
-    var target: Object = null;
+    let target: unknown = null;
     if (ev && ev.target)
         target = ev.target;
 
@@ -251,9 +250,9 @@ export function disconnect(ev?: Event) {
 }
 
 // Ping the ping socket
-export function ping() {
-    var p = prot.parts.ping;
-    var msg = new DataView(new ArrayBuffer(p.length));
+export function ping(): void {
+    const p = prot.parts.ping;
+    const msg = new DataView(new ArrayBuffer(p.length));
     msg.setUint32(0, prot.ids.ping, true);
     msg.setFloat64(p.clientTime, performance.now(), true);
     pingSock.send(msg);
@@ -261,19 +260,21 @@ export function ping() {
 
 // Message from the ping socket
 function pingSockMsg(ev: MessageEvent) {
-    var msg = new DataView(ev.data);
-    var cmd = msg.getUint32(0, true);
+    const msg = new DataView(ev.data);
+    const cmd = msg.getUint32(0, true);
 
     pingSock.keepalive();
 
     switch (cmd) {
         case prot.ids.ack:
-            var ackd = msg.getUint32(prot.parts.ack.ackd, true);
+        {
+            const ackd = msg.getUint32(prot.parts.ack.ackd, true);
             if (ackd === prot.ids.login) {
                 // We're logged in, so start pinging
                 ping();
             }
             break;
+        }
 
         default:
             util.dispatchEvent("net.pingSock." + cmd, msg);
@@ -282,24 +283,27 @@ function pingSockMsg(ev: MessageEvent) {
 
 // Message from the data socket
 function dataSockMsg(ev: MessageEvent) {
-    var msg = new DataView(ev.data);
-    var cmd = msg.getUint32(0, true);
+    const msg = new DataView(ev.data);
+    const cmd = msg.getUint32(0, true);
 
     dataSock.keepalive();
 
     switch (cmd) {
         case prot.ids.nack:
+        {
             // Just tell the user
-            var p = prot.parts.nack;
-            var text = util.decodeText(msg.buffer.slice(p.msg));
+            const p = prot.parts.nack;
+            const text = util.decodeText(msg.buffer.slice(p.msg));
             alert(text);
             log.pushStatus("nack", text);
             break;
+        }
 
         case prot.ids.info:
-            var p = prot.parts.info;
-            var key = msg.getUint32(p.key, true);
-            var val = 0;
+        {
+            const p = prot.parts.info;
+            const key = msg.getUint32(p.key, true);
+            let val = 0;
             if (msg.byteLength >= p.length)
                 val = msg.getUint32(p.value, true);
             switch (key) {
@@ -309,12 +313,13 @@ function dataSockMsg(ev: MessageEvent) {
                     break;
 
                 case prot.info.mode:
+                {
                     // Set the mode
                     mode = val;
 
                     // Make it visible in the waveform
-                    var wvms = ((val === prot.mode.rec) ? "r" : "s") +
-                               (config.useContinuous ? "c" : "v");
+                    const wvms = ((val === prot.mode.rec) ? "r" : "s") +
+                                 (config.useContinuous ? "c" : "v");
                     config.setWaveVADColors(wvms);
 
                     // Update the status
@@ -334,6 +339,7 @@ function dataSockMsg(ev: MessageEvent) {
                         flushTimeout = null;
                     }
                     break;
+                }
 
                 case prot.info.startTime:
                     remoteBeginTime = msg.getFloat64(p.value, true);
@@ -345,14 +351,17 @@ function dataSockMsg(ev: MessageEvent) {
                     break;
 
                 case prot.info.ice:
-                    var iceServer = JSON.parse(util.decodeText(msg.buffer.slice(p.value)));
+                {
+                    const iceServer = JSON.parse(util.decodeText(msg.buffer.slice(p.value)));
                     iceServers.push(iceServer);
                     break;
+                }
             }
 
             // Let others use this info too
             util.dispatchEvent("net.info." + key, {val: val, msg: msg});
             break;
+        }
 
         default:
             util.dispatchEvent("net.dataSock." + cmd, msg);
@@ -361,8 +370,8 @@ function dataSockMsg(ev: MessageEvent) {
 
 // Message from the master socket
 function masterSockMsg(ev: MessageEvent) {
-    var msg = new DataView(ev.data);
-    var cmd = msg.getUint32(0, true);
+    const msg = new DataView(ev.data);
+    const cmd = msg.getUint32(0, true);
 
     masterSock.keepalive();
 
@@ -371,7 +380,7 @@ function masterSockMsg(ev: MessageEvent) {
 }
 
 // Set our FLAC info
-export function flacInfo(to: ArrayBuffer) {
+export function flacInfo(to: ArrayBuffer): void {
     flacInfoBuf = to;
     dataSock.send(to);
 }
@@ -385,7 +394,7 @@ function flushBuffers() {
 
     if (!dataSock) return;
 
-    let ba = bufferedAmount();
+    const ba = bufferedAmount();
     if (ba)
         log.pushStatus("buffering", "Sending audio to server (" + util.bytesToRepr(ba) + ")...");
     else
@@ -398,12 +407,12 @@ function flushBuffers() {
 }
 
 // If our data socket is connected, the buffered amount
-export function bufferedAmount() {
+export function bufferedAmount(): number {
     return dataSock ? dataSock.sock.bufferedAmount : 0;
 }
 
 // Send to an admin that we accept or reject admin privileges
-export function setAdminPerm(target: number, deviceInfo: (allowVideo: boolean)=>any, allowAudio: boolean, allowVideo: boolean) {
+export function setAdminPerm(target: number, deviceInfo: (allowVideo: boolean)=>any, allowAudio: boolean, allowVideo: boolean): Promise<unknown> {
     // Set it
     if (allowAudio)
         adminAccess[target] = {audio: true, video: allowVideo};
@@ -424,9 +433,9 @@ export function setAdminPerm(target: number, deviceInfo: (allowVideo: boolean)=>
         else
             permMessage = "";
 
-        let permBuf = util.encodeText(permMessage);
-        let p = prot.parts.info;
-        let out = new DataView(new ArrayBuffer(p.length + 1 + permBuf.length));
+        const permBuf = util.encodeText(permMessage);
+        const p = prot.parts.info;
+        const out = new DataView(new ArrayBuffer(p.length + 1 + permBuf.length));
         out.setUint32(0, prot.ids.info, true);
         out.setUint32(p.key, prot.info.allowAdmin, true);
         out.setUint32(p.value, target, true);
@@ -438,18 +447,19 @@ export function setAdminPerm(target: number, deviceInfo: (allowVideo: boolean)=>
 }
 
 // Send a state update to any admins with permission
-export function updateAdminPerm(val: any, video?: boolean) {
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+export function updateAdminPerm(val: any, video?: boolean): void {
     // Set up the message
-    let permBuf = util.encodeText(JSON.stringify(val));
-    let p = prot.parts.info;
-    let out = new DataView(new ArrayBuffer(p.length + permBuf.length));
+    const permBuf = util.encodeText(JSON.stringify(val));
+    const p = prot.parts.info;
+    const out = new DataView(new ArrayBuffer(p.length + permBuf.length));
     out.setUint32(0, prot.ids.info, true);
     out.setUint32(p.key, prot.info.adminState, true);
     new Uint8Array(out.buffer).set(permBuf, p.length);
 
     // And send it
-    for (let target in adminAccess) {
-        let access = adminAccess[target];
+    for (const target in adminAccess) {
+        const access = adminAccess[target];
         if (video && !access.video) continue;
         out.setUint32(p.value, +target, true);
         dataSock.send(out.buffer.slice(0));
@@ -457,16 +467,17 @@ export function updateAdminPerm(val: any, video?: boolean) {
 }
 
 // Generic phone-home error handler
-export function errorHandler(error: any) {
-    var errBuf = util.encodeText(error + "\n\n" + navigator.userAgent);
-    var out = new DataView(new ArrayBuffer(4 + errBuf.length));
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+export function errorHandler(error: any): void {
+    const errBuf = util.encodeText(error + "\n\n" + navigator.userAgent);
+    const out = new DataView(new ArrayBuffer(4 + errBuf.length));
     out.setUint32(0, prot.ids.error, true);
     new Uint8Array(out.buffer).set(errBuf, 4);
     dataSock.send(out.buffer);
 }
 
 // Generic phone-home promise-fail handler
-export function promiseFail() {
+export function promiseFail(): (ex:any)=>void {
     const loc = (new Error().stack)+"";
     return function(ex: any) {
         errorHandler("Promise failure\n\n" + ex + "\n\n" + loc);

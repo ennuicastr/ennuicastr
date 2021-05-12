@@ -15,7 +15,7 @@
  */
 
 // extern
-declare var LibAV: any, MediaRecorder: any, streamSaver: any;
+declare let LibAV: any, MediaRecorder: any, streamSaver: any;
 
 import * as audio from "./audio";
 import * as avloader from "./avloader";
@@ -26,21 +26,20 @@ import * as net from "./net";
 import { prot } from "./protocol";
 import * as ui from "./ui";
 import * as util from "./util";
-import { gebi } from "./util";
 import * as video from "./video";
 
 export const supported = (typeof MediaRecorder !== "undefined");
 
 // Function to stop the current video recording, or null if there is none
-export var recordVideoStop: ()=>Promise<unknown> = null;
+let recordVideoStop: ()=>Promise<unknown> = null;
 
 // Function to call to verify remote willingness to accept video data
-export var recordVideoRemoteOK: any = null;
-var recordVideoRemoteOKTimeout: null|number = null;
+export let recordVideoRemoteOK: any = null;
+let recordVideoRemoteOKTimeout: null|number = null;
 
 /* Any ongoing video recording steps *other* than actually recording pile
  * together into this Promise */
-var recordPromise: Promise<unknown> = Promise.all([]);
+let recordPromise: Promise<unknown> = Promise.all([]);
 
 interface RecordVideoOptions {
     local?: boolean;
@@ -83,15 +82,15 @@ function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
     recordVideoUI(true);
 
     // Which format?
-    var formats: [string, string, boolean][] = [
+    const formats: [string, string, boolean][] = [
         ["x-matroska", "avc1", true],
         ["webm", "vp9", false],
         ["webm", "vp8", false],
         ["mp4", "avc1", true]
     ];
-    var format: [string, string, boolean];
-    var mimeType: string;
-    var fi: number;
+    let format: [string, string, boolean];
+    let mimeType: string;
+    let fi: number;
     for (fi = 0; fi < formats.length; fi++) {
         format = formats[fi];
         mimeType = "video/" + format[0] + "; codecs=" + format[1];
@@ -105,10 +104,10 @@ function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
         }, 10000);
         return;
     }
-    var outFormat = (format[0] === "webm") ? "webm" : "mkv";
+    const outFormat = (format[0] === "webm") ? "webm" : "mkv";
 
     // Choose a name
-    var filename = "";
+    let filename = "";
     if (net.recName)
         filename = net.recName + "-";
     filename += config.username + "-video." + outFormat;
@@ -117,18 +116,18 @@ function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
         remoteWriter: {idx: number, write: (arg0:Uint8Array)=>void, close: ()=>void} = null;
 
     // If we aren't actually recording anything, this will become true
-    let noRecording = false;
+    const noRecording = false;
 
     // We decide the bitrate based on the height
-    let videoSettings = video.userMediaVideo.getVideoTracks()[0].getSettings();
+    const videoSettings = video.userMediaVideo.getVideoTracks()[0].getSettings();
     let bitrate: number;
     if (opts.bitrate)
         bitrate = Math.min(opts.bitrate * 1000000, videoSettings.height * 75000);
     else
         bitrate = videoSettings.height * 7500;
-    let globalFrameTime = 1/videoSettings.frameRate * 1000;
+    const globalFrameTime = 1/videoSettings.frameRate * 1000;
     let libav: any;
-    let transtate: TranscodeState = {};
+    const transtate: TranscodeState = {};
     let c: number;
 
     recordPromise = recordPromise.then(() => {
@@ -142,7 +141,7 @@ function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
                 // Verify first!
                 jitsi.videoRecSend(jitsi.videoRecHost, prot.videoRec.startVideoRecReq, {ext: outFormat});
 
-                return new Promise((res, rej) => {
+                return new Promise((res) => {
                     recordVideoRemoteOK = function(peer: number) {
                         opts.remotePeer = peer;
                         res(0);
@@ -178,7 +177,9 @@ function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
                     this.idx += chunk.length;
                 },
                 close: function() {
+                    // eslint-disable-next-line @typescript-eslint/no-empty-function
                     this.write = function() {};
+                    // eslint-disable-next-line @typescript-eslint/no-empty-function
                     this.close = function() {};
                     recordVideoRemoteClose(opts.remotePeer);
                 }
@@ -194,7 +195,7 @@ function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
             if (opts.localWriter) {
                 localWriter = opts.localWriter;
             } else {
-                let fileStream = streamSaver.createWriteStream(filename);
+                const fileStream = streamSaver.createWriteStream(filename);
                 localWriter = fileStream.getWriter();
                 window.addEventListener("unload", function() {
                     localWriter.close();
@@ -265,9 +266,9 @@ function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
 
         }).then(function(ret: any) {
             transtate.in_fmt_ctx = ret[0];
-            var streams = transtate.in_streams = ret[1];
+            const streams = transtate.in_streams = ret[1];
 
-            var si, stream;
+            let si, stream;
             for (si = 0; si < streams.length; si++) {
                 stream = streams[si];
                 if (stream.codec_type === libav.AVMEDIA_TYPE_VIDEO)
@@ -290,15 +291,15 @@ function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
             return libav.avcodec_parameters_to_context(c, transtate.in_stream.codecpar);
 
         }).then(function() {
-            var sentFirst = false;
-            var starterPackets: any[] = [];
-            var lastDTS = 0;
+            let sentFirst = false;
+            let starterPackets: any[] = [];
+            let lastDTS = 0;
 
             // Now read it in
             return new Promise(function(res, rej) {
                 function go() {
-                    var againPromise = new Promise(function(res) { transtate.read = res; });
-                    var readState: number, packets: any, endTimeReal: number;
+                    const againPromise = new Promise(function(res) { transtate.read = res; });
+                    let readState: number, packets: any, endTimeReal: number;
                     return libav.ff_read_multi(transtate.in_fmt_ctx, transtate.pkt, transtate.inF).then(function(ret: any) {
                         readState = ret[0];
                         if (readState !== 0 && readState !== -libav.EAGAIN && readState !== libav.AVERROR_EOF) {
@@ -335,7 +336,7 @@ function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
                         }
 
                         function timeTo(from: number) {
-                            var to = from * fixedTimeBase.den / fixedTimeBase.num / 1000;
+                            const to = from * fixedTimeBase.den / fixedTimeBase.num / 1000;
                             return {
                                 hi: ~~(to / 0x100000000),
                                 lo: ~~(to % 0x100000000)
@@ -346,13 +347,13 @@ function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
                             // Update the timing
                             if (net.remoteBeginTime && audio.timeOffset) {
                                 // The last packet tells us roughly when we are
-                                var lastPacket = packets[packets.length-1];
+                                const lastPacket = packets[packets.length-1];
 
                                 // Get the framerate from the packets
-                                var frameTime;
+                                let frameTime;
                                 if (packets.length > 1) {
-                                    var last = timeFrom(lastPacket.dtshi, lastPacket.dts);
-                                    var first = timeFrom(packets[0].dtshi, packets[0].dts);
+                                    const last = timeFrom(lastPacket.dtshi, lastPacket.dts);
+                                    const first = timeFrom(packets[0].dtshi, packets[0].dts);
                                     if (last < 0 || first < 0) {
                                         // Invalid dts, just trust global frame time
                                         frameTime = globalFrameTime;
@@ -364,34 +365,34 @@ function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
                                 }
 
                                 // Figure out the ideal end time
-                                var endTimeDTS = endTimeReal // The real time when we received this packet
+                                const endTimeDTS = endTimeReal // The real time when we received this packet
                                     - video.videoLatency // Adjusted for input latency
                                     + audio.timeOffset // Convert to remote time
                                     - net.remoteBeginTime; // Base at recording start time
 
                                 // Now figure out the practical range of times
-                                var startTimeDTS;
+                                let startTimeDTS;
                                 if (lastDTS)
                                     startTimeDTS = lastDTS;
                                 else
                                     startTimeDTS = endTimeDTS - frameTime * (packets.length-1);
 
                                 // Figure out our ideal time step between these
-                                var step = (endTimeDTS - startTimeDTS) / (packets.length-1);
+                                let step = (endTimeDTS - startTimeDTS) / (packets.length-1);
 
                                 // But don't let it get too far from the frame rate
-                                var stepVRate = step/frameTime;
+                                const stepVRate = step/frameTime;
                                 if (stepVRate < 0.99)
                                     step = frameTime * 0.99;
                                 else if (stepVRate > 1.01)
                                     step = frameTime * 1.01;
 
                                 // Now retime all the packets
-                                var dts = startTimeDTS;
-                                for (var pi = 0; pi < packets.length; pi++) {
-                                    var packet = packets[pi];
-                                    var pdts: any = timeFrom(packet.dtshi, packet.dts);
-                                    var ppts: any = timeFrom(packet.ptshi, packet.pts);
+                                let dts = startTimeDTS;
+                                for (let pi = 0; pi < packets.length; pi++) {
+                                    const packet = packets[pi];
+                                    let pdts: any = timeFrom(packet.dtshi, packet.dts);
+                                    let ppts: any = timeFrom(packet.ptshi, packet.pts);
                                     if (pdts < 0) pdts = ppts;
                                     ppts -= pdts;
                                     pdts = (dts < lastDTS) ? lastDTS : dts;
@@ -415,7 +416,7 @@ function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
                                         packets = starterPackets.concat(packets);
                                     } else {
                                         // We definitely have an I-frame, but fix timing
-                                        let packet = packets[0];
+                                        const packet = packets[0];
                                         packet.dtshi = packet.dts = packet.ptshi = packet.pts = 0;
                                     }
                                     starterPackets = null;
@@ -424,8 +425,8 @@ function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
 
                             } else {
                                 /* No starting time yet, so just collect packets, making sure we keep a keyframe */
-                                for (var pi = 0; pi < packets.length; pi++) {
-                                    var packet = packets[pi];
+                                for (let pi = 0; pi < packets.length; pi++) {
+                                    const packet = packets[pi];
                                     packet.dtshi = packet.dts = packet.ptshi = packet.pts = 0;
                                     if (packet.flags & 1 /* KEY */)
                                         starterPackets = [packet];
@@ -482,7 +483,7 @@ function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
         }).catch(net.promiseFail());
 
         // MediaRecorder produces a WebM file, and we have to correct its timestamps
-        var mediaRecorder = new MediaRecorder(video.userMediaVideo, {
+        const mediaRecorder = new MediaRecorder(video.userMediaVideo, {
             mimeType: mimeType,
             videoBitsPerSecond: bitrate
         });
@@ -523,26 +524,26 @@ function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
 }
 
 // Receive a remote video recording
-export function recordVideoRemoteIncoming(peer: number, opts: any) {
+export function recordVideoRemoteIncoming(peer: number, opts?: {ext?: string}): Promise<WritableStreamDefaultWriter> {
     // Handle remote options
-    var ext = "webm";
+    let ext = "webm";
     if (opts.ext === "mkv")
         ext = "mkv";
 
     // Choose a name
-    var filename = "";
+    let filename = "";
     if (net.recName)
         filename = net.recName + "-";
-    var remoteUser = ui.ui.panels.userList.users[peer];
-    var remoteName = remoteUser ? remoteUser.name.innerText : "";
+    const remoteUser = ui.ui.panels.userList.users[peer];
+    const remoteName = remoteUser ? remoteUser.name.innerText : "";
     if (remoteName)
         filename += remoteName + "-";
     filename += "video." + ext;
 
     // Create a write stream
     return loadStreamSaver().then(function() {
-        var fileStream = streamSaver.createWriteStream(filename);
-        var fileWriter = fileStream.getWriter();
+        const fileStream = streamSaver.createWriteStream(filename);
+        const fileWriter = fileStream.getWriter();
         window.addEventListener("unload", function() {
             fileWriter.close();
         });
@@ -559,7 +560,7 @@ function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
     } else {
         // Use FileReader
         return new Promise(res => {
-            let fr = new FileReader();
+            const fr = new FileReader();
             fr.onloadend = function() {
                 res(<ArrayBuffer> fr.result);
             };
@@ -571,31 +572,31 @@ function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
 
 // Input handler for video recording
 function recordVideoInput(transtate: TranscodeState) {
-    var libav = transtate.libav;
+    const libav = transtate.libav;
 
     return Promise.all([]).then(function() {
         if (transtate.fullReadCodecPar) {
             // To get the codec parameters, we need a full file
-            var mediaRecorder = new MediaRecorder(video.userMediaVideo, {
+            const mediaRecorder = new MediaRecorder(video.userMediaVideo, {
                 mimeType: transtate.mimeType,
                 videoBitsPerSecond: transtate.bitrate
             });
-            var data = new Uint8Array(0);
-            var mp4PromiseRes: (arg0:unknown)=>void, mp4PromiseRej: (arg0:unknown)=>void,
-                mp4Promise = new Promise(function(res, rej) {
+            let data = new Uint8Array(0);
+            let mp4PromiseRes: (arg0:unknown)=>void, mp4PromiseRej: (arg0:unknown)=>void;
+            const mp4Promise = new Promise(function(res, rej) {
                 mp4PromiseRes = res;
                 mp4PromiseRej = rej;
             });
-            var p: Promise<unknown> = Promise.all([]);
+            let p: Promise<unknown> = Promise.all([]);
             mediaRecorder.addEventListener("dataavailable", function(chunk: {data: Blob}) {
                 p = p.then(function() {
                     return blobToArrayBuffer(chunk.data);
                 }).then(function(ab) {
-                    var chunk = new Uint8Array(ab);
-                    var newData = new Uint8Array(data.length + chunk.length);
+                    const chunk = new Uint8Array(ab);
+                    const newData = new Uint8Array(data.length + chunk.length);
                     newData.set(data, 0);
                     newData.set(chunk, data.length);
-                    var done = (data.length === 0);
+                    const done = (data.length === 0);
                     data = newData;
                     if (done) {
                         // We got all we need
@@ -605,10 +606,9 @@ function recordVideoInput(transtate: TranscodeState) {
             });
             mediaRecorder.addEventListener("stop", function() {
                 // Use this complete file to figure out the header for our eventual real file
-                var in_fmt_ctx: number, in_stream_idx: number, in_stream: any,
-                    c: number;
+                let in_fmt_ctx: number, in_stream: any, c: number;
 
-                var tmpFile = transtate.inF + ".tmp.mp4";
+                const tmpFile = transtate.inF + ".tmp.mp4";
 
                 p = p.then(function() {
                     return libav.writeFile(tmpFile, data);
@@ -616,9 +616,9 @@ function recordVideoInput(transtate: TranscodeState) {
                     return libav.ff_init_demuxer_file(tmpFile);
                 }).then(function(ret) {
                     in_fmt_ctx = ret[0];
-                    var streams = ret[1];
+                    const streams = ret[1];
 
-                    var si, stream;
+                    let si, stream;
                     for (si = 0; si < streams.length; si++) {
                         stream = streams[si];
                         if (stream.codec_type === libav.AVMEDIA_TYPE_VIDEO)
@@ -627,7 +627,6 @@ function recordVideoInput(transtate: TranscodeState) {
                     if (si >= streams.length)
                         throw new Error("MediaRecorder didn't produce a valid video file!");
 
-                    in_stream_idx = si;
                     in_stream = stream;
                     return libav.avformat_find_stream_info(in_fmt_ctx);
 
@@ -674,21 +673,21 @@ function recordVideoInput(transtate: TranscodeState) {
     }).then(function() {
         /* Create a promise for the start, because we have to buffer the header
          * before we can start real recording */
-        var startPromiseRes: any, startPromiseDone = false;
-        var startSz = 0;
-        var startPromise = new Promise(function(res) {
+        let startPromiseRes: any, startPromiseDone = false;
+        let startSz = 0;
+        const startPromise = new Promise(function(res) {
             startPromiseRes = res;
         });
 
         // Create a promise for creating the input device
-        var devicePromise = libav.mkreaderdev(transtate.inF);
+        const devicePromise = libav.mkreaderdev(transtate.inF);
 
         // Create a promise so we can keep everything in order, starting with the device
-        var inputPromise = devicePromise;
+        let inputPromise = devicePromise;
 
         // Now create our input handler
         transtate.write = function(blob: Blob) {
-            var buf: Uint8Array;
+            let buf: Uint8Array;
             inputPromise = inputPromise.then(function() {
                 // Convert to an ArrayBuffer
                 if (blob)
@@ -736,8 +735,8 @@ function recordVideoRemoteClose(peer: number) {
 }
 
 // Configure the video recording UI based on the current state
-export function recordVideoUI(loading?: boolean) {
-    let recording = ui.ui.panels.videoConfig.recording;
+export function recordVideoUI(loading?: boolean): void {
+    const recording = ui.ui.panels.videoConfig.recording;
     recording.record.disabled = !!loading;
     recording.optHider.style.display = (loading || !recording.record.checked) ? "none" : "";
     recording.bitrateHider.style.display = recording.manualBitrate.checked ? "" : "none";
@@ -748,7 +747,7 @@ let reconsidering = false;
 
 // Called whenever we should reconsider whether/how we're recording
 function maybeRecord() {
-    let recording = ui.ui.panels.videoConfig.recording;
+    const recording = ui.ui.panels.videoConfig.recording;
 
     if (reconsidering) {
         // Already being done
@@ -763,12 +762,12 @@ function maybeRecord() {
     }).then(() => {
         if (supported && video.userMediaVideo && recording.record.checked) {
             // We should be recording
-            let opts: RecordVideoOptions = {
+            const opts: RecordVideoOptions = {
                 remote: !("master" in config.config) && recording.remote.checked && config.useRTC,
                 local: ("master" in config.config) || recording.local.checked || !config.useRTC
             };
             if (recording.manualBitrate.checked) {
-                let br = +recording.bitrate.value;
+                const br = +recording.bitrate.value;
                 if (br)
                     opts.bitrate = br;
             }
@@ -786,8 +785,8 @@ function maybeRecord() {
 }
 
 // Load the video recording UI
-export function loadVideoRecordPanel() {
-    let recording = ui.ui.panels.videoConfig.recording;
+export function loadVideoRecordPanel(): void {
+    const recording = ui.ui.panels.videoConfig.recording;
 
     // Is it even supported?
     recording.hider.style.display = supported ? "" : "none";

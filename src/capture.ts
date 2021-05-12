@@ -15,7 +15,7 @@
  */
 
 // extern
-declare var webkitAudioContext: any;
+declare let webkitAudioContext: any;
 
 // Worker paths to use
 const workerVer = "g";
@@ -28,7 +28,7 @@ export interface Capture {
     node: AudioNode,
     destination: MediaStream,
     disconnect: ()=>unknown
-};
+}
 
 export interface CaptureOptions {
     workerCommand: any;
@@ -38,7 +38,7 @@ export interface CaptureOptions {
     matchSampleRate?: boolean; // Must be false if input is set
     bufferSize?: number;
     outStream?: boolean;
-};
+}
 
 /* Create a capture node for the given MediaStream on the given AudioContext
  * (or a fresh one if needed), using either an AudioWorkletProcessor or a
@@ -78,7 +78,7 @@ export function createCapture(ac: AudioContext, options: CaptureOptions): Promis
 function createCaptureAWP(ac: AudioContext & {ecAWPP?: Promise<unknown>}, options: CaptureOptions): Promise<Capture> {
     // Possibly use a different AudioContext
     if (options.matchSampleRate) {
-        let msSampleRate = options.ms.getAudioTracks()[0].getSettings().sampleRate;
+        const msSampleRate = options.ms.getAudioTracks()[0].getSettings().sampleRate;
         if (msSampleRate !== ac.sampleRate)
             ac = new AudioContext({sampleRate: msSampleRate});
     }
@@ -97,13 +97,13 @@ function createCaptureAWP(ac: AudioContext & {ecAWPP?: Promise<unknown>}, option
          * AudioWorkletNode in awp.js ->
          * Worker in worker.js ->
          * back to us */
-        let awn = new AudioWorkletNode(ac, "worker-processor");
-        let worker = new Worker(workerPath);
+        const awn = new AudioWorkletNode(ac, "worker-processor");
+        const worker = new Worker(workerPath);
 
         // Need a channel for them to communicate
-        let mc = new MessageChannel();
+        const mc = new MessageChannel();
         awn.port.postMessage({c: "workerPort", p: mc.port1}, [mc.port1]);
-        let cmd = Object.assign({port: mc.port2}, options.workerCommand);
+        const cmd = Object.assign({port: mc.port2}, options.workerCommand);
         cmd[options.sampleRate] = ac.sampleRate;
         worker.postMessage(cmd, [mc.port2]);
 
@@ -154,25 +154,25 @@ function createCaptureSP(ac: AudioContext, options: CaptureOptions): Promise<Cap
 
     // Possibly use a different AudioContext
     if (options.matchSampleRate) {
-        let msSampleRate = options.ms.getAudioTracks()[0].getSettings().sampleRate;
+        const msSampleRate = options.ms.getAudioTracks()[0].getSettings().sampleRate;
         if (msSampleRate !== ac.sampleRate)
             ac = new AudioContext({sampleRate: msSampleRate});
     }
 
     // Create our nodes
     let dead = false;
-    let node = ac.createScriptProcessor(options.bufferSize || 4096);
-    let worker = new Worker(workerPath);
+    const node = ac.createScriptProcessor(options.bufferSize || 4096);
+    const worker = new Worker(workerPath);
 
     // Need a channel to communicate from the ScriptProcessor to the worker
-    let mc = new MessageChannel();
-    let workerPort = mc.port1;
-    let cmd = Object.assign({port: mc.port2}, options.workerCommand);
+    const mc = new MessageChannel();
+    const workerPort = mc.port1;
+    const cmd = Object.assign({port: mc.port2}, options.workerCommand);
     cmd[options.sampleRate] = ac.sampleRate;
     worker.postMessage(cmd, [mc.port2]);
 
     // Create the ScriptProcessor's behavior
-    node.onaudioprocess = createOnAudioProcess(workerPort, worker);
+    node.onaudioprocess = createOnAudioProcess(workerPort);
 
     // Now hook everything up
     let source: AudioNode = null;
@@ -247,10 +247,10 @@ function createCaptureSafari(ac: AudioContext & {ecSP?: any}, options: CaptureOp
         }
 
         // Connect it
-        let mss = ac.createMediaStreamSource(options.ms);
+        const mss = ac.createMediaStreamSource(options.ms);
         mss.connect(sp);
         sp.ecSource = mss;
-        let msd = ac.createMediaStreamDestination();
+        const msd = ac.createMediaStreamDestination();
         sp.connect(msd);
         sp.ecDestination = msd;
 
@@ -264,22 +264,23 @@ function createCaptureSafari(ac: AudioContext & {ecSP?: any}, options: CaptureOp
 
     // Now, add this user
     let dead = false;
-    let node = {
+    const node = {
+        // eslint-disable-next-line @typescript-eslint/no-empty-function, @typescript-eslint/no-unused-vars
         onaudioprocess: function(ev: AudioProcessingEvent) {}
     };
     sp.ecUsers.push(node);
     sp.ecCt++;
-    let worker = new Worker(workerPath);
+    const worker = new Worker(workerPath);
 
     // Need a channel to communicate from the ScriptProcessor to the worker
-    let mc = new MessageChannel();
-    let workerPort = mc.port1;
-    let cmd = Object.assign({port: mc.port2}, options.workerCommand);
+    const mc = new MessageChannel();
+    const workerPort = mc.port1;
+    const cmd = Object.assign({port: mc.port2}, options.workerCommand);
     cmd[options.sampleRate] = ac.sampleRate;
     worker.postMessage(cmd, [mc.port2]);
 
     // Create the ScriptProcessor's behavior
-    node.onaudioprocess = createOnAudioProcess(workerPort, worker);
+    node.onaudioprocess = createOnAudioProcess(workerPort);
 
     // Prepare to terminate
     function disconnect() {
@@ -314,14 +315,14 @@ function createCaptureSafari(ac: AudioContext & {ecSP?: any}, options: CaptureOp
 }
 
 // Create the onaudioprocess function necessary for any ScriptProcessor
-function createOnAudioProcess(workerPort: MessagePort, worker: Worker) {
-    let buffer: Float32Array[][] = [];
-    let lenPerBuf: number = 0;
+function createOnAudioProcess(workerPort: MessagePort) {
+    const buffer: Float32Array[][] = [];
+    let lenPerBuf = 0;
 
     // Get audio data from the worker
     workerPort.onmessage = function(ev) {
-        let buf = ev.data.d;
-        let len = buf[0].length;
+        const buf = ev.data.d;
+        const len = buf[0].length;
         if (len > lenPerBuf)
             lenPerBuf = len;
         buffer.push(buf);
@@ -330,8 +331,8 @@ function createOnAudioProcess(workerPort: MessagePort, worker: Worker) {
     // And send/receive data from the ScriptProcessor
     return function(ev: AudioProcessingEvent) {
         // Get it into the right format
-        let input: Float32Array[] = [];
-        let cc = ev.inputBuffer.numberOfChannels;
+        const input: Float32Array[] = [];
+        const cc = ev.inputBuffer.numberOfChannels;
         for (let i = 0; i < cc; i++)
             input.push(ev.inputBuffer.getChannelData(i));
 
@@ -345,13 +346,14 @@ function createOnAudioProcess(workerPort: MessagePort, worker: Worker) {
             buffer.shift();
 
         // And send buffered output out
-        let out: Float32Array[] = [];
+        const out: Float32Array[] = [];
         for (let i = 0; i < cc; i++)
             out.push(ev.outputBuffer.getChannelData(i));
-        let i = 0, len = out[0].length;
+        const len = out[0].length;
+        let i = 0;
         while (i < len && buffer.length) {
-            let remain = len - i;
-            let first = buffer[0];
+            const remain = len - i;
+            const first = buffer[0];
 
             if (first[0].length > remain) {
                 // First has enough to fill out the remainder
