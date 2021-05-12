@@ -185,7 +185,7 @@ function initJitsi() {
     }).then(() => {
         clearTimeout(timeout);
 
-    }).catch(net.promiseFail());
+    }).catch(console.error);
 }
 
 
@@ -221,7 +221,7 @@ function jitsiSetUserMediaRTC() {
         // And prepare to remove it
         util.events.addEventListener("usermediastopped", jitsiUnsetUserMediaRTC, {once: true});
 
-    }).catch(net.promiseFail());
+    }).catch(console.error);
 
     return jPromise;
 }
@@ -236,7 +236,7 @@ function jitsiUnsetUserMediaRTC() {
     }).then(() => {
         jAudio = null;
 
-    }).catch(net.promiseFail());
+    }).catch(console.error);
 
     return jPromise;
 }
@@ -264,7 +264,7 @@ function jitsiSetUserMediaVideo() {
         // And prepare to remove it
         util.events.addEventListener("usermediavideostopped", jitsiUnsetUserMediaVideo, {once: true});
 
-    }).catch(net.promiseFail());
+    }).catch(console.error);
 
     return jPromise;
 }
@@ -279,7 +279,7 @@ function jitsiUnsetUserMediaVideo() {
     }).then(() => {
         jVideo = null;
 
-    }).catch(net.promiseFail());
+    }).catch(console.error);
 
     return jPromise;
 }
