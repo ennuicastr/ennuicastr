@@ -398,20 +398,8 @@ function jitsiTrackAdded(track: any) {
     // Set this in the appropriate element
     const el: HTMLMediaElement = (<any> ui.ui.video.users[id])[type];
     el.srcObject = stream;
-
-    let retryCt = 2;
-    function tryPlay() {
-        if ((<any> inc)[type] !== track) return;
-        el.play().catch(() => {
-            if (retryCt) {
-                retryCt--;
-                setTimeout(tryPlay, 1000);
-            } else {
-                net.promiseFail();
-            }
-        });
-    }
-    tryPlay();
+    if (el.paused)
+        el.play().catch(net.promiseFail());
 
     // Hide the standin if applicable
     if (type === "video")

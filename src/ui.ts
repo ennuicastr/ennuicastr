@@ -819,6 +819,7 @@ export function videoAdd(idx: number, name: string): void {
     const video = ctx.video;
     video.height = 0; // Use CSS for style
     video.muted = true; // Audio goes through a different system
+    video.autoplay = true;
     Object.assign(video.style, {
         position: "absolute",
         left: "0",
@@ -831,6 +832,7 @@ export function videoAdd(idx: number, name: string): void {
     // The audio element, just used to make sure audio is actually playing
     const audio = ctx.audio;
     audio.muted = true;
+    audio.autoplay = true;
     audio.style.display = "none";
     box.appendChild(audio);
 
