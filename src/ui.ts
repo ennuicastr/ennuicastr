@@ -376,6 +376,9 @@ export const ui = {
             // Preview pane
             preview: HTMLElement,
 
+            // Preview MediaStream, if one is on right now
+            previewS: MediaStream,
+
             // Preview video, if one is on right now
             previewV: HTMLVideoElement,
 

@@ -518,6 +518,7 @@ function loadVideoConfig() {
         onshow: null,
         onhide: null,
         preview: gebi("ecvideo-device-preview"),
+        previewS: null,
         previewV: null,
         device: gebi("ecvideo-device-list"),
         shareB: gebi("ecvideo-share"),
@@ -768,6 +769,10 @@ export function mkAudioUI(): string {
     // When we change settings, change the preview and button
     function updateVideo() {
         // Remove any existing preview
+        if (videoConfig.previewS) {
+            videoConfig.previewS.getTracks().forEach(track => { track.stop(); });
+            videoConfig.previewS = null;
+        }
         if (videoConfig.previewV) {
             videoConfig.previewV.pause();
             videoConfig.previewV = null;
@@ -801,6 +806,14 @@ export function mkAudioUI(): string {
             shareB.onclick = function() {
                 shareB.classList.add("off");
                 shareB.disabled = true;
+
+                // Stop the current video in case access is exclusive
+                if (videoConfig.previewS) {
+                    videoConfig.previewS.getTracks().forEach(track => { track.stop(); });
+                    videoConfig.previewS = null;
+                }
+
+                // Then load it
                 video.shareVideo(videoConfig.device.value, +videoConfig.res.value).then(updateVideo);
             };
 
@@ -812,6 +825,7 @@ export function mkAudioUI(): string {
         // Change the preview
         video.getVideo(dev, +videoConfig.res.value).then(um => {
             if (um) {
+                videoConfig.previewS = um;
                 let v = videoConfig.previewV = dce("video");
                 v.style.width = videoConfig.preview.offsetWidth + "px";
                 v.style.height = "100%";
