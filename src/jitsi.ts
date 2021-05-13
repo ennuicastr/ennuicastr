@@ -31,6 +31,11 @@ import * as videoRecord from "./video-record";
 // Host which has indicated that it's willing to receive video recordings
 export let videoRecHost = -1;
 
+// Jitsi features according to the server
+let jitsiFeatures: any = {
+    disableSimulcast: false
+};
+
 // Jitsi connection
 let connection: any;
 
@@ -93,7 +98,7 @@ function assertJitsiPeer(id: number, jid: string) {
 // Initialize the Jitsi connection
 function initJitsi() {
     let timeout: number = null;
-    return Promise.all([]).then(() => {
+    jPromise = jPromise.then(() => {
         if (typeof JitsiMeetJS === "undefined")
             return util.loadLibrary("libs/jquery.min.js");
 
@@ -103,16 +108,19 @@ function initJitsi() {
 
     }).then(() => {
         // Get rid of any old Jitsi instance. First, clear tracks.
-        for (const id in jitsiPeers) {
+        for (const id of Object.keys(jitsiPeers)) {
             const inc = jitsiPeers[id];
             if (inc.video)
                 jitsiTrackRemoved(inc.video);
             if (inc.audio)
                 jitsiTrackRemoved(inc.audio);
-            if (inc.rtc)
-                inc.rtc.close();
+            if (!inc.rtcReady) {
+                try {
+                    inc.rtc.close();
+                } catch (ex) {}
+                delete jitsiPeers[id];
+            }
         }
-        jitsiPeers = {};
 
         if (room) {
             room.removeEventListener(JitsiMeetJS.events.conference.CONFERENCE_LEFT, net.disconnect);
@@ -126,14 +134,13 @@ function initJitsi() {
             connection.disconnect();
             connection = null;
 
-        } else {
-            JitsiMeetJS.setLogLevel(JitsiMeetJS.logLevels.ERROR);
-            JitsiMeetJS.init({
-                disableAudioLevels: true,
-                disableSimulcast: true // for now (Firefox)
-            });
-
         }
+
+        JitsiMeetJS.setLogLevel(JitsiMeetJS.logLevels.ERROR);
+        JitsiMeetJS.init({
+            disableAudioLevels: true,
+            disableSimulcast: !!jitsiFeatures.disableSimulcast
+        });
 
         // Create our connection
         return new Promise(function(res, rej) {
@@ -159,7 +166,9 @@ function initJitsi() {
 
         // Join the "room"
         return new Promise(function(res, rej) {
-            room = connection.initJitsiConference(config.config.id.toString(36) + "_" + config.config.key.toString(36), {
+            const roomNm = config.config.id.toString(36) + "_" + config.config.key.toString(36) +
+                (jitsiFeatures.disableSimulcast ? "_nosc" : "");
+            room = connection.initJitsiConference(roomNm, {
                 openBridgeChannel: true
             });
 
@@ -187,6 +196,7 @@ function initJitsi() {
         clearTimeout(timeout);
 
     }).catch(net.promiseFail());
+    return jPromise;
 }
 
 
@@ -194,6 +204,23 @@ function initJitsi() {
 if (config.useRTC) {
     util.events.addEventListener("net.info." + prot.info.id, function() {
         initJitsi();
+    });
+}
+
+// And reinitialize if Jitsi features change
+if (config.useRTC) {
+    util.events.addEventListener("net.info." + prot.info.jitsi, function(ev: CustomEvent) {
+        const msg = new Uint8Array(ev.detail.msg.buffer);
+        const p = prot.parts.info;
+        const jitsiStr = util.decodeText(msg.slice(p.value));
+        const jitsiF: any = JSON.parse(jitsiStr);
+        if (jitsiF.disableSimulcast !== jitsiFeatures.disableSimulcast) {
+            jitsiFeatures.disableSimulcast = !!jitsiF.disableSimulcast;
+            jPromise = jPromise.then(() => {
+                if (room)
+                    initJitsi();
+            });
+        }
     });
 }
 
@@ -579,7 +606,9 @@ function sendMsg(msg: Uint8Array, peer?: number) {
         if (Object.keys(jitsiPeers).length > 0)
             room.broadcastEndpointMessage(msgj);
     } else {
-        room.sendEndpointMessage(jid, msgj);
+        try {
+            room.sendEndpointMessage(jid, msgj);
+        } catch (ex) {}
     }
 }
 

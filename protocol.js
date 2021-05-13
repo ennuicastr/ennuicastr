@@ -272,7 +272,10 @@
             "adminState": 0x31,
 
             // S->C, JSON: Give an eligible ICE server for RTC
-            "ice": 0x50
+            "ice": 0x50,
+
+            // S->C, JSON: Specify necessary Jitsi features/unfeatures
+            "jitsi": 0x52
         },
 
         "rtc": {
