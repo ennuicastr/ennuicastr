@@ -99,7 +99,7 @@ function initJitsi() {
 
     }).then(() => {
         if (typeof JitsiMeetJS === "undefined")
-            return util.loadLibrary("libs/lib-jitsi-meet.min.js");
+            return util.loadLibrary("libs/lib-jitsi-meet.min.js?v=2");
 
     }).then(() => {
         // Get rid of any old Jitsi instance. First, clear tracks.
@@ -130,7 +130,7 @@ function initJitsi() {
             JitsiMeetJS.setLogLevel(JitsiMeetJS.logLevels.ERROR);
             JitsiMeetJS.init({
                 disableAudioLevels: true,
-                disableSimulcast: navigator.userAgent.indexOf("Firefox") >= 0 // For now?
+                disableSimulcast: true // for now (Firefox)
             });
 
         }
