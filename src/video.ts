@@ -25,6 +25,9 @@ import * as util from "./util";
 // The video device being read
 export let userMediaVideo: MediaStream = null;
 
+// The ID of the device being read
+export let userMediaVideoID: string = null;
+
 // Input latency of the video, in ms
 export let videoLatency = 0;
 
@@ -40,17 +43,8 @@ function disconnect() {
 util.events.addEventListener("net.disconnect", disconnect);
 
 // Get a camera/video device
-export function getCamera(id: string, res: number): Promise<unknown> {
+export function getVideo(id: string, res: number): Promise<MediaStream> {
     return Promise.all([]).then(function() {
-        // If we already have a video device, stop it first
-        if (userMediaVideo) {
-            userMediaVideo.getTracks().forEach(function(track) {
-                track.stop();
-            });
-            userMediaVideo = null;
-            util.dispatchEvent("usermediavideostopped", {});
-        }
-
         // Now request the new one
         if (id === "-screen") {
             // Special pseudo-device: Grab the screen
@@ -83,38 +77,64 @@ export function getCamera(id: string, res: number): Promise<unknown> {
             });
         }
 
-    }).then(function(userMediaIn) {
-        userMediaVideo = userMediaIn;
-        let inl: number;
-        if (userMediaVideo)
-            inl = userMediaVideo.getVideoTracks()[0].getSettings().latency;
-        else
-            inl = 0;
-        if (inl)
-            videoLatency = inl * 1000;
-        else
-            videoLatency = 0;
+    });
 
+}
+
+// Share a camera/video device
+export function shareVideo(id: string, res: number): Promise<unknown> {
+    return Promise.all([]).then(() => {
+        // If we already have a video device, stop it first
+        if (userMediaVideo) {
+            userMediaVideo.getTracks().forEach(function(track) {
+                track.stop();
+            });
+            userMediaVideo = null;
+            util.dispatchEvent("usermediavideostopped", {});
+        }
+
+        // Then get the new device
+        return getVideo(id, res);
+        
+    }).then(userMediaIn => {
+        userMediaVideo = userMediaIn;
+
+        // Our own video UI
         ui.videoAdd(net.selfId, config.username);
         const v = ui.ui.video.users[net.selfId].video;
         const s = ui.ui.video.users[net.selfId].standin;
+
         if (userMediaVideo) {
+            // Remember the ID
+            userMediaVideoID = id;
+
+            // Get latency
+            videoLatency = userMediaVideo.getVideoTracks()[0].getSettings().latency * 1000;
+
             // Inform RTC
             util.dispatchEvent("usermediavideoready", {});
 
-            // And update the display
+            // Update the display
             v.srcObject = userMediaVideo;
             // eslint-disable-next-line @typescript-eslint/no-empty-function
             v.play().catch(function(){});
             s.style.display = "none";
 
+            // And update any admins
+            net.updateAdminPerm({videoDevice: userMediaVideoID}, true);
+
         } else {
             // No video :(
+            userMediaVideoID = null;
+            videoLatency = 0;
             v.srcObject = audio.userMedia;
             v.srcObject = null;
             s.style.display = "";
+            net.updateAdminPerm({videoDevice: "-none"}, true);
 
         }
+
+        updateVideoButtons();
 
         if (!config.useRTC) {
             // We only *show* video if we have it
@@ -128,9 +148,59 @@ export function getCamera(id: string, res: number): Promise<unknown> {
         setTimeout(function() {
             log.popStatus("video");
         }, 10000);
+        updateVideoButtons();
 
     });
 
+}
+
+// Update the persistent video buttons based on the current video state
+export function updateVideoButtons(): void {
+    let per = ui.ui.persistent;
+    let cam = per.camera;
+    let scr = per.shareScreen;
+    let videoConfig = ui.ui.panels.videoConfig;
+
+    // By default: both are off and set to enable
+    cam.setAttribute("aria-label", "Camera");
+    cam.innerHTML = '<i class="fas fa-video-slash"></i><span class="menu-extra">Camera</span>';
+    cam.onclick = function() {
+        if (videoConfig.device.value !== "-none") {
+            // We can share it directly
+            shareVideo(videoConfig.device.value, +videoConfig.res.value);
+
+        } else {
+            // Need to ask how
+            ui.showPanel(videoConfig, videoConfig.device);
+
+        }
+    };
+
+    scr.setAttribute("aria-label", "Share your screen");
+    scr.innerHTML = '<i class="fas fa-desktop" style="position: relative;"><i class="fas fa-slash" style="position: absolute; left: -0.1em;"></i></i><span class="menu-extra">Share your screen</span>';
+    scr.onclick = function() {
+        shareVideo("-screen", 0);
+    };
+
+
+    // Switch it based on our current mode
+    if (userMediaVideoID === "-screen") {
+        // We're in screen-share mode, so make it a disable button
+        scr.setAttribute("aria-label", "Stop sharing your screen");
+        scr.innerHTML = '<i class="fas fa-desktop"></i><span class="menu-extra">Stop sharing your screen</span>';
+        scr.onclick = function() {
+            shareVideo("-none", 0);
+        };
+
+    } else if (userMediaVideoID !== null) {
+        // We're sharing the camera, so click it to stop
+        cam.setAttribute("aria-label", "Disable camera");
+        cam.innerHTML = '<i class="fas fa-video"></i><span class="menu-extra">Disable camera</span>';
+        cam.onclick = function() {
+            shareVideo("-none", 0);
+        };
+
+    }
 }
 
 // Video admin events
@@ -144,14 +214,14 @@ util.events.addEventListener("net.admin.video", function(ev: CustomEvent) {
             // FIXME: Better way to do this setting
             ui.ui.panels.videoConfig.device.value = arg;
             net.updateAdminPerm({videoDevice: arg});
-            getCamera(arg, +ui.ui.panels.videoConfig.res.value);
+            shareVideo(arg, +ui.ui.panels.videoConfig.res.value);
             break;
 
         case acts.videoRes:
             // FIXME: Better way to do this setting
             ui.ui.panels.videoConfig.res.value = arg;
             net.updateAdminPerm({videoRes: +arg});
-            getCamera(ui.ui.panels.videoConfig.device.value, +arg);
+            shareVideo(ui.ui.panels.videoConfig.device.value, +arg);
             break;
     }
 });

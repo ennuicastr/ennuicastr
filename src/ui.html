@@ -64,24 +64,29 @@
 
         <!-- Persistent menu buttons -->
         <div id="ecmenu-persistent" class="menu" role="navigation" aria-label="Main menu">
-            <span id="ecmenu-master-hider" style="display: none;">
-                <button id="ecmenu-master" class="tbutton interface hotkey-hidden" aria-label="Host interface">
-                    <i class="fas fa-wave-square"></i><span class="menu-extra">Host interface</span>
-                </button>
-            </span>
-            <span id="ecmenu-sounds-hider" style="display: none;">
-                <button id="ecmenu-sounds" class="tbutton interface hotkey-hidden" aria-label="Soundboard">
-                    <i class="fas fa-music"></i><span class="menu-extra">Soundboard</span>
-                </button>
-            </span>
+            <button id="ecmenu-mute" class="tbutton interface hotkey-hidden" aria-label="Mute">
+                <i class="fas fa-microphone-alt" style="width: 2em;"></i><span class="menu-extra">Mute</span>
+            </button>
+            <button id="ecmenu-camera" class="tbutton interface hotkey-hidden" aria-label="Camera">
+                <i class="fas fa-video-slash"></i><span class="menu-extra">Camera</span>
+            </button>
+            <button id="ecmenu-share-screen" class="tbutton interface hotkey-hidden" aria-label="Share your screen">
+                <i class="fas fa-desktop" style="position: relative;"><i class="fas fa-slash" style="position: absolute; left: -0.1em;"></i></i><span class="menu-extra">Share your screen</span>
+            </button>
+            <button id="ecmenu-master" class="tbutton interface hotkey-hidden" style="display: none;" aria-label="Host interface">
+                <i class="fas fa-wave-square"></i><span class="menu-extra">Host interface</span>
+            </button>
+            <button id="ecmenu-user-admin" class="tbutton interface hotkey-hidden" style="display: none;" aria-label="User administration">
+                <i class="fas fa-user-cog"></i><span class="menu-extra">User administration</span>
+            </button>
+            <button id="ecmenu-sounds" class="tbutton interface hotkey-hidden" style="display: none;" aria-label="Soundboard">
+                <i class="fas fa-music"></i><span class="menu-extra">Soundboard</span>
+            </button>
             <button id="ecmenu-main" class="tbutton interface hotkey-hidden" aria-label="Settings">
                 <i class="fas fa-cog"></i><span class="menu-extra">Settings</span>
             </button>
             <button id="ecmenu-chat" class="tbutton interface hotkey-hidden" aria-label="Chat">
                 <i class="fas fa-keyboard"></i><span class="menu-extra">Chat</span>
-            </button>
-            <button id="ecmenu-mute" class="tbutton interface hotkey-hidden" aria-label="Mute">
-                <i class="fas fa-microphone-alt" style="width: 2em;"></i><span class="menu-extra">Mute</span>
             </button>
             <button id="ecmenu-video-popout" class="tbutton interface streamer-interface hotkey-hidden" aria-label="Pop out video">
                 <i class="fa fa-window-restore"></i><span class="menu-extra">Pop out video</span>
@@ -98,7 +103,7 @@
 
         <!-- The main menu -->
         <div id="ecmenu" class="panel" role="dialog" aria-label="Settings">
-            <button id="ecmenu-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
+            <button class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
 
             <div id="ecview-mode-hider" class="rflex row">
                 <label for="ecview-mode">View mode:&nbsp;</label>
@@ -144,7 +149,6 @@
                     </span>
                 </div>
             </div>
-            <button id="ecmaster-admin" class="row"><i class="fas fa-users-cog"></i> User administration</button>
             <div class="row">
                 <input id="ecmaster-video-record-host" type="checkbox" />
                 <label for="ecmaster-video-record-host">&nbsp;Accept video recordings from guests
@@ -243,7 +247,7 @@
 
         <!-- The input device selector -->
         <div id="ecinput-device-wrapper" class="panel" role="dialog" aria-label="Input settings">
-            <button id="ecmenu-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
+            <button class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
 
             <!-- Input device -->
             <div class="rflex row">
@@ -272,7 +276,7 @@
 
         <!-- The output device selector -->
         <div id="ecoutput-device-wrapper" class="panel" role="dialog" aria-label="Output settings">
-            <button id="ecmenu-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
+            <button class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
 
             <!-- The output device selector -->
             <div id="ecoutput-device-list-hider" class="rflex row">
@@ -309,11 +313,19 @@
 
         <!-- Video device selector -->
         <div id="ecvideo-device-wrapper" class="panel" role="dialog" aria-label="Video settings">
-            <button id="ecmenu-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
+            <button class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
+
+            <div id="ecvideo-device-preview" class="row" style="height: 120px; background-color: #333;"></div>
+
             <div class="rflex row">
                 <label for="ecvideo-device-list" style="min-width: 8em; text-align: right;">Camera:&nbsp;</label>
                 <select id="ecvideo-device-list" style="flex: auto; width: 6em;"></select>
             </div>
+
+            <button id="ecvideo-share" class="row"><i class="fas fa-video-slash"></i> Unshare your camera</button>
+
+            <!-- Spacer -->
+            <div class="row">&nbsp;</div>
 
             <div class="rflex row">
                 <label for="ecvideo-res" style="min-width: 8em; text-align: right;">Max resolution:&nbsp;</label>
@@ -370,7 +382,7 @@
 
         <!-- The user list/volume -->
         <div id="ecuser-list-wrapper" class="panel" role="dialog" aria-label="User volume">
-            <button id="ecmenu-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
+            <button class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
             <div id="ecuser-list-popout-wrapper" data-popout-label="User volume">
                 <div id="ecuser-list-wrapper" class="rflex" style="align-items: start;">
                     <div id="ecuser-list" style="flex: auto;"></div>
@@ -507,12 +519,13 @@
             Array.prototype.slice.call(document.getElementsByClassName("close-button"), 0).forEach(function(x) {
                 x.onclick = function() { panel(null, false); }
             });
-            gebi("ecmenu-master-hider").style.display = "";
+            gebi("ecmenu-master").style.display = "";
+            gebi("ecmenu-user-admin").style.display = "";
             btn("ecmenu-master", "ecmaster-interface");
-            btn("ecmaster-admin", "ecuser-admin-interface");
+            btn("ecmenu-user-admin", "ecuser-admin-interface");
             btn("ecuser-admin-all-b", "ecuser-admin-interface-user");
             btn("ecuser-admin-kick", "ecuser-admin-interface-user-full");
-            gebi("ecmenu-sounds-hider").style.display = "";
+            gebi("ecmenu-sounds").style.display = "";
             btn("ecmenu-sounds", "ecsounds-wrapper");
             btn("ecmenu-main", "ecmenu");
             btn("ecmenu-input-devices", "ecinput-device-wrapper");

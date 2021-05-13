@@ -88,7 +88,7 @@ export function mkUI(): Promise<unknown> {
 
     if ("master" in config.config) {
         master.createMasterInterface();
-        uiFE.showPanel(ui.panels.master.wrapper, ui.panels.master.startStopB);
+        uiFE.showPanel(ui.panels.master, ui.panels.master.startStopB);
     }
 
     // Every close button works the same
@@ -137,7 +137,7 @@ export function mkUI(): Promise<unknown> {
 
         }).then(function() {
             noSleep = new NoSleep();
-            uiFE.showPanel(ui.panels.mobile.wrapper, ui.persistent.main, true);
+            uiFE.showPanel(ui.panels.mobile, ui.persistent.main, true);
             return new Promise((res) => {
                 ui.panels.mobile.button.onclick = res;
             });
@@ -246,13 +246,14 @@ function loadLog(logEl: HTMLElement) {
 
 function loadMainMenu() {
     const p = ui.persistent = {
-        masterHider: gebi("ecmenu-master-hider"),
+        mute: gebi("ecmenu-mute"),
+        camera: gebi("ecmenu-camera"),
+        shareScreen: gebi("ecmenu-share-screen"),
         master: gebi("ecmenu-master"),
-        soundsHider: gebi("ecmenu-sounds-hider"),
+        userAdmin: gebi("ecmenu-user-admin"),
         sounds: gebi("ecmenu-sounds"),
         main: gebi("ecmenu-main"),
         chat: gebi("ecmenu-chat"),
-        mute: gebi("ecmenu-mute"),
         videoPopout: gebi("ecmenu-video-popout")
     };
 
@@ -277,7 +278,9 @@ function loadMainMenu() {
         };
     }
 
+    p.mute.onclick = function() { audio.toggleMute(); };
     btn(p.master, "master", "startStopB");
+    btn(p.userAdmin, "userAdmin", "allB");
     btn(p.sounds, "soundboard", null);
     btn(p.main, "main", "inputB");
     p.chat.onclick = function() {
@@ -290,7 +293,6 @@ function loadMainMenu() {
         }
         uiFE.resizeUI();
     };
-    p.mute.onclick = function() { audio.toggleMute(); };
     btn(m.inputB, "inputConfig", null);
     btn(m.outputB, "outputConfig", null);
     if (!config.useRTC) m.outputB.style.display = "none";
@@ -391,7 +393,6 @@ function loadMasterUI() {
         inviteFLAC: gebi("ecmaster-invite-flac"),
         inviteContinuousHider: gebi("ecmaster-invite-continuous-hider"),
         inviteContinuous: gebi("ecmaster-invite-continuous"),
-        userAdminB: gebi("ecmaster-admin"),
         acceptRemoteVideo: gebi("ecmaster-video-record-host"),
         recordingCostPopout: gebi("ecmaster-recording-cost-popout"),
         recordingCostPopoutWrapper: gebi("ecmaster-recording-cost-popout-wrapper"),
@@ -513,7 +514,13 @@ function loadOutputConfig() {
 function loadVideoConfig() {
     const vc = ui.panels.videoConfig = {
         wrapper: gebi("ecvideo-device-wrapper"),
+        visible: false,
+        onshow: null,
+        onhide: null,
+        preview: gebi("ecvideo-device-preview"),
+        previewV: null,
         device: gebi("ecvideo-device-list"),
+        shareB: gebi("ecvideo-share"),
         res: gebi("ecvideo-res"),
         outputHider: gebi("ecvideo-output-hider"),
 
@@ -758,13 +765,71 @@ export function mkAudioUI(): string {
      * VIDEO CONFIGURATION
      *******************/
 
-    // When it's changed, start video
-    function videoChange() {
-        uiFE.showPanel(null, ui.persistent.main);
-        net.updateAdminPerm({videoDevice: videoConfig.device.value, videoRes: +videoConfig.res.value}, true);
-        video.getCamera(videoConfig.device.value, +videoConfig.res.value);
+    // When we change settings, change the preview and button
+    function updateVideo() {
+        // Remove any existing preview
+        if (videoConfig.previewV) {
+            videoConfig.previewV.pause();
+            videoConfig.previewV = null;
+            videoConfig.preview.innerHTML = "";
+        }
+
+        let dev = videoConfig.device.value;
+        let shareB = videoConfig.shareB;
+
+        // Change the button meaning
+        shareB.classList.remove("off");
+        shareB.disabled = false;
+        if (video.userMediaVideoID === dev || dev === "-none") {
+            // Click this to *un*share
+            shareB.innerHTML = '<i class="fas fa-video-slash"></i> Unshare your camera';
+            shareB.onclick = function() {
+                shareB.classList.add("off");
+                shareB.disabled = true;
+                video.shareVideo("-none", 0).then(updateVideo);
+            };
+
+            // But, meaningless if we're already not sharing anything
+            if (video.userMediaVideoID === null) {
+                shareB.classList.add("off");
+                shareB.disabled = true;
+            }
+
+        } else {
+            // Click this to share
+            shareB.innerHTML = '<i class="fas fa-video"></i> Share your camera';
+            shareB.onclick = function() {
+                shareB.classList.add("off");
+                shareB.disabled = true;
+                video.shareVideo(videoConfig.device.value, +videoConfig.res.value).then(updateVideo);
+            };
+
+        }
+
+        if (!videoConfig.visible)
+            return;
+
+        // Change the preview
+        video.getVideo(dev, +videoConfig.res.value).then(um => {
+            if (um) {
+                let v = videoConfig.previewV = dce("video");
+                v.style.width = videoConfig.preview.offsetWidth + "px";
+                v.style.height = "100%";
+                videoConfig.preview.appendChild(v);
+                v.srcObject = um;
+                v.play().catch(()=>{});
+            }
+        });
     }
-    videoConfig.device.onchange = videoChange;
+
+    videoConfig.onshow = function() {
+        videoConfig.visible = true;
+        updateVideo();
+    };
+    videoConfig.onhide = function() {
+        videoConfig.visible = false;
+        updateVideo();
+    };
 
     // Add a pseudo-device so nothing is selected at first
     opt = dce("option");
@@ -786,25 +851,24 @@ export function mkAudioUI(): string {
             videoConfig.device.appendChild(opt);
         });
 
-        // Add a special pseudo-device for screen capture
-        const opt = dce("option");
-        opt.innerText = "Capture screen";
-        opt.value = "-screen";
-        videoConfig.device.appendChild(opt);
+        // Now that it's filled, we can load the value
+        uiFE.saveConfigValue(videoConfig.device, "video-device", updateVideo);
 
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     }).catch(function() {}); // Nothing really to do here
 
     // Resolution selector
     function resChange() {
-        if (videoConfig.device.value !== "-none") {
-            uiFE.showPanel(null, ui.persistent.main);
-            video.getCamera(videoConfig.device.value, +videoConfig.res.value);
-        }
+        net.updateAdminPerm({videoRes: +videoConfig.res.value}, true);
+        if (video.userMediaVideoID && video.userMediaVideoID !== "-screen")
+            video.shareVideo(video.userMediaVideoID, +videoConfig.res.value);
     }
     uiFE.saveConfigValue(videoConfig.res, "video-res2", resChange);
 
-    // View mode
+    // Persistent video buttons
+    video.updateVideoButtons();
+
+    // View mode (FIXME: doesn't belong here)
     function viewModeChange(ev: Event) {
         // Set the view
         const mode = ui.video.mode = +main.modeS.value;

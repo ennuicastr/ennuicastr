@@ -28,9 +28,19 @@ export enum ViewMode {
     Studio
 }
 
+// A panel needs at least a showable wrapper
+interface Panel {
+    wrapper: HTMLElement;
+    onshow?: ()=>void;
+    onhide?: ()=>void;
+}
+
+// The currently visible panel
+let curPanel: Panel = null;
+
 /* A panel can be modal, in which case showPanel(null) won't hide it. Actually
  * only used for the mobile forced-click to disable sleep. */
-let modal: HTMLElement = null;
+let modal: Panel = null;
 
 // The entire user interface
 export const ui = {
@@ -151,13 +161,14 @@ export const ui = {
 
     // The persistent menu
     persistent: <{
-        masterHider: HTMLElement,
+        mute: HTMLButtonElement,
+        camera: HTMLButtonElement,
+        shareScreen: HTMLButtonElement,
         master: HTMLButtonElement,
-        soundsHider: HTMLElement,
+        userAdmin: HTMLButtonElement,
         sounds: HTMLButtonElement,
         main: HTMLButtonElement,
         chat: HTMLButtonElement,
-        mute: HTMLButtonElement,
         videoPopout: HTMLButtonElement
     }> null,
 
@@ -205,9 +216,6 @@ export const ui = {
             inviteFLAC: HTMLInputElement,
             inviteContinuousHider: HTMLElement,
             inviteContinuous: HTMLInputElement,
-
-            // User administration button
-            userAdminB: HTMLButtonElement,
 
             // Accept guest video recordings
             acceptRemoteVideo: HTMLInputElement,
@@ -358,8 +366,24 @@ export const ui = {
         videoConfig: <{
             wrapper: HTMLElement,
 
+            // Currently visible?
+            visible: boolean;
+
+            // The video config panel needs onshow/onhide for the preview
+            onshow: ()=>void;
+            onhide: ()=>void;
+
+            // Preview pane
+            preview: HTMLElement,
+
+            // Preview video, if one is on right now
+            previewV: HTMLVideoElement,
+
             // Device selection
             device: HTMLSelectElement,
+
+            // Share/unshare button
+            shareB: HTMLButtonElement,
 
             // Resolution selection
             res: HTMLSelectElement,
@@ -453,15 +477,15 @@ const standinSVG = [
 ];
 
 // Show the given panel, or none
-export function showPanel(panelName: HTMLElement|string, autoFocusName: HTMLElement|string, makeModal?: boolean): void {
-    let panel: HTMLElement;
+export function showPanel(panelName: Panel|string, autoFocusName: HTMLElement|string, makeModal?: boolean): void {
+    let panel: Panel;
     let autoFocus: HTMLElement = null;
     if (typeof autoFocusName === "string")
         autoFocus = (<any> ui.panels)[<string> panelName][autoFocusName];
     else if (typeof autoFocus !== "undefined")
         autoFocus = autoFocusName;
     if (typeof panelName === "string")
-        panel = (<any> ui.panels)[panelName].wrapper;
+        panel = (<any> ui.panels)[panelName];
     else
         panel = panelName;
 
@@ -474,17 +498,26 @@ export function showPanel(panelName: HTMLElement|string, autoFocusName: HTMLElem
     for (const o in ui.panels) {
         (<any> ui.panels)[o].wrapper.style.display = "none";
     }
+    if (curPanel) {
+        if (curPanel.onhide)
+            curPanel.onhide();
+        curPanel = null;
+    }
 
     // Show this one
     if (panel) {
         ui.layerSeparator.style.display = "";
-        panel.style.display = "block";
+        panel.wrapper.style.display = "block";
         document.body.setAttribute("data-interface", "none");
 
         if (autoFocus)
             autoFocus.focus();
         else
-            (<HTMLElement> panel.childNodes[0]).focus();
+            (<HTMLElement> panel.wrapper.childNodes[0]).focus();
+
+        curPanel = panel;
+        if (panel.onshow)
+            panel.onshow();
 
     } else {
         ui.layerSeparator.style.display = "none";
@@ -599,7 +632,7 @@ export function resizeUI(second?: boolean): void {
     for (const pn in ui.panels) {
         const panel: HTMLElement = (<any> ui.panels)[pn].wrapper;
         if (panel.style.display === "block")
-            idealSize = Math.max(idealSize, panel.scrollHeight + 40);
+            idealSize = Math.max(idealSize, panel.scrollHeight + 60);
     }
 
     // Don't do anything if the size is already right

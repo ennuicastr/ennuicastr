@@ -45,8 +45,9 @@ const sounds = {
 export function createMasterInterface(): void {
     const masterUI = ui.ui.panels.master;
 
-    // Show the button
-    ui.ui.persistent.masterHider.style.display = "";
+    // Show the buttons
+    ui.ui.persistent.master.style.display = "";
+    ui.ui.persistent.userAdmin.style.display = "";
 
     // Invite options
     if ((config.config.format&prot.flags.dataTypeMask) === prot.flags.dataType.flac)
@@ -62,7 +63,6 @@ export function createMasterInterface(): void {
     genInvite();
 
     // User admin
-    masterUI.userAdminB.onclick = function() { ui.showPanel("userAdmin", "allB"); };
     updateMasterAdmin();
     ui.ui.panels.userAdmin.allB.onclick = function() { userAdmin(-1); };
 
@@ -403,7 +403,7 @@ export function userAdmin(target: number): void {
             ui.showPanel(null, ui.ui.persistent.main);
         };
     }
-    ui.showPanel(userAdminUser.wrapper, null);
+    ui.showPanel(userAdminUser, null);
 }
 
 ui.ui.masterUserAdmin = userAdmin;
@@ -442,7 +442,7 @@ function addSoundButton(sid: string, url: string, name: string) {
 
     soundboard.soundsWrapper.appendChild(b.b);
     soundboard.soundsWrapper.appendChild(spacer);
-    ui.ui.persistent.soundsHider.style.display = "";
+    ui.ui.persistent.sounds.style.display = "";
 }
 
 // Add many soundboard buttons
