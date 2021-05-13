@@ -98,6 +98,12 @@ function assertJitsiPeer(id: number, jid: string) {
 
 // Initialize the Jitsi connection
 function initJitsi() {
+    if (!audio.userMediaRTC) {
+        // Wait until we have audio
+        util.events.addEventListener("usermediartcready", initJitsi, {once: true});
+        return;
+    }
+
     let timeout: number = null;
     jPromise = jPromise.then(() => {
         if (typeof JitsiMeetJS === "undefined")
@@ -190,9 +196,9 @@ function initJitsi() {
             room.addEventListener(JitsiMeetJS.events.conference.ENDPOINT_MESSAGE_RECEIVED, jitsiMessage);
 
             // Add our local tracks
-            util.events.addEventListener("usermediartcready", jitsiSetUserMediaRTC);
+            util.events.addEventListener("usermediartcready", () => { jitsiSetUserMediaRTC(); });
             jitsiSetUserMediaRTC();
-            util.events.addEventListener("usermediavideoready", jitsiSetUserMediaVideo);
+            util.events.addEventListener("usermediavideoready", () => { jitsiSetUserMediaVideo(); });
             jitsiSetUserMediaVideo();
 
             // And join
@@ -237,7 +243,9 @@ if (config.useRTC) {
 
 
 // Set our UserMediaRTC track
-function jitsiSetUserMediaRTC() {
+function jitsiSetUserMediaRTC(retries?: number) {
+    if (typeof retries === "undefined")
+        retries = 2;
     if (!audio.userMediaRTC)
         return Promise.all([]);
 
@@ -260,7 +268,15 @@ function jitsiSetUserMediaRTC() {
         // And prepare to remove it
         util.events.addEventListener("usermediastopped", jitsiUnsetUserMediaRTC, {once: true});
 
-    }).catch(net.promiseFail());
+    }).catch(() => {
+        if (retries) {
+            setTimeout(() => {
+                jitsiSetUserMediaRTC(retries-1);
+            }, 1000);
+        } else {
+            net.promiseFail();
+        }
+    });
 
     return jPromise;
 }
@@ -281,7 +297,9 @@ function jitsiUnsetUserMediaRTC() {
 }
 
 // Set our UserMediaVideo track
-function jitsiSetUserMediaVideo() {
+function jitsiSetUserMediaVideo(retries?: number) {
+    if (typeof retries === "undefined")
+        retries = 2;
     if (!video.userMediaVideo)
         return;
 
@@ -303,7 +321,15 @@ function jitsiSetUserMediaVideo() {
         // And prepare to remove it
         util.events.addEventListener("usermediavideostopped", jitsiUnsetUserMediaVideo, {once: true});
 
-    }).catch(net.promiseFail());
+    }).catch(() => {
+        if (retries) {
+            setTimeout(() => {
+                jitsiSetUserMediaVideo(retries - 1);
+            }, 1000);
+        } else {
+            net.promiseFail();
+        }
+    });
 
     return jPromise;
 }
@@ -372,7 +398,20 @@ function jitsiTrackAdded(track: any) {
     // Set this in the appropriate element
     const el: HTMLMediaElement = (<any> ui.ui.video.users[id])[type];
     el.srcObject = stream;
-    el.play().catch(console.error);
+
+    let retryCt = 2;
+    function tryPlay() {
+        if ((<any> inc)[type] !== track) return;
+        el.play().catch(() => {
+            if (retryCt) {
+                retryCt--;
+                setTimeout(tryPlay, 1000);
+            } else {
+                net.promiseFail();
+            }
+        });
+    }
+    tryPlay();
 
     // Hide the standin if applicable
     if (type === "video")
@@ -586,7 +625,30 @@ function peerMessage(peer: number, msg: DataView) {
     }
 }
 
-// Send an Ennuicastr message over Jitsi
+// Send a Jitsi message with retries
+function sendJitsiMsg(jid: string, msg: any, retries?: number) {
+    if (typeof retries === "undefined")
+        retries = 10;
+
+    try {
+        if (jid === null) {
+            if (Object.keys(jitsiPeers).length > 0)
+                room.broadcastEndpointMessage(msg);
+        } else {
+            room.sendEndpointMessage(jid, msg);
+        }
+    } catch (ex) {
+        if (retries) {
+            setTimeout(() => {
+                sendJitsiMsg(jid, msg, retries-1);
+            }, 1000);
+        } else {
+            throw ex;
+        }
+    }
+}
+
+// Send an Ennuicastr message over Jitsi or RTC
 function sendMsg(msg: Uint8Array, peer?: number) {
     if (!room)
         return;
@@ -617,14 +679,7 @@ function sendMsg(msg: Uint8Array, peer?: number) {
     const msgj = {type: "ennuicastr", ec: msgs};
 
     // Send it to the peer or broadcast it to all peers
-    if (inc === null) {
-        if (Object.keys(jitsiPeers).length > 0)
-            room.broadcastEndpointMessage(msgj);
-    } else {
-        try {
-            room.sendEndpointMessage(jid, msgj);
-        } catch (ex) {}
-    }
+    sendJitsiMsg(jid, msg);
 }
 
 // Send a video recording subcommand to a peer
@@ -788,7 +843,7 @@ function startRTC(id: number, j: JitsiPeer) {
         }).then(() => {
             // Tell them our local description
             if (room)
-                room.sendEndpointMessage(j.id, {type: "ennuicastr-rtc", desc: j.rtc.localDescription});
+                sendJitsiMsg(j.id, {type: "ennuicastr-rtc", desc: j.rtc.localDescription});
         // eslint-disable-next-line @typescript-eslint/no-empty-function
         }).catch(()=>{});
     }
@@ -796,7 +851,7 @@ function startRTC(id: number, j: JitsiPeer) {
     // ICE candidates
     j.rtc.onicecandidate = function(ev: RTCPeerConnectionIceEvent) {
         if (room)
-            room.sendEndpointMessage(j.id, {type: "ennuicastr-rtc", cand: ev.candidate});
+            sendJitsiMsg(j.id, {type: "ennuicastr-rtc", cand: ev.candidate});
     };
 
     // Incoming signals
@@ -827,7 +882,7 @@ function startRTC(id: number, j: JitsiPeer) {
                         return j.rtc.setLocalDescription(answer);
                     }).then(() => {
                         if (room)
-                            room.sendEndpointMessage(j.id, {type: "ennuicastr-rtc", desc: j.rtc.localDescription });
+                            sendJitsiMsg(j.id, {type: "ennuicastr-rtc", desc: j.rtc.localDescription });
                     });
                 }
 

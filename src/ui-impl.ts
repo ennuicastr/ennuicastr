@@ -823,7 +823,13 @@ export function mkAudioUI(): string {
             return;
 
         // Change the preview
-        video.getVideo(dev, +videoConfig.res.value).then(um => {
+        Promise.all([]).then(() => {
+            if (video.userMediaVideoID === dev)
+                return video.userMediaVideo;
+
+            return video.getVideo(dev, +videoConfig.res.value);
+
+        }).then(um => {
             if (um) {
                 videoConfig.previewS = um;
                 let v = videoConfig.previewV = dce("video");
