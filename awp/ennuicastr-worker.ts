@@ -16,7 +16,7 @@
 
 declare let LibAV: any, NoiseRepellent: any, NoiseRepellentFactory: any, WebRtcVad: any, __filename: string;
 
-const libavVersion = "2.3.4.4";
+const libavVersion = "2.3b.4.4";
 const libavPath = "../libav/libav-" + libavVersion + "-ennuicastr.js";
 
 // Number of milliseconds to run the VAD for before/after talking

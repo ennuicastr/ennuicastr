@@ -33,7 +33,8 @@ export let videoRecHost = -1;
 
 // Jitsi features according to the server
 let jitsiFeatures: any = {
-    disableSimulcast: false
+    disableSimulcast: false,
+    disableP2P: false
 };
 
 // Jitsi connection
@@ -136,11 +137,15 @@ function initJitsi() {
 
         }
 
+        // Initialize Jitsi
         JitsiMeetJS.setLogLevel(JitsiMeetJS.logLevels.ERROR);
-        JitsiMeetJS.init({
+        let initDict: any = {
             disableAudioLevels: true,
-            disableSimulcast: !!jitsiFeatures.disableSimulcast
-        });
+            disableSimulcast: jitsiFeatures.disableSimulcast
+        };
+        if (jitsiFeatures.disableSimulcast)
+            initDict.preferredCodec = "h264";
+        JitsiMeetJS.init(initDict);
 
         // Create our connection
         return new Promise(function(res, rej) {
@@ -167,9 +172,13 @@ function initJitsi() {
         // Join the "room"
         return new Promise(function(res, rej) {
             const roomNm = config.config.id.toString(36) + "_" + config.config.key.toString(36) +
-                (jitsiFeatures.disableSimulcast ? "_nosc" : "");
+                (jitsiFeatures.disableSimulcast ? "_nosc" : "") +
+                (jitsiFeatures.disableP2P ? "_nop2p" : "");
             room = connection.initJitsiConference(roomNm, {
-                openBridgeChannel: true
+                openBridgeChannel: true,
+                p2p: {
+                    enabled: !jitsiFeatures.disableP2P
+                }
             });
 
             room.addEventListener(JitsiMeetJS.events.conference.CONFERENCE_JOINED, res);
@@ -214,8 +223,10 @@ if (config.useRTC) {
         const p = prot.parts.info;
         const jitsiStr = util.decodeText(msg.slice(p.value));
         const jitsiF: any = JSON.parse(jitsiStr);
-        if (jitsiF.disableSimulcast !== jitsiFeatures.disableSimulcast) {
+        if (!!jitsiF.disableSimulcast !== jitsiFeatures.disableSimulcast ||
+            !!jitsiF.disableP2P !== jitsiFeatures.disableP2P) {
             jitsiFeatures.disableSimulcast = !!jitsiF.disableSimulcast;
+            jitsiFeatures.disableP2P = !!jitsiF.disableP2P;
             jPromise = jPromise.then(() => {
                 if (room)
                     initJitsi();
@@ -391,6 +402,10 @@ function jitsiTrackRemoved(track: any) {
     if ((<any> inc)[type] !== track)
         return;
     (<any> inc)[type] = null;
+    if (type === "video" && videoRecIncoming[id]) {
+        videoRecIncoming[id].writer.close();
+        delete videoRecIncoming[id];
+    }
     if (!inc.audio && !inc.video && !inc.rtcReady) {
         try {
             inc.rtc.close();

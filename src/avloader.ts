@@ -20,7 +20,7 @@ declare let LibAV: any;
 import * as util from "./util";
 
 // libav version to load
-const libavVersion = "2.3.4.4";
+const libavVersion = "2.3b.4.4";
 
 // Load LibAV if it's not already loaded
 let loadLibAVPromise: Promise<unknown> = null;
