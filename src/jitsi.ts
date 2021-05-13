@@ -129,7 +129,8 @@ function initJitsi() {
         } else {
             JitsiMeetJS.setLogLevel(JitsiMeetJS.logLevels.ERROR);
             JitsiMeetJS.init({
-                disableAudioLevels: true
+                disableAudioLevels: true,
+                disableSimulcast: navigator.userAgent.indexOf("Firefox") >= 0 // For now?
             });
 
         }
@@ -185,7 +186,7 @@ function initJitsi() {
     }).then(() => {
         clearTimeout(timeout);
 
-    }).catch(console.error);
+    }).catch(net.promiseFail());
 }
 
 
@@ -221,7 +222,7 @@ function jitsiSetUserMediaRTC() {
         // And prepare to remove it
         util.events.addEventListener("usermediastopped", jitsiUnsetUserMediaRTC, {once: true});
 
-    }).catch(console.error);
+    }).catch(net.promiseFail());
 
     return jPromise;
 }
@@ -236,7 +237,7 @@ function jitsiUnsetUserMediaRTC() {
     }).then(() => {
         jAudio = null;
 
-    }).catch(console.error);
+    }).catch(net.promiseFail());
 
     return jPromise;
 }
@@ -264,7 +265,7 @@ function jitsiSetUserMediaVideo() {
         // And prepare to remove it
         util.events.addEventListener("usermediavideostopped", jitsiUnsetUserMediaVideo, {once: true});
 
-    }).catch(console.error);
+    }).catch(net.promiseFail());
 
     return jPromise;
 }
@@ -279,7 +280,7 @@ function jitsiUnsetUserMediaVideo() {
     }).then(() => {
         jVideo = null;
 
-    }).catch(console.error);
+    }).catch(net.promiseFail());
 
     return jPromise;
 }
