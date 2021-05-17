@@ -159,6 +159,8 @@ if (username === null || username === "") {
         for (const key in config)
             target += key[0] + "=" + config[key].toString(36) + "&";
         target += "nm=" + encodeURIComponent(gebi("nm").value);
+        if (params.get("debug"))
+            target += "&debug=1";
         const height = ("master" in config)?480:240;
         if (window.open(target, "", "width=640,height=" + height + ",menubar=0,toolbar=0,location=0,personalbar=0,status=0") === null) {
             // Just use the regular submit
@@ -201,6 +203,7 @@ export const useFlac = ((config.format&prot.flags.dataTypeMask) === prot.flags.d
 export const useContinuous = !!(config.format&features.continuous);
 export const useRTC = !!(config.format&features.rtc);
 export const useVideoRec = !!(config.format&features.videorec);
+export const useDebug = !!(params.get("debug"));
 
 // Color sets for wave vad colors
 const waveVADColorSets = {

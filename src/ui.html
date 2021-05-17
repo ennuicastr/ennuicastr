@@ -121,6 +121,7 @@
             <span id="ecmenu-user-list-hider">
                 <button id="ecmenu-user-list" class="row"><i class="fas fa-users"></i> User volume</button>
             </span>
+            <button id="ecmenu-debug" class="row">Debugging</button>
         </div>
 
         <!-- The master interface -->
@@ -389,6 +390,12 @@
                     <button id="ecuser-list-popout" class="tbutton" title="Pop out" aria-label="Pop out"><i class="far fa-window-restore"></i></button>
                 </div>
             </div>
+        </div>
+
+        <!-- Debugging -->
+        <div id="ecdebug-wrapper" class="panel" role="dialog" aria-label="Debugging">
+            <input type="text" id="ecdebug-input" /><br/>
+            <div id="ecdebug-output" class="row"></div>
         </div>
 
         <!-- Interface sounds -->

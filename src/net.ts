@@ -238,7 +238,7 @@ export function disconnect(ev?: Event): void {
         target = ev.target;
 
     function close(sock: ReconnectableWebSocket): ReconnectableWebSocket {
-        if (sock && sock !== target)
+        if (sock && sock.sock !== target)
             sock.close();
         return null;
     }

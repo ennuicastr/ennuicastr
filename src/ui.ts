@@ -191,7 +191,8 @@ export const ui = {
             inputB: HTMLButtonElement,
             outputB: HTMLButtonElement,
             videoB: HTMLButtonElement,
-            userListB: HTMLButtonElement
+            userListB: HTMLButtonElement,
+            debug: HTMLButtonElement
         }> null,
 
         // Master interface
@@ -449,6 +450,13 @@ export const ui = {
                 volume: HTMLInputElement,
                 volumeStatus: HTMLElement
             }[]
+        }> null,
+
+        // Debugging
+        debug: <{
+            wrapper: HTMLElement,
+            input: HTMLInputElement,
+            output: HTMLElement
         }> null
     },
 

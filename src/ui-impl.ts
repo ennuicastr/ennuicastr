@@ -84,6 +84,7 @@ export function mkUI(): Promise<unknown> {
     loadOutputConfig();
     loadVideoConfig();
     loadUserList();
+    loadDebug();
     loadInterfaceSounds();
 
     if ("master" in config.config) {
@@ -269,7 +270,8 @@ function loadMainMenu() {
         inputB: gebi("ecmenu-input-devices"),
         outputB: gebi("ecmenu-output-devices"),
         videoB: gebi("ecmenu-video-devices"),
-        userListB: gebi("ecmenu-user-list")
+        userListB: gebi("ecmenu-user-list"),
+        debug: gebi("ecmenu-debug")
     };
 
     function btn(b: HTMLButtonElement, p: string, a: string) {
@@ -300,6 +302,9 @@ function loadMainMenu() {
     btn(m.userListB, "userList", null);
     if (!config.useRTC && !("master" in config.config))
         m.userListB.style.display = "none";
+    btn(m.debug, "debug", null);
+    if (!config.useDebug)
+        m.debug.style.display = "none";
 
     // Auto-hide the persistent menu
     uiFE.mouseenter();
@@ -559,6 +564,44 @@ function loadUserList() {
         dock: gebi("ecuser-list-dock"),
         userList: gebi("ecuser-list"),
         users: []
+    };
+}
+
+function loadDebug() {
+    const debug = ui.panels.debug = {
+        wrapper: gebi("ecdebug-wrapper"),
+        input: gebi("ecdebug-input"),
+        output: gebi("ecdebug-output")
+    };
+
+    const input = debug.input;
+    const output = debug.output;
+
+    input.value = "return ";
+
+    input.onkeydown = function(ev) {
+        if (ev.key !== "Enter")
+            return;
+
+        try {
+            const f = Function(
+                "audio,config,log,master,net,util,video",
+                input.value);
+            const r = f(audio, config, log, master, net, util, video);
+
+            let rs: string;
+            try {
+                rs = JSON.stringify(r);
+            } catch (ex) {
+                rs = "" + r;
+            }
+
+            output.innerText = rs;
+
+        } catch (ex) {
+            output.innerText = ex + "\n" + ex.stack;
+
+        }
     };
 }
 
