@@ -130,14 +130,14 @@ function initJitsi() {
         }
 
         if (room) {
-            room.removeEventListener(JitsiMeetJS.events.conference.CONFERENCE_LEFT, net.disconnect);
+            room.removeEventListener(JitsiMeetJS.events.conference.CONFERENCE_LEFT, config.disconnect);
             return room.leave();
         }
 
     }).then(() => {
         room = null;
         if (connection) {
-            connection.removeEventListener(JitsiMeetJS.events.connection.CONNECTION_DISCONNECTED, net.disconnect);
+            connection.removeEventListener(JitsiMeetJS.events.connection.CONNECTION_DISCONNECTED, config.disconnect);
             connection.disconnect();
             connection = null;
 
@@ -166,7 +166,7 @@ function initJitsi() {
 
             connection.addEventListener(JitsiMeetJS.events.connection.CONNECTION_ESTABLISHED, res);
             connection.addEventListener(JitsiMeetJS.events.connection.CONNECTION_FAILED, rej);
-            connection.addEventListener(JitsiMeetJS.events.connection.CONNECTION_DISCONNECTED, net.disconnect);
+            connection.addEventListener(JitsiMeetJS.events.connection.CONNECTION_DISCONNECTED, config.disconnect);
 
             timeout = setTimeout(rej, 5000);
             connection.connect();
@@ -188,9 +188,9 @@ function initJitsi() {
             });
 
             room.addEventListener(JitsiMeetJS.events.conference.CONFERENCE_JOINED, res);
-            room.addEventListener(JitsiMeetJS.events.conference.CONFERENCE_LEFT, net.disconnect);
+            room.addEventListener(JitsiMeetJS.events.conference.CONFERENCE_LEFT, config.disconnect);
             room.addEventListener(JitsiMeetJS.events.conference.CONFERENCE_FAILED, rej);
-            room.addEventListener(JitsiMeetJS.events.conference.CONFERENCE_ERROR, net.disconnect);
+            room.addEventListener(JitsiMeetJS.events.conference.CONFERENCE_ERROR, config.disconnect);
             room.addEventListener(JitsiMeetJS.events.conference.TRACK_ADDED, jitsiTrackAdded);
             room.addEventListener(JitsiMeetJS.events.conference.TRACK_REMOVED, jitsiTrackRemoved);
             room.addEventListener(JitsiMeetJS.events.conference.ENDPOINT_MESSAGE_RECEIVED, jitsiMessage);
@@ -710,7 +710,6 @@ function disconnect() {
     room = null;
     return ret;
 }
-util.events.addEventListener("net.disconnect", disconnect);
 
 // Close a given peer's RTC connection
 function closeRTC(peer: number) {

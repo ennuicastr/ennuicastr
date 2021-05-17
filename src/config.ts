@@ -132,6 +132,34 @@ if (monitor) {
 url.search = "?i=" + config.id.toString(36);
 window.history.pushState({}, "Ennuicastr", url.toString());
 
+// If they were disconnected, just show them that message
+if (params.get("dc")) {
+    const sp = dce("span");
+    sp.innerText = "Disconnected! ";
+    const a = dce("a");
+    let href = "?";
+    for (const key in config)
+        href += key[0] + "=" + (<any> config)[key].toString(36) + "&";
+    href += "nm=" + encodeURIComponent(username);
+    a.href = href;
+    a.innerText = "Attempt reconnection";
+    sp.appendChild(a);
+    loginTarget.appendChild(sp);
+    throw new Error;
+}
+
+export function disconnect() {
+    try {
+        let href = "?";
+        for (const key in config)
+            href += key[0] + "=" + (<any> config)[key].toString(36) + "&";
+        href += "nm=" + encodeURIComponent(username) + "&dc=1";
+        document.location.href = href;
+    } catch (ex) {
+        document.location.href = "?";
+    }
+}
+
 // Next, check if we have a username
 if (username === null || username === "") {
     // Just ask for a username

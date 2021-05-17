@@ -165,7 +165,7 @@ export function connect(): Promise<unknown> {
         log.pushStatus("conn", "Connecting...");
 
         // (1) The ping socket
-        pingSock = new ReconnectableWebSocket(config.wsUrl, disconnect, connecter);
+        pingSock = new ReconnectableWebSocket(config.wsUrl, config.disconnect, connecter);
         const out = new DataView(connMsg.buffer.slice(0));
         out.setUint32(p.flags, f.connectionType.ping | flags, true);
 
@@ -179,7 +179,7 @@ export function connect(): Promise<unknown> {
 
     }).then(() => {
         // (2) The data socket
-        dataSock = new ReconnectableWebSocket(config.wsUrl, disconnect, connecter);
+        dataSock = new ReconnectableWebSocket(config.wsUrl, config.disconnect, connecter);
         const out = new DataView(connMsg.buffer.slice(0));
         out.setUint32(p.flags, f.connectionType.data | flags, true);
 
@@ -197,7 +197,7 @@ export function connect(): Promise<unknown> {
         // (3) The master socket
         let out: DataView;
         if ("master" in config.config) {
-            masterSock = new ReconnectableWebSocket(config.wsUrl, disconnect, connecter);
+            masterSock = new ReconnectableWebSocket(config.wsUrl, config.disconnect, connecter);
             out = new DataView(connMsg.buffer.slice(0));
             out.setUint32(p.key, config.config.master, true);
             out.setUint32(p.flags, f.connectionType.master | flags, true);
@@ -212,41 +212,6 @@ export function connect(): Promise<unknown> {
             return Promise.all([]);
         }
     });
-}
-
-// Called to disconnect explicitly, or implicitly on error
-export function disconnect(ev?: Event): void {
-    if (!connected)
-        return;
-    connected = false;
-
-    log.log.innerHTML = "";
-    const sp = dce("span");
-    sp.innerText = "Disconnected! ";
-    log.log.appendChild(sp);
-    const a = dce("a");
-    let href = "?";
-    for (const key in config.config)
-        href += key[0] + "=" + (<any> config.config)[key].toString(36) + "&";
-    href += "nm=" + encodeURIComponent(config.username);
-    a.href = href;
-    a.innerText = "Attempt reconnection";
-    log.log.appendChild(a);
-
-    let target: unknown = null;
-    if (ev && ev.target)
-        target = ev.target;
-
-    function close(sock: ReconnectableWebSocket): ReconnectableWebSocket {
-        if (sock && sock.sock !== target)
-            sock.close();
-        return null;
-    }
-    pingSock = close(pingSock);
-    dataSock = close(dataSock);
-    masterSock = close(masterSock);
-
-    util.dispatchEvent("net.disconnect", {});
 }
 
 // Ping the ping socket

@@ -81,25 +81,6 @@ let recordingTimerBase = 0;
 // Whether the recording timer should be ticking
 let recordingTimerTicking = false;
 
-// Called when the network is disconnection
-function disconnect() {
-    if (ac) {
-        try {
-            util.dispatchEvent("disconnected", {});
-        } catch (ex) {}
-        ac.close();
-        ac = null;
-    }
-
-    if (userMedia) {
-        userMedia.getTracks().forEach(function (track) {
-            track.stop();
-        });
-        userMedia = null;
-    }
-}
-util.events.addEventListener("net.disconnect", disconnect);
-
 // Handle pongs for our time offset
 util.netEvent("ping", "pong", function(ev) {
     const msg: DataView = ev.detail;
@@ -131,7 +112,7 @@ export function getAudioPerms(mkAudioUI: ()=>string): Promise<unknown> {
         userMedia = userMediaIn; // So that it gets deleted by getMic
         return getMic(mkAudioUI());
     }).catch(function(err) {
-        net.disconnect();
+        config.disconnect();
         log.pushStatus("fail", "Cannot get microphone: " + err);
         log.popStatus("getmic");
     });
@@ -175,7 +156,7 @@ export function getMic(deviceId?: string): Promise<unknown> {
         // And move on to the next step
         return userMediaSet();
     }).catch(function(err) {
-        net.disconnect();
+        config.disconnect();
         log.pushStatus("fail", "Cannot get microphone: " + err);
         log.popStatus("getmic");
     });

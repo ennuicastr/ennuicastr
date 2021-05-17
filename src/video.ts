@@ -31,17 +31,6 @@ export let userMediaVideoID: string = null;
 // Input latency of the video, in ms
 export let videoLatency = 0;
 
-// Called when there's a network disconnection
-function disconnect() {
-    if (userMediaVideo) {
-        userMediaVideo.getTracks().forEach(function(track) {
-            track.stop();
-        });
-        userMediaVideo = null;
-    }
-}
-util.events.addEventListener("net.disconnect", disconnect);
-
 // Get a camera/video device
 export function getVideo(id: string, res: number): Promise<MediaStream> {
     return Promise.all([]).then(function() {
