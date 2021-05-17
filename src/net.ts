@@ -133,7 +133,9 @@ class ReconnectableWebSocket {
             clearTimeout(this.keepaliveTimeout);
         this.keepaliveTimeout = setTimeout(() => {
             this.promise = this.promise.then(() => {
+                this.sock.onclose = function() {};
                 this.sock.close();
+                this.connect().catch(this.closeHandler);
             });
         }, duration);
     }
