@@ -148,7 +148,7 @@ if (params.get("dc")) {
     throw new Error;
 }
 
-export function disconnect() {
+export function disconnect(): void {
     try {
         let href = "?";
         for (const key in config)

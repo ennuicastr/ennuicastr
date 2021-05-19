@@ -520,11 +520,11 @@ function loadVideoConfig() {
     const vc = ui.panels.videoConfig = {
         wrapper: gebi("ecvideo-device-wrapper"),
         visible: false,
-        onshow: null,
-        onhide: null,
+        onshow: <()=>void> null,
+        onhide: <()=>void> null,
         preview: gebi("ecvideo-device-preview"),
-        previewS: null,
-        previewV: null,
+        previewS: <MediaStream> null,
+        previewV: <HTMLVideoElement> null,
         device: gebi("ecvideo-device-list"),
         shareB: gebi("ecvideo-share"),
         res: gebi("ecvideo-res"),
@@ -579,7 +579,7 @@ function loadDebug() {
 
     input.value = "return ";
 
-    input.onkeydown = function(ev) {
+    input.onkeydown = function(ev: KeyboardEvent) {
         if (ev.key !== "Enter")
             return;
 
@@ -822,8 +822,8 @@ export function mkAudioUI(): string {
             videoConfig.preview.innerHTML = "";
         }
 
-        let dev = videoConfig.device.value;
-        let shareB = videoConfig.shareB;
+        const dev = videoConfig.device.value;
+        const shareB = videoConfig.shareB;
 
         // Change the button meaning
         shareB.classList.remove("off");
@@ -875,11 +875,12 @@ export function mkAudioUI(): string {
         }).then(um => {
             if (um) {
                 videoConfig.previewS = um;
-                let v = videoConfig.previewV = dce("video");
+                const v = videoConfig.previewV = dce("video");
                 v.style.width = videoConfig.preview.offsetWidth + "px";
                 v.style.height = "100%";
                 videoConfig.preview.appendChild(v);
                 v.srcObject = um;
+                // eslint-disable-next-line @typescript-eslint/no-empty-function
                 v.play().catch(()=>{});
             }
         });

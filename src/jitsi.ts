@@ -32,7 +32,7 @@ import * as videoRecord from "./video-record";
 export let videoRecHost = -1;
 
 // Jitsi features according to the server
-let jitsiFeatures: any = {
+const jitsiFeatures: any = {
     disableSimulcast: false,
     disableP2P: false
 };
@@ -65,7 +65,7 @@ interface JitsiPeer {
     signal: (msg:any)=>unknown;
     rtcReady: boolean;
 }
-let jitsiPeers: Record<number, JitsiPeer> = {};
+const jitsiPeers: Record<number, JitsiPeer> = {};
 
 // If we're a video recording receiver, the write stream for each user
 interface VideoRecIncoming {
@@ -82,11 +82,11 @@ function assertJitsiPeer(id: number, jid: string) {
 
     const ret = jitsiPeers[id] = {
         id: jid,
-        audio: null,
-        video: null,
-        rtc: null,
-        data: null,
-        signal: null,
+        audio: <any> null,
+        video: <any> null,
+        rtc: <RTCPeerConnection> null,
+        data: <RTCDataChannel> null,
+        signal: <(msg:any)=>unknown> null,
         rtcReady: false
     };
 
@@ -116,7 +116,7 @@ function initJitsi() {
     }).then(() => {
         // Get rid of any old Jitsi instance. First, clear tracks.
         for (const id of Object.keys(jitsiPeers)) {
-            const inc = jitsiPeers[id];
+            const inc: JitsiPeer = (<any> jitsiPeers)[id];
             if (inc.video)
                 jitsiTrackRemoved(inc.video);
             if (inc.audio)
@@ -125,7 +125,7 @@ function initJitsi() {
                 try {
                     inc.rtc.close();
                 } catch (ex) {}
-                delete jitsiPeers[id];
+                delete (<any> jitsiPeers)[id];
             }
         }
 
@@ -145,7 +145,7 @@ function initJitsi() {
 
         // Initialize Jitsi
         JitsiMeetJS.setLogLevel(JitsiMeetJS.logLevels.ERROR);
-        let initDict: any = {
+        const initDict: any = {
             disableAudioLevels: true,
             disableSimulcast: jitsiFeatures.disableSimulcast
         };
@@ -667,7 +667,7 @@ function sendMsg(msg: Uint8Array, peer?: number) {
     const msgj = {type: "ennuicastr", ec: msgs};
 
     // Send it to the peer or broadcast it to all peers
-    sendJitsiMsg(jid, msg);
+    sendJitsiMsg(jid, msgj);
 }
 
 // Send a video recording subcommand to a peer
@@ -699,16 +699,6 @@ export function videoRecSend(peer: number, cmd: number, payloadData?: unknown): 
 
     // And send it
     sendMsg(new Uint8Array(msg.buffer), peer);
-}
-
-// Catastrophic disconnection
-function disconnect() {
-    if (!room)
-        return Promise.all([]);
-
-    const ret = room.leave();
-    room = null;
-    return ret;
 }
 
 // Close a given peer's RTC connection

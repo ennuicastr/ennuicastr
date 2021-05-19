@@ -621,8 +621,8 @@ function tickRecordingTimer() {
 // Get the available device info, for admin users
 export function deviceInfo(allowVideo: boolean): any {
     return navigator.mediaDevices.enumerateDevices().then((devices) => {
-        const audio = [];
-        const video = allowVideo ? [] : null;
+        const audio: {id: string, label: string}[] = [];
+        const video: {id: string, label: string}[] = allowVideo ? [] : null;
         let ctr = 1, ctrv = 1;
         devices.forEach((dev) => {
             if (dev.kind === "audioinput") {

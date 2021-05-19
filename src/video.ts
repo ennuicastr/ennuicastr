@@ -145,10 +145,10 @@ export function shareVideo(id: string, res: number): Promise<unknown> {
 
 // Update the persistent video buttons based on the current video state
 export function updateVideoButtons(): void {
-    let per = ui.ui.persistent;
-    let cam = per.camera;
-    let scr = per.shareScreen;
-    let videoConfig = ui.ui.panels.videoConfig;
+    const per = ui.ui.persistent;
+    const cam = per.camera;
+    const scr = per.shareScreen;
+    const videoConfig = ui.ui.panels.videoConfig;
 
     // By default: both are off and set to enable
     cam.setAttribute("aria-label", "Camera");

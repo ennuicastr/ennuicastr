@@ -18,7 +18,6 @@ import * as config from "./config";
 import * as log from "./log";
 import { prot } from "./protocol";
 import * as util from "./util";
-import { dce } from "./util";
 
 /* We have multiple connections to the server:
  * One for pings,
@@ -133,6 +132,7 @@ class ReconnectableWebSocket {
             clearTimeout(this.keepaliveTimeout);
         this.keepaliveTimeout = setTimeout(() => {
             this.promise = this.promise.then(() => {
+                // eslint-disable-next-line @typescript-eslint/no-empty-function
                 this.sock.onclose = function() {};
                 this.sock.close();
                 this.connect().catch(this.closeHandler);
