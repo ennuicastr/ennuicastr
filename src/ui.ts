@@ -161,12 +161,13 @@ export const ui = {
 
     // The persistent menu
     persistent: <{
-        mute: HTMLButtonElement,
-        camera: HTMLButtonElement,
-        shareScreen: HTMLButtonElement,
         master: HTMLButtonElement,
         userAdmin: HTMLButtonElement,
         sounds: HTMLButtonElement,
+        masterSpacer: HTMLElement,
+        mute: HTMLButtonElement,
+        camera: HTMLButtonElement,
+        shareScreen: HTMLButtonElement,
         main: HTMLButtonElement,
         chat: HTMLButtonElement,
         videoPopout: HTMLButtonElement

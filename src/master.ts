@@ -46,8 +46,10 @@ export function createMasterInterface(): void {
     const masterUI = ui.ui.panels.master;
 
     // Show the buttons
-    ui.ui.persistent.master.style.display = "";
-    ui.ui.persistent.userAdmin.style.display = "";
+    const persistent = ui.ui.persistent;
+    persistent.master.style.display = "";
+    persistent.userAdmin.style.display = "";
+    persistent.masterSpacer.style.display = "";
 
     // Invite options
     if ((config.config.format&prot.flags.dataTypeMask) === prot.flags.dataType.flac)

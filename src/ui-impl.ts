@@ -247,12 +247,13 @@ function loadLog(logEl: HTMLElement) {
 
 function loadMainMenu() {
     const p = ui.persistent = {
-        mute: gebi("ecmenu-mute"),
-        camera: gebi("ecmenu-camera"),
-        shareScreen: gebi("ecmenu-share-screen"),
         master: gebi("ecmenu-master"),
         userAdmin: gebi("ecmenu-user-admin"),
         sounds: gebi("ecmenu-sounds"),
+        masterSpacer: gebi("ecmenu-master-spacer"),
+        mute: gebi("ecmenu-mute"),
+        camera: gebi("ecmenu-camera"),
+        shareScreen: gebi("ecmenu-share-screen"),
         main: gebi("ecmenu-main"),
         chat: gebi("ecmenu-chat"),
         videoPopout: gebi("ecmenu-video-popout")
