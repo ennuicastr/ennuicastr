@@ -145,6 +145,7 @@ if (params.get("dc")) {
     a.innerText = "Attempt reconnection";
     sp.appendChild(a);
     loginTarget.appendChild(sp);
+    if (preEc) preEc.style.display = "";
     throw new Error;
 }
 
