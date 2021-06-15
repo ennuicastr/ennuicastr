@@ -108,7 +108,7 @@ util.netEvent("ping", "pong", function(ev) {
 
 // Get audio permission. First audio step of the process.
 export function getAudioPerms(mkAudioUI: ()=>string): Promise<unknown> {
-    return navigator.mediaDevices.getUserMedia({audio: true}).then(function(userMediaIn) {
+    return navigator.mediaDevices.getUserMedia({audio: true}).catch(err => null).then(function(userMediaIn) {
         userMedia = userMediaIn; // So that it gets deleted by getMic
         return getMic(mkAudioUI());
     }).catch(function(err) {
@@ -149,8 +149,7 @@ export function getMic(deviceId?: string): Promise<unknown> {
             sampleRate: {ideal: 48000},
             sampleSize: {ideal: 24}
         }
-    }).then(function(userMediaIn) {
-        // Figure out our latency
+    }).catch(ex => null).then(function(userMediaIn) {
         userMedia = userMediaIn;
 
         // And move on to the next step
@@ -167,11 +166,6 @@ export function getMic(deviceId?: string): Promise<unknown> {
 function userMediaSet() {
     if (!net.connected)
         return;
-
-    util.dispatchEvent("audio.mute");
-
-    log.pushStatus("initenc", "Initializing encoder...");
-    log.popStatus("getmic");
 
     // Create our AudioContext if needed
     if (!ac) {
@@ -198,36 +192,26 @@ function userMediaSet() {
         });
     }
 
-    // Now UserMedia and AudioContext are ready
-    util.dispatchEvent("usermediaready", {});
+    // If we don't *actually* have a userMedia, fake one
+    let noUserMedia = false;
+    if (!userMedia) {
+        noUserMedia = true;
+        let cs = ac.createConstantSource();
+        let msd = ac.createMediaStreamDestination();
+        cs.connect(msd);
+        userMedia = msd.stream;
+    }
 
     return Promise.all([]).then(function() {
-        /* On Safari on mobile devices, AudioContexts start paused, and sometimes
-         * need to be unpaused directly in an event handler. Check if it's paused,
-         * and unpause it either out of or in a button handler. */
-
+        /* If AudioContext started paused, we need to unpause it in an event
+         * handler */
         if (ac.state !== "running") {
-            // Try to just activate it
-            return ac.resume();
-        }
-
-    }).then(function() {
-        if (ac.state !== "running") {
+            ui.showPanel(ui.ui.panels.mobile, ui.ui.persistent.main, true);
             return new Promise(function(res) {
-                // This browser won't let us resume an AudioContext outside of an event handler
-                const btn = dce("button");
-                btn.classList.add("plain");
-                btn.style.position = "absolute";
-                btn.style.left = "1%";
-                btn.style.top = "1%";
-                btn.style.width = "98%";
-                btn.style.height = "98%";
-                btn.innerText = "Begin recording audio";
-                document.body.appendChild(btn);
-
-                btn.onclick = function() {
-                    ac.resume().then(res).catch(res);
-                    document.body.removeChild(btn);
+                ui.ui.panels.mobile.button.onclick = function() {
+                    ui.unsetModal();
+                    ui.showPanel(null, ui.ui.persistent.main);
+                    ac.resume().catch(res).then(res);
                 };
             });
         }
@@ -263,6 +247,23 @@ function userMediaSet() {
                 net.errorHandler(msg);
             }
         });
+
+        if (noUserMedia) {
+            // Warn them
+            log.pushStatus("usermedia", "Failed to capture audio!");
+            setTimeout(function() {
+                log.popStatus("usermedia");
+            }, 10000);
+        }
+
+        // Now UserMedia and AudioContext are ready
+        util.dispatchEvent("audio.mute");
+
+        log.pushStatus("initenc", "Initializing encoder...");
+        log.popStatus("getmic");
+
+        util.dispatchEvent("usermediaready", {});
+
     }).catch(net.promiseFail()).then(encoderLoaded);
 }
 
