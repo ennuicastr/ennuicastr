@@ -170,7 +170,7 @@ function userMediaSet() {
     // Create our AudioContext if needed
     if (!ac) {
         try {
-            ac = new AudioContext();
+            ac = new AudioContext({latencyHint: "playback"});
         } catch (ex) {
             // Try Apple's, and if not that, nothing left to try, so crash
             ac = new webkitAudioContext();

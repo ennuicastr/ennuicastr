@@ -80,7 +80,10 @@ function createCaptureAWP(ac: AudioContext & {ecAWPP?: Promise<unknown>}, option
     if (options.matchSampleRate) {
         const msSampleRate = options.ms.getAudioTracks()[0].getSettings().sampleRate;
         if (msSampleRate !== ac.sampleRate)
-            ac = new AudioContext({sampleRate: msSampleRate});
+            ac = new AudioContext({
+                latencyHint: "playback",
+                sampleRate: msSampleRate
+            });
     }
 
     return Promise.all([]).then(() => {
@@ -156,7 +159,10 @@ function createCaptureSP(ac: AudioContext, options: CaptureOptions): Promise<Cap
     if (options.matchSampleRate) {
         const msSampleRate = options.ms.getAudioTracks()[0].getSettings().sampleRate;
         if (msSampleRate !== ac.sampleRate)
-            ac = new AudioContext({sampleRate: msSampleRate});
+            ac = new AudioContext({
+                latencyHint: "playback",
+                sampleRate: msSampleRate
+            });
     }
 
     // Create our nodes
