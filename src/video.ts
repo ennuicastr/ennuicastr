@@ -98,7 +98,7 @@ export function shareVideo(id: string, res: number): Promise<unknown> {
             userMediaVideoID = id;
 
             // Get latency
-            videoLatency = userMediaVideo.getVideoTracks()[0].getSettings().latency * 1000;
+            videoLatency = (userMediaVideo.getVideoTracks()[0].getSettings().latency * 1000) || 0;
 
             // Inform RTC
             util.dispatchEvent("usermediavideoready", {});
