@@ -14,9 +14,6 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-// extern
-declare let webkitAudioContext: any;
-
 // Worker paths to use
 const workerVer = "i";
 const awpPath = "awp/ennuicastr-awp.js?v=" + workerVer;
@@ -40,15 +37,21 @@ export interface CaptureOptions {
     outStream?: boolean;
 }
 
+function isChrome() {
+    // Edge is Chrome, Opera is Chrome, Brave is Chrome...
+    return navigator.userAgent.indexOf("Chrome") >= 0;
+}
+
+export function isSafari() {
+    // Chrome pretends to be Safari
+    return navigator.userAgent.indexOf("Safari") >= 0 && !isChrome();
+}
+
+
 /* Create a capture node for the given MediaStream on the given AudioContext
  * (or a fresh one if needed), using either an AudioWorkletProcessor or a
  * ScriptProcessor+worker as needed. */
 export function createCapture(ac: AudioContext, options: CaptureOptions): Promise<Capture> {
-    function isChrome() {
-        // Edge is Chrome, Opera is Chrome, Brave is Chrome...
-        return navigator.userAgent.indexOf("Chrome") >= 0;
-    }
-
     function isWindows() {
         return navigator.userAgent.indexOf("Windows") >= 0;
     }
@@ -58,12 +61,13 @@ export function createCapture(ac: AudioContext, options: CaptureOptions): Promis
     }
 
     /* Here's the status of AWP support:
-     * Safari doesn't support it at all.
+     * Safari's AWP implementation is totally broken.
      * Firefox supports it well everywhere.
      * On Chrome on Linux, it's very dodgy, and ScriptProcessor is quite reliable.
      * On Chrome everywhere else, it's reliable.
      * There are no other browsers */
     if (typeof AudioWorkletNode !== "undefined" &&
+        !isSafari() &&
         (isWindows() || isMacOSX() || !isChrome())) {
         return createCaptureAWP(ac, options);
 
@@ -152,7 +156,7 @@ function createCaptureAWP(ac: AudioContext & {ecAWPP?: Promise<unknown>}, option
 
 // Create a capture node using ScriptProcessor
 function createCaptureSP(ac: AudioContext, options: CaptureOptions): Promise<Capture> {
-    if (typeof webkitAudioContext !== "undefined" && options.ms)
+    if (isSafari() && options.ms)
         return createCaptureSafari(ac, options);
 
     // Possibly use a different AudioContext

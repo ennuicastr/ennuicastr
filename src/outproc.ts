@@ -20,16 +20,13 @@
  * Actually, this does all output processing, but for historical reasons, a lot
  * of it is called "compress". */
 
-// extern
-declare let webkitAudioContext: any;
-
 import * as capture from "./capture";
 import * as net from "./net";
 import * as ui from "./ui";
 import * as waveform from "./waveform";
 
 // Can we do compression?
-export const supported = (typeof webkitAudioContext === "undefined");
+export const supported = !capture.isSafari();
 
 // A compressor for a particular user
 interface Compressor {
