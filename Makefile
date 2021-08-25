@@ -1,6 +1,9 @@
+VOSK_MODEL_VER=en-us-0.15
+
 LIBS=\
      libs/NoSleep.min.js libs/web-streams-ponyfill.js libs/jquery.min.js \
-     libs/ennuiboard.min.js
+     libs/ennuiboard.min.js libs/vosk.js \
+     libs/vosk-model-small-$(VOSK_MODEL_VER).tar.gz
 
 all: ennuicastr.js ennuicastr.min.js \
      protocol.min.js \
@@ -63,6 +66,18 @@ libs/jquery.min.js: node_modules/.bin/browserify
 
 libs/ennuiboard.min.js: node_modules/.bin/browserify
 	cp node_modules/ennuiboard/ennuiboard.min.js $@
+
+# NOTE: A newer version of Vosk is actually needed than this one
+libs/vosk.js: node_modules/.bin/browserify
+	cat src/vosk-browser-license.js node_modules/vosk-browser/dist/vosk.js > $@
+
+libs/vosk-model-small-$(VOSK_MODEL_VER).tar.gz:
+	curl -L http://alphacephei.com/vosk/models/vosk-model-small-$(VOSK_MODEL_VER).zip -o libs/vosk-model-small-$(VOSK_MODEL_VER).zip
+	cd libs/; \
+		unzip vosk-model-small-$(VOSK_MODEL_VER).zip; \
+		mv vosk-model-small-$(VOSK_MODEL_VER) model; \
+		tar zcf vosk-model-small-$(VOSK_MODEL_VER).tar.gz model/; \
+		rm -rf model
 
 clean:
 	rm -f ennuicastr.js ennuicastr.min.js protocol.min.js web-streams-ponyfill.js

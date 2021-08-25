@@ -268,6 +268,8 @@ function loadMainMenu() {
         wrapper: gebi("ecmenu"),
         modeHider: gebi("ecview-mode-hider"),
         modeS: gebi("ecview-mode"),
+        captionHider: gebi("eccaption-hider"),
+        captionC: gebi("eccaption"),
         inputB: gebi("ecmenu-input-devices"),
         outputB: gebi("ecmenu-output-devices"),
         videoB: gebi("ecmenu-video-devices"),
@@ -964,6 +966,19 @@ export function mkAudioUI(): string {
         videoConfig.outputHider.style.display = "none";
         main.modeS.value = "" + uiFE.ViewMode.Small;
         viewModeChange(null);
+
+    }
+
+    function showCaptionChange(ev: Event) {
+        document.body.setAttribute("data-captions", main.captionC.checked ? "show" : "hide");
+    }
+
+    if (config.useTranscription) {
+        uiFE.saveConfigCheckbox(main.captionC, "show-captions", showCaptionChange);
+        showCaptionChange(null);
+
+    } else {
+        main.captionHider.style.display = "none";
 
     }
 

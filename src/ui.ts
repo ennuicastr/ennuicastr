@@ -101,6 +101,7 @@ export const ui = {
              *     <video element />
              *     <standin element />
              *     <name label />
+             *     <captions />
              *     <popout button />
              *   </div>
              *   <admin button />
@@ -116,6 +117,13 @@ export const ui = {
             audio: HTMLAudioElement,
             standin: HTMLElement,
             name: HTMLElement,
+            caption: HTMLElement,
+            captions: {
+                div: HTMLElement,
+                span: HTMLElement,
+                complete: boolean,
+                timeout: number
+            }[],
             popout: HTMLButtonElement,
             admin: HTMLButtonElement,
             waveformWrapper: HTMLElement
@@ -189,6 +197,8 @@ export const ui = {
             wrapper: HTMLElement,
             modeHider: HTMLElement,
             modeS: HTMLSelectElement,
+            captionHider: HTMLElement,
+            captionC: HTMLInputElement,
             inputB: HTMLButtonElement,
             outputB: HTMLButtonElement,
             videoB: HTMLButtonElement,
@@ -809,6 +819,8 @@ export function videoAdd(idx: number, name: string): void {
         audio: dce("audio"),
         standin: dce("div"),
         name: dce("span"),
+        caption: dce("div"),
+        captions: [],
         popout: dce("button"),
         admin: <HTMLButtonElement> null,
         waveformWrapper: dce("div")
@@ -876,6 +888,11 @@ export function videoAdd(idx: number, name: string): void {
     nspan.setAttribute("role", "note");
     nspan.setAttribute("aria-label", nspan.innerText + ": Not speaking");
     box.appendChild(nspan);
+
+    // Box for captions
+    const caption = ctx.caption;
+    caption.classList.add("caption");
+    box.appendChild(caption);
 
     // And popout button
     const popout = ctx.popout;
@@ -1204,4 +1221,57 @@ function genStandinName(name: string) {
 
     // Otherwise: Just the next character
     return out + name[0];
+}
+
+// Receive caption information for a user
+export function caption(peer: number, text: string, append: boolean, complete: boolean) {
+    const ctx = ui.video.users[peer];
+    if (!ctx) return;
+
+    // Look for a previous partial
+    let caption: {
+        div: HTMLElement,
+        span: HTMLElement,
+        complete: boolean,
+        timeout: number
+    } = null;
+    if (ctx.captions.length) {
+        caption = ctx.captions[ctx.captions.length - 1];
+        if (caption.complete)
+            caption = null;
+    }
+    if (caption)
+        clearTimeout(caption.timeout);
+
+    // Otherwise, make a new caption
+    if (!caption) {
+        caption = {
+            div: dce("div"),
+            span: dce("span"),
+            complete: complete,
+            timeout: null
+        };
+        ctx.caption.appendChild(caption.div);
+        caption.div.appendChild(caption.span);
+        ctx.captions.push(caption);
+    }
+
+    // Set its content
+    if (append)
+        caption.span.innerText += text;
+    else
+        caption.span.innerText = text;
+    caption.complete = complete;
+
+    // And timeout
+    caption.timeout = setTimeout(function() {
+        for (let i = 0; i < ctx.captions.length; i++) {
+            const other = ctx.captions[i];
+            if (caption === other) {
+                ctx.captions.splice(i, 1);
+                break;
+            }
+        }
+        ctx.caption.removeChild(caption.div);
+    }, 3000);
 }

@@ -14,10 +14,13 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-declare let LibAV: any, NoiseRepellent: any, NoiseRepellentFactory: any, WebRtcVad: any, __filename: string;
+declare let LibAV: any, NoiseRepellent: any, NoiseRepellentFactory: any, Vosk: any, WebRtcVad: any, __filename: string;
 
 const libavVersion = "2.3b.4.4";
 const libavPath = "../libav/libav-" + libavVersion + "-ennuicastr.js";
+
+const voskModelVersion = "en-us-0.15";
+const voskModelPath = "../libs/vosk-model-small-" + voskModelVersion + ".tar.gz";
 
 // Number of milliseconds to run the VAD for before/after talking
 const vadExtension = 2000;
@@ -314,6 +317,7 @@ function doFilter(msg: any) {
     const sampleRate: number = msg.sampleRate;
     let useNR: boolean = msg.useNR;
     let sentRecently: boolean = msg.sentRecently;
+    const useTranscription: boolean = msg.useTranscription;
 
     // Let them update it
     onmessage = function(ev) {
@@ -340,6 +344,14 @@ function doFilter(msg: any) {
     let bi = 0;
     let timeout: null|number = null, rtcTimeout: null|number = null;
     const step = sampleRate / 32000;
+
+    const vosk = {
+        model: <any> null,
+        recognizer: <any> null,
+        inSamples: 0,
+        inTime: 0,
+        outTime: 0
+    };
 
     /* WebRTC VAD is pretty finicky, so also keep track of volume as a
      * secondary gate */
@@ -386,11 +398,39 @@ function doFilter(msg: any) {
         nr.set(NoiseRepellent.AMOUNT, 20);
         nr.set(NoiseRepellent.WHITENING, 50);
 
+        // Possibly load Vosk
+        if (useTranscription) {
+            __filename = "../libs/vosk.js?v=2";
+            importScripts(__filename);
+        }
+
+    }).then(function() {
+        // If we loaded Vosk, it can finish loading in the background
+        if (useTranscription)
+            loadVosk();
+
         // Now we're ready to receive messages
         awpHandler = new AWPHandler(inPort, ondata);
 
     }).catch(console.error);
 
+    // Load the Vosk model in the background
+    function loadVosk() {
+        Vosk.createModel(voskModelPath).then(ret => {
+            vosk.model = ret;
+            vosk.recognizer = new vosk.model.KaldiRecognizer(sampleRate);
+            vosk.recognizer.setWords(true);
+
+            vosk.recognizer.on("partialresult", msg => {
+                voskResult(msg, false);
+            });
+            vosk.recognizer.on("result", msg => {
+                voskResult(msg, true);
+            });
+        }).catch(console.error);
+    }
+
+    // Called when we receive real data
     function ondata(ts: number, data: Float32Array[]) {
         // Merge together the channels
         const ib = data[0];
@@ -542,6 +582,41 @@ function doFilter(msg: any) {
             rawVadOn: rawVadOn,
             rtcVadOn: rtcVadOn,
             vadOn: vadOn
+        });
+
+
+        // Perform transcription
+        if (useTranscription && vosk.recognizer) {
+            vosk.inSamples += ib.length;
+            vosk.inTime = vosk.inSamples / sampleRate;
+            vosk.outTime = ts / 1000;
+            vosk.recognizer.acceptWaveformFloat(ib, sampleRate);
+        }
+    }
+
+    // Handle a vosk result
+    function voskResult(msg: any, complete: boolean) {
+        // Ignore empty results
+        const result = msg.result;
+        if (complete && result.text === "")
+            return;
+        if (!complete && result.partial === "")
+            return;
+
+        if (result.result) {
+            const offset = vosk.outTime - vosk.inTime;
+            for (let i = 0; i < result.result.length; i++) {
+                const word = result.result[i];
+                word.start += offset;
+                word.end += offset;
+            }
+        }
+
+        // Send it to the host
+        postMessage({
+            c: "vosk",
+            result: result,
+            complete: complete
         });
     }
 }

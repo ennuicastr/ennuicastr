@@ -535,6 +535,20 @@ function peerMessage(peer: number, msg: DataView) {
             } catch (ex) {}
             break;
 
+        case prot.ids.caption:
+        {
+            // Incoming caption
+            const p = prot.parts.caption.cc;
+            if (msg.byteLength < p.length) return;
+            const append = !!msg.getUint8(p.append);
+            const complete = !!msg.getUint8(p.complete);
+            try {
+                const text = util.decodeText(new Uint8Array(msg.buffer).subarray(p.text));
+                ui.caption(peer, text, append, complete);
+            } catch (ex) {}
+            break;
+        }
+
         case prot.ids.speech:
         {
             // Speech status
@@ -740,6 +754,44 @@ export function speech(status: boolean, peer?: number): void {
 util.events.addEventListener("ui.speech", function(ev: CustomEvent) {
     if (ev.detail.user === null)
         speech(ev.detail.status);
+});
+
+// Last sent caption
+let lastCaption = "";
+
+// Send a caption over RTC
+function caption(complete: boolean, text: string) {
+    if (!config.useRTC)
+        return;
+
+    // Maybe it's an append
+    let append = false;
+    if (lastCaption && text.slice(0, lastCaption.length) === lastCaption) {
+        append = true;
+        const newText = text.slice(lastCaption.length);
+        lastCaption = text;
+        text = newText;
+    } else {
+        lastCaption = complete ? "" : text;
+    }
+
+    if (text === "")
+        return;
+
+    // Build the message
+    const textBuf = util.encodeText(text);
+    const p = prot.parts.caption.cc;
+    const msg = new DataView(new ArrayBuffer(p.length + textBuf.length));
+    msg.setUint32(0, prot.ids.caption, true);
+    msg.setUint8(p.append, +append);
+    msg.setUint8(p.complete, +complete);
+    (new Uint8Array(msg.buffer)).set(textBuf, p.text);
+    sendMsg(new Uint8Array(msg.buffer));
+}
+
+// Send captions when they're generated
+util.events.addEventListener("proc.caption", function(ev: CustomEvent) {
+    caption(ev.detail.complete, ev.detail.result.text || ev.detail.result.partial);
 });
 
 // Send a chunk of video data to a peer

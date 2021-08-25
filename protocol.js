@@ -45,6 +45,9 @@
             // Soundboard request or response
             "sound": 0x32,
 
+            // Caption
+            "caption": 0x33,
+
             // Monitoring
             "user": 0x40,
             "speech": 0x41,
@@ -120,6 +123,19 @@
                     "time": 4, // Server time when this event should have occurred
                     "status": 12,
                     "url": 13
+                }
+            },
+
+            "caption": {
+                "cs": { // C->S: Complete caption data
+                    "length": 4,
+                    "data": 4
+                },
+                "cc": { // C->C: Live caption data
+                    "length": 6,
+                    "append": 4,
+                    "complete": 5,
+                    "text": 6
                 }
             },
 

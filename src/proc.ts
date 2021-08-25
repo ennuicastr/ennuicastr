@@ -18,9 +18,11 @@
 declare let Ennuiboard: any;
 
 import * as audio from "./audio";
+import * as config from "./config";
 import * as log from "./log";
 import * as net from "./net";
 import * as capture from "./capture";
+import { prot } from "./protocol";
 import * as ui from "./ui";
 import * as util from "./util";
 import * as vad from "./vad";
@@ -107,7 +109,8 @@ function localProcessingWorker() {
         workerCommand: {
             c: "filter",
             useNR: useNR,
-            sentRecently: sentRecently
+            sentRecently: sentRecently,
+            useTranscription: config.useTranscription
         }
 
     }).then(capture => {
@@ -143,6 +146,40 @@ function localProcessingWorker() {
                 // Display
                 wd.push(msg.m, net.transmitting?(vad.rawVadOn?3:(vad.vadOn?2:1)):0);
                 wd.updateWave(msg.m, sentRecently);
+
+            } else if (msg.c === "vosk") {
+                // Show our own caption
+                ui.caption(net.selfId, msg.result.text || msg.result.partial, false, msg.complete);
+
+                // Send it to peers
+                util.dispatchEvent("proc.caption", msg);
+
+                // Send it to the server
+                if (msg.complete && msg.result.result && audio.timeOffset &&
+                    net.mode === prot.mode.rec) {
+                    const result = msg.result.result;
+
+                    // Adjustment from Date.now timestamps to server timestamps
+                    const offset = performance.now() - Date.now() +
+                        audio.timeOffset;
+
+                    // Set the times
+                    for (let i = 0; i < result.length; i++) {
+                        const word = result[i];
+                        word.start = Math.round(word.start * 1000 + offset);
+                        word.end = Math.round(word.end * 1000 + offset);
+                        if (word.conf === 1)
+                            delete word.conf;
+                    }
+
+                    // Make the packet
+                    const resBuf = util.encodeText(JSON.stringify(result));
+                    const p = prot.parts.caption.cs;
+                    const out = new DataView(new ArrayBuffer(p.length + resBuf.length));
+                    out.setUint32(0, prot.ids.caption, true);
+                    (new Uint8Array(out.buffer)).set(resBuf, p.data);
+                    net.dataSock.send(out.buffer);
+                }
 
             }
 

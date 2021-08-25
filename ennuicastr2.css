@@ -153,6 +153,36 @@ a {
     font-size: 0.75em;
 }
 
+.caption {
+    display: none;
+    position: absolute;
+    left: 1em;
+    right: 1em;
+    bottom: 1em;
+    text-align: center;
+    font-size: 1.25rem;
+    color: #aaa;
+}
+
+[data-captions="show"] .caption {
+    display: block;
+}
+
+.caption span {
+    display: inline-block;
+    background-color: #111;
+    padding: 0.15em 0.25em 0.15em 0.25em;
+}
+
+#ecvideo-side-wrapper .caption {
+    bottom: 0.25em;
+    font-size: 0.75rem;
+}
+
+[data-view-mode="gallery"] #ecvideo-side-wrapper .caption {
+    font-size: 1rem;
+}
+
 .chat {
     border: solid 1px;
 }
