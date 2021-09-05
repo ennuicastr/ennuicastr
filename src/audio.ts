@@ -141,7 +141,7 @@ export function getMic(deviceId?: string): Promise<unknown> {
 
     // Then request the new ones
     return navigator.mediaDevices.getUserMedia({
-        audio: {
+        audio: <any> {
             deviceId: deviceId,
             autoGainControl: {ideal: ui.ui.panels.inputConfig.agc.checked},
             echoCancellation: {ideal: getEchoCancel()},
@@ -309,7 +309,7 @@ function encoderStart() {
 
     // Figure out our channel layout based on the number of channels
     let channelLayout = 4;
-    const channelCount = ~~(userMedia.getAudioTracks()[0].getSettings().channelCount);
+    const channelCount = ~~((<any> userMedia.getAudioTracks()[0].getSettings()).channelCount);
     if (channelCount > 1)
         channelLayout = Math.pow(2, channelCount) - 1;
 

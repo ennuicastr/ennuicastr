@@ -35,7 +35,7 @@ declare function registerProcessor(
     processorCtor: (new (
         options?: AudioWorkletNodeOptions
     ) => AudioWorkletProcessor) & {
-        parameterDescriptors?: AudioParamDescriptor[];
+        parameterDescriptors?: any[];
     }
 );
 
