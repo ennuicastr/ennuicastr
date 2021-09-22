@@ -191,6 +191,7 @@ function genInvite() {
     const f = (
         (ui.ui.panels.master.inviteContinuous.checked?config.features.continuous:0) +
         ((config.config.format&config.features.rtc)?config.features.rtc:0) +
+        (config.useRecordOnly?config.features.recordOnly:0) +
         (config.useVideoRec?config.features.videorec:0) +
         (config.useTranscription?config.features.transcription:0) +
         (ui.ui.panels.master.inviteFLAC.checked?prot.flags.dataType.flac:0)
