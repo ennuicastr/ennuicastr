@@ -490,7 +490,7 @@ function loadInputConfig() {
         agc: gebi("ecagc")
     };
 
-    if (!config.useRTC) {
+    if (!config.useRTC || config.useRecordOnly) {
         // Hide irrelevant options
         input.noiserHider.style.display = "none";
     }
@@ -736,7 +736,11 @@ export function mkAudioUI(): string {
     }).catch(function() {}); // Nothing really to do here
 
     // Volume
-    uiFE.saveConfigSlider(output.volume, "volume-master3");
+    uiFE.saveConfigSlider(output.volume, config.useRecordOnly ? "volume-master-record-only" : "volume-master3");
+    if (config.useRecordOnly) {
+        output.volume.value = "0";
+        output.volumeStatus.innerHTML = "&nbsp;0%";
+    }
 
     // But, separate save for snapping
     function volumeChange() {
@@ -748,7 +752,7 @@ export function mkAudioUI(): string {
                 vol.value = <any> i;
 
         // Remember preferences
-        localStorage.setItem("volume-master3", ""+vol.value);
+        localStorage.setItem(config.useRecordOnly ? "volume-master-record-only" : "volume-master3", ""+vol.value);
 
         // Show the status
         output.volumeStatus.innerHTML = "&nbsp;" + vol.value + "%";
@@ -784,12 +788,14 @@ export function mkAudioUI(): string {
         const c = output.compression.checked;
         outproc.setCompressing(c);
 
-        if (c) {
-            // Set the volume to 100% so it doesn't explode your ears
-            output.volume.value = <any> 100;
-        } else {
-            // Set the volume to 200% so it's audible
-            output.volume.value = <any> 200;
+        if (!config.useRecordOnly) {
+            if (c) {
+                // Set the volume to 100% so it doesn't explode your ears
+                output.volume.value = <any> 100;
+            } else {
+                // Set the volume to 200% so it's audible
+                output.volume.value = <any> 200;
+            }
         }
         volumeChange();
     }
@@ -958,7 +964,23 @@ export function mkAudioUI(): string {
     }
 
     if (config.useRTC) {
-        uiFE.saveConfigValue(main.modeS, "view-mode", viewModeChange);
+        // Voice chat, so have different view modes
+        if (config.useRecordOnly) {
+            // Record only, so default to small or studio
+            if ("master" in config.config) {
+                main.modeS.value = "3"; // studio
+            } else {
+                main.modeS.value = "1"; // small
+            }
+
+            uiFE.saveConfigValue(main.modeS, "view-mode-record-only", viewModeChange);
+
+        } else {
+            // Default is normal
+            uiFE.saveConfigValue(main.modeS, "view-mode", viewModeChange);
+
+        }
+
         viewModeChange(null);
 
     } else {

@@ -23,7 +23,8 @@ export const features = {
     "continuous": 0x1,
     "rtc": 0x2,
     "videorec": 0x4,
-    "transcription": 0x8
+    "transcription": 0x8,
+    "recordOnly": 0x100
 };
 
 // Configuration parameters come out of the URL search query
@@ -234,6 +235,7 @@ export const useContinuous = !!(config.format&features.continuous);
 export const useRTC = !!(config.format&features.rtc);
 export const useVideoRec = !!(config.format&features.videorec);
 export const useTranscription = !!(config.format&features.transcription);
+export const useRecordOnly = !!(config.format&features.recordOnly);
 export const useDebug = !!(params.get("debug"));
 
 // Color sets for wave vad colors

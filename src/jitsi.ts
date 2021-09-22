@@ -298,6 +298,10 @@ function jitsiUnsetUserMediaRTC() {
 
 // Set our UserMediaVideo track
 function jitsiSetUserMediaVideo(retries?: number) {
+    if (config.useRecordOnly) {
+        // Don't transmit video when we're in record-only mode
+        return;
+    }
     if (typeof retries === "undefined")
         retries = 2;
     if (!video.userMediaVideo)
