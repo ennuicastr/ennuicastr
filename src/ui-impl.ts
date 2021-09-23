@@ -87,10 +87,8 @@ export function mkUI(): Promise<unknown> {
     loadDebug();
     loadInterfaceSounds();
 
-    if ("master" in config.config) {
+    if ("master" in config.config)
         master.createMasterInterface();
-        uiFE.showPanel(ui.panels.master, ui.panels.master.startStopB);
-    }
 
     // Every close button works the same
     Array.prototype.slice.call(document.getElementsByClassName("close-button"), 0).forEach(function(x: HTMLElement) {
@@ -115,6 +113,8 @@ export function mkUI(): Promise<unknown> {
     // Poppable panels
     if ("master" in config.config) {
         const m = ui.panels.master;
+        poppable(m.mainPopoutWrapper, m.mainPopout, null, "master-main-popout",
+            m.mainPopoutDock, m.mainDock, {defaultOut: true});
         poppable(m.recordingCostPopoutWrapper, m.recordingCostPopout, null,
             "recording-cost-popout3", m.wrapper, m.recordingCostDock);
     }
@@ -390,6 +390,10 @@ function loadMainMenu() {
 function loadMasterUI() {
     ui.panels.master = {
         wrapper: gebi("ecmaster-interface"),
+        mainPopout: gebi("ecmaster-main-popout"),
+        mainPopoutWrapper: gebi("ecmaster-main-popout-wrapper"),
+        mainPopoutDock: gebi("ecmaster-main-popout-dock"),
+        mainDock: gebi("ecmaster-main-dock"),
         pauseResumeB: gebi("ecmaster-pause-resume"),
         startStopB: gebi("ecmaster-start-stop"),
         yesNo: gebi("ecmaster-yes-no"),
@@ -1033,7 +1037,7 @@ export function mkAudioUI(): string {
 // Configure a panel for popping in or out
 function poppable(popout: HTMLElement, button: HTMLButtonElement,
                   panelButton: HTMLButtonElement, name: string,
-                  panel: HTMLElement, dock: HTMLElement) {
+                  panel: HTMLElement, dock: HTMLElement, opts: any = {}) {
     let cur = false;
     button.onclick = function() {
         // Swap the state
@@ -1067,7 +1071,8 @@ function poppable(popout: HTMLElement, button: HTMLButtonElement,
     };
 
     const saved = localStorage.getItem(name);
-    if (saved !== null && !!~~saved)
+    if ((saved !== null && !!~~saved) ||
+        (saved === null && opts && opts.defaultOut))
         button.onclick(null);
 }
 

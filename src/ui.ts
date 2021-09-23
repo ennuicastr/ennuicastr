@@ -210,6 +210,12 @@ export const ui = {
         master: <{
             wrapper: HTMLElement,
 
+            // Main popout behavior
+            mainPopout: HTMLButtonElement,
+            mainPopoutWrapper: HTMLElement,
+            mainPopoutDock: HTMLElement,
+            mainDock: HTMLElement,
+
             // Pause or resume
             pauseResumeB: HTMLButtonElement,
 

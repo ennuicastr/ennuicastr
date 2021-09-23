@@ -47,6 +47,7 @@
             <div id="ecdock">
                 <div id="ecsounds-dock" class="dock"></div>
                 <div id="ecuser-list-dock" class="dock"></div>
+                <div id="ecmaster-main-dock" class="dock"></div>
                 <div id="ecmaster-recording-cost-dock" class="dock"></div>
             </div>
 
@@ -133,27 +134,37 @@
         <!-- The master interface -->
         <div id="ecmaster-interface" class="panel" role="dialog" aria-label="Master interface">
             <button id="ecmaster-interface-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
-            <button id="ecmaster-pause-resume" class="row"><i class="fas fa-pause"></i> Pause recording</button>
-            <button id="ecmaster-start-stop" class="row"><i class="fas fa-microphone-alt"></i> Start recording</button>
-            <div class="bigrflex row" id="ecmaster-yes-no">
-                <button id="ecmaster-yes" class="half" aria-label="I am sure, stop the recording">Yes</button>
-                <button id="ecmaster-no" class="half" aria-label="Do not stop the recording">No</button>
-            </div>
-            <div class="invite row">
-                <div class="rflex">
-                    <label for="ecmaster-invite-link">&nbsp;Invite:&nbsp;</label>
-                    <input id="ecmaster-invite-link" type="text" readonly style="flex: auto; width: 1em;" />
-                    <button id="ecmaster-invite-link-copy" class="hotkey-hidden" title="Copy invite link" aria-label="Copy invite link"><i class="fas fa-clipboard"></i></button>
-                </div>
-                <div style="text-align: right;">
-                    <span id="ecmaster-invite-flac-hider">
-                        <input id="ecmaster-invite-flac" type="checkbox" />
-                        <label for="ecmaster-invite-flac">&nbsp;FLAC&nbsp;&nbsp;</label>
-                    </span>
-                    <span id="ecmaster-invite-continuous-hider">
-                        <input id="ecmaster-invite-continuous" type="checkbox" />
-                        <label for="ecmaster-invite-continuous">&nbsp;Continuous&nbsp;</label>
-                    </span>
+            <!-- The main master interface is poppable so that it's visible by default -->
+            <div id="ecmaster-main-popout-dock">
+                <div id="ecmaster-main-popout-wrapper" data-popout-label="Master interface">
+                    <div class="rflex" style="align-items: start;">
+                        <div style="flex: auto;">
+                            <button id="ecmaster-pause-resume" class="row"><i class="fas fa-pause"></i> Pause recording</button>
+                            <button id="ecmaster-start-stop" class="row"><i class="fas fa-microphone-alt"></i> Start recording</button>
+                            <div class="bigrflex row" id="ecmaster-yes-no">
+                                <button id="ecmaster-yes" class="half" aria-label="I am sure, stop the recording">Yes</button>
+                                <button id="ecmaster-no" class="half" aria-label="Do not stop the recording">No</button>
+                            </div>
+                        </div>
+                        <button id="ecmaster-main-popout" class="tbutton" title="Pop out" aria-label="Pop out"><i class="far fa-window-restore"></i></button>
+                    </div>
+                    <div class="invite row">
+                        <div class="rflex">
+                            <label for="ecmaster-invite-link">&nbsp;Invite:&nbsp;</label>
+                            <input id="ecmaster-invite-link" type="text" readonly style="flex: auto; width: 1em;" />
+                            <button id="ecmaster-invite-link-copy" class="hotkey-hidden" title="Copy invite link" aria-label="Copy invite link"><i class="fas fa-clipboard"></i></button>
+                        </div>
+                        <div style="text-align: right;">
+                            <span id="ecmaster-invite-flac-hider">
+                                <input id="ecmaster-invite-flac" type="checkbox" />
+                                <label for="ecmaster-invite-flac">&nbsp;FLAC&nbsp;&nbsp;</label>
+                            </span>
+                            <span id="ecmaster-invite-continuous-hider">
+                                <input id="ecmaster-invite-continuous" type="checkbox" />
+                                <label for="ecmaster-invite-continuous">&nbsp;Continuous&nbsp;</label>
+                            </span>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="row">
