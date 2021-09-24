@@ -195,7 +195,7 @@ a {
     flex-direction: column;
 }
 
-@media screen and (max-height: 480px) {
+@media screen and (max-height: 640px) {
     .menu {
         flex-direction: row;
     }
