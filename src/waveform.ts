@@ -182,13 +182,37 @@ export class Waveform {
         // If there is no rendering interval, make one
         if (!displayInterval) {
             displayInterval = setInterval(function() {
-                window.requestAnimationFrame(function() {
+                let af = null;
+
+                function go() {
+                    af = null;
                     toDisplay.forEach((w) => {
                         w.display();
                     });
                     toDisplay = [];
                     toDisplaySet = {};
-                });
+                }
+
+                /* For smoothness, we want this on an animation frame. We don't
+                 * want to wait for an animation frame if the screen is
+                 * minimized, but we *do* still want to run the display
+                 * function, because it also does data management. So, we use
+                 * requestAnimationFrame if the window is visible, and just
+                 * call display otherwise. */
+                if (document.visibilityState === "visible") {
+                    af = window.requestAnimationFrame(go);
+
+                    setTimeout(function() {
+                        if (af !== null) {
+                            window.cancelAnimationFrame(af);
+                            go();
+                        }
+                    }, 100);
+
+                } else {
+                    go();
+
+                }
             }, 50);
         }
 
