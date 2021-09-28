@@ -157,8 +157,8 @@ function initJitsi() {
         return new Promise(function(res, rej) {
             connection = new JitsiMeetJS.JitsiConnection(null, null, {
                 hosts: {
-                    domain: "jitsi.weca.st",
-                    muc: "conference.jitsi.weca.st"
+                    domain: "jitsi." + config.url.host,
+                    muc: "conference.jitsi." + config.url.host
                 },
                 bosh: config.jitsiUrl,
                 clientNode: "https://ennuicastr.com/"
