@@ -18,7 +18,7 @@
 declare let Ennuiboard: any, ECDefaultHotkeys: any;
 
 // Since config is imported for side effects, it needs to come first
-import "./config";
+import * as config from "./config";
 
 import * as audio from "./audio";
 import * as log from "./log";
@@ -51,11 +51,17 @@ function main() {
         ECDefaultHotkeys = {"0000c": "ecmenu-chat"};
         util.loadLibrary("hotkeys.min.js?v=5");
 
+        // Resolve the configuration for lobbies
+        return config.resolve();
+
+    }).then(function() {
         // Now connect
         return net.connect();
+
     }).then(function() {
         proc.localProcessing(); // This will start up on its own in the background
         return audio.getAudioPerms(uiImpl.mkAudioUI);
+
     }).catch(function(ex) {
         log.pushStatus("error", ex + "\n\n" + ex.stack);
     });

@@ -167,7 +167,7 @@ export function connect(): Promise<unknown> {
         log.pushStatus("conn", "Connecting...");
 
         // (1) The ping socket
-        pingSock = new ReconnectableWebSocket(config.wsUrl, config.disconnect, connecter);
+        pingSock = new ReconnectableWebSocket(config.wsUrl(), config.disconnect, connecter);
         const out = new DataView(connMsg.buffer.slice(0));
         out.setUint32(p.flags, f.connectionType.ping | flags, true);
 
@@ -181,7 +181,7 @@ export function connect(): Promise<unknown> {
 
     }).then(() => {
         // (2) The data socket
-        dataSock = new ReconnectableWebSocket(config.wsUrl, config.disconnect, connecter);
+        dataSock = new ReconnectableWebSocket(config.wsUrl(), config.disconnect, connecter);
         const out = new DataView(connMsg.buffer.slice(0));
         out.setUint32(p.flags, f.connectionType.data | flags, true);
 
@@ -199,7 +199,7 @@ export function connect(): Promise<unknown> {
         // (3) The master socket
         let out: DataView;
         if ("master" in config.config) {
-            masterSock = new ReconnectableWebSocket(config.wsUrl, config.disconnect, connecter);
+            masterSock = new ReconnectableWebSocket(config.wsUrl(), config.disconnect, connecter);
             out = new DataView(connMsg.buffer.slice(0));
             out.setUint32(p.key, config.config.master, true);
             out.setUint32(p.flags, f.connectionType.master | flags, true);

@@ -57,19 +57,23 @@ const loginTarget = gebi("login-ec") || document.body;
 export const config: any = {
     id: params.get("i"),
     key: params.get("k"),
-    format: params.get("f"),
-    port: params.get("p")
+    format: params.get("f")
 };
+export const iconfig: any = {}; // invite config
+const port = params.get("p");
 const master = params.get("m");
 const selector = params.get("s");
 const monitor = params.get("mon");
 export const username = params.get("nm");
+
 if (config.id === null) {
     // Redirect to the homepage
-    window.location = <any> "/home/";
+    window.location = <any> "/";
     throw new Error;
 }
-config.id = Number.parseInt(config.id, 36);
+
+// Normalize
+config.id = iconfig.id = Number.parseInt(config.id, 36);
 if (config.key === null) {
     const div = dce("div");
     div.innerHTML = "Invalid key!";
@@ -77,16 +81,14 @@ if (config.key === null) {
     if (preEc) preEc.style.display = "";
     throw new Error;
 }
-config.key = Number.parseInt(config.key, 36);
+config.key = iconfig.key = Number.parseInt(config.key, 36);
 if (master !== null)
-    config.master = Number.parseInt(master, 36);
-if (config.port === null)
-    config.port = 36678;
-else
-    config.port = Number.parseInt(config.port, 36);
+    config.master = iconfig.master = Number.parseInt(master, 36);
+if (port !== null)
+    config.port = iconfig.port = Number.parseInt(port, 36);
 if (config.format === null)
-    config.format = 0;
-config.format = Number.parseInt(config.format, 36);
+    config.format = "0";
+config.format = iconfig.format = Number.parseInt(config.format, 36);
 
 // If we're using the selector, just do that
 if (selector) {
@@ -151,6 +153,7 @@ if (params.get("dc")) {
     throw new Error;
 }
 
+// Call if we're disconnected, to forcibly close
 export function disconnect(): void {
     try {
         let href = "?";
@@ -161,6 +164,46 @@ export function disconnect(): void {
     } catch (ex) {
         document.location.href = "?";
     }
+}
+
+/* Resolve the correct port (and ID and key) from the config parameters. If no
+ * port is provided, we're connecting to a *lobby*, which creates *recordings*
+ * on demand, so we need to figure out the current room. */
+export function resolve() {
+    let p: Promise<unknown> = Promise.all([]);
+
+    if (!config.port) {
+        p = p.then(() => {
+            let req: any = {
+                lid: config.id,
+                key: config.key
+            };
+            if ("master" in config)
+                req.master = config.master;
+
+            return fetch("lobby/", {
+                method: "POST",
+                headers: {"content-type": "application/json"},
+                body: JSON.stringify(req)
+            });
+
+        }).then(res => {
+            if (!res.ok)
+                return disconnect();
+
+            return res.json();
+
+        }).then(res => {
+            config.id = res.id;
+            config.port = res.port;
+            config.key = res.key;
+            if ("master" in res)
+                config.master = res.master;
+
+        });
+    }
+
+    return p;
 }
 
 // Next, check if we have a username
@@ -221,8 +264,10 @@ if (username === null || username === "") {
 
 }
 
-// Find the websock URL
-export const wsUrl = (url.protocol==="http:"?"ws":"wss") + "://" + url.hostname + ":" + config.port;
+// The WebSock URL
+export function wsUrl() {
+    return (url.protocol==="http:"?"ws":"wss") + "://" + url.hostname + ":" + config.port;
+}
 
 // And the Jitsi URL
 export const jitsiUrl = "//jitsi." + url.hostname + "/http-bind";

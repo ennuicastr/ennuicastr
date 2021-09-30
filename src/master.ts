@@ -196,8 +196,8 @@ function genInvite() {
         (config.useTranscription?config.features.transcription:0) +
         (ui.ui.panels.master.inviteFLAC.checked?prot.flags.dataType.flac:0)
     );
-    let sb = "?" + config.config.id.toString(36) + "-" + config.config.key.toString(36);
-    if (config.config.port !== 36678)
+    let sb = "?" + config.iconfig.id.toString(36) + "-" + config.iconfig.key.toString(36);
+    if (config.iconfig.port)
         sb += "-p" + config.config.port.toString(36);
     if (f !== 0)
         sb += "-f" + f.toString(36);
