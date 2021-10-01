@@ -489,6 +489,7 @@ button.ecstudio-admin-button {
     position: relative;
     height: 100px;
     min-height: 100px;
+    background-color: var(--bg-wave);
 }
 
 .ecwaveform-label {
