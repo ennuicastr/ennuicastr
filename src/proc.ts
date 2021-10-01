@@ -56,8 +56,11 @@ export function localProcessing(): void {
         }
 
     }).then(function() {
-        // Always set sentRecently to true at this point so we don't immediately complaine
+        /* Set sentRecently and lastSentTime to slightly in the future so we
+         * don't get messages about failing to send while everything starts up
+         * */
         sentRecently = true;
+        audio.setLastSentTime(performance.now() + 2500);
 
         // Some things done periodically other than audio per se
         if (!periodic) {
