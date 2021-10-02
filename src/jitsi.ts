@@ -193,6 +193,8 @@ function initJitsi() {
             room.addEventListener(JitsiMeetJS.events.conference.CONFERENCE_ERROR, config.disconnect);
             room.addEventListener(JitsiMeetJS.events.conference.TRACK_ADDED, jitsiTrackAdded);
             room.addEventListener(JitsiMeetJS.events.conference.TRACK_REMOVED, jitsiTrackRemoved);
+            room.addEventListener(JitsiMeetJS.events.conference.USER_JOINED, jitsiUserJoined);
+            //room.addEventListener(JitsiMeetJS.events.conference.USER_LEFT, jitsiUserLeft);
             room.addEventListener(JitsiMeetJS.events.conference.ENDPOINT_MESSAGE_RECEIVED, jitsiMessage);
 
             // Add our local tracks
@@ -354,8 +356,12 @@ function jitsiUnsetUserMediaVideo() {
 }
 
 // Get an Ennuicastr user ID from a Jitsi track
-function getUserId(track: any) {
-    const jid: string = track.getParticipantId();
+function getUserIdFromTrack(track: any) {
+    return getUserIdFromJid(track.getParticipantId());
+}
+
+// Get an Ennuicastr user ID from a Jitsi ID
+function getUserIdFromJid(jid: string) {
     let user: any = null;
     const parts: any[] = room.getParticipants();
     for (let i = 0; i < parts.length; i++) {
@@ -381,18 +387,11 @@ function jitsiTrackAdded(track: any) {
     const type: string = track.getType();
 
     // Get the user
-    const id = getUserId(track);
+    const id = getUserIdFromTrack(track);
     const jid = track.getParticipantId();
-    if (!(id in jitsiPeers)) {
+    if (!(id in jitsiPeers))
         assertJitsiPeer(id, jid);
 
-        // Initial "connection". Tell them our current speech status.
-        speech(vad.vadOn, id);
-
-        // And if we're a master, tell them whether we accept remote video.
-        if ("master" in config.config)
-            videoRecSend(id, prot.videoRec.videoRecHost, ~~ui.ui.panels.master.acceptRemoteVideo.checked);
-    }
     const inc = jitsiPeers[id];
     (<any> inc)[type] = track;
 
@@ -424,7 +423,7 @@ function jitsiTrackRemoved(track: any) {
     const type: string = track.getType();
 
     // Get the user
-    const id = getUserId(track);
+    const id = getUserIdFromTrack(track);
     if (!(id in jitsiPeers))
         return;
     const inc = jitsiPeers[id];
@@ -457,6 +456,21 @@ function jitsiTrackRemoved(track: any) {
     // And destroy the compressor
     if (type === "audio")
         outproc.destroyCompressor(id);
+}
+
+// Called when a user joins
+function jitsiUserJoined(jid: string, user: any) {
+    // Get the user
+    const id = getUserIdFromJid(jid);
+    if (!(id in jitsiPeers))
+        assertJitsiPeer(id, jid);
+
+    // Initial "connection". Tell them our current speech status.
+    speech(vad.vadOn, id);
+
+    // And if we're a master, tell them whether we accept remote video.
+    if ("master" in config.config)
+        videoRecSend(id, prot.videoRec.videoRecHost, ~~ui.ui.panels.master.acceptRemoteVideo.checked);
 }
 
 // Incoming Jitsi end-to-end messages
