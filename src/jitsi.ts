@@ -468,9 +468,17 @@ function jitsiUserJoined(jid: string, user: any) {
     // Initial "connection". Tell them our current speech status.
     speech(vad.vadOn, id);
 
-    // And if we're a master, tell them whether we accept remote video.
-    if ("master" in config.config)
+    function sendHostInfo() {
         videoRecSend(id, prot.videoRec.videoRecHost, ~~ui.ui.panels.master.acceptRemoteVideo.checked);
+    }
+
+    // And if we're a master, tell them whether we accept remote video.
+    if ("master" in config.config) {
+        // It sometimes takes a moment for the bridge to connect, so send this several times to make sure
+        sendHostInfo();
+        setTimeout(sendHostInfo, 1000);
+        setTimeout(sendHostInfo, 10000);
+    }
 }
 
 // Incoming Jitsi end-to-end messages
