@@ -61,14 +61,24 @@ export function createCapture(ac: AudioContext, options: CaptureOptions): Promis
     }
 
     /* Here's the status of AWP support:
-     * Safari's AWP implementation is totally broken.
-     * Firefox supports it well everywhere.
-     * On Chrome on Linux, it's very dodgy, and ScriptProcessor is quite reliable.
-     * On Chrome everywhere else, it's reliable.
-     * There are no other browsers */
-    if (typeof AudioWorkletNode !== "undefined" &&
-        !isSafari() &&
-        (isWindows() || isMacOSX() || !isChrome())) {
+     *
+     * Safari's AWP implementation is totally broken if you try to capture the
+     * same device more than once, and there isn't yet a workaround for that in
+     * Ennuicastr, so we use ScriptProcessor there.
+     *
+     * Firefox supports AWP well everywhere.
+     *
+     * On Chrome on Linux, *some* host platforms have issues in the first 30
+     * seconds of AWP use, but most don't, and ScriptProcessor causes clicks
+     * and other anomalies. So, we use AWP and accept its foibles.
+     *
+     * On Chrome everywhere else, AWP is reliable.
+     *
+     * There are no other browsers.
+     *
+     * Conclusion: Use AWP everywhere it's available except for Safari.
+     */
+    if (typeof AudioWorkletNode !== "undefined" && !isSafari()) {
         return createCaptureAWP(ac, options);
 
     } else {
