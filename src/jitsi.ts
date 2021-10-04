@@ -165,10 +165,10 @@ function initJitsi() {
             });
 
             connection.addEventListener(JitsiMeetJS.events.connection.CONNECTION_ESTABLISHED, res);
-            connection.addEventListener(JitsiMeetJS.events.connection.CONNECTION_FAILED, rej);
+            connection.addEventListener(JitsiMeetJS.events.connection.CONNECTION_FAILED, () => { rej(new Error("Connection failed")); });
             connection.addEventListener(JitsiMeetJS.events.connection.CONNECTION_DISCONNECTED, config.disconnect);
 
-            timeout = setTimeout(rej, 5000);
+            timeout = setTimeout(() => { rej(new Error("Connection timeout")); }, 15000);
             connection.connect();
         });
 
@@ -189,7 +189,7 @@ function initJitsi() {
 
             room.addEventListener(JitsiMeetJS.events.conference.CONFERENCE_JOINED, res);
             room.addEventListener(JitsiMeetJS.events.conference.CONFERENCE_LEFT, config.disconnect);
-            room.addEventListener(JitsiMeetJS.events.conference.CONFERENCE_FAILED, rej);
+            room.addEventListener(JitsiMeetJS.events.conference.CONFERENCE_FAILED, () => { rej(new Error("Conference failed")); });
             room.addEventListener(JitsiMeetJS.events.conference.CONFERENCE_ERROR, config.disconnect);
             room.addEventListener(JitsiMeetJS.events.conference.TRACK_ADDED, jitsiTrackAdded);
             room.addEventListener(JitsiMeetJS.events.conference.TRACK_REMOVED, jitsiTrackRemoved);
@@ -204,7 +204,7 @@ function initJitsi() {
             jitsiSetUserMediaVideo();
 
             // And join
-            timeout = setTimeout(rej, 5000);
+            timeout = setTimeout(() => { rej(new Error("Conference timeout")); }, 15000);
             room.setDisplayName("" + net.selfId);
             room.join();
         });

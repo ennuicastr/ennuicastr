@@ -447,6 +447,11 @@ export function errorHandler(error: any): void {
 export function promiseFail(): (ex:any)=>void {
     const loc = (new Error().stack)+"";
     return function(ex: any) {
-        errorHandler("Promise failure\n\n" + ex + "\n\n" + loc);
+        let exStack = "(Unknown stack)";
+        try {
+            exStack = ex.stack;
+        } catch (ex) {}
+
+        errorHandler("Promise failure\n\n" + ex + "\n\n" + exStack + "\n\n" + loc);
     };
 }
