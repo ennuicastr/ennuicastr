@@ -168,7 +168,7 @@ function initJitsi() {
             connection.addEventListener(JitsiMeetJS.events.connection.CONNECTION_FAILED, () => { rej(new Error("Connection failed")); });
             connection.addEventListener(JitsiMeetJS.events.connection.CONNECTION_DISCONNECTED, config.disconnect);
 
-            timeout = setTimeout(() => { rej(new Error("Connection timeout")); }, 15000);
+            timeout = setTimeout(() => { rej(new Error("Connection timeout")); }, 30000);
             connection.connect();
         });
 
@@ -204,7 +204,7 @@ function initJitsi() {
             jitsiSetUserMediaVideo();
 
             // And join
-            timeout = setTimeout(() => { rej(new Error("Conference timeout")); }, 15000);
+            timeout = setTimeout(() => { rej(new Error("Conference timeout")); }, 30000);
             room.setDisplayName("" + net.selfId);
             room.join();
         });
