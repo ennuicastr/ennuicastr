@@ -20,7 +20,6 @@ import * as net from "./net";
 import * as ui from "./ui";
 
 // Constants used by updateWave
-const e4 = Math.exp(4);
 const log10 = Math.log(10);
 const log1036 = log10 * 3.6;
 
@@ -364,9 +363,15 @@ export class Waveform {
             waveVADs.unshift(0);
         }
 
-        // Figure out the height of the display
-        let dh = Math.min(Math.max.apply(Math, waveData) * 1.5, 1);
-        if (dh < 0.06) dh = 0.06; // Make sure the too-quiet bars are always visible
+        // Figure out the ceiling of the display
+        const maxVal = Math.max(
+            Math.min(
+                Math.max.apply(Math, waveData) * 1.1,
+                1
+            ),
+            0.015 // So the too-quiet bar will always show
+        );
+        const dh = Math.log(maxVal + 1) / log10;
         if (this.lastDisplayHeight !== dh) {
             this.lastDisplayHeight = dh;
             allNew = true;
@@ -420,8 +425,9 @@ export class Waveform {
 
         // A function for drawing our level warning bars
         function levelBar(at: number, color: string) {
+            at = Math.log(at + 1) / log10;
             if (dh <= at) return;
-            const y = Math.log(at/dh * e4) / 4 * h;
+            const y = at / dh * h;
             ctx.fillStyle = color;
             ctx.fillRect(ndx, h-y-1, w-ndx, 1);
             ctx.fillRect(ndx, h+y, w-ndx, 1);
@@ -431,19 +437,18 @@ export class Waveform {
         ctx.fillStyle = ui.ui.colors["bg-wave"];
         ctx.fillRect(ndx, 0, w-ndx, h*2);
 
-        // Level bar at 0.4% for "too soft"
-        levelBar(0.004, ui.ui.colors["wave-too-soft"]);
+        // Level bar at 1% (-40dB) for "too soft"
+        levelBar(0.01, ui.ui.colors["wave-too-soft"]);
 
         // Each column
         for (i = dw - this.newData, p = w - sw * this.newData; i < dw; i++, p += sw) {
-            let d = Math.max(Math.log((waveData[i] / dh) * e4) / 4, 0) * h;
-            if (d === 0) d = 1;
+            const d = Math.log(waveData[i] + 1) / log10 / dh * h;
             ctx.fillStyle = good ? config.waveVADColors[waveVADs[i]] : "#000";
             ctx.fillRect(p, h-d, sw, 2*d);
         }
 
-        // Level bar at 90% for "too loud"
-        levelBar(0.9, ui.ui.colors["wave-too-loud"]);
+        // Level bar at 50% (about -6dB) for "too loud"
+        levelBar(0.5, ui.ui.colors["wave-too-loud"]);
 
         // Possibly draw the peak labels
         function drawLabel(db: number, t: number) {
