@@ -2,6 +2,7 @@ ennuicastr.js
 ennuicastr.min.js
 ennuicastr-test.js
 ennuicastr-test.min.js
+awp/*.js
 protocol.min.js
 hotkeys.min.js
 node_modules
@@ -12,4 +13,12 @@ libav/*.js
 libav/*.wasm
 noise-repellent/*.js
 noise-repellent/*.wasm
-web-streams-ponyfill.js
+libs/NoSleep.min.js
+libs/ennuiboard.min.js
+libs/jquery.min.js
+libs/vad/vad.js
+libs/vad/vad.wasm.js
+libs/vad/vad.wasm.wasm
+libs/vosk-model-*
+libs/vosk.js
+libs/web-streams-ponyfill.js
