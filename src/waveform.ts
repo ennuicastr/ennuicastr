@@ -269,8 +269,8 @@ export class Waveform {
             this.curPeak = Math.max.apply(Math, this.peakData);
 
         // And report
-        const peakDb = Math.round(10 * Math.log(this.curPeak) / log10);
-        const rmsDb = Math.round(10 * Math.log(Math.pow(this.rootSum / (this.rmsData.length - this.rmsPlaceholders), 2)) / log10);
+        const peakDb = Math.round(20 * Math.log(this.curPeak) / log10);
+        const rmsDb = Math.round(20 * Math.log(Math.pow(this.rootSum / (this.rmsData.length - this.rmsPlaceholders), 2)) / log10);
         let stats = "30 second peak " + peakDb + " decibels, RMS " + rmsDb + " decibels";
         this.wrapper.setAttribute("aria-label", stats);
         stats = stats.replace(/ decibels/g, "dB");
@@ -462,7 +462,7 @@ export class Waveform {
         }
 
         // Peak meter at the right
-        let peak = Math.log(waveData[waveData.length-1]) / log1036 + 1;
+        let peak = 2 * Math.log(waveData[waveData.length-1]) / log1036 + 1;
         if (peak < this.lastPeak)
             peak = (this.lastPeak * 3 + peak) / 4;
         this.lastPeak = peak;
