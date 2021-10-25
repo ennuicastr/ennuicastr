@@ -892,7 +892,8 @@ export function mkAudioUI(): string {
 
         }).then(um => {
             if (um) {
-                videoConfig.previewS = um;
+                if (um !== video.userMediaVideo)
+                    videoConfig.previewS = um;
                 const v = videoConfig.previewV = dce("video");
                 v.style.width = videoConfig.preview.offsetWidth + "px";
                 v.style.height = "100%";
