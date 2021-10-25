@@ -20,6 +20,7 @@ declare let Ennuiboard: any, NoSleep: any;
 import * as audio from "./audio";
 import * as chat from "./chat";
 import * as config from "./config";
+import * as downloadStream from "./download-stream";
 import * as log from "./log";
 import * as master from "./master";
 import * as net from "./net";
@@ -52,6 +53,10 @@ export function mkUI(): Promise<unknown> {
     document.body.style.margin =
         document.body.style.padding = "0";
     document.body.innerHTML = uiCode.code;
+
+    // Make sure the download stream pinger is still going
+    if (downloadStream.serviceWorkerPinger)
+        document.body.appendChild(downloadStream.serviceWorkerPinger);
 
     // Get the colors
     const cs = getComputedStyle(document.documentElement);
