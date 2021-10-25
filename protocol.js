@@ -55,6 +55,7 @@
             // WebRTC signaling info and inter-client RTC messages
             "rtc": 0x50,
             "videoRec": 0x51,
+            "ctcp": 0x52,
 
             // Master
             "mode": 0x60,
@@ -152,15 +153,20 @@
             },
 
             "rtc": {
-                "length": 12,
+                "length": 8,
                 "peer": 4,
-                "type": 8, // High bit is outgoing
-                "value": 12
+                "value": 8
             },
 
             "videoRec": {
                 "length": 8, // More for added arguments
                 "cmd": 4
+            },
+
+            "ctcp": {
+                "length": 8, // Really, this + length of the contained message
+                "peer": 4,
+                "msg": 8
             },
 
             "mode": {

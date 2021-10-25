@@ -4,8 +4,11 @@
   "description": "EnnuiCastr is a system for recording multiple users distributed across the world in a well-synchronized way, without significant loss, over the web.",
   "main": "src/main.ts",
   "dependencies": {
+    "@types/file-saver": "^2.0.3",
+    "@types/streamsaver": "^2.0.1",
     "browserify": "^17.0.0",
     "ennuiboard": "^1.0.0",
+    "file-saver": "^2.0.5",
     "jquery": "^3.6.0",
     "minify": "^6.0.1",
     "nosleep.js": "^0.12.0",
@@ -13,7 +16,7 @@
     "tsify": "^5.0.4",
     "typescript": "^4.4.2",
     "vosk-browser": "0.0.4",
-    "web-streams-polyfill": "^3.1.0"
+    "web-streams-polyfill": "^3.1.1"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^4.30.0",

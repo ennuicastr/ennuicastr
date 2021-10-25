@@ -17,10 +17,9 @@
 // extern
 declare let Ennuiboard: any, ECDefaultHotkeys: any;
 
-// Since config is imported for side effects, it needs to come first
-import * as config from "./config";
-
 import * as audio from "./audio";
+import * as config from "./config";
+import * as downloadStream from "./download-stream";
 import * as log from "./log";
 import * as net from "./net";
 import * as proc from "./proc";
@@ -29,45 +28,47 @@ import * as uiImpl from "./ui-impl";
 import * as util from "./util";
 
 // The main entry point
-function main() {
-    return Promise.all([]).then(function() {
-        // Load the keyboard indirection library
-        return util.loadLibrary("libs/ennuiboard.min.js");
+async function main() {
+    // download-stream must come first, because it may need to refresh
+    await downloadStream.load();
 
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    }).catch(function(){}).then(function() {
-        // Gamepads can be supported by default
-        if (typeof Ennuiboard !== "undefined")
-            Ennuiboard.enable("gamepad", {auto: true, manualPoll: true});
+    // Then comes config
+    if (!config.load())
+        return;
 
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    }).catch(function(){}).then(function() {
+    // Then libraries
+    try {
+        await util.loadLibrary("libs/ennuiboard.min.js");
+    } catch (ex) {}
+    if (typeof Ennuiboard !== "undefined")
+        Ennuiboard.enable("gamepad", {auto: true, manualPoll: true});
+
+    try {
         // Build the UI
-        return <any> uiImpl.mkUI();
+        await uiImpl.mkUI();
 
-    }).then(function() {
         // This can be loaded lazily
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         ECDefaultHotkeys = {"0000c": "ecmenu-chat"};
         util.loadLibrary("hotkeys.min.js?v=5");
 
         // Resolve the configuration for lobbies
-        return config.resolve();
+        await config.resolve();
 
-    }).then(function() {
         // Now connect
-        return net.connect();
+        await net.connect();
 
-    }).then(function() {
-        proc.localProcessing(); // This will start up on its own in the background
-        return audio.getAudioPerms(uiImpl.mkAudioUI);
+        // This will start up on its own in the background
+        proc.localProcessing();
 
-    }).catch(function(ex) {
+        // Get audio permissions, which also begins the next step
+        await audio.getAudioPerms(uiImpl.mkAudioUI);
+
+    } catch (ex) {
         log.pushStatus("error", ex + "\n\n" + ex.stack);
-    });
+    }
 }
 main();
-
 
 // If we're buffering, warn before closing
 window.onbeforeunload = function() {

@@ -7,11 +7,13 @@ LIBS=\
 
 all: ennuicastr.js ennuicastr.min.js \
      protocol.min.js \
+     sw.js \
      awp/ennuicastr-awp.js awp/ennuicastr-worker.js \
      hotkeys.min.js \
      $(LIBS)
 
 test: ennuicastr-test.js ennuicastr-test.min.js \
+      sw.js \
       awp/ennuicastr-awp-test.js awp/ennuicastr-worker-test.js \
       hotkeys.min.js \
       $(LIBS)
@@ -29,6 +31,9 @@ ennuicastr-test.js: src/*.ts node_modules/.bin/browserify
 
 ennuicastr-test.min.js: src/*.ts node_modules/.bin/browserify
 	./src/build.js -m > $@
+
+sw.js: src/sw.ts node_modules/.bin/browserify
+	./node_modules/.bin/tsc --lib es2015,dom $< --outFile $@
 
 awp/ennuicastr-awp.js: awp/ennuicastr-awp.ts node_modules/.bin/tsc
 	./node_modules/.bin/tsc -t es2015 --lib es2017,dom $<

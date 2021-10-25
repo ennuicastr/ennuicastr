@@ -28,6 +28,8 @@ import * as vad from "./vad";
 import * as video from "./video";
 import * as videoRecord from "./video-record";
 
+import * as wsp from "web-streams-polyfill/ponyfill";
+
 // Host which has indicated that it's willing to receive video recordings
 export let videoRecHost = -1;
 
@@ -67,11 +69,13 @@ interface JitsiPeer {
 }
 const jitsiPeers: Record<number, JitsiPeer> = {};
 
-// If we're a video recording receiver, the write stream for each user
+// If we're a video recording receiver, the buffer for each user
 interface VideoRecIncoming {
     nextIdx: number;
     buf: {idx: number, buf: Uint8Array}[];
-    writer: WritableStreamDefaultWriter;
+    notify: () => void;
+    hardStop: boolean;
+    softStop: boolean;
 }
 const videoRecIncoming: Record<number, VideoRecIncoming> = {};
 
@@ -218,15 +222,14 @@ function initJitsi() {
 
 
 // We initialize Jitsi once we know our own ID
-if (config.useRTC) {
-    util.events.addEventListener("net.info." + prot.info.id, function() {
+util.events.addEventListener("net.info." + prot.info.id, function() {
+    if (config.useRTC)
         initJitsi();
-    });
-}
+});
 
 // And reinitialize if Jitsi features change
-if (config.useRTC) {
-    util.events.addEventListener("net.info." + prot.info.jitsi, function(ev: CustomEvent) {
+util.events.addEventListener("net.info." + prot.info.jitsi, function(ev: CustomEvent) {
+    if (config.useRTC) {
         const msg = new Uint8Array(ev.detail.msg.buffer);
         const p = prot.parts.info;
         const jitsiStr = util.decodeText(msg.slice(p.value));
@@ -240,8 +243,8 @@ if (config.useRTC) {
                     initJitsi();
             });
         }
-    });
-}
+    }
+});
 
 
 // Set our UserMediaRTC track
@@ -433,7 +436,10 @@ function jitsiTrackRemoved(track: any) {
         return;
     (<any> inc)[type] = null;
     if (type === "video" && videoRecIncoming[id]) {
-        videoRecIncoming[id].writer.close();
+        const vr = videoRecIncoming[id];
+        vr.hardStop = true;
+        if (vr.notify)
+            vr.notify();
         delete videoRecIncoming[id];
     }
     if (!inc.audio && !inc.video && !inc.rtcReady) {
@@ -459,31 +465,23 @@ function jitsiTrackRemoved(track: any) {
 }
 
 // Called when a user joins
-function jitsiUserJoined(jid: string, user: any) {
+function jitsiUserJoined(jid: string) {
     // Get the user
     const id = getUserIdFromJid(jid);
     if (!(id in jitsiPeers))
         assertJitsiPeer(id, jid);
 
-    // Initial "connection". Tell them our current speech status.
+    /* Initial "connection". Tell them our current speech status and if we're
+     * the recording host. */
     speech(vad.vadOn, id);
-
-    function sendHostInfo() {
-        videoRecSend(id, prot.videoRec.videoRecHost, ~~ui.ui.panels.master.acceptRemoteVideo.checked);
-    }
-
-    // And if we're a master, tell them whether we accept remote video.
     if ("master" in config.config) {
-        // It sometimes takes a moment for the bridge to connect, so send this several times to make sure
-        sendHostInfo();
-        setTimeout(sendHostInfo, 1000);
-        setTimeout(sendHostInfo, 10000);
+        videoRecSend(id, prot.videoRec.videoRecHost, ~~ui.ui.panels.master.acceptRemoteVideo.checked);
     }
 }
 
 // Incoming Jitsi end-to-end messages
 function jitsiMessage(user: any, jmsg: any) {
-    if (jmsg.type !== "ennuicastr" && jmsg.type !== "ennuicastr-rtc")
+    if (jmsg.type !== "ennuicastr")
         return;
 
     // Get the peer number
@@ -492,13 +490,6 @@ function jitsiMessage(user: any, jmsg: any) {
     if (Number.isNaN(peer))
         return;
     const inc = assertJitsiPeer(peer, jid);
-
-    if (jmsg.type === "ennuicastr-rtc") {
-        // Just send it along
-        if (inc.signal)
-            inc.signal(jmsg);
-        return;
-    }
 
     if (typeof jmsg.ec !== "string")
         return;
@@ -513,8 +504,19 @@ function jitsiMessage(user: any, jmsg: any) {
     return peerMessage(peer, msg);
 }
 
+// Incoming CTCP messages
+util.events.addEventListener("net.dataSock." + prot.ids.ctcp, function(ev: CustomEvent) {
+    if (config.useRTC) {
+        // Get out the important part
+        const p = prot.parts.ctcp;
+        const peer = ev.detail.getUint32(p.peer, true);
+        const u8 = new Uint8Array(ev.detail.buffer);
+        const msg = new DataView(u8.slice(p.msg).buffer);
+        peerMessage(peer, msg);
+    }
+});
 
-// Incoming RTC or Jitsi end-to-end messages
+// Incoming RTC or CTCP end-to-end messages
 function peerMessage(peer: number, msg: DataView) {
     if (msg.byteLength < 4)
         return;
@@ -527,37 +529,14 @@ function peerMessage(peer: number, msg: DataView) {
                 const vr = videoRecIncoming[peer];
                 const idx = msg.getFloat64(4, true);
                 const buf = new Uint8Array(msg.buffer).subarray(12);
-                if (idx !== vr.nextIdx) {
-                    // Data out of order. Push it for later.
-                    vr.buf.push({idx: idx, buf: buf});
-                    if (vr.buf.length >= 1024) {
-                        // Too much! FIXME: Error reporting
-                        vr.writer.close();
-                        delete videoRecIncoming[peer];
-                    }
-
-                } else {
-                    // This is our expected data
-                    vr.writer.write(buf);
-                    vr.nextIdx += buf.length;
-
-                    // Perhaps write out more
-                    while (vr.buf.length) {
-                        let cont = false;
-                        for (let i = 0; i < vr.buf.length; i++) {
-                            const part = vr.buf[i];
-                            if (part.idx === vr.nextIdx) {
-                                vr.writer.write(part.buf);
-                                vr.nextIdx += part.buf.length;
-                                vr.buf.splice(i, 1);
-                                cont = true;
-                                break;
-                            }
-                        }
-                        if (!cont) break;
-                    }
-
+                vr.buf.push({idx, buf});
+                if (vr.buf.length >= 1024) {
+                    // Too much buffered data!
+                    vr.hardStop = true;
+                    delete videoRecIncoming[peer];
                 }
+                if (vr.notify)
+                    vr.notify();
             } catch (ex) {}
             break;
 
@@ -619,14 +598,58 @@ function peerMessage(peer: number, msg: DataView) {
                             } catch (ex) {}
                         }
 
-                        videoRecord.recordVideoRemoteIncoming(peer, opts).then(function(fileWriter) {
-                            videoRecSend(peer, prot.videoRec.startVideoRecRes, 1);
-                            videoRecIncoming[peer] = {
-                                nextIdx: 0,
-                                buf: [],
-                                writer: fileWriter
-                            };
-                        }).catch(net.promiseFail());
+                        // Make an incoming stream
+                        const vri = videoRecIncoming[peer] = {
+                            nextIdx: 0,
+                            buf: [],
+                            notify: null,
+                            hardStop: false,
+                            softStop: false
+                        };
+
+                        const stream = <ReadableStream<Uint8Array>> <unknown>
+                            new wsp.ReadableStream({
+                            async pull(controller) {
+                                while (true) {
+                                    if (vri.hardStop) {
+                                        controller.close();
+                                        break;
+                                    }
+
+                                    // Look for the right one
+                                    let found = false;
+                                    for (let i = 0; i < vri.buf.length; i++) {
+                                        const buf = vri.buf[i];
+                                        if (buf.idx === vri.nextIdx) {
+                                            found = true;
+                                            vri.buf.splice(i, 1);
+                                            if (buf.buf) {
+                                                controller.enqueue(buf.buf);
+                                                vri.nextIdx += buf.buf.length;
+                                            } else {
+                                                controller.close();
+                                            }
+                                            break;
+                                        }
+                                    }
+
+                                    if (found)
+                                        break;
+                                    if (!found && vri.softStop) {
+                                        controller.close();
+                                        break;
+                                    }
+
+                                    // Didn't find it, so wait to receive it
+                                    await new Promise<void>(res => vri.notify = res);
+                                    vri.notify = null;
+                                }
+                            }
+                        });
+
+                        // Now handle it
+                        videoRecord.recordVideoRemoteIncoming(peer, stream, opts);
+                        videoRecSend(peer, prot.videoRec.startVideoRecRes, 1);
 
                     } else {
                         videoRecSend(peer, prot.videoRec.startVideoRecRes, 0);
@@ -643,7 +666,10 @@ function peerMessage(peer: number, msg: DataView) {
                 case pv.endVideoRec:
                     try {
                         // FIXME: Jitsi has no ordering guarantee, so this may be done at the wrong time!
-                        videoRecIncoming[peer].writer.close();
+                        const vr = videoRecIncoming[peer];
+                        vr.softStop = true;
+                        if (vr.notify)
+                            vr.notify();
                         delete videoRecIncoming[peer];
                     } catch (ex) {}
                     break;
@@ -676,7 +702,7 @@ function sendJitsiMsg(jid: string, msg: any, retries?: number) {
     }
 }
 
-// Send an Ennuicastr message over Jitsi or RTC
+// Send an Ennuicastr message over CTCP, Jitsi (broadcast only), or RTC
 function sendMsg(msg: Uint8Array, peer?: number) {
     if (!room)
         return;
@@ -697,17 +723,27 @@ function sendMsg(msg: Uint8Array, peer?: number) {
         return;
     }
 
-    // Otherwise, we'll send it via the bridge
+    // Otherwise, we'll send it via CTCP or the bridge
 
-    // Convert the message to a string (gross)
-    const msga: string[] = [];
-    for (let i = 0; i < msg.length; i++)
-        msga.push(String.fromCharCode(msg[i]));
-    const msgs = msga.join("");
-    const msgj = {type: "ennuicastr", ec: msgs};
+    if (typeof peer !== "undefined") {
+        const p = prot.parts.ctcp;
+        const cmsg = new DataView(new ArrayBuffer(p.length + msg.length));
+        cmsg.setUint32(0, prot.ids.ctcp, true);
+        cmsg.setUint32(p.peer, peer, true);
+        (new Uint8Array(cmsg.buffer)).set(msg, p.msg);
+        net.dataSock.send(cmsg.buffer);
 
-    // Send it to the peer or broadcast it to all peers
-    sendJitsiMsg(jid, msgj);
+    } else {
+        // Convert the message to a string (gross)
+        const msga: string[] = [];
+        for (let i = 0; i < msg.length; i++)
+            msga.push(String.fromCharCode(msg[i]));
+        const msgs = msga.join("");
+        const msgj = {type: "ennuicastr", ec: msgs};
+
+        // Send it to the peer or broadcast it to all peers
+        sendJitsiMsg(jid, msgj);
+    }
 }
 
 // Send a video recording subcommand to a peer
@@ -754,11 +790,10 @@ function closeRTC(peer: number) {
     delete jitsiPeers[peer];
 }
 
-if (config.useRTC) {
-    util.events.addEventListener("net.info." + prot.info.peerLost, function(ev: CustomEvent) {
+util.events.addEventListener("net.info." + prot.info.peerLost, function(ev: CustomEvent) {
+    if (config.useRTC)
         closeRTC(ev.detail.val);
-    });
-}
+});
 
 // Send a speech message over RTC
 export function speech(status: boolean, peer?: number): void {
@@ -869,7 +904,18 @@ util.events.addEventListener("ui.video.major", function() {
 });
 
 
-/* The RTC side: using Jitsi as a bridge, try to establish a direct (RTC)
+// Send an RTC negotiation message
+function sendRTCNegotiation(peer: number, cont: any) {
+    const p = prot.parts.rtc;
+    const contU8 = util.encodeText(JSON.stringify(cont));
+    const msg = new DataView(new ArrayBuffer(p.length + contU8.length));
+    msg.setUint32(0, prot.ids.rtc, true);
+    msg.setUint32(p.peer, peer, true);
+    (new Uint8Array(msg.buffer)).set(contU8, p.value);
+    net.dataSock.send(msg.buffer);
+}
+
+/* The RTC side: using Ennuicastr as a bridge, try to establish a direct (RTC)
  * connection for data */
 function startRTC(id: number, j: JitsiPeer) {
     // Perfect negotiation pattern
@@ -897,16 +943,14 @@ function startRTC(id: number, j: JitsiPeer) {
             return j.rtc.setLocalDescription(offer);
         }).then(() => {
             // Tell them our local description
-            if (room)
-                sendJitsiMsg(j.id, {type: "ennuicastr-rtc", desc: j.rtc.localDescription});
+            sendRTCNegotiation(id, {desc: j.rtc.localDescription});
         // eslint-disable-next-line @typescript-eslint/no-empty-function
         }).catch(()=>{});
     }
 
     // ICE candidates
     j.rtc.onicecandidate = function(ev: RTCPeerConnectionIceEvent) {
-        if (room)
-            sendJitsiMsg(j.id, {type: "ennuicastr-rtc", cand: ev.candidate});
+        sendRTCNegotiation(id, {cand: ev.candidate});
     };
 
     // Incoming signals
@@ -936,8 +980,7 @@ function startRTC(id: number, j: JitsiPeer) {
                     return j.rtc.createAnswer().then(answer => {
                         return j.rtc.setLocalDescription(answer);
                     }).then(() => {
-                        if (room)
-                            sendJitsiMsg(j.id, {type: "ennuicastr-rtc", desc: j.rtc.localDescription });
+                        sendRTCNegotiation(id, {desc: j.rtc.localDescription});
                     });
                 }
 
@@ -966,3 +1009,24 @@ function startRTC(id: number, j: JitsiPeer) {
 
     onnegotiationneeded();
 }
+
+// Prepare to receive RTC negotiationmessages
+util.events.addEventListener("net.dataSock." + prot.ids.rtc, function(ev: CustomEvent) {
+    if (config.useRTC) {
+        // Get out the important part
+        const p = prot.parts.rtc;
+        const peer = ev.detail.getUint32(p.peer, true);
+
+        if (!(peer in jitsiPeers))
+            return;
+        const j = jitsiPeers[peer];
+        if (!j.signal)
+            return;
+
+        try {
+            const tmsg = util.decodeText((new Uint8Array(ev.detail.buffer)).subarray(p.value));
+            const msg = JSON.parse(tmsg);
+            j.signal(msg);
+        } catch (ex) {}
+    }
+});

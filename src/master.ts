@@ -74,6 +74,129 @@ export function createMasterInterface(): void {
 
     // Put everything in the proper state
     configureMasterInterface();
+
+    // Update the interface when our mode changes
+    util.events.addEventListener("net.info." + prot.info.mode, function() {
+        configureMasterInterface();
+    });
+
+    // We update the state of the sound button whenever a sound starts or stops
+    util.events.addEventListener("audio.sound", function(ev: CustomEvent) {
+        soundButtonUpdate(ev.detail.url, ev.detail.status, ev.detail.el);
+    });
+
+    // Messages from the master socket
+    util.netEvent("master", "info", function(ev) {
+        const msg: DataView = ev.detail;
+        const p = prot.parts.info;
+        const key = msg.getUint32(p.key, true);
+        let val = 0;
+        if (msg.byteLength >= p.length)
+            val = msg.getUint32(p.value, true);
+        switch (key) {
+            case prot.info.creditCost:
+            {
+                // Informing us of the cost of credits
+                const v2 = msg.getUint32(p.value + 4, true);
+                credits.creditCost = {
+                    currency: val,
+                    credits: v2
+                };
+                break;
+            }
+
+            case prot.info.creditRate:
+            {
+                // Informing us of the total cost and rate in credits
+                const v2 = msg.getUint32(p.value + 4, true);
+                credits.creditRate = [val, v2];
+                updateCreditCost();
+                break;
+            }
+
+            case prot.info.sounds:
+            {
+                // Soundboard items
+                const valS = util.decodeText(msg.buffer.slice(p.value));
+                addSoundButtons(JSON.parse(valS));
+                break;
+            }
+
+            case prot.info.allowAdmin:
+            {
+                // A user has allowed or disallowed us to administrate them
+                if (msg.byteLength < p.length + 1) break;
+                const allowed = !!msg.getUint8(p.length);
+                let props = null;
+                if (msg.byteLength > p.length + 1) {
+                    try {
+                        props = JSON.parse(util.decodeText(msg.buffer.slice(p.length + 1)));
+                    } catch (ex) {}
+                }
+                allowAdmin(val, allowed, props);
+                break;
+            }
+
+            case prot.info.adminState:
+            {
+                if (msg.byteLength <= p.length) break;
+                let props = null;
+                try {
+                    props = JSON.parse(util.decodeText(msg.buffer.slice(p.length)));
+                } catch (ex) {}
+                if (!props || typeof props !== "object") break;
+                updateAdmin(val, props);
+                break;
+            }
+        }
+    });
+
+    util.netEvent("master", "user", function(ev) {
+        const msg: DataView = ev.detail;
+        const p = prot.parts.user;
+        const index = msg.getUint32(p.index, true);
+        const status = msg.getUint32(p.status, true);
+        const nick = util.decodeText(msg.buffer.slice(p.nick));
+
+        // Add it to the UI
+        if (status) {
+            ui.userListAdd(index, nick, true);
+
+            while (users.length <= index)
+                users.push(null);
+            users[index] = {
+                name: nick,
+                online: true,
+                transmitting: false,
+                fullAccess: null
+            };
+            updateMasterAdmin();
+
+        } else {
+            ui.userListRemove(index, true);
+
+            if (users[index]) {
+                users[index].online = false;
+                users[index].fullAccess = null;
+                updateMasterAdmin();
+            }
+
+        }
+    });
+
+    util.netEvent("master", "speech", function(ev) {
+        // Master "speech" is really data-receive
+        const msg: DataView = ev.detail;
+        const p = prot.parts.speech;
+        const indexStatus = msg.getUint32(p.indexStatus, true);
+        const index = indexStatus>>>1;
+        const status = !!(indexStatus&1);
+        ui.userListUpdate(index, status, true);
+        if (users[index]) {
+            users[index].transmitting = status;
+            updateMasterAdmin();
+        }
+    });
 }
 
 // (Re)configure the master interface
@@ -119,14 +242,6 @@ function configureMasterInterface() {
 
     updateCreditCost();
     ui.resizeUI();
-}
-
-// Update the interface when our mode changes
-if ("master" in config.config) {
-    util.events.addEventListener("net.info." + prot.info.mode, function() {
-        // Update the master interface
-        configureMasterInterface();
-    });
 }
 
 
@@ -493,13 +608,6 @@ function soundButtonUpdate(url: string, play: unknown, el: HTMLAudioElement) {
     }
 }
 
-// We update the state of the button whenever a sound starts or stops
-if ("master" in config.config) {
-    util.events.addEventListener("audio.sound", function(ev: CustomEvent) {
-        soundButtonUpdate(ev.detail.url, ev.detail.status, ev.detail.el);
-    });
-}
-
 // Admin actions
 function adminAction(target: number, action: number, opts?: any) {
     // Optional argument
@@ -594,119 +702,4 @@ function updateAdmin(target: number, props: any) {
         }
 
     }
-}
-
-// Messages from the master socket
-if ("master" in config.config) {
-    util.netEvent("master", "info", function(ev) {
-        const msg: DataView = ev.detail;
-        const p = prot.parts.info;
-        const key = msg.getUint32(p.key, true);
-        let val = 0;
-        if (msg.byteLength >= p.length)
-            val = msg.getUint32(p.value, true);
-        switch (key) {
-            case prot.info.creditCost:
-            {
-                // Informing us of the cost of credits
-                const v2 = msg.getUint32(p.value + 4, true);
-                credits.creditCost = {
-                    currency: val,
-                    credits: v2
-                };
-                break;
-            }
-
-            case prot.info.creditRate:
-            {
-                // Informing us of the total cost and rate in credits
-                const v2 = msg.getUint32(p.value + 4, true);
-                credits.creditRate = [val, v2];
-                updateCreditCost();
-                break;
-            }
-
-            case prot.info.sounds:
-            {
-                // Soundboard items
-                const valS = util.decodeText(msg.buffer.slice(p.value));
-                addSoundButtons(JSON.parse(valS));
-                break;
-            }
-
-            case prot.info.allowAdmin:
-            {
-                // A user has allowed or disallowed us to administrate them
-                if (msg.byteLength < p.length + 1) break;
-                const allowed = !!msg.getUint8(p.length);
-                let props = null;
-                if (msg.byteLength > p.length + 1) {
-                    try {
-                        props = JSON.parse(util.decodeText(msg.buffer.slice(p.length + 1)));
-                    } catch (ex) {}
-                }
-                allowAdmin(val, allowed, props);
-                break;
-            }
-
-            case prot.info.adminState:
-            {
-                if (msg.byteLength <= p.length) break;
-                let props = null;
-                try {
-                    props = JSON.parse(util.decodeText(msg.buffer.slice(p.length)));
-                } catch (ex) {}
-                if (!props || typeof props !== "object") break;
-                updateAdmin(val, props);
-                break;
-            }
-        }
-    });
-
-    util.netEvent("master", "user", function(ev) {
-        const msg: DataView = ev.detail;
-        const p = prot.parts.user;
-        const index = msg.getUint32(p.index, true);
-        const status = msg.getUint32(p.status, true);
-        const nick = util.decodeText(msg.buffer.slice(p.nick));
-
-        // Add it to the UI
-        if (status) {
-            ui.userListAdd(index, nick, true);
-
-            while (users.length <= index)
-                users.push(null);
-            users[index] = {
-                name: nick,
-                online: true,
-                transmitting: false,
-                fullAccess: null
-            };
-            updateMasterAdmin();
-
-        } else {
-            ui.userListRemove(index, true);
-
-            if (users[index]) {
-                users[index].online = false;
-                users[index].fullAccess = null;
-                updateMasterAdmin();
-            }
-
-        }
-    });
-
-    util.netEvent("master", "speech", function(ev) {
-        // Master "speech" is really data-receive
-        const msg: DataView = ev.detail;
-        const p = prot.parts.speech;
-        const indexStatus = msg.getUint32(p.indexStatus, true);
-        const index = indexStatus>>>1;
-        const status = !!(indexStatus&1);
-        ui.userListUpdate(index, status, true);
-        if (users[index]) {
-            users[index].transmitting = status;
-            updateMasterAdmin();
-        }
-    });
 }

@@ -1039,16 +1039,16 @@ util.events.addEventListener("ui.speech", function(ev: CustomEvent) {
 });
 
 // If we're *not* using RTC, then speech status comes from the data socket
-if (!config.useRTC) {
-    util.netEvent("data", "speech", function(ev) {
+util.netEvent("data", "speech", function(ev) {
+    if (!config.useRTC) {
         const msg: DataView = ev.detail;
         const p = prot.parts.speech;
         const indexStatus = msg.getUint32(p.indexStatus, true);
         const index = indexStatus>>>1;
         const status = (indexStatus&1);
         userListUpdate(index, !!status, false);
-    });
-}
+    }
+});
 
 // Update the video UI based on new information about this peer
 export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boolean): void {
