@@ -181,7 +181,7 @@ export class Waveform {
         // If there is no rendering interval, make one
         if (!displayInterval) {
             displayInterval = setInterval(function() {
-                let af = null;
+                let af: number = null;
 
                 function go() {
                     af = null;

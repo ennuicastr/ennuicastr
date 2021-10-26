@@ -40,10 +40,6 @@ let recordVideoStop: () => Promise<void> = null;
 export let recordVideoRemoteOK: (x: number) => void = null;
 let recordVideoRemoteOKTimeout: null|number = null;
 
-/* Any ongoing video recording steps *other* than actually recording pile
- * together into this Promise */
-let recordPromise: Promise<unknown> = Promise.all([]);
-
 interface RecordVideoOptions {
     local?: boolean;
     remote?: boolean;
@@ -151,7 +147,7 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
     await libav.mkreaderdev(inF);
 
     // Get libav's output
-    let libavBuf: Uint8Array[] = [];
+    const libavBuf: Uint8Array[] = [];
     let libavPos = 0;
     let libavNotify: () => void = null;
     libav.onwrite = function(name: string, pos: number, chunk: Uint8Array) {
@@ -182,7 +178,7 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
     });
 
     // Our output context/info
-    let out_oc = -1, out_fmt = -1, out_pb = -1, out_st = -1;
+    let out_oc = -1;
 
     // With MP4, we need a full file to get the format options
     if (format[2]) {
@@ -209,6 +205,7 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
         } catch (ex) {}
 
         // And flush the remaining data
+        // eslint-disable-next-line no-constant-condition
         while (true) {
             const blob = await rdr.read();
             if (blob.done)
@@ -230,7 +227,7 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
         await libav.avcodec_parameters_to_context(c, in_stream.codecpar);
 
         // Use the context to make our output
-        [out_oc, out_fmt, out_pb, out_st] =
+        [out_oc] =
             await libav.ff_init_muxer({filename: outF, open: true, device: true},
                 [[c, fixedTimeBase.num, fixedTimeBase.den]]);
 
@@ -293,6 +290,7 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
             // We keep some starter packets to make sure we get a keyframe
             let starterPackets: any[] = [];
 
+            // eslint-disable-next-line no-constant-condition
             while (true) {
                 // Send the data to the dev
                 const rdres = await inputRdr.read();
@@ -305,7 +303,7 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
                  * only receive frames, so there will always be a full frame to
                  * read. It's *necessary* to use devLimit: 1 here so our timing
                  * isn't compromised. */
-                let [res, allPackets] =
+                const [res, allPackets] =
                     await libav.ff_read_multi(in_fmt_ctx, pkt, inF, {devLimit: 1});
                 if (res !== 0 && res !== -libav.EAGAIN && res !== libav.AVERROR_EOF) {
                     // Weird error!
@@ -322,7 +320,7 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
 
                 if (out_oc < 0) {
                     // Good opportunity to make our output
-                    [out_oc, out_fmt, out_pb, out_st] =
+                    [out_oc] =
                         await libav.ff_init_muxer({filename: outF, open: true, device: true},
                             [[c, fixedTimeBase.num, fixedTimeBase.den]]);
 
@@ -465,6 +463,7 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
         async function doRemote() {
             const rdr = remoteStream.getReader();
             let idx = 0;
+            // eslint-disable-next-line no-constant-condition
             while (true) {
                 const chunk = await rdr.read();
                 if (chunk.done) {
@@ -500,7 +499,7 @@ function getMediaRecorderStream(ms: MediaStream, opts: any) {
     let notify: () => void = null;
 
     // Set up the media recorder itself
-    mediaRecorder.addEventListener("dataavailable", ev => {
+    mediaRecorder.addEventListener("dataavailable", (ev: any) => {
         buf.push(ev.data);
         if (notify)
             notify();
@@ -536,7 +535,7 @@ function getMediaRecorderStream(ms: MediaStream, opts: any) {
 // Receive a remote video recording
 export function recordVideoRemoteIncoming(
     peer: number, stream: ReadableStream<Uint8Array>, opts?: {ext?: string}
-) {
+): void {
     // Handle remote options
     let ext = "webm";
     let mimeType = "video/webm";

@@ -489,7 +489,7 @@ function jitsiMessage(user: any, jmsg: any) {
     const peer = +user.getDisplayName();
     if (Number.isNaN(peer))
         return;
-    const inc = assertJitsiPeer(peer, jid);
+    assertJitsiPeer(peer, jid);
 
     if (typeof jmsg.ec !== "string")
         return;
@@ -601,8 +601,8 @@ function peerMessage(peer: number, msg: DataView) {
                         // Make an incoming stream
                         const vri = videoRecIncoming[peer] = {
                             nextIdx: 0,
-                            buf: [],
-                            notify: null,
+                            buf: <{idx: number, buf: Uint8Array}[]> [],
+                            notify: <()=>void> null,
                             hardStop: false,
                             softStop: false
                         };
@@ -610,6 +610,7 @@ function peerMessage(peer: number, msg: DataView) {
                         const stream = <ReadableStream<Uint8Array>> <unknown>
                             new wsp.ReadableStream({
                             async pull(controller) {
+                                // eslint-disable-next-line no-constant-condition
                                 while (true) {
                                     if (vri.hardStop) {
                                         controller.close();

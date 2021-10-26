@@ -57,7 +57,7 @@ export let useDebug = false;
 /**
  * Load configuration information.
  */
-export function load() {
+export function load(): boolean {
     // Convert short-form configuration into long-form
     let shortForm: null|string = null;
     Array.from((<any> params).entries()).forEach(function(key: string) {
@@ -259,7 +259,7 @@ export function load() {
 }
 
 // The WebSock URL
-export function wsUrl() {
+export function wsUrl(): string {
     return (url.protocol==="http:"?"ws":"wss") + "://" + url.hostname + ":" + config.port;
 }
 
@@ -279,12 +279,12 @@ export function disconnect(): void {
 /* Resolve the correct port (and ID and key) from the config parameters. If no
  * port is provided, we're connecting to a *lobby*, which creates *recordings*
  * on demand, so we need to figure out the current room. */
-export function resolve() {
+export function resolve(): Promise<unknown> {
     let p: Promise<unknown> = Promise.all([]);
 
     if (!config.port) {
         p = p.then(() => {
-            let req: any = {
+            const req: any = {
                 lid: config.id,
                 key: config.key
             };

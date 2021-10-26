@@ -42,7 +42,7 @@ function isChrome() {
     return navigator.userAgent.indexOf("Chrome") >= 0;
 }
 
-export function isSafari() {
+export function isSafari(): boolean {
     // Chrome pretends to be Safari
     return navigator.userAgent.indexOf("Safari") >= 0 && !isChrome();
 }
@@ -52,14 +52,6 @@ export function isSafari() {
  * (or a fresh one if needed), using either an AudioWorkletProcessor or a
  * ScriptProcessor+worker as needed. */
 export function createCapture(ac: AudioContext, options: CaptureOptions): Promise<Capture> {
-    function isWindows() {
-        return navigator.userAgent.indexOf("Windows") >= 0;
-    }
-
-    function isMacOSX() {
-        return navigator.userAgent.indexOf("OS X") >= 0;
-    }
-
     /* Here's the status of AWP support:
      *
      * Safari's AWP implementation is totally broken if you try to capture the

@@ -108,7 +108,7 @@ util.netEvent("ping", "pong", function(ev) {
 
 // Get audio permission. First audio step of the process.
 export function getAudioPerms(mkAudioUI: ()=>string): Promise<unknown> {
-    return navigator.mediaDevices.getUserMedia({audio: true}).catch(err => null).then(function(userMediaIn) {
+    return navigator.mediaDevices.getUserMedia({audio: true}).catch(() => null).then(function(userMediaIn) {
         userMedia = userMediaIn; // So that it gets deleted by getMic
         return getMic(mkAudioUI());
     }).catch(function(err) {
@@ -149,7 +149,7 @@ export function getMic(deviceId?: string): Promise<unknown> {
             sampleRate: {ideal: 48000},
             sampleSize: {ideal: 24}
         }
-    }).catch(ex => null).then(function(userMediaIn) {
+    }).catch(() => null).then(function(userMediaIn) {
         userMedia = userMediaIn;
 
         // And move on to the next step
@@ -196,8 +196,8 @@ function userMediaSet() {
     let noUserMedia = false;
     if (!userMedia) {
         noUserMedia = true;
-        let cs = ac.createConstantSource();
-        let msd = ac.createMediaStreamDestination();
+        const cs = ac.createConstantSource();
+        const msd = ac.createMediaStreamDestination();
         cs.connect(msd);
         userMedia = msd.stream;
     }

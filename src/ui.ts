@@ -826,7 +826,7 @@ export function videoAdd(idx: number, name: string): void {
         standin: dce("div"),
         name: dce("span"),
         caption: dce("div"),
-        captions: [],
+        captions: <any[]> [],
         popout: dce("button"),
         admin: <HTMLButtonElement> null,
         waveformWrapper: dce("div")
@@ -1230,7 +1230,9 @@ function genStandinName(name: string) {
 }
 
 // Receive caption information for a user
-export function caption(peer: number, text: string, append: boolean, complete: boolean) {
+export function caption(
+    peer: number, text: string, append: boolean, complete: boolean
+): Promise<void> {
     const ctx = ui.video.users[peer];
     if (!ctx) return;
 

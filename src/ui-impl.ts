@@ -1001,13 +1001,13 @@ export function mkAudioUI(): string {
 
     }
 
-    function showCaptionChange(ev: Event) {
+    function showCaptionChange() {
         document.body.setAttribute("data-captions", main.captionC.checked ? "show" : "hide");
     }
 
     if (config.useTranscription) {
         uiFE.saveConfigCheckbox(main.captionC, "show-captions", showCaptionChange);
-        showCaptionChange(null);
+        showCaptionChange();
 
     } else {
         main.captionHider.style.display = "none";

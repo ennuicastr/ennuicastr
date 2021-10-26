@@ -29,7 +29,7 @@ let serviceWorkerPort: MessagePort = null;
 export let serviceWorkerPinger: HTMLIFrameElement = null;
 
 // Callbacks from the service worker
-let callbacks: Record<number, (x:any) => void> = Object.create(null);
+const callbacks: Record<number, (x:any) => void> = Object.create(null);
 
 // Current callback number
 let callbackNo = 0;
@@ -48,7 +48,7 @@ async function swPostMessage(msg: any): Promise<any> {
 /**
  * Load support for streaming downloads.
  */
-export async function load() {
+export async function load(): Promise<void> {
     try {
         if (navigator.serviceWorker &&
             (navigator.userAgent.indexOf("Safari") < 0 ||
@@ -77,6 +77,7 @@ export async function load() {
 
                 // We want it already active when the page loads
                 location.reload();
+                // eslint-disable-next-line @typescript-eslint/no-empty-function
                 await new Promise(()=>{});
             }
 
@@ -102,6 +103,7 @@ export async function load() {
             if (ack.v !== 3) {
                 await swr.unregister();
                 location.reload();
+                // eslint-disable-next-line @typescript-eslint/no-empty-function
                 await new Promise(()=>{});
             }
 
@@ -127,10 +129,10 @@ export async function load() {
 export async function stream(
     name: string, body: ReadableStream<Uint8Array>,
     headers: Record<string, string>
-) {
+): Promise<void> {
     // Set up the most important headers
-    let utf8Name = encodeURIComponent(name);
-    let safeName = utf8Name.replace(/%/g, "_");
+    const utf8Name = encodeURIComponent(name);
+    const safeName = utf8Name.replace(/%/g, "_");
     headers = Object.assign({
         "content-disposition": `attachment; filename="${safeName}"; filename*=UTF-8''${utf8Name}`,
         "cross-origin-embedder-policy": "require-corp"
@@ -179,6 +181,7 @@ export async function stream(
  */
 async function streamViaWorker(url: string, body: ReadableStream<Uint8Array>) {
     const rdr = body.getReader();
+    // eslint-disable-next-line no-constant-condition
     while (true) {
         const d = await rdr.read();
         if (d.done) {
@@ -198,6 +201,7 @@ async function streamViaBlob(name: string, body: ReadableStream<Uint8Array>) {
     // Collect all the data
     const data: Uint8Array[] = [];
     const rdr = body.getReader();
+    // eslint-disable-next-line no-constant-condition
     while (true) {
         const part = await rdr.read();
         if (part.done)

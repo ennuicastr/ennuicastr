@@ -203,6 +203,7 @@ self.addEventListener("fetch", (ev: any) => {
     // Stream our response
     ev.respondWith(new Response(new ReadableStream({
         async pull(controller) {
+            // eslint-disable-next-line no-constant-condition
             while (true) {
                 if (stream.buf) {
                     controller.enqueue(stream.buf);
