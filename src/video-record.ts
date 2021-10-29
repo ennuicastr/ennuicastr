@@ -94,9 +94,9 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
     const videoSettings = video.userMediaVideo.getVideoTracks()[0].getSettings();
     let bitrate: number;
     if (opts.bitrate)
-        bitrate = Math.min(opts.bitrate * 1000000, videoSettings.height * 75000);
+        bitrate = Math.min(opts.bitrate * 1000000, videoSettings.height * 100000);
     else
-        bitrate = videoSettings.height * 7500;
+        bitrate = videoSettings.height * 10000;
     const globalFrameTime = 1/videoSettings.frameRate * 1000;
 
     // Input and output files within libav
