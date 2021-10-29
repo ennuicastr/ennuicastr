@@ -38,7 +38,9 @@ export function getVideo(id: string, res: number): Promise<MediaStream> {
         if (id === "-screen") {
             // Special pseudo-device: Grab the screen
             return (<any> navigator.mediaDevices).getDisplayMedia({
-                video: true
+                video: {
+                    cursor: {ideal: "motion"}
+                }
             });
 
         } else if (id === "-none") {
