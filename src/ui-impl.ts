@@ -143,7 +143,7 @@ export function mkUI(): Promise<unknown> {
 
         }).then(function() {
             noSleep = new NoSleep();
-            uiFE.showPanel(ui.panels.mobile, ui.persistent.main, true);
+            uiFE.showPanel(ui.panels.mobile, ui.panels.mobile.button, true);
             return new Promise((res) => {
                 ui.panels.mobile.button.onclick = res;
             });

@@ -206,7 +206,7 @@ function userMediaSet() {
         /* If AudioContext started paused, we need to unpause it in an event
          * handler */
         if (ac.state !== "running") {
-            ui.showPanel(ui.ui.panels.mobile, ui.ui.persistent.main, true);
+            ui.showPanel(ui.ui.panels.mobile, ui.ui.panels.mobile.button, true);
             return new Promise(function(res) {
                 ui.ui.panels.mobile.button.onclick = function() {
                     ui.unsetModal();
