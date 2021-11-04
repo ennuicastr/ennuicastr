@@ -249,28 +249,28 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
 
     // Do the rest in the background
     const recordPromise = (async function() {
-        // Get 64K initially to make sure the input file is readable
-        {
-            let rd = 0;
-            while (rd < 64*1024) {
+        // Transit the data from the input to the device in the background
+        (async function() {
+            while (true) {
+                // Send the data to the dev
                 const rdres = await inputRdr.read();
+                const chunk = rdres.done ? null :
+                    new Uint8Array(await blobToArrayBuffer(rdres.value));
+                await libav.ff_reader_dev_send(inF, chunk);
                 if (rdres.done)
                     break;
-                const chunk = new Uint8Array(await blobToArrayBuffer(rdres.value));
-                await libav.ff_reader_dev_send(inF, chunk);
-                rd += chunk.length;
             }
-        }
+        })();
 
-        // Prepare input
-        const [in_fmt_ctx, [in_stream]] =
-            await libav.ff_init_demuxer_file(inF);
-        const c = await libav.avcodec_alloc_context3(0);
-        const pkt = await libav.av_packet_alloc();
-        await libav.avcodec_parameters_to_context(c, in_stream.codecpar);
-
-        // Transit it in the background
+        // Transit it through libav in the background
         (async function() {
+            // Open the file
+            const [in_fmt_ctx, [in_stream]] =
+                await libav.ff_init_demuxer_file(inF);
+            const c = await libav.avcodec_alloc_context3(0);
+            const pkt = await libav.av_packet_alloc();
+            await libav.avcodec_parameters_to_context(c, in_stream.codecpar);
+
             function timeFrom(fromhi: number, from: number) {
                 from += fromhi * 0x100000000;
                 return from * in_stream.time_base_num / in_stream.time_base_den * 1000;
@@ -292,19 +292,11 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
 
             // eslint-disable-next-line no-constant-condition
             while (true) {
-                // Send the data to the dev
-                const rdres = await inputRdr.read();
-                const endTimeReal = performance.now();
-                const chunk = rdres.done ? null :
-                    new Uint8Array(await blobToArrayBuffer(rdres.value));
-                await libav.ff_reader_dev_send(inF, chunk);
-
-                /* Read it back. It's safe to use devLimit: 1 here because we
-                 * only receive frames, so there will always be a full frame to
-                 * read. It's *necessary* to use devLimit: 1 here so our timing
-                 * isn't compromised. */
+                /* Read it back. Generally read only a single frame, for
+                 * timing. */
                 const [res, allPackets] =
-                    await libav.ff_read_multi(in_fmt_ctx, pkt, inF, {devLimit: 1});
+                    await libav.ff_read_multi(in_fmt_ctx, pkt, inF, {devLimit: 1, limit: 1});
+                const endTimeReal = performance.now();
                 if (res !== 0 && res !== -libav.EAGAIN && res !== libav.AVERROR_EOF) {
                     // Weird error!
                     throw new Error(res + "");
@@ -365,6 +357,8 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
                     let step: number;
                     if (packets.length > 1)
                         step = (endTimeDTS - startTimeDTS) / (packets.length-1);
+                    else if (lastDTS)
+                        step = endTimeDTS - lastDTS + frameTime;
                     else
                         step = frameTime;
 
