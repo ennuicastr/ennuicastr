@@ -74,7 +74,9 @@ libs/ennuiboard.min.js: node_modules/.bin/browserify
 
 # NOTE: A newer version of Vosk is actually needed than this one
 libs/vosk.js: node_modules/.bin/browserify
-	cat src/vosk-browser-license.js node_modules/vosk-browser/dist/vosk.js > $@
+	#cat src/vosk-browser-license.js node_modules/vosk-browser/dist/vosk.js > $@
+	echo "You need to build vosk-browser yourself"
+	false
 
 libs/vosk-model-small-$(VOSK_MODEL_VER).tar.gz:
 	curl -L http://alphacephei.com/vosk/models/vosk-model-small-$(VOSK_MODEL_VER).zip -o libs/vosk-model-small-$(VOSK_MODEL_VER).zip

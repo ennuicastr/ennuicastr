@@ -400,7 +400,7 @@ function doFilter(msg: any) {
 
         // Possibly load Vosk
         if (useTranscription) {
-            __filename = "../libs/vosk.js?v=2";
+            __filename = "../libs/vosk.js?v=3";
             importScripts(__filename);
         }
 
