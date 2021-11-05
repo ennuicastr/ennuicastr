@@ -34,6 +34,10 @@ const callbacks: Record<number, (x:any) => void> = Object.create(null);
 // Current callback number
 let callbackNo = 0;
 
+/* A stopper function for each currently active download. Used to stop the
+ * downloads if we close the page. */
+const stoppers: Record<string, () => void> = Object.create(null);
+
 // Send a message to the service worker and expect a response
 async function swPostMessage(msg: any): Promise<any> {
     const no = callbackNo++;
@@ -181,10 +185,14 @@ export async function stream(
  */
 async function streamViaWorker(url: string, body: ReadableStream<Uint8Array>) {
     const rdr = body.getReader();
+
+    stoppers[url] = () => swPostMessage({c: "end", u: url});
+
     // eslint-disable-next-line no-constant-condition
     while (true) {
         const d = await rdr.read();
         if (d.done) {
+            delete stoppers[url];
             await swPostMessage({c: "end", u: url});
             break;
         }
@@ -215,3 +223,9 @@ async function streamViaBlob(name: string, body: ReadableStream<Uint8Array>) {
     // And download it
     fileSaver.saveAs(blob, name);
 }
+
+// Make sure we stop any active downloads when the page closes.
+window.addEventListener("beforeunload", () => {
+    for (const url in stoppers)
+        stoppers[url]();
+});
