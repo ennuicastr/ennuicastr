@@ -246,7 +246,7 @@ function doEncoder(msg: any) {
         encOptions.frame_size = ret[4];
 
         // Create the filter
-        return libav.ff_init_filter_graph("aresample", {
+        return libav.ff_init_filter_graph("anull", {
             sample_rate: inSampleRate,
             sample_fmt: libav.AV_SAMPLE_FMT_FLTP,
             channels: channelCount,
