@@ -115,7 +115,7 @@ function initJitsi() {
 
     }).then(() => {
         if (typeof JitsiMeetJS === "undefined")
-            return util.loadLibrary("libs/lib-jitsi-meet.min.js?v=3");
+            return util.loadLibrary("libs/lib-jitsi-meet.6542.js");
 
     }).then(() => {
         // Get rid of any old Jitsi instance. First, clear tracks.
