@@ -99,10 +99,10 @@ libs/localforage.min.js: node_modules/.bin/browserify
 install:
 	mkdir -p $(PREFIX)/images $(PREFIX)/libs/vad $(PREFIX)/awp $(PREFIX)/libav
 	for i in $(OUT) $(LIBS) $(EXTRA); do \
-		install -m 0622 $$i $(PREFIX)/$$i; \
+		install -C -m 0622 $$i $(PREFIX)/$$i; \
         done
 	for i in $(TEST); do \
-		install -m 0622 $$i $(PREFIX)/$$i || true; \
+		install -C -m 0622 $$i $(PREFIX)/$$i || true; \
         done
 	cp -a fa $(PREFIX)/
 
