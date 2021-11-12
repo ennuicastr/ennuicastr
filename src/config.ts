@@ -57,7 +57,7 @@ export let useDebug = false;
 /**
  * Load configuration information.
  */
-export function load(): boolean {
+export async function load(): Promise<boolean> {
     // Convert short-form configuration into long-form
     let shortForm: null|string = null;
     Array.from((<any> params).entries()).forEach(function(key: string) {
@@ -254,6 +254,21 @@ export function load(): boolean {
 
     // If we're in continuous mode, we don't distinguish the degrees of VAD
     if (useContinuous) waveVADColors = waveVADColorSets.sc;
+
+    // If we're a host and recording video, we need persistent storage
+    if ("master" in config && useVideoRec) {
+        let persistent = false;
+        if (navigator.storage && navigator.storage.persist && navigator.storage.persisted) {
+            persistent = await navigator.storage.persisted();
+            if (!persistent)
+                persistent = await navigator.storage.persist();
+            if (!persistent && typeof Notification !== "undefined" &&
+                Notification.requestPermission) {
+                await Notification.requestPermission();
+                persistent = await navigator.storage.persist();
+            }
+        }
+    }
 
     return true;
 }

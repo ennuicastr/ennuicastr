@@ -33,7 +33,7 @@ async function main() {
     await downloadStream.load();
 
     // Then comes config
-    if (!config.load())
+    if (!await config.load())
         return;
 
     // Then libraries
