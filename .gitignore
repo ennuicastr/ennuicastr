@@ -6,6 +6,7 @@ ennuicastr-test.min.js
 ennuicastr.js
 ennuicastr.min.js
 fa/
+fs/fs.js
 hotkeys.min.js
 inst
 libav/libav-*
@@ -13,6 +14,7 @@ libs/NoSleep.min.js
 libs/ennuiboard.min.js
 libs/jquery.min.js
 libs/localforage.min.js
+libs/sha512-es.min.js
 libs/vosk*
 node_modules/
 noise-repellent/noise-repellent-m.*
