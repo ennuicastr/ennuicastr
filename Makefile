@@ -27,7 +27,11 @@ EXTRA=\
     libav/libav-$(LIBAV_VERSION)-ennuicastr.wasm.js \
     libav/libav-$(LIBAV_VERSION)-ennuicastr.wasm.wasm \
     libs/vad/vad-m.js libs/vad/vad-m.wasm.js libs/vad/vad-m.wasm.wasm \
-    libs/vosk.js libs/lib-jitsi-meet.6542.js
+    libs/vosk.js libs/lib-jitsi-meet.6542.js \
+    noise-repellent/noise-repellent-m.js \
+    noise-repellent/noise-repellent-m.asm.js \
+    noise-repellent/noise-repellent-m.wasm.js \
+    noise-repellent/noise-repellent-m.wasm.wasm
 
 all: $(OUT) $(LIBS)
 
@@ -103,7 +107,7 @@ libs/sha512-es.min.js: node_modules/.bin/browserify
 
 install:
 	mkdir -p $(PREFIX)/images $(PREFIX)/libs/vad $(PREFIX)/awp \
-		$(PREFIX)/libav $(PREFIX)/fs
+		$(PREFIX)/libav $(PREFIX)/fs $(PREFIX)/noise-repellent
 	for i in $(OUT) $(LIBS) $(EXTRA); do \
 		install -C -m 0622 $$i $(PREFIX)/$$i; \
         done
