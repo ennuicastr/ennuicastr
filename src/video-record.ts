@@ -288,6 +288,9 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
             // DTS of the last packet we received
             let lastDTS = 0;
 
+            // The offset from the DTS of the recording to the DTS of reality
+            let dtsOffset = null;
+
             // We keep some starter packets to make sure we get a keyframe
             let starterPackets: any[] = [];
 
@@ -326,58 +329,35 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
                     // The last packet tells us roughly when we are
                     const lastPacket = packets[packets.length-1];
 
-                    // Get the framerate from the packets
-                    let frameTime;
-                    if (packets.length > 1) {
-                        const last = timeFrom(lastPacket.dtshi, lastPacket.dts);
-                        const first = timeFrom(packets[0].dtshi, packets[0].dts);
-                        if (last < 0 || first < 0) {
-                            // Invalid dts, just trust the global frame time
-                            frameTime = globalFrameTime;
-                        } else {
-                            frameTime = (last - first) / (packets.length - 1);
-                        }
-                    } else {
-                        frameTime = globalFrameTime;
-                    }
+                    // The end time as set by the packet
+                    let inEndTime = timeFrom(lastPacket.dtshi, lastPacket.dts);
+                    if (inEndTime < 0)
+                        inEndTime = timeFrom(lastPacket.ptshi, lastPacket.pts);
 
-                    // Figure out the end time as dictated by the DTS
-                    const endTimeDTS = endTimeReal // The real time when we received this packet
+                    // The end time as seen by "reality"
+                    const outEndTime = endTimeReal // The real time when we received this packet
                         - video.videoLatency // Adjusted for input latency
                         + audio.timeOffset // Convert to remote time
                         - net.remoteBeginTime; // Base at recording start time
 
-                    // Now figure out the practical range of times
-                    let startTimeDTS: number;
-                    if (lastDTS)
-                        startTimeDTS = lastDTS;
-                    else
-                        startTimeDTS = endTimeDTS - frameTime * (packets.length-1);
+                    // Use that to adjust the offset
+                    if (dtsOffset === null) {
+                        dtsOffset = outEndTime - inEndTime;
+                    } else {
+                        let portion = Math.min(globalFrameTime / 2000, 1);
+                        dtsOffset = (outEndTime - inEndTime) * portion +
+                            dtsOffset * (1-portion);
+                    }
 
-                    // Figure out the ideal step between these
-                    let step: number;
-                    if (packets.length > 1)
-                        step = (endTimeDTS - startTimeDTS) / (packets.length-1);
-                    else if (lastDTS)
-                        step = endTimeDTS - lastDTS + frameTime;
-                    else
-                        step = frameTime;
-
-                    // But don't let it get too far from the frame rate
-                    const stepVRate = step/frameTime;
-                    if (stepVRate < 0.99)
-                        step = frameTime * 0.99;
-                    else if (stepVRate > 1.01)
-                        step = frameTime * 1.01;
-
-                    // Now retime all the packets
-                    let dts = startTimeDTS;
+                    // Then retime the packets based on the offset
                     for (const packet of packets) {
                         let pdts: any = timeFrom(packet.dtshi, packet.dts);
                         let ppts: any = timeFrom(packet.ptshi, packet.pts);
                         if (pdts < 0) pdts = ppts;
                         ppts -= pdts;
-                        pdts = (dts < lastDTS) ? lastDTS : dts;
+                        pdts += dtsOffset;
+                        if (pdts < lastDTS)
+                            pdts = lastDTS;
                         ppts += pdts;
                         if (ppts < 0) ppts = 0;
                         pdts = timeTo(pdts);
@@ -386,9 +366,8 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
                         packet.dts = pdts.lo;
                         packet.ptshi = ppts.hi;
                         packet.pts = ppts.lo;
-                        dts += step;
+                        lastDTS = pdts;
                     }
-                    lastDTS = dts;
 
                     // If we haven't sent the starter packets, do so
                     if (starterPackets) {
