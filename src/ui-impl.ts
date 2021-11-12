@@ -411,6 +411,8 @@ function loadMasterUI() {
         inviteContinuousHider: gebi("ecmaster-invite-continuous-hider"),
         inviteContinuous: gebi("ecmaster-invite-continuous"),
         acceptRemoteVideo: gebi("ecmaster-video-record-host"),
+        saveVideoInBrowser: gebi("ecmaster-video-save-in-browser"),
+        downloadVideoLive: gebi("ecmaster-video-download-live"),
         recordingCostPopout: gebi("ecmaster-recording-cost-popout"),
         recordingCostPopoutWrapper: gebi("ecmaster-recording-cost-popout-wrapper"),
         recordingCostDock: gebi("ecmaster-recording-cost-dock"),

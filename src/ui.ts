@@ -238,6 +238,12 @@ export const ui = {
             // Accept guest video recordings
             acceptRemoteVideo: HTMLInputElement,
 
+            // Save video to in-browser storage
+            saveVideoInBrowser: HTMLInputElement,
+
+            // Download the video live
+            downloadVideoLive: HTMLInputElement,
+
             // Recording cost popout behavior
             recordingCostPopout: HTMLButtonElement,
             recordingCostPopoutWrapper: HTMLElement,

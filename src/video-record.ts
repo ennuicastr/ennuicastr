@@ -560,15 +560,11 @@ async function saveVideo(
     let dStream: ReadableStream<Uint8Array> = null, lsStream: ReadableStream<Uint8Array> = null;
 
     // Should we be doing local storage?
-    /*
     if (("master" in config.config) && ui.ui.panels.master.saveVideoInBrowser.checked) {
         doLocalStorage = true;
         if (!ui.ui.panels.master.downloadVideoLive.checked)
             doDownloadStream = false;
     }
-    */
-    if ("master" in config.config)
-        doLocalStorage = true;
 
     // Possibly split it
     if (doDownloadStream) {
