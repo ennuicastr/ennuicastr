@@ -244,6 +244,9 @@ export const ui = {
             // Download the video live
             downloadVideoLive: HTMLInputElement,
 
+            // Video storage status
+            videoStatus: HTMLElement,
+
             // Recording cost popout behavior
             recordingCostPopout: HTMLButtonElement,
             recordingCostPopoutWrapper: HTMLElement,

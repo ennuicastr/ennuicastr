@@ -28,6 +28,9 @@ let storePromise: Promise<unknown> = Promise.all([]);
 // The LocalForage instance used to store files
 let fileStorage: LocalForage = null;
 
+// Number of concurrent stores
+let storeCt = 0;
+
 /**
  * File metadata, as stored.
  */
@@ -164,10 +167,21 @@ export async function deleteFile(id: string) {
 export async function storeFile(
     name: string, key: number[], stream: ReadableStream<Uint8Array>, opts: {
         expTime?: number,
-        mimeType?: string
+        mimeType?: string,
+        report?: (ct: number, spaceUsed: number, spaceTotal: number) => unknown
     } = {}
 ) {
     await getFileStorage();
+
+    async function report() {
+        if (opts.report) {
+            const e = await navigator.storage.estimate();
+            opts.report(storeCt, e.usage, e.quota);
+        }
+    }
+
+    storeCt++;
+    report();
 
     const cdate = Date.now();
     const edate = cdate + (
@@ -243,6 +257,7 @@ export async function storeFile(
                 info.len.push(bufSz);
                 await fileStorage.setItem("file-" + id, info);
                 bufUsed = 0;
+                report();
             }
         }
     }
@@ -254,4 +269,7 @@ export async function storeFile(
     }
     info.complete = true;
     await fileStorage.setItem("file-" + id, info);
+
+    storeCt--;
+    report();
 }

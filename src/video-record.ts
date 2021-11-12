@@ -531,6 +531,21 @@ export function recordVideoRemoteIncoming(
     saveVideo(filename, stream, mimeType);
 }
 
+// Function to report video storage
+let lastStorageCt = -1;
+function storageReport(ct: number, used: number, max: number) {
+    const s = (ct === 1) ? "" : "s";
+    const msg = `Saving ${ct} video stream${s}`;
+    ui.ui.panels.master.videoStatus.innerHTML = msg + ". Storage used: " + Math.round(used/max*100) + "%";
+    if (ct !== lastStorageCt) {
+        lastStorageCt = ct;
+        if (ct)
+            log.pushStatus("videoStorage", msg);
+        else
+            log.popStatus("videoStorage");
+    }
+}
+
 // Save a video download, either as a stream or into local storage, or both
 async function saveVideo(
     filename: string, stream: ReadableStream<Uint8Array>, mimeType: string
@@ -564,7 +579,7 @@ async function saveVideo(
     if (lsStream) {
         promises.push(fileStorage.storeFile(filename,
             [config.config.id, config.config.key, config.config.master],
-            lsStream, {mimeType}));
+            lsStream, {mimeType, report: storageReport}));
     }
 
     await Promise.all(promises);

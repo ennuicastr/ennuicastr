@@ -413,6 +413,7 @@ function loadMasterUI() {
         acceptRemoteVideo: gebi("ecmaster-video-record-host"),
         saveVideoInBrowser: gebi("ecmaster-video-save-in-browser"),
         downloadVideoLive: gebi("ecmaster-video-download-live"),
+        videoStatus: gebi("ecmaster-video-status"),
         recordingCostPopout: gebi("ecmaster-recording-cost-popout"),
         recordingCostPopoutWrapper: gebi("ecmaster-recording-cost-popout-wrapper"),
         recordingCostDock: gebi("ecmaster-recording-cost-dock"),
