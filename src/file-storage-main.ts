@@ -134,8 +134,13 @@ async function connection(port: MessagePort) {
         del.onclick = async function() {
             del.innerText = "Confirm";
             await new Promise(res => del.onclick = res);
+            btn.disabled = true;
+            btn.classList.add("off");
+            del.innerText = "...";
+            del.disabled = true;
+            del.classList.add("off");
+            await fileStorage.deleteFile(file.id);
             div.style.display = "none";
-            fileStorage.deleteFile(file.id);
         };
         div.appendChild(del);
 
