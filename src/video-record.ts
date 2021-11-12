@@ -528,7 +528,7 @@ export function recordVideoRemoteIncoming(
     filename += "video." + ext;
 
     // And save it in the background
-    downloadStream.stream(filename, stream, {"content-type": mimeType});
+    saveVideo(filename, stream, mimeType);
 }
 
 // Save a video download, either as a stream or into local storage, or both
