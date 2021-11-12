@@ -54,10 +54,10 @@ export function getVideo(id: string, res: number): Promise<MediaStream> {
                 aspectRatio: {ideal: 16/9},
                 facingMode: {ideal: "user"},
                 frameRate: {ideal: 30},
-                height: <any> {max: res}
+                height: <any> {ideal: res, max: res}
             };
             if (res === 0)
-                delete opts.height;
+                opts.height = {ideal: 17280};
             return navigator.mediaDevices.getUserMedia({video: opts}).then(function(ret) {
                 if (ret) {
                     return ret;
