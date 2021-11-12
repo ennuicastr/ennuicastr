@@ -130,7 +130,7 @@ export async function clearExpired() {
  * Delete the file with the given ID.
  * @param id  The file's ID.
  */
-async function deleteFile(id: string) {
+export async function deleteFile(id: string) {
     await getFileStorage();
 
     const info: FileInfo = await fileStorage.getItem("file-" + id);

@@ -81,8 +81,9 @@ async function connection(port: MessagePort) {
             }
 
             case "download":
+            case "delete":
             {
-                // Download the ID'd file
+                // Download or delete the ID'd file
                 const id = ev.data.id;
                 const key = ev.data.key;
                 const file: fileStorage.FileInfo = await store.getItem("file-" + id);
@@ -90,7 +91,10 @@ async function connection(port: MessagePort) {
                     break;
                 if (sha512.hash(file.key + ":" + localSalt) !== key)
                     break;
-                downloadById(id);
+                if (ev.data.c === "delete")
+                    fileStorage.deleteFile(id);
+                else
+                    downloadById(id);
                 break;
             }
         }
@@ -118,11 +122,23 @@ async function connection(port: MessagePort) {
     for (const file of await fileStorage.getFiles()) {
         const div = document.createElement("div");
         const btn = document.createElement("button");
+        const del = document.createElement("button");
+
         btn.innerText = file.name;
         btn.onclick = function() {
             downloadById(file.id);
         };
         div.appendChild(btn);
+
+        del.innerText = "Delete";
+        del.onclick = async function() {
+            del.innerText = "Confirm";
+            await new Promise(res => del.onclick = res);
+            div.style.display = "none";
+            fileStorage.deleteFile(file.id);
+        };
+        div.appendChild(del);
+
         document.body.appendChild(div);
     }
 })();

@@ -65,6 +65,9 @@ interface Stream {
 
     // Called when we have data
     dataAvailable: () => void;
+
+    // A timeout in case the page is closed prematurely
+    timeout: number;
 }
 
 // Current streams
@@ -104,6 +107,7 @@ async function message(port: MessagePort, ev: MessageEvent) {
 
         case "data":
         case "end":
+        case "keepalive":
             await data(msg);
             break;
 
@@ -126,7 +130,8 @@ function stream(msg: any) {
         headers: msg.h,
         onstart: null,
         readyForData: null,
-        dataAvailable: null
+        dataAvailable: null,
+        timeout: null
     };
 }
 
@@ -147,6 +152,20 @@ async function waitStart(msg: any) {
  */
 async function data(msg: any) {
     const stream = streams[msg.u];
+
+    // Set the timeout
+    if (stream.timeout)
+        clearTimeout(stream.timeout);
+    stream.timeout = setTimeout(() => {
+        stream.ended = true;
+        if (stream.dataAvailable)
+            stream.dataAvailable();
+    }, 30000);
+    if (msg.c === "keepalive") {
+        // Nothing else to do
+        return;
+    }
+
     while (stream.buf) {
         // Need to wait to buffer this data!
         await new Promise<void>(res => stream.readyForData = res);

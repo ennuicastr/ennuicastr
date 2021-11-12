@@ -66,7 +66,7 @@ export async function load(opts: {
 
             if (!swr || !swr.active) {
                 // We need to register and activate it
-                swr = await navigator.serviceWorker.register(prefix + "sw.js?v=3", {scope});
+                swr = await navigator.serviceWorker.register(prefix + "sw.js?v=4", {scope});
 
                 if (!swr.installing && !swr.waiting && !swr.active) {
                     // Wait for it to install
@@ -193,6 +193,10 @@ async function streamViaWorker(url: string, body: ReadableStream<Uint8Array>) {
 
     stoppers[url] = () => swPostMessage({c: "end", u: url});
 
+    const keepalive = setInterval(() => {
+        swPostMessage({c: "keepalive", u: url});
+    }, 15000);
+
     // eslint-disable-next-line no-constant-condition
     while (true) {
         const d = await rdr.read();
@@ -203,6 +207,8 @@ async function streamViaWorker(url: string, body: ReadableStream<Uint8Array>) {
         }
         await swPostMessage({c: "data", u: url, b: d.value});
     }
+
+    clearInterval(keepalive);
 }
 
 /**
