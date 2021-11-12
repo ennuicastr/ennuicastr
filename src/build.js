@@ -8,21 +8,28 @@ const tsify = require("tsify");
 
 let minify = false;
 let noImplicitAny = false;
-process.argv.slice(2).forEach((arg) => {
+let main = "src/main.ts";
+let standalone = "Ennuicastr";
+for (let ai = 2; ai < process.argv.length; ai++) {
+    const arg = process.argv[ai];
     if (arg === "-m" || arg === "--minify")
         minify = true;
     else if (arg === "-n" || arg === "--no-implicit-any")
         noImplicitAny = true;
+    else if (arg === "-s" || arg === "--standalone")
+        standalone = process.argv[++ai];
+    else if (arg[0] !== "-")
+        main = arg;
     else {
         console.error(`Unrecognized argument ${arg}`);
         process.exit(1);
     }
-});
+}
  
 if (minify)
     process.stdout.write(fs.readFileSync("src/license.js", "utf8"));
-browserify({standalone: "Ennuicastr"})
-    .add("src/main.ts")
+browserify({standalone})
+    .add(main)
     .plugin(tsify, { noImplicitAny, files: [] })
     .plugin(minify ? tinyify : browserPackFlat)
     .bundle()

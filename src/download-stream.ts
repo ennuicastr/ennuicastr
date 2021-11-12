@@ -51,8 +51,13 @@ async function swPostMessage(msg: any): Promise<any> {
 
 /**
  * Load support for streaming downloads.
+ * @param opts  Extra options
  */
-export async function load(): Promise<void> {
+export async function load(opts: {
+    prefix?: string
+} = {}): Promise<void> {
+    const prefix = opts.prefix || "";
+
     try {
         if (navigator.serviceWorker &&
             (navigator.userAgent.indexOf("Safari") < 0 ||
@@ -61,7 +66,7 @@ export async function load(): Promise<void> {
 
             if (!swr || !swr.active) {
                 // We need to register and activate it
-                swr = await navigator.serviceWorker.register("sw.js?v=3", {scope});
+                swr = await navigator.serviceWorker.register(prefix + "sw.js?v=3", {scope});
 
                 if (!swr.installing && !swr.waiting && !swr.active) {
                     // Wait for it to install

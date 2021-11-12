@@ -21,6 +21,7 @@ import * as audio from "./audio";
 import * as avloader from "./avloader";
 import * as config from "./config";
 import * as downloadStream from "./download-stream";
+import * as fileStorage from "./file-storage";
 import * as jitsi from "./jitsi";
 import * as log from "./log";
 import * as net from "./net";
@@ -449,8 +450,7 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
 
         // Do the local writing
         async function doLocal() {
-            await downloadStream.stream(filename, localStream,
-                {"content-type": mimeType});
+            await saveVideo(filename, localStream, mimeType);
         }
 
         // Do the remote writing
@@ -550,6 +550,49 @@ export function recordVideoRemoteIncoming(
 
     // And save it in the background
     downloadStream.stream(filename, stream, {"content-type": mimeType});
+}
+
+// Save a video download, either as a stream or into local storage, or both
+async function saveVideo(
+    filename: string, stream: ReadableStream<Uint8Array>, mimeType: string
+) {
+    let doDownloadStream = true, doLocalStorage = false;
+    let dStream: ReadableStream<Uint8Array> = null, lsStream: ReadableStream<Uint8Array> = null;
+
+    // Should we be doing local storage?
+    /*
+    if (("master" in config.config) && ui.ui.panels.master.saveVideoInBrowser.checked) {
+        doLocalStorage = true;
+        if (!ui.ui.panels.master.downloadVideoLive.checked)
+            doDownloadStream = false;
+    }
+    */
+    if ("master" in config.config)
+        doLocalStorage = true;
+
+    // Possibly split it
+    if (doDownloadStream) {
+        if (doLocalStorage)
+            [dStream, lsStream] = stream.tee();
+        else
+            dStream = stream;
+    } else {
+        lsStream = stream;
+    }
+
+    // Do them
+    let promises: Promise<unknown>[] = [];
+    if (dStream) {
+        promises.push(downloadStream.stream(filename, dStream,
+            {"content-type": mimeType}));
+    }
+    if (lsStream) {
+        promises.push(fileStorage.storeFile(filename,
+            [config.config.id, config.config.key, config.config.master],
+            lsStream, {mimeType}));
+    }
+
+    await Promise.all(promises);
 }
 
 // Convert from a Blob to an ArrayBuffer

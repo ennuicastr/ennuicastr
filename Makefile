@@ -5,7 +5,7 @@ VOSK_MODEL_VER=en-us-0.15
 
 OUT=\
     ennuicastr.js ennuicastr.min.js \
-    protocol.min.js sw.js \
+    protocol.min.js sw.js fs/fs.js \
     awp/ennuicastr-awp.js awp/ennuicastr-worker.js \
     hotkeys.min.js
 
@@ -14,12 +14,13 @@ TEST=\
     awp/ennuicastr-awp-test.js awp/ennuicastr-worker-test.js
 
 LIBS=\
-    libs/NoSleep.min.js libs/web-streams-ponyfill.js libs/jquery.min.js \
+    libs/NoSleep.min.js libs/jquery.min.js \
     libs/ennuiboard.min.js libs/localforage.min.js \
     libs/vosk-model-small-$(VOSK_MODEL_VER).tar.gz
 
 EXTRA=\
-    index.html ennuicastr2.css protocol.js images/no-echo-white.svg \
+    index.html ennuicastr2.css protocol.js fs/index.html \
+    images/no-echo-white.svg \
     libav/libav-$(LIBAV_VERSION)-ennuicastr.js \
     libav/libav-$(LIBAV_VERSION)-ennuicastr.asm.js \
     libav/libav-$(LIBAV_VERSION)-ennuicastr.wasm.js \
@@ -47,6 +48,9 @@ ennuicastr-test.min.js: src/*.ts node_modules/.bin/browserify
 
 sw.js: src/sw.ts node_modules/.bin/browserify
 	./node_modules/.bin/tsc --lib es2015,dom $< --outFile $@
+
+fs/fs.js: src/file-storage-main.ts src/file-storage.ts node_modules/.bin/browserify
+	./src/build.js $< -s EnnuicastrFileStorage > $@
 
 awp/ennuicastr-awp.js: awp/ennuicastr-awp.ts node_modules/.bin/tsc
 	./node_modules/.bin/tsc -t es2015 --lib es2017,dom $<
@@ -76,9 +80,6 @@ node_modules/.bin/tsc: node_modules/.bin/browserify
 libs/NoSleep.min.js: node_modules/.bin/browserify
 	cp node_modules/nosleep.js/dist/NoSleep.min.js $@
 
-libs/web-streams-ponyfill.js: node_modules/.bin/browserify
-	cp node_modules/web-streams-polyfill/dist/ponyfill.js $@
-
 libs/jquery.min.js: node_modules/.bin/browserify
 	cp node_modules/jquery/dist/jquery.min.js $@
 
@@ -97,7 +98,8 @@ libs/localforage.min.js: node_modules/.bin/browserify
 	cp node_modules/localforage/dist/localforage.min.js $@
 
 install:
-	mkdir -p $(PREFIX)/images $(PREFIX)/libs/vad $(PREFIX)/awp $(PREFIX)/libav
+	mkdir -p $(PREFIX)/images $(PREFIX)/libs/vad $(PREFIX)/awp \
+		$(PREFIX)/libav $(PREFIX)/fs
 	for i in $(OUT) $(LIBS) $(EXTRA); do \
 		install -C -m 0622 $$i $(PREFIX)/$$i; \
         done
