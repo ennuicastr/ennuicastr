@@ -16,6 +16,7 @@ TEST=\
 LIBS=\
     libs/NoSleep.min.js libs/jquery.min.js \
     libs/ennuiboard.min.js libs/localforage.min.js \
+    libs/sha512-es.min.js \
     libs/vosk-model-small-$(VOSK_MODEL_VER).tar.gz
 
 EXTRA=\
@@ -96,6 +97,9 @@ libs/vosk-model-small-$(VOSK_MODEL_VER).tar.gz:
 
 libs/localforage.min.js: node_modules/.bin/browserify
 	cp node_modules/localforage/dist/localforage.min.js $@
+
+libs/sha512-es.min.js: node_modules/.bin/browserify
+	cp node_modules/sha512-es/build/sha512-es.min.js $@
 
 install:
 	mkdir -p $(PREFIX)/images $(PREFIX)/libs/vad $(PREFIX)/awp \

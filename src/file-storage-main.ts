@@ -17,7 +17,7 @@
 import * as downloadStream from "./download-stream";
 import * as fileStorage from "./file-storage";
 
-import * as sha1 from "./sha1";
+import sha512 from "sha512-es";
 import * as wsp from "web-streams-polyfill/ponyfill";
 
 /**
@@ -53,10 +53,9 @@ async function downloadById(id: string) {
 /**
  * Establish a connection with the surrounding page.
  */
-async function connection(msg: {p: MessagePort}) {
-    const port = msg.p;
+async function connection(port: MessagePort) {
     const store = await fileStorage.getFileStorage();
-    const globalSalt = await store.getItem("salt");
+    const globalSalt = await store.getItem("salt") || 0;
     const localSalt = ~~(Math.random() * 2000000000);
 
     // Tell the host the salt
@@ -73,7 +72,7 @@ async function connection(msg: {p: MessagePort}) {
                 // Only send the ones with the correct key
                 for (let i = files.length - 1; i >= 0; i--) {
                     const file = files[i];
-                    if (sha1(file.key + ":" + localSalt) !== key)
+                    if (sha512.hash(file.key + ":" + localSalt) !== key)
                         files.splice(i, 1);
                 }
 
@@ -89,7 +88,7 @@ async function connection(msg: {p: MessagePort}) {
                 const file: fileStorage.FileInfo = await store.getItem("file-" + id);
                 if (!file)
                     break;
-                if (sha1(file.key + ":" + localSalt) !== key)
+                if (sha512.hash(file.key + ":" + localSalt) !== key)
                     break;
                 downloadById(id);
                 break;
@@ -101,12 +100,19 @@ async function connection(msg: {p: MessagePort}) {
 (async function() {
     await downloadStream.load({prefix: "../"});
 
-    onmessage = function(ev) {
-        if (typeof ev.data === "object" && ev.data !== null &&
-            ev.data.c === "ennuicastr-file-storage") {
-            connection(ev.data);
-        }
-    };
+    // Create a message port for our host
+    if (window.parent) {
+        const mc = new MessageChannel();
+        const mp = mc.port1;
+        mp.onmessage = function(ev) {
+            if (typeof ev.data === "object" && ev.data !== null &&
+                ev.data.c === "ennuicastr-file-storage")
+                connection(mp);
+        };
+        window.parent.postMessage(
+            {c: "ennuicastr-file-storage", port: mc.port2}, "*", [mc.port2]);
+    }
+
 
     // Simple button for each download
     for (const file of await fileStorage.getFiles()) {

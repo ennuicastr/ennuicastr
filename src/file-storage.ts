@@ -20,7 +20,7 @@ import type * as localforageT from "localforage";
 type LocalForage = typeof localforageT;
 declare let localforage: LocalForage;
 
-import * as sha1 from "./sha1";
+import sha512 from "sha512-es";
 
 // A global promise for behaviors that need to be transactional
 let storePromise: Promise<unknown> = Promise.all([]);
@@ -187,7 +187,7 @@ export async function storeFile(
     const salt = await saltP;
 
     // Hash the key
-    const hashKey = sha1(key.join(":") + ":" + salt);
+    const hashKey = sha512.hash(key.join(":") + ":" + salt);
 
     // Start setting up the file info
     const info: FileInfo = {
@@ -229,7 +229,6 @@ export async function storeFile(
         if (rd.done)
             break;
         let chunk = rd.value.slice(0);
-        console.log(chunk);
 
         // Fill in the buffer
         while (chunk.length) {
@@ -240,7 +239,7 @@ export async function storeFile(
 
             if (bufUsed >= bufSz) {
                 // Save this chunk
-                await fileStorage.setItem("data-" + id + "-" + info.len, buf);
+                await fileStorage.setItem("data-" + id + "-" + info.len.length, buf);
                 info.len.push(bufSz);
                 await fileStorage.setItem("file-" + id, info);
                 bufUsed = 0;
@@ -250,7 +249,7 @@ export async function storeFile(
 
     // Save whatever remains
     if (bufUsed) {
-        await fileStorage.setItem("data-" + id + "-" + info.len, buf.slice(0, bufUsed));
+        await fileStorage.setItem("data-" + id + "-" + info.len.length, buf.slice(0, bufUsed));
         info.len.push(bufUsed);
     }
     info.complete = true;
