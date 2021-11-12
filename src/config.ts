@@ -14,6 +14,7 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+import * as fileStorage from "./file-storage";
 import { prot } from "./protocol";
 import { dce, gebi } from "./util";
 
@@ -269,6 +270,9 @@ export async function load(): Promise<boolean> {
             }
         }
     }
+
+    // Clear anything expired
+    await fileStorage.clearExpired();
 
     return true;
 }
