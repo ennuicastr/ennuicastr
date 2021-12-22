@@ -101,7 +101,7 @@ export function createCompressor(
             }).then(ret => {
                 waveviewCap = ret;
                 com.waveview = waveviewCap.node;
-                wf = new waveform.Waveform(ac.sampleRate / 1024, wrapper, null);
+                wf = new waveform.Waveform("" + idx, ac.sampleRate / 1024, wrapper, null);
                 waveviewCap.worker.onmessage = function(ev) {
                     const max = ev.data.m;
                     wf.push(max, (max < 0.0001) ? 1 : 3);

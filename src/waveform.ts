@@ -43,6 +43,7 @@ let persistPeak = false;
 
 // Our waveform display class
 export class Waveform {
+    lbl: string;
     id: number;
     wrapper: HTMLElement;
     canvas: HTMLCanvasElement;
@@ -50,6 +51,7 @@ export class Waveform {
     lblCanvas: HTMLCanvasElement;
     lblCtx: CanvasRenderingContext2D;
     statsBox: HTMLElement;
+    css: HTMLStyleElement;
     watcher: HTMLImageElement;
 
     // Should we be rotating?
@@ -101,7 +103,11 @@ export class Waveform {
     lastPeak: number;
 
     // Build a waveform display
-    constructor(sampleRate: number, wrapper: HTMLElement, watcher: HTMLImageElement) {
+    constructor(
+        lbl: string, sampleRate: number, wrapper: HTMLElement,
+        watcher: HTMLImageElement
+    ) {
+        this.lbl = lbl;
         this.id = waveformId++;
         this.sampleRate = sampleRate;
 
@@ -158,6 +164,11 @@ export class Waveform {
             fontSize: "0.8em"
         });
         lblStatsWrapper.appendChild(statsBox);
+
+        // CSS for other elements that need the waveform
+        const css = this.css = document.createElement("style");
+        css.type = "text/css";
+        document.head.appendChild(css);
 
         // The watcher image
         this.watcher = watcher;
@@ -490,5 +501,32 @@ export class Waveform {
         ctx.restore();
         lctx.restore();
         this.staleData = this.newData = 0;
+
+        // Set the CSS
+        const peakDb = 20 * Math.log(waveData[waveData.length-1]) / log10;
+        const cssPeak = (peakDb < -100) ? 0 : peakDb + 100;
+        /*
+        this.css.innerHTML =
+            `input[type=range].ecpeak-horizontal-${this.lbl}::-webkit-slider-runnable-track , ` +
+            `input[type=range].ecpeak-horizontal-${this.lbl}:focus::-webkit-slider-runnable-track , ` +
+            `input[type=range].ecpeak-horizontal-${this.lbl}::-moz-range-track { ` +
+            `background: linear-gradient(90deg, ` +
+                `var(--peak-3) ${cssPeak}%, ` +
+                `var(--bg-wave) ${100-cssPeak}%);` +
+            `}`;
+        */
+        let css = "";
+        for (const part of [
+            `input[type=range].ecpeak-horizontal-${this.lbl}::-webkit-slider-runnable-track`,
+            `input[type=range].ecpeak-horizontal-${this.lbl}:focus::-webkit-slider-runnable-track`,
+            `input[type=range].ecpeak-horizontal-${this.lbl}::-moz-range-track`
+        ]) {
+            css += `${part} { ` +
+                `background: linear-gradient(90deg, ` +
+                    `var(--peak-3) ${cssPeak}%, ` +
+                    `var(--bg-wave) ${100-cssPeak}%); ` +
+                `} `;
+        }
+        this.css.innerHTML = css;
     }
 }
