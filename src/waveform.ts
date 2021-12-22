@@ -505,16 +505,6 @@ export class Waveform {
         // Set the CSS
         const peakDb = 20 * Math.log(waveData[waveData.length-1]) / log10;
         const cssPeak = (peakDb < -100) ? 0 : peakDb + 100;
-        /*
-        this.css.innerHTML =
-            `input[type=range].ecpeak-horizontal-${this.lbl}::-webkit-slider-runnable-track , ` +
-            `input[type=range].ecpeak-horizontal-${this.lbl}:focus::-webkit-slider-runnable-track , ` +
-            `input[type=range].ecpeak-horizontal-${this.lbl}::-moz-range-track { ` +
-            `background: linear-gradient(90deg, ` +
-                `var(--peak-3) ${cssPeak}%, ` +
-                `var(--bg-wave) ${100-cssPeak}%);` +
-            `}`;
-        */
         let css = "";
         for (const part of [
             `input[type=range].ecpeak-horizontal-${this.lbl}::-webkit-slider-runnable-track`,
