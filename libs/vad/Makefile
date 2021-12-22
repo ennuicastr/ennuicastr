@@ -28,17 +28,17 @@ WEBRTC_SRC= \
 	webrtc/common_audio/vad/vad_gmm.c
 META=license.js post.js
 
-all: vad-m.js vad-m.wasm.js
+all: vad-m2.js vad-m2.wasm.js
 
-vad-m.js: $(WEBRTC_SRC) $(META)
+vad-m2.js: $(WEBRTC_SRC) $(META)
 	$(CC) $(CFLAGS) $(EFLAGS) $(WEBRTC_SRC) -s WASM=0 -o $@
 	cat license.js $@ > $@.tmp
 	mv $@.tmp $@
 
-vad-m.wasm.js: $(WEBRTC_SRC) $(META)
+vad-m2.wasm.js: $(WEBRTC_SRC) $(META)
 	$(CC) $(CFLAGS) $(EFLAGS) $(WEBRTC_SRC) -o $@
 	cat license.js $@ > $@.tmp
 	mv $@.tmp $@
 
 clean:
-	rm -f vad-m.js vad-m.wasm.js vad-m.wasm.wasm
+	rm -f vad-m2.js vad-m2.wasm.js vad-m2.wasm.wasm
