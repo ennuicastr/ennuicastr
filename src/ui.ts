@@ -614,10 +614,15 @@ export function saveConfigCheckbox(cb: HTMLInputElement, name: string, onchange?
 }
 
 // Saveable configuration for a slider
-export function saveConfigSlider(sl: HTMLInputElement, name: string, onchange?: (arg0:Event)=>void): void {
+export function saveConfigSlider(
+    sl: HTMLInputElement, name: string, onchange?: (arg0:Event)=>void,
+    oninput?: (arg0:Event)=>void
+): void {
     const cur = localStorage.getItem(name);
     if (cur !== null)
         sl.value = ""+(+cur);
+    if (oninput)
+        sl.oninput = oninput;
     sl.onchange = function(ev) {
         let ret;
         if (onchange)

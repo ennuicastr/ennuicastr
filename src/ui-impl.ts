@@ -697,21 +697,27 @@ export function mkAudioUI(): string {
     uiFE.saveConfigCheckbox(input.agc, "agc3", inputChange);
 
     function vadSensitivityChange() {
-        input.vadSensitivityStatus.innerHTML =
-            "&nbsp;" + input.vadSensitivity.value;
         proc.setVadSensitivity(4 - (+input.vadSensitivity.value));
     }
+    function vadSensitivityInput() {
+        input.vadSensitivityStatus.innerHTML =
+            "&nbsp;" + input.vadSensitivity.value;
+    }
     uiFE.saveConfigSlider(input.vadSensitivity, "vad-sensitivity",
-        vadSensitivityChange);
+        vadSensitivityChange, vadSensitivityInput);
+    vadSensitivityInput();
     vadSensitivityChange();
 
     function vadNoiseGateChange() {
-        input.vadNoiseGateStatus.innerHTML =
-            "&nbsp;" + input.vadNoiseGate.value + "dB";
         proc.setVadNoiseGate(+input.vadNoiseGate.value);
     }
+    function vadNoiseGateInput() {
+        input.vadNoiseGateStatus.innerHTML =
+            "&nbsp;" + input.vadNoiseGate.value + "dB";
+    }
     uiFE.saveConfigSlider(input.vadNoiseGate, "vad-noise-gate",
-        vadNoiseGateChange);
+        vadNoiseGateChange, vadNoiseGateInput);
+    vadNoiseGateInput();
     vadNoiseGateChange();
 
 
@@ -801,7 +807,6 @@ export function mkAudioUI(): string {
     // SFX volume
     function sfxVolumeChange() {
         const vol = output.sfxVolume;
-        output.sfxVolumeStatus.innerHTML = "&nbsp;" + vol.value + "%";
 
         const v = (+vol.value) / 100;
 
@@ -813,8 +818,14 @@ export function mkAudioUI(): string {
         ui.sounds.chimeUp.volume = v;
         ui.sounds.chimeDown.volume = v;
     }
+    function sfxVolumeInput() {
+        output.sfxVolumeStatus.innerHTML =
+            "&nbsp;" + output.sfxVolume.value + "%";
+    }
 
-    uiFE.saveConfigSlider(output.sfxVolume, "volume-sfx3", sfxVolumeChange);
+    uiFE.saveConfigSlider(output.sfxVolume, "volume-sfx3", sfxVolumeChange,
+        sfxVolumeInput);
+    sfxVolumeInput();
     sfxVolumeChange();
 
     // Dynamic range compression
