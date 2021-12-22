@@ -42,6 +42,10 @@ export function setUseNR(to: boolean): void { useNR = to; }
 export let vadSensitivity = 0;
 export function setVadSensitivity(to: number): void { vadSensitivity = to; }
 
+// VAD noise gate (-100 to 0, dB)
+export let vadNoiseGate = -100;
+export function setVadNoiseGate(to: number): void { vadNoiseGate = to; }
+
 function rtcVad(destination: MediaStream, to: boolean) {
     vad.setRTCVadOn(to);
     destination.getTracks().forEach(function(track) {
@@ -118,6 +122,7 @@ function localProcessingWorker() {
             useNR: useNR,
             sentRecently: sentRecently,
             vadSensitivity: vadSensitivity,
+            vadNoiseGate: vadNoiseGate,
             useTranscription: config.useTranscription
         }
 
@@ -126,6 +131,7 @@ function localProcessingWorker() {
         let lastUseNR = useNR;
         let lastSentRecently = sentRecently;
         let lastVadSensitivity = vadSensitivity;
+        let lastVadNoiseGate = vadNoiseGate;
 
         // Accept state updates
         capture.worker.onmessage = function(ev) {
@@ -194,16 +200,19 @@ function localProcessingWorker() {
 
             // This is also an opportunity to update them on changed state
             if (useNR !== lastUseNR || sentRecently !== lastSentRecently ||
-                vadSensitivity !== lastVadSensitivity) {
+                vadSensitivity !== lastVadSensitivity ||
+                vadNoiseGate !== lastVadNoiseGate) {
                 capture.worker.postMessage({
                     c: "state",
                     useNR,
                     sentRecently,
-                    vadSensitivity
+                    vadSensitivity,
+                    vadNoiseGate
                 });
                 lastUseNR = useNR;
                 lastSentRecently = sentRecently;
                 lastVadSensitivity = vadSensitivity;
+                lastVadNoiseGate = vadNoiseGate;
             }
         };
 

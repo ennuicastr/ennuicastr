@@ -362,7 +362,11 @@ export const ui = {
             noiser: HTMLInputElement,
             echo: HTMLInputElement,
             agcHider: HTMLElement,
-            agc: HTMLInputElement
+            agc: HTMLInputElement,
+            vadSensitivity: HTMLInputElement,
+            vadSensitivityStatus: HTMLElement,
+            vadNoiseGate: HTMLInputElement,
+            vadNoiseGateStatus: HTMLElement
         }> null,
 
         // Output device selection

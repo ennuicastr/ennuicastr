@@ -499,7 +499,11 @@ function loadInputConfig() {
         noiser: gebi("ecnoise-reduction"),
         echo: gebi("ececho-cancellation"),
         agcHider: gebi("ecagc-hider"),
-        agc: gebi("ecagc")
+        agc: gebi("ecagc"),
+        vadSensitivity: gebi("ecvad-sensitivity"),
+        vadSensitivityStatus: gebi("ecvad-sensitivity-status"),
+        vadNoiseGate: gebi("ecvad-noise-gate"),
+        vadNoiseGateStatus: gebi("ecvad-noise-gate-status")
     };
 
     if (!config.useRTC || config.useRecordOnly) {
@@ -691,6 +695,24 @@ export function mkAudioUI(): string {
         audio.setEchoCancel(input.echo.checked);
     });
     uiFE.saveConfigCheckbox(input.agc, "agc3", inputChange);
+
+    function vadSensitivityChange() {
+        input.vadSensitivityStatus.innerHTML =
+            "&nbsp;" + input.vadSensitivity.value;
+        proc.setVadSensitivity(4 - (+input.vadSensitivity.value));
+    }
+    uiFE.saveConfigSlider(input.vadSensitivity, "vad-sensitivity",
+        vadSensitivityChange);
+    vadSensitivityChange();
+
+    function vadNoiseGateChange() {
+        input.vadNoiseGateStatus.innerHTML =
+            "&nbsp;" + input.vadNoiseGate.value + "dB";
+        proc.setVadNoiseGate(+input.vadNoiseGate.value);
+    }
+    uiFE.saveConfigSlider(input.vadNoiseGate, "vad-noise-gate",
+        vadNoiseGateChange);
+    vadNoiseGateChange();
 
 
     /********************

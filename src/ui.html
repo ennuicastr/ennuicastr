@@ -279,7 +279,7 @@
             </div>
 
             <!-- And options -->
-            <div class="bigrflex">
+            <div class="bigrflex row">
                 <button id="ecpttb"><i class="fas fa-gamepad"></i> Gamepad push-to-talk</button>
                 &nbsp;
                 <div id="ecinput-options-wrapper">
@@ -294,6 +294,18 @@
                         <label for="ecagc">&nbsp;Automatic gain control</label>
                     </span>
                 </div>
+            </div>
+
+            <div class="rflex row">
+                <label for="ecvad-sensitivity" style="min-width: 6em; text-align: right;">Voice detection sensitivity:&nbsp;</label>
+                <input id="ecvad-sensitivity" type="range" min=1 max=4 value=4 style="flex: auto; width: 5em;" />
+                <span id="ecvad-sensitivity-status">&nbsp;4</span>
+            </div>
+
+            <div class="rflex row">
+                <label for="ecvad-noise-gate" style="min-width: 6em; text-align: right;">Noise gate:&nbsp;</label>
+                <input id="ecvad-noise-gate" type="range" min=-100 max=0 value=-100 style="flex: auto; width: 5em;" />
+                <span id="ecvad-noise-gate-status">&nbsp;-100dB</span>
             </div>
         </div>
 

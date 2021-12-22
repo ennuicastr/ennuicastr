@@ -319,6 +319,8 @@ function doFilter(msg: any) {
     let sentRecently: boolean = msg.sentRecently;
     let lastVadSensitivity: number = msg.vadSensitivity;
     let vadSensitivity: number = msg.vadSensitivity;
+    let vadNoiseGate: number = msg.vadNoiseGate;
+    let vadNoiseGateLvl = Math.pow(10, vadNoiseGate / 20);
     const useTranscription: boolean = msg.useTranscription;
 
     // Let them update it
@@ -328,6 +330,8 @@ function doFilter(msg: any) {
         useNR = msg.useNR;
         sentRecently = msg.sentRecently;
         vadSensitivity = msg.vadSensitivity;
+        vadNoiseGate = msg.vadNoiseGate;
+        vadNoiseGateLvl = Math.pow(10, vadNoiseGate / 20);
     };
 
     // State for transfer to the host
@@ -360,8 +364,8 @@ function doFilter(msg: any) {
     /* WebRTC VAD is pretty finicky, so also keep track of volume as a
      * secondary gate */
     let triggerVadCeil = 0, triggerVadFloor = 0;
-    let curVadVolume = 0;
-    let lastVolume = 0;
+    let curVadVolume = 0, curVadPeak = 0;
+    let lastVolume = 0, lastPeak = 0;
 
     // Load everything
     Promise.all([]).then(function() {
@@ -484,6 +488,8 @@ function doFilter(msg: any) {
             const v = nrbuf[~~i];
             const a = Math.abs(v);
             curVadVolume += a;
+            if (a > curVadPeak)
+                curVadPeak = a;
 
             vadBuf[bi++] = v * 0x7FFF;
 
@@ -522,11 +528,13 @@ function doFilter(msg: any) {
                 }
                 lastVolume = curVadVolume;
                 curVadVolume = 0;
+                lastPeak = curVadPeak;
+                curVadPeak = 0;
             }
         }
 
         // Gate the VAD by volume if it's not confident
-        if (vadSet && vadLvl < 2) {
+        if (vadSet && (vadLvl < 2 || vadSensitivity >= 3)) {
             const relVolume = lastVolume/vadBufSz;
             vadSet = false;
             // We must be over the floor...
@@ -537,6 +545,12 @@ function doFilter(msg: any) {
                     vadSet = true;
                 }
             }
+        }
+
+        // Apply the noise get if applicable
+        if (vadSet && vadNoiseGate > -100) {
+            if (lastPeak < vadNoiseGateLvl)
+                vadSet = false;
         }
 
         // Possibly swap the VAD mode
