@@ -38,6 +38,10 @@ let periodic: null|number = null;
 export let useNR = false;
 export function setUseNR(to: boolean): void { useNR = to; }
 
+// VAD sensitivity (0 to 3, more is less)
+export let vadSensitivity = 0;
+export function setVadSensitivity(to: number): void { vadSensitivity = to; }
+
 function rtcVad(destination: MediaStream, to: boolean) {
     vad.setRTCVadOn(to);
     destination.getTracks().forEach(function(track) {
@@ -113,6 +117,7 @@ function localProcessingWorker() {
             c: "filter",
             useNR: useNR,
             sentRecently: sentRecently,
+            vadSensitivity: vadSensitivity,
             useTranscription: config.useTranscription
         }
 
@@ -120,6 +125,7 @@ function localProcessingWorker() {
         // State to send back to the worker
         let lastUseNR = useNR;
         let lastSentRecently = sentRecently;
+        let lastVadSensitivity = vadSensitivity;
 
         // Accept state updates
         capture.worker.onmessage = function(ev) {
@@ -187,14 +193,17 @@ function localProcessingWorker() {
             }
 
             // This is also an opportunity to update them on changed state
-            if (useNR !== lastUseNR || sentRecently !== lastSentRecently) {
+            if (useNR !== lastUseNR || sentRecently !== lastSentRecently ||
+                vadSensitivity !== lastVadSensitivity) {
                 capture.worker.postMessage({
                     c: "state",
-                    useNR: useNR,
-                    sentRecently: sentRecently
+                    useNR,
+                    sentRecently,
+                    vadSensitivity
                 });
                 lastUseNR = useNR;
                 lastSentRecently = sentRecently;
+                lastVadSensitivity = vadSensitivity;
             }
         };
 

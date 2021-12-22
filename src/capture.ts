@@ -17,7 +17,7 @@
 // Worker paths to use
 const workerVer = "n";
 const awpPath = "awp/ennuicastr-awp.js?v=" + workerVer;
-export const workerPath = "awp/ennuicastr-worker.js?v=" + workerVer;
+export const workerPath = "awp/ennuicastr-worker.js?v=" + workerVer + "." + Math.random();
 
 export interface Capture {
     source: AudioNode,

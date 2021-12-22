@@ -317,6 +317,8 @@ function doFilter(msg: any) {
     const sampleRate: number = msg.sampleRate;
     let useNR: boolean = msg.useNR;
     let sentRecently: boolean = msg.sentRecently;
+    let lastVadSensitivity: number = msg.vadSensitivity;
+    let vadSensitivity: number = msg.vadSensitivity;
     const useTranscription: boolean = msg.useTranscription;
 
     // Let them update it
@@ -325,9 +327,11 @@ function doFilter(msg: any) {
         if (msg.c !== "state") return;
         useNR = msg.useNR;
         sentRecently = msg.sentRecently;
+        vadSensitivity = msg.vadSensitivity;
     };
 
     // State for transfer to the host
+    let rawVadLvl = 0;
     let rawVadOn = false;
     let rtcVadOn = false;
     let vadOn = false;
@@ -335,13 +339,13 @@ function doFilter(msg: any) {
     let maxCtr = 0;
 
     // Libraries
-    let m: any = null;
-    let nr: any = null;
-    let handle: any = null;
-    const bufSz = 640 /* 20ms at 32000Hz */;
-    let dataPtr: number = null;
-    let buf: Int16Array = null;
+    let vad: any = null;
+    let vadHandleLo: number = null, vadHandleHi: number = null;
+    let vadDataPtr: number = null;
+    const vadBufSz = 640 /* 20ms at 32000Hz */;
+    let vadBuf: Int16Array = null;
     let bi = 0;
+    let nr: any = null;
     let timeout: null|number = null, rtcTimeout: null|number = null;
     const step = sampleRate / 32000;
 
@@ -362,27 +366,33 @@ function doFilter(msg: any) {
     // Load everything
     Promise.all([]).then(function() {
         // Load the VAD
-        __filename = "../libs/vad/vad-m.wasm.js";
+        __filename = "../libs/vad/vad-m2.wasm.js";
         importScripts(__filename);
         return WebRtcVad();
 
     }).then(function(ret: any) {
-        m = ret;
+        vad = ret;
 
         // Create our WebRTC vad
-        handle = m.Create();
-        if (handle === 0) {
-            postMessage({c: "log", i: "failvad", m: "Failed to create VAD."});
-            throw new Error();
+        function mkVad(lvl) {
+            let vadHandle: number = vad.Create();
+            if (vadHandle === 0) {
+                postMessage({c: "log", i: "failvad", m: "Failed to create VAD."});
+                throw new Error();
+            }
+            if (vad.Init(vadHandle) < 0) {
+                postMessage({c: "log", i: "failvad", m: "Failed to initialize VAD."});
+                throw new Error();
+            }
+            vad.set_mode(vadHandle, lvl);
+            return vadHandle;
         }
-        if (m.Init(handle) < 0) {
-            postMessage({c: "log", i: "failvad", m: "Failed to initialize VAD."});
-            throw new Error();
-        }
+        vadHandleLo = mkVad(vadSensitivity);
+        lastVadSensitivity = vadSensitivity;
+        vadHandleHi = mkVad(3);
 
-        dataPtr = m.malloc(bufSz * 2);
-        buf = new Int16Array(m.heap.buffer, dataPtr, bufSz * 2);
-        m.set_mode(3);
+        vadDataPtr = vad.malloc(vadBufSz * 2);
+        vadBuf = new Int16Array(vad.HEAPU8.buffer, vadDataPtr, vadBufSz * 2);
 
         // And load noise-repellent
         __filename = "../noise-repellent/noise-repellent-m.wasm.js?v=2";
@@ -468,22 +478,32 @@ function doFilter(msg: any) {
 
 
         // Transfer data for the VAD
+        let vadLvl = rawVadLvl;
         let vadSet = rawVadOn;
         for (let i = 0; i < ib.length; i += step) {
             const v = nrbuf[~~i];
             const a = Math.abs(v);
             curVadVolume += a;
 
-            buf[bi++] = v * 0x7FFF;
+            vadBuf[bi++] = v * 0x7FFF;
 
-            if (bi == bufSz) {
+            if (bi == vadBufSz) {
+                // Make sure our VAD sensitivity is right
+                if (lastVadSensitivity !== vadSensitivity) {
+                    vad.set_mode(vadHandleLo, vadSensitivity);
+                    lastVadSensitivity = vadSensitivity;
+                }
+
                 // We have a complete packet
-                vadSet = !!m.Process(handle, 32000, dataPtr, bufSz);
+                rawVadLvl = vadLvl =
+                    vad.Process(vadHandleLo, 32000, vadDataPtr, vadBufSz) +
+                    vad.Process(vadHandleHi, 32000, vadDataPtr, vadBufSz);
+                vadSet = !!vadLvl;
                 bi = 0;
 
-                if (vadSet) {
+                if (vadLvl === 2) {
                     // Adjust the trigger value quickly up or slowly down
-                    const triggerTarget = curVadVolume/bufSz;
+                    const triggerTarget = curVadVolume/vadBufSz;
                     if (triggerTarget > triggerVadCeil) {
                         triggerVadCeil = triggerTarget;
                     } else {
@@ -492,8 +512,9 @@ function doFilter(msg: any) {
                             triggerTarget
                         ) / 1024;
                     }
-                } else {
-                    const triggerTarget = curVadVolume/bufSz*2;
+                } else if (vadLvl === 0) {
+                    // Adjust the floor
+                    const triggerTarget = curVadVolume/vadBufSz*2;
                     triggerVadFloor = (
                         triggerVadFloor * 511 +
                         triggerTarget
@@ -504,9 +525,9 @@ function doFilter(msg: any) {
             }
         }
 
-        // Gate the VAD by volume
-        if (vadSet) {
-            const relVolume = lastVolume/bufSz;
+        // Gate the VAD by volume if it's not confident
+        if (vadSet && vadLvl < 2) {
+            const relVolume = lastVolume/vadBufSz;
             vadSet = false;
             // We must be over the floor...
             if (relVolume >= triggerVadFloor) {
