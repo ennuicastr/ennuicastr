@@ -225,6 +225,8 @@
                     "unmute": 0x11,
                     "unechoCancel": 0x12,
                     "audioInput": 0x18, // arg: string
+                    "vadSensitivity": 0x19, // arg: int32
+                    "vadNoiseGate": 0x1A, // arg: int32
                     "videoInput": 0x30, // arg: string
                     "videoRes": 0x31, // arg: int (as string)
                     "videoRec": 0x32, // arg: int bitrate (as string)

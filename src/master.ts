@@ -439,6 +439,7 @@ export function userAdmin(target: number): void {
                 adminAction(target, acts.mute, {nohide: true});
             else
                 adminAction(target, acts.unmute, {nohide: true});
+            fullAccess.mute = userAdminFull.mute.checked;
         };
         userAdminFull.mute.checked = fullAccess.mute;
         userAdminFull.mute.disabled = false;
@@ -450,9 +451,40 @@ export function userAdmin(target: number): void {
                 adminAction(target, acts.echoCancel, {nohide: true});
             else
                 adminAction(target, acts.unechoCancel, {nohide: true});
+            fullAccess.echo = userAdminFull.echo.checked;
         };
-        userAdminFull.echo.checked = fullAccess.mute;
+        userAdminFull.echo.checked = fullAccess.echo;
         userAdminFull.echo.disabled = false;
+
+        // VAD sensitivity
+        userAdminFull.vadSensitivity.onchange = function() {
+            adminAction(target, acts.vadSensitivity, {
+                nohide: true,
+                arg: +userAdminFull.vadSensitivity.value
+            });
+            fullAccess.vadSensitivity = +userAdminFull.vadSensitivity.value;
+        };
+        userAdminFull.vadSensitivity.oninput = function() {
+            userAdminFull.vadSensitivityStatus.innerHTML =
+                "&nbsp;" + userAdminFull.vadSensitivity.value;
+        };
+        userAdminFull.vadSensitivity.value = fullAccess.vadSensitivity;
+        userAdminFull.vadSensitivity.oninput(null);
+
+        // VAD noise gate
+        userAdminFull.vadNoiseGate.onchange = function() {
+            adminAction(target, acts.vadNoiseGate, {
+                nohide: true,
+                arg: +userAdminFull.vadNoiseGate.value
+            });
+            fullAccess.vadNoiseGate = +userAdminFull.vadNoiseGate.value;
+        };
+        userAdminFull.vadNoiseGate.oninput = function() {
+            userAdminFull.vadNoiseGateStatus.innerHTML =
+                "&nbsp;" + userAdminFull.vadNoiseGate.value + "dB";
+        };
+        userAdminFull.vadNoiseGate.value = fullAccess.vadNoiseGate;
+        userAdminFull.vadNoiseGate.oninput(null);
 
 
         // Audio input device
@@ -620,8 +652,17 @@ function soundButtonUpdate(url: string, play: unknown, el: HTMLAudioElement) {
 // Admin actions
 function adminAction(target: number, action: number, opts?: any) {
     // Optional argument
-    const arg = (opts ? opts.arg : "") || "";
-    const argBuf = util.encodeText(arg);
+    opts = opts || {};
+    const arg = opts.arg || null;
+    let argBuf: Uint8Array = null;
+    if (typeof arg === "string") {
+        argBuf = util.encodeText(arg);
+    } else if (typeof arg === "number") {
+        argBuf = new Uint8Array(4);
+        (new Int32Array(argBuf.buffer))[0] = arg;
+    } else {
+        argBuf = new Uint8Array(0);
+    }
 
     // Admin command
     const p = prot.parts.admin;
@@ -633,7 +674,7 @@ function adminAction(target: number, action: number, opts?: any) {
     net.masterSock.send(out.buffer);
 
     // Hide the admin action window
-    if (!opts || !opts.nohide)
+    if (!opts.nohide)
         ui.showPanel(null, ui.ui.persistent.main);
 }
 

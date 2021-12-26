@@ -217,6 +217,19 @@
             <button id="ecuser-admin-full-kick" class="row"><i class="fas fa-user-slash"></i> Kick user</button>
             <input id="ecuser-admin-full-mute" type="checkbox" /><label for="ecuser-admin-full-mute">&nbsp;Mute</label><br/>
             <input id="ecuser-admin-full-echo" type="checkbox" /><label for="ecuser-admin-full-echo">&nbsp;Echo cancellation</label><br/>
+
+            <div class="rflex row">
+                <label for="ecuser-admin-full-vad-sensitivity" style="min-width: 8em; text-align: right;">Voice detection&nbsp;<br/>sensitivity:&nbsp;</label>
+                <input id="ecuser-admin-full-vad-sensitivity" type="range" min=1 max=4 value=4 style="flex: auto; width: 5em;" />
+                <span id="ecuser-admin-full-vad-sensitivity-status">&nbsp;4</span>
+            </div>
+
+            <div class="rflex row">
+                <label for="ecuser-admin-full-vad-noise-gate" style="min-width: 8em; text-align: right;">Noise gate:&nbsp;</label>
+                <input id="ecuser-admin-full-vad-noise-gate" type="range" min=-100 max=0 value=-100 style="flex: auto; width: 5em;" />
+                <span id="ecuser-admin-full-vad-noise-gate-status">&nbsp;-100dB</span>
+            </div>
+
             <div class="rflex row">
                 <label for="ecuser-admin-full-audio-dev" style="min-width: 10em;">Audio device:&nbsp;</label>
                 <select id="ecuser-admin-full-audio-dev" style="flex: auto;"></select>

@@ -643,7 +643,9 @@ export function deviceInfo(allowVideo: boolean): any {
             videoRes: allowVideo ? +ui.ui.panels.videoConfig.res.value : null,
             videoRec: (typeof MediaRecorder !== "undefined"),
             mute: getMute(),
-            echo: getEchoCancel()
+            echo: getEchoCancel(),
+            vadSensitivity: +ui.ui.panels.inputConfig.vadSensitivity.value,
+            vadNoiseGate: +ui.ui.panels.inputConfig.vadNoiseGate.value
         };
 
     });
@@ -680,7 +682,6 @@ util.netEvent("data", "admin", function(ev) {
         // Beyond videoInput also require video permission
         if (action >= acts.videoInput && !acc.video) return;
 
-        const arg = util.decodeText(msg.buffer.slice(p.argument));
 
         switch (action) {
             case acts.unmute:
@@ -692,15 +693,42 @@ util.netEvent("data", "admin", function(ev) {
                 break;
 
             case acts.audioInput:
+            {
+                const arg =
+                    util.decodeText(msg.buffer.slice(p.argument));
                 // FIXME: Better way to do this setting
                 ui.ui.panels.inputConfig.device.value = arg;
                 net.updateAdminPerm({audioDevice: arg});
                 getMic(arg);
                 break;
+            }
+
+            case acts.vadSensitivity:
+            {
+                const arg = msg.getInt32(p.argument, true);
+                const inp = ui.ui.panels.inputConfig.vadSensitivity;
+                inp.value = "" + arg;
+                inp.oninput(null);
+                inp.onchange(null);
+                break;
+            }
+
+            case acts.vadNoiseGate:
+            {
+                const arg = msg.getInt32(p.argument, true);
+                const inp = ui.ui.panels.inputConfig.vadNoiseGate;
+                inp.value = "" + arg;
+                inp.oninput(null);
+                inp.onchange(null);
+                break;
+            }
 
             default:
                 // The rest are video-admin-related, so pass them off
-                util.dispatchEvent("net.admin.video", {action: action, arg: arg});
+                util.dispatchEvent("net.admin.video", {
+                    action: action,
+                    arg: util.decodeText(msg.buffer.slice(p.argument))
+                });
         }
     }
 });
