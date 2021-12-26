@@ -485,6 +485,7 @@ export function userAdmin(target: number): void {
         };
         userAdminFull.vadNoiseGate.value = fullAccess.vadNoiseGate;
         userAdminFull.vadNoiseGate.oninput(null);
+        userAdminFull.vadNoiseGate.className = "ecpeak-horizontal-" + target;
 
 
         // Audio input device
