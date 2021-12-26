@@ -513,8 +513,8 @@ export class Waveform {
         ]) {
             css += `${part} { ` +
                 `background: linear-gradient(90deg, ` +
-                    `var(--peak-3) ${cssPeak}%, ` +
-                    `var(--bg-wave) ${100-cssPeak}%); ` +
+                    `var(--peak-3) 0 ${cssPeak}%, ` +
+                    `var(--bg-wave) ${cssPeak}% 100%); ` +
                 `} `;
         }
         this.css.innerHTML = css;
