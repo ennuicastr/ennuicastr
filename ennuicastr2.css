@@ -317,7 +317,7 @@ button.streamer-interface {
     pointer-events: auto;
 }
 
-@media screen and (max-height: 480px) {
+@media screen and (max-height: 640px) {
     .menu button:not(.plain):hover {
         border-radius: 1em 1em 0 0;
     }
