@@ -216,6 +216,10 @@ function initJitsi() {
     }).then(() => {
         clearTimeout(timeout);
 
+    }).catch(ex => {
+        initJitsi();
+        throw ex;
+
     }).catch(net.promiseFail());
     return jPromise;
 }
@@ -295,6 +299,11 @@ function jitsiUnsetUserMediaRTC() {
 
     }).then(() => {
         jAudio = null;
+
+    }).catch(ex => {
+        // Reconnect
+        initJitsi();
+        throw ex;
 
     }).catch(net.promiseFail());
 
@@ -698,6 +707,8 @@ function sendJitsiMsg(jid: string, msg: any, retries?: number) {
                 sendJitsiMsg(jid, msg, retries-1);
             }, 1000);
         } else {
+            // Reconnect
+            initJitsi();
             throw ex;
         }
     }
