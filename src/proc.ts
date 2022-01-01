@@ -48,6 +48,7 @@ export function setVadNoiseGate(to: number): void { vadNoiseGate = to; }
 
 function rtcVad(destination: MediaStream, to: boolean) {
     vad.setRTCVadOn(to);
+    util.dispatchEvent("vad.rtc");
     destination.getTracks().forEach(function(track) {
         track.enabled = to;
     });

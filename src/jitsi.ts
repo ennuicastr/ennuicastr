@@ -202,8 +202,10 @@ function initJitsi() {
             room.addEventListener(JitsiMeetJS.events.conference.ENDPOINT_MESSAGE_RECEIVED, jitsiMessage);
 
             // Add our local tracks
-            util.events.addEventListener("usermediartcready", () => { jitsiSetUserMediaRTC(); });
-            jitsiSetUserMediaRTC();
+            if (!config.useRTEnnui.audio) {
+                util.events.addEventListener("usermediartcready", () => { jitsiSetUserMediaRTC(); });
+                jitsiSetUserMediaRTC();
+            }
             util.events.addEventListener("usermediavideoready", () => { jitsiSetUserMediaVideo(); });
             jitsiSetUserMediaVideo();
 
