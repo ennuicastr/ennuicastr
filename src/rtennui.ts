@@ -84,6 +84,16 @@ export async function initRTEnnui() {
         rteTrackStarted(idMap[ev.peer], ev.node);
     });
 
+    c.on("*", ev => {
+        let str: string;
+        try {
+            str = JSON.stringify(ev);
+        } catch (ex) {
+            str = "" + ev;
+        }
+        console.log(str);
+    });
+
     // Connect
     let connected = await new Promise<boolean>((res) => {
         let timeout = setTimeout(() => {
@@ -120,7 +130,6 @@ export async function initRTEnnui() {
     );
     cap.setVADState(vad.rtcVadOn ? "yes" : "no");
     util.events.addEventListener("vad.rtc", () => {
-        console.log("VAD STATE: " + vad.rtcVadOn);
         cap.setVADState(vad.rtcVadOn ? "yes" : "no");
     });
 }
