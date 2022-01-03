@@ -36,6 +36,9 @@ LibAVWebCodecs = wcp;
 // RTEnnui connection
 let connection: rtennui.Connection;
 
+// RTEnnui audio capture for our current audio device
+let cap: rtennui.AudioCapture = null;
+
 // Map of RTEnnui IDs to our own peer IDs
 let idMap: Record<number, number> = null;
 
@@ -122,7 +125,26 @@ export async function initRTEnnui() {
     }
 
     // And add our track
-    const cap = await rtennui.createAudioCapture(audio.ac,
+    rteAddAudioTrack();
+    util.events.addEventListener("usermediartcready", rteAddAudioTrack);
+}
+
+
+// We initialize RTEnnui once we know our own ID
+util.events.addEventListener("net.info." + prot.info.id, function() {
+    if (config.useRTC)
+        initRTEnnui();
+});
+
+// Called to add our audio track
+async function rteAddAudioTrack() {
+    if (cap) {
+        // End the old capture
+        cap.close();
+        await connection.removeAudioTrack(cap);
+    }
+
+    cap = await rtennui.createAudioCapture(audio.ac,
         audio.userMediaRTC);
     connection.addAudioTrack(
         cap,
@@ -133,13 +155,6 @@ export async function initRTEnnui() {
         cap.setVADState(vad.rtcVadOn ? "yes" : "no");
     });
 }
-
-
-// We initialize RTEnnui once we know our own ID
-util.events.addEventListener("net.info." + prot.info.id, function() {
-    if (config.useRTC)
-        initRTEnnui();
-});
 
 // Called when a remote track is added
 function rteTrackStarted(id: number, node: AudioNode) {
