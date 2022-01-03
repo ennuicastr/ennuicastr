@@ -168,7 +168,6 @@ function rteTrackStarted(id: number, node: AudioNode) {
     el.srcObject = msd.stream;
     if (el.paused)
         el.play().catch(net.promiseFail());
-    console.log(el);
 
     /*
     // Hide the standin if applicable
