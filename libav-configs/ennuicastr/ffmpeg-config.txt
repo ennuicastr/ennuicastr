@@ -1,5 +1,5 @@
 --enable-libopus
---enable-decoder=pcm_f32le
+--enable-decoder=pcm_f32le --enable-decoder=libopus
 --enable-decoder=h264
 --enable-encoder=flac --enable-encoder=libopus
 --enable-demuxer=matroska --enable-demuxer=mov --enable-demuxer=flac
