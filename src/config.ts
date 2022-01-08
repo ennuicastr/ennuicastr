@@ -270,7 +270,7 @@ export async function load(): Promise<boolean> {
     useVideoRec = !!(config.format&features.videorec);
     useTranscription = !!(config.format&features.transcription);
     useRecordOnly = !!(config.format&features.recordOnly);
-    useRTEnnui.audio = true || !!(config.format&features.rtennuiAudio);
+    useRTEnnui.audio = !!(config.format&features.rtennuiAudio);
     useRTEnnui.video = useRTEnnui.audio &&
         !!(config.format&features.rtennuiVideo);
     useDebug = !!(params.get("debug"));
