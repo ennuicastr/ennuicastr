@@ -16,7 +16,7 @@
 
 declare let LibAV: any, NoiseRepellent: any, NoiseRepellentFactory: any, Vosk: any, WebRtcVad: any, __filename: string;
 
-const libavVersion = "2.5.4.4";
+const libavVersion = "3.6b.4.4.1";
 const libavPath = "../libav/libav-" + libavVersion + "-ennuicastr.js";
 
 const voskModelVersion = "en-us-0.15";
@@ -237,7 +237,11 @@ function doEncoder(msg: any) {
         }
 
         // Create the encoder
-        return libav.ff_init_encoder((format==="flac")?"flac":"libopus", encOptions, 1, outSampleRate);
+        return libav.ff_init_encoder(
+            (format==="flac")?"flac":"libopus", {
+                ctx: encOptions,
+                time_base: [1, outSampleRate]
+            });
 
     }).then((ret: any) => {
         c = ret[1];

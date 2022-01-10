@@ -24,6 +24,7 @@ import * as log from "./log";
 import * as net from "./net";
 import * as proc from "./proc";
 import { prot } from "./protocol";
+import * as rtennui from "./rtennui";
 import * as uiImpl from "./ui-impl";
 import * as util from "./util";
 
@@ -60,6 +61,8 @@ async function main() {
 
         // This will start up on its own in the background
         proc.localProcessing();
+        if (config.useRTEnnui.audio)
+            rtennui.initRTEnnui();
 
         // Get audio permissions, which also begins the next step
         await audio.getAudioPerms(uiImpl.mkAudioUI);

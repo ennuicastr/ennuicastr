@@ -25,7 +25,9 @@ export const features = {
     "rtc": 0x2,
     "videorec": 0x4,
     "transcription": 0x8,
-    "recordOnly": 0x100
+    "recordOnly": 0x100,
+    "rtennuiAudio": 0x200,
+    "rtennuiVideo": 0x400
 };
 
 // Configuration parameters come out of the URL search query
@@ -44,12 +46,19 @@ export let username: string = null;
 // The Jitsi URL
 export let jitsiUrl: string = null;
 
+// The RTEnnui URL
+export let rtennuiUrl: string = null;
+
 // Should we be creating FLAC?
 export let useFlac = false;
 
 // Which features to use
 export let useContinuous = false;
 export let useRTC = false;
+export const useRTEnnui = {
+    audio: false,
+    video: false
+};
 export let useVideoRec = false;
 export let useTranscription = false;
 export let useRecordOnly = false;
@@ -242,6 +251,16 @@ export async function load(): Promise<boolean> {
     // The Jitsi URL
     jitsiUrl = "//jitsi." + url.hostname + "/http-bind";
 
+    // The RTEnnui URL
+    {
+        const tmp = new URL(url);
+        tmp.protocol = (tmp.protocol==="http:"?"ws:":"wss:");
+        tmp.pathname = url.pathname.replace(/\/[^\/]*$/, "/rtennui/ws");
+        tmp.search = "";
+        tmp.hash = "";
+        rtennuiUrl = tmp.toString();
+    }
+
     // Should we be creating FLAC?
     useFlac = ((config.format&prot.flags.dataTypeMask) === prot.flags.dataType.flac);
 
@@ -251,6 +270,9 @@ export async function load(): Promise<boolean> {
     useVideoRec = !!(config.format&features.videorec);
     useTranscription = !!(config.format&features.transcription);
     useRecordOnly = !!(config.format&features.recordOnly);
+    useRTEnnui.audio = !!(config.format&features.rtennuiAudio);
+    useRTEnnui.video = useRTEnnui.audio &&
+        !!(config.format&features.rtennuiVideo);
     useDebug = !!(params.get("debug"));
 
     // If we're in continuous mode, we don't distinguish the degrees of VAD
