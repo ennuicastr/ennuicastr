@@ -89,7 +89,7 @@ async function message(port: MessagePort, ev: MessageEvent) {
     switch (msg.c) {
         case "setup":
             // Ack with our version
-            port.postMessage({c: "ack", i: msg.i, v: 3});
+            port.postMessage({c: "ack", i: msg.i, v: 5});
             return;
 
         case "ping":
@@ -186,6 +186,11 @@ async function data(msg: any) {
 self.addEventListener("fetch", (ev: any) => {
     const urlF = new URL(ev.request.url);
     const url = urlF.pathname;
+
+    if (url.indexOf("/download-stream-service-worker/") !== 0) {
+        // Not even our stream?
+        return fetch(url);
+    }
 
     // Keep the service worker alive with pings
     if (url.endsWith("/download-stream-service-worker-ping")) {

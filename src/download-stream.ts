@@ -66,7 +66,7 @@ export async function load(opts: {
 
             if (!swr || !swr.active) {
                 // We need to register and activate it
-                swr = await navigator.serviceWorker.register(prefix + "sw.js?v=4", {scope});
+                swr = await navigator.serviceWorker.register(prefix + "sw.js?v=5", {scope});
 
                 if (!swr.installing && !swr.waiting && !swr.active) {
                     // Wait for it to install
@@ -78,11 +78,13 @@ export async function load(opts: {
                 serviceWorker = swr.installing || swr.waiting || swr.active;
 
                 // Wait for it to activate
+                console.log("Waiting for service worker to activate...");
                 while (serviceWorker.state !== "activated") {
                     await new Promise(res => {
                         serviceWorker.addEventListener("statechange", res, {once: true});
                     });
                 }
+                console.log("Service worker active, reloading");
 
                 // We want it already active when the page loads
                 location.reload();
@@ -109,8 +111,10 @@ export async function load(opts: {
 
             // Ack it and check its version
             const ack = await swPostMessage({c: "setup"});
-            if (ack.v !== 3) {
+            if (ack.v !== 5) {
+                console.log("Service worker out of date, unregistering...");
                 await swr.unregister();
+                console.log("Reloading");
                 location.reload();
                 // eslint-disable-next-line @typescript-eslint/no-empty-function
                 await new Promise(()=>{});
