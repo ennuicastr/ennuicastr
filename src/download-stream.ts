@@ -44,8 +44,12 @@ async function swPostMessage(msg: any): Promise<any> {
     msg.i = no;
     serviceWorkerPort.postMessage(msg);
 
-    return await new Promise(res => {
-        callbacks[no] = res;
+    return await new Promise((res, rej) => {
+        let timeout = setTimeout(() => rej(new Error("Timeout")), 5000);
+        callbacks[no] = x => {
+            clearTimeout(timeout);
+            res(x);
+        };
     });
 }
 
@@ -70,8 +74,12 @@ export async function load(opts: {
 
                 if (!swr.installing && !swr.waiting && !swr.active) {
                     // Wait for it to install
-                    await new Promise(res => {
-                        swr.onupdatefound = res;
+                    await new Promise<void>((res, rej) => {
+                        let timeout = setTimeout(() => rej(new Error("Timeout")), 5000);
+                        swr.onupdatefound = () => {
+                            clearTimeout(timeout);
+                            res();
+                        };
                     });
                 }
 
@@ -79,11 +87,16 @@ export async function load(opts: {
 
                 // Wait for it to activate
                 console.log("Waiting for service worker to activate...");
-                while (serviceWorker.state !== "activated") {
-                    await new Promise(res => {
-                        serviceWorker.addEventListener("statechange", res, {once: true});
-                    });
-                }
+                await new Promise<void>(async (res, rej) => {
+                    let timeout = setTimeout(() => rej(new Error("Timeout")), 5000);
+                    while (serviceWorker.state !== "activated") {
+                        await new Promise(res => {
+                            serviceWorker.addEventListener("statechange", res, {once: true});
+                        });
+                    }
+                    clearTimeout(timeout);
+                    res();
+                });
                 console.log("Service worker active, reloading");
 
                 // We want it already active when the page loads
