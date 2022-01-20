@@ -116,8 +116,6 @@ function localProcessingWorker() {
     return capture.createCapture(audio.ac, {
         ms: audio.userMedia,
         bufferSize: 1024,
-        outStream: true,
-        sampleRate: "sampleRate",
         workerCommand: {
             c: "filter",
             useNR: useNR,

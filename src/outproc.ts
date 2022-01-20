@@ -93,7 +93,6 @@ export function createCompressor(
             return Promise.all([]).then(() => {
                 // Create a waveform node
                 return capture.createCapture(ac, {
-                    sampleRate: "sampleRate",
                     bufferSize: 1024,
                     workerCommand: {c: "max"}
                 });
@@ -110,7 +109,6 @@ export function createCompressor(
 
                 // Create a compression node
                 return capture.createCapture(ac, {
-                    sampleRate: "sampleRate",
                     bufferSize: 1024,
                     workerCommand: {c: "dynaudnorm"}
                 });

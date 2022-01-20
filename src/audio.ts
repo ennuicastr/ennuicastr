@@ -316,10 +316,7 @@ function encoderStart() {
     // Create the capture stream
     return capture.createCapture(ac, {
         ms: userMedia,
-        matchSampleRate: true,
         bufferSize: 16384 /* Max: Latency doesn't actually matter in this context */,
-        outStream: true,
-        sampleRate: "inSampleRate",
         workerCommand: {
             c: "encoder",
             outSampleRate: sampleRate,

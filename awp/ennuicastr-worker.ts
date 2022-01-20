@@ -181,6 +181,10 @@ class AWPHandler {
 onmessage = function(ev) {
     const msg = ev.data;
     switch (msg.c) {
+        case "multiplex":
+            doMultiplex(msg);
+            break;
+
         case "encoder":
             doEncoder(msg);
             break;
@@ -199,10 +203,48 @@ onmessage = function(ev) {
     }
 }
 
+// Multiplex this data to multiple workers
+function doMultiplex(msg: any) {
+    const inPort: MessagePort = msg.port;
+    const outPorts: MessagePort[] = [];
+
+    // Prepare for ports
+    onmessage = function(ev) {
+        const msg = ev.data;
+        switch (msg.c) {
+            case "port":
+            {
+                const port: MessagePort = msg.p;
+                outPorts.push(port);
+                port.onmessage = ev => {
+                    inPort.postMessage(ev.data);
+                };
+                break;
+            }
+        }
+    };
+
+    // Handle data
+    new AWPHandler(inPort, ondata);
+
+    function ondata(ts: number, data: Float32Array[]) {
+        // Send it along to every port
+        for (let i = 0; i < outPorts.length; i++) {
+            const port = outPorts[i];
+            try {
+                port.postMessage(ts);
+                port.postMessage(data);
+            } catch (ex) {
+                console.error(ex);
+            }
+        }
+    }
+}
+
 // Encode with libav
 function doEncoder(msg: any) {
     const inPort: MessagePort = msg.port;
-    const inSampleRate: number = msg.inSampleRate || 48000;
+    const inSampleRate: number = msg.sampleRate || 48000;
     const outSampleRate: number = msg.outSampleRate || 48000;
     const format: string = msg.format || "opus";
     const channelLayout: number = msg.channelLayout || 4;

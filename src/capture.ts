@@ -17,7 +17,7 @@
 // Worker paths to use
 const workerVer = "p";
 const awpPath = "awp/ennuicastr-awp.js?v=" + workerVer;
-export const workerPath = "awp/ennuicastr-worker.js?v=" + workerVer;
+export const workerPath = "awp/ennuicastr-worker.js?v=" + workerVer + "." + Math.random() + Math.random() + Math.random();
 
 export interface Capture {
     source: AudioNode,
@@ -31,10 +31,8 @@ export interface CaptureOptions {
     workerCommand: any;
     ms?: MediaStream; // Input as a MediaStream
     input?: AudioNode; // Input as an AudioNode
-    sampleRate: string;
-    matchSampleRate?: boolean; // Must be false if input is set
     bufferSize?: number;
-    outStream?: boolean;
+    noMultiplex?: boolean;
 }
 
 function isChrome() {
@@ -52,23 +50,12 @@ export function isSafari(): boolean {
  * (or a fresh one if needed), using either an AudioWorkletProcessor or a
  * ScriptProcessor+worker as needed. */
 export function createCapture(ac: AudioContext, options: CaptureOptions): Promise<Capture> {
-    /* Here's the status of AWP support:
+    /*
+     * Status of AWP support:
      *
-     * Safari's AWP implementation is totally broken if you try to capture the
-     * same device more than once, and there isn't yet a workaround for that in
-     * Ennuicastr, so we use ScriptProcessor there.
+     * Safari: It's... bad. It's just bad. Don't use AWP on Safari.
      *
-     * Firefox supports AWP well everywhere.
-     *
-     * On Chrome on Linux, *some* host platforms have issues in the first 30
-     * seconds of AWP use, but most don't, and ScriptProcessor causes clicks
-     * and other anomalies. So, we use AWP and accept its foibles.
-     *
-     * On Chrome everywhere else, AWP is reliable.
-     *
-     * There are no other browsers.
-     *
-     * Conclusion: Use AWP everywhere it's available except for Safari.
+     * Everywhere else: Good!
      */
     if (typeof AudioWorkletNode !== "undefined" && !isSafari()) {
         return createCaptureAWP(ac, options);
@@ -81,95 +68,121 @@ export function createCapture(ac: AudioContext, options: CaptureOptions): Promis
 }
 
 // Create a capture node using AudioWorkletProcessors
-function createCaptureAWP(ac: AudioContext & {ecAWPP?: Promise<unknown>}, options: CaptureOptions): Promise<Capture> {
-    // Possibly use a different AudioContext
-    if (options.matchSampleRate) {
-        const msSampleRate = options.ms.getAudioTracks()[0].getSettings().sampleRate;
-        if (msSampleRate !== ac.sampleRate)
-            ac = new AudioContext({
-                latencyHint: "playback",
-                sampleRate: msSampleRate
-            });
+async function createCaptureAWP(
+    ac: AudioContext & {ecAWPP?: Promise<unknown>}, options: CaptureOptions
+): Promise<Capture> {
+    if (options.ms && !options.noMultiplex) {
+        // Share a single processor
+        return createCaptureAWPMultiplex(ac, options);
     }
 
-    return Promise.all([]).then(() => {
-        // Make sure the module is loaded
-        if (!ac.ecAWPP)
-            ac.ecAWPP = ac.audioWorklet.addModule(awpPath);
-        return ac.ecAWPP;
+    // Make sure the module is loaded
+    if (!ac.ecAWPP)
+        ac.ecAWPP = ac.audioWorklet.addModule(awpPath);
+    await ac.ecAWPP;
 
-    }).then(() => {
-        let dead = false;
+    let dead = false;
 
-        /* Here's how the whole setup works:
-         * input ->
-         * AudioWorkletNode in awp.js ->
-         * Worker in worker.js ->
-         * back to us */
-        const awn = new AudioWorkletNode(ac, "worker-processor");
-        const worker = new Worker(workerPath);
+    /* Here's how the whole setup works:
+     * input ->
+     * AudioWorkletNode in awp.js ->
+     * Worker in worker.js ->
+     * back to us */
+    const awn = new AudioWorkletNode(ac, "worker-processor");
+    const worker = new Worker(workerPath);
 
-        // Need a channel for them to communicate
-        const mc = new MessageChannel();
-        awn.port.postMessage({c: "workerPort", p: mc.port1}, [mc.port1]);
-        const cmd = Object.assign({port: mc.port2}, options.workerCommand);
-        cmd[options.sampleRate] = ac.sampleRate;
-        worker.postMessage(cmd, [mc.port2]);
+    // Need a channel for them to communicate
+    const mc = new MessageChannel();
+    awn.port.postMessage({c: "workerPort", p: mc.port1}, [mc.port1]);
+    const cmd = Object.assign({
+        port: mc.port2,
+        sampleRate: ac.sampleRate
+    }, options.workerCommand);
+    worker.postMessage(cmd, [mc.port2]);
 
-        // Now hook everything up
-        let source: AudioNode = null;
-        if (options.ms)
-            source = ac.createMediaStreamSource(options.ms);
-        else if (options.input)
-            source = options.input;
+    // Now hook everything up
+    let source: AudioNode = null;
+    if (options.ms)
+        source = ac.createMediaStreamSource(options.ms);
+    else if (options.input)
+        source = options.input;
+    if (source)
+        source.connect(awn);
+    const msd: MediaStreamAudioDestinationNode =
+        ac.createMediaStreamDestination();
+    awn.connect(msd);
+
+    // Prepare to terminate
+    function disconnect() {
+        if (dead)
+            return;
+        dead = true;
+
         if (source)
-            source.connect(awn);
-        let msd: MediaStreamAudioDestinationNode = null;
-        if (options.outStream) {
-            msd = ac.createMediaStreamDestination();
-            awn.connect(msd);
-        }
+            source.disconnect(awn);
+        awn.disconnect(msd);
+        worker.terminate();
+    }
 
-        // Prepare to terminate
-        function disconnect() {
-            if (dead)
-                return;
-            dead = true;
+    // Done!
+    return {
+        source: source,
+        worker: worker,
+        node: awn,
+        destination: msd.stream,
+        disconnect: disconnect
+    };
+}
 
-            if (source)
-                source.disconnect(awn);
-            if (msd)
-                awn.disconnect(msd);
-            worker.terminate();
-        }
+// Create a capture node by multiplexing a single AudioWorkletProcessor
+async function createCaptureAWPMultiplex(
+    ac: AudioContext & {ecMultiplex?: Record<string, Promise<Capture>>},
+    options: CaptureOptions
+): Promise<Capture> {
+    // Create our multiplexer itself
+    if (!ac.ecMultiplex)
+        ac.ecMultiplex = {};
 
-        // Done!
-        return {
-            source: source,
-            worker: worker,
-            node: awn,
-            destination: msd ? msd.stream : null,
-            disconnect: disconnect
-        };
+    if (!ac.ecMultiplex[options.ms.id]) {
+        // Make the multiplex worker first
+        ac.ecMultiplex[options.ms.id] = createCaptureAWP(ac, {
+            workerCommand: {
+                c: "multiplex"
+            },
+            ms: options.ms,
+            noMultiplex: true
+        });
+    }
 
-    });
+    const multiplex = await ac.ecMultiplex[options.ms.id];
 
+    // Now create this individual worker and port
+    const worker = new Worker(workerPath);
+    const mc = new MessageChannel();
+    multiplex.worker.postMessage({
+        c: "port",
+        p: mc.port1
+    }, [mc.port1]);
+    const cmd = Object.assign({
+        port: mc.port2,
+        sampleRate: ac.sampleRate
+    }, options.workerCommand);
+    worker.postMessage(cmd, [mc.port2]);
+
+    // Done!
+    return {
+        source: multiplex.source,
+        worker: worker,
+        node: multiplex.node,
+        destination: multiplex.destination,
+        disconnect: multiplex.disconnect
+    };
 }
 
 // Create a capture node using ScriptProcessor
 function createCaptureSP(ac: AudioContext, options: CaptureOptions): Promise<Capture> {
     if (isSafari() && options.ms)
         return createCaptureSafari(ac, options);
-
-    // Possibly use a different AudioContext
-    if (options.matchSampleRate) {
-        const msSampleRate = options.ms.getAudioTracks()[0].getSettings().sampleRate;
-        if (msSampleRate !== ac.sampleRate)
-            ac = new AudioContext({
-                latencyHint: "playback",
-                sampleRate: msSampleRate
-            });
-    }
 
     // Create our nodes
     let dead = false;
@@ -179,8 +192,10 @@ function createCaptureSP(ac: AudioContext, options: CaptureOptions): Promise<Cap
     // Need a channel to communicate from the ScriptProcessor to the worker
     const mc = new MessageChannel();
     const workerPort = mc.port1;
-    const cmd = Object.assign({port: mc.port2}, options.workerCommand);
-    cmd[options.sampleRate] = ac.sampleRate;
+    const cmd = Object.assign({
+        port: mc.port2,
+        sampleRate: ac.sampleRate
+    }, options.workerCommand);
     worker.postMessage(cmd, [mc.port2]);
 
     // Create the ScriptProcessor's behavior
@@ -194,11 +209,9 @@ function createCaptureSP(ac: AudioContext, options: CaptureOptions): Promise<Cap
         source = options.input;
     if (source)
         source.connect(node);
-    let msd: MediaStreamAudioDestinationNode = null;
-    if (options.outStream) {
-        msd = ac.createMediaStreamDestination();
-        node.connect(msd);
-    }
+    const msd: MediaStreamAudioDestinationNode = 
+        ac.createMediaStreamDestination();
+    node.connect(msd);
 
     // Prepare to terminate
     function disconnect() {
@@ -207,8 +220,7 @@ function createCaptureSP(ac: AudioContext, options: CaptureOptions): Promise<Cap
         dead = true;
 
         source.disconnect(node);
-        if (msd)
-            node.disconnect(msd);
+        node.disconnect(msd);
         worker.terminate();
     }
 
@@ -217,7 +229,7 @@ function createCaptureSP(ac: AudioContext, options: CaptureOptions): Promise<Cap
         source: source,
         worker: worker,
         node: node,
-        destination: msd ? msd.stream : null,
+        destination: msd.stream,
         disconnect: disconnect
     });
 }
@@ -287,8 +299,10 @@ function createCaptureSafari(ac: AudioContext & {ecSP?: any}, options: CaptureOp
     // Need a channel to communicate from the ScriptProcessor to the worker
     const mc = new MessageChannel();
     const workerPort = mc.port1;
-    const cmd = Object.assign({port: mc.port2}, options.workerCommand);
-    cmd[options.sampleRate] = ac.sampleRate;
+    const cmd = Object.assign({
+        port: mc.port2,
+        sampleRate: ac.sampleRate
+    }, options.workerCommand);
     worker.postMessage(cmd, [mc.port2]);
 
     // Create the ScriptProcessor's behavior
@@ -321,7 +335,7 @@ function createCaptureSafari(ac: AudioContext & {ecSP?: any}, options: CaptureOp
         source: sp.ecSource,
         worker: worker,
         node: null,
-        destination: options.outStream ? sp.ecDestination.stream : null,
+        destination: sp.ecDestination.stream,
         disconnect: disconnect
     });
 }
