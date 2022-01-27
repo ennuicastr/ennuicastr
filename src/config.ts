@@ -194,9 +194,17 @@ export async function load(): Promise<boolean> {
     if (username === null || username === "") {
         // Just ask for a username
         const div = dce("div");
+        const quick = !!params.get("quick");
+
+        // Tell them what's going on
         const span = dce("span");
-        span.innerHTML = "You have been invited to join a recording on Ennuicastr. Please enter a username.<br/><br/>";
+        span.innerHTML =
+            (quick?"":
+                "You have been invited to join a recording on Ennuicastr. ") +
+            "Please enter a username.<br/><br/>";
         div.appendChild(span);
+
+        // Ask for their name
         const form = dce("form");
         form.action = "?";
         form.method = "GET";
@@ -212,6 +220,10 @@ export async function load(): Promise<boolean> {
         form.innerHTML = html;
 
         form.onsubmit = function(ev: Event) {
+            // Quick mode = same window
+            if (quick)
+                return true;
+
             // Try to do this in a new window
             let target = "?";
             for (const key in config)
