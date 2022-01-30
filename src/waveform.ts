@@ -14,6 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file is part of Ennuicastr.
+ *
+ * The “waveform” display.
+ */
+
 import * as audio from "./audio";
 import * as config from "./config";
 import * as net from "./net";

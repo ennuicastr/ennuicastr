@@ -14,6 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file is part of Ennuicastr.
+ *
+ * Independent page for showing/downloading files saved in the browser.
+ */
+
 import * as downloadStream from "./download-stream";
 import * as fileStorage from "./file-storage";
 

@@ -14,6 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file is part of Ennuicastr.
+ *
+ * Video capture and communication.
+ */
+
 import * as audio from "./audio";
 import * as config from "./config";
 import * as log from "./log";

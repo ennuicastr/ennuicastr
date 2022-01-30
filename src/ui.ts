@@ -14,6 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file is part of Ennuicastr.
+ *
+ * API for the user interface.
+ */
+
 import * as config from "./config";
 import * as net from "./net";
 import { prot } from "./protocol";

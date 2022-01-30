@@ -14,6 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file is part of Ennuicastr.
+ *
+ * Loader for libav.js.
+ */
+
 // extern
 declare let LibAV: any;
 

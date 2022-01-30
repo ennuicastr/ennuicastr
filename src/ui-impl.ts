@@ -14,6 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file is part of Ennuicastr.
+ *
+ * Implementation of the user interface.
+ */
+
 // extern
 declare let Ennuiboard: any, NoSleep: any;
 

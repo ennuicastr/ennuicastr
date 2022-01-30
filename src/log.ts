@@ -14,6 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file is part of Ennuicastr.
+ *
+ * Logging and status.
+ */
+
 import * as util from "./util";
 
 export const log = util.gebi("log");

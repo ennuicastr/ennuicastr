@@ -14,6 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file is part of Ennuicastr.
+ *
+ * Support for Jitsi Meet communications.
+ */
+
 // extern
 declare let JitsiMeetJS: any;
 

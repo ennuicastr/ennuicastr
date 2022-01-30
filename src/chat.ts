@@ -14,6 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file is part of Ennuicastr.
+ *
+ * Text chat.
+ */
+
 import * as net from "./net";
 import { prot } from "./protocol";
 import * as ui from "./ui";

@@ -14,6 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file is part of Ennuicastr.
+ *
+ * Configuration and initial loading.
+ */
+
 import * as fileStorage from "./file-storage";
 import { prot } from "./protocol";
 import { dce, gebi } from "./util";

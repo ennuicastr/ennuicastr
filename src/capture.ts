@@ -14,6 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file is part of Ennuicastr.
+ *
+ * Generalized audio capture on top of various subsystems.
+ */
+
 // Worker paths to use
 const workerVer = "p";
 const awpPath = "awp/ennuicastr-awp.js?v=" + workerVer;

@@ -14,11 +14,11 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* NOTE: The functionality in this file relates to dynamic range compression,
- * NOT digital audio compression.
+/*
+ * This file is part of Ennuicastr.
  *
- * Actually, this does all output processing, but for historical reasons, a lot
- * of it is called "compress". */
+ * Output processing (in particular, dynamic range compression).
+ */
 
 import * as capture from "./capture";
 import * as net from "./net";
