@@ -14,7 +14,11 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-// Push to talk
+/*
+ * This file is part of Ennuicastr.
+ *
+ * Push to talk support.
+ */
 
 // extern
 declare let ECHotkeys: any;

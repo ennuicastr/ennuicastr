@@ -14,6 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file is part of Ennuicastr.
+ *
+ * Support for master (host) users.
+ */
+
 import * as config from "./config";
 import * as jitsi from "./jitsi";
 import * as log from "./log";

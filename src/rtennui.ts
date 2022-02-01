@@ -14,6 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file is part of Ennuicastr.
+ *
+ * Support for RTEnnui communications.
+ */
+
 import * as audio from "./audio";
 import * as avloader from "./avloader";
 import * as config from "./config";

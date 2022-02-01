@@ -14,6 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file is part of Ennuicastr.
+ *
+ * Audio capture, encoding, and transmission.
+ */
+
 // extern
 declare let MediaRecorder: any, webkitAudioContext: any;
 

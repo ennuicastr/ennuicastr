@@ -14,6 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file is part of Ennuicastr.
+ *
+ * Utility functions.
+ */
+
 import { prot } from "./protocol";
 
 /* We need an event target we can use. "usermediaready" fires when userMedia is

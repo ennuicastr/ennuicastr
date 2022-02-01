@@ -14,6 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file is part of Ennuicastr.
+ *
+ * Main entry point.
+ */
+
 // extern
 declare let Ennuiboard: any, ECDefaultHotkeys: any;
 

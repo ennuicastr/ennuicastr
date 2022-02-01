@@ -14,6 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file is part of Ennuicastr.
+ *
+ * Storage of files (video recordings) in the browser.
+ */
+
 import * as util from "./util";
 
 import type * as localforageT from "localforage";

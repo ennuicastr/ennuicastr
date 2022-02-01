@@ -14,6 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file is part of Ennuicastr.
+ *
+ * Video recording.
+ */
+
 // extern
 declare let LibAV: any, MediaRecorder: any;
 

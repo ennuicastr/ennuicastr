@@ -14,6 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file is part of Ennuicastr.
+ *
+ * Service worker for streaming downloads.
+ */
+
 // A page to ping this service worker
 const pinger = `
 <!doctype html>

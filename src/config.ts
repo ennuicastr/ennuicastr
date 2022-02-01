@@ -14,6 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file is part of Ennuicastr.
+ *
+ * Configuration and initial loading.
+ */
+
 import * as fileStorage from "./file-storage";
 import { prot } from "./protocol";
 import { dce, gebi } from "./util";
@@ -261,7 +267,9 @@ export async function load(): Promise<boolean> {
     }
 
     // The Jitsi URL
-    jitsiUrl = "//jitsi." + url.hostname + "/http-bind";
+    jitsiUrl =
+        (url.protocol==="http:"?"ws:":"wss:") +
+        "//jitsi." + url.hostname + "/xmpp-websocket";
 
     // The RTEnnui URL
     {

@@ -14,6 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file is part of Ennuicastr.
+ *
+ * Support for streaming downloads via service workers.
+ */
+
 import * as fileSaver from "file-saver";
 
 // The scope for the service worker

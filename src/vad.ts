@@ -14,6 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file is part of Ennuicastr.
+ *
+ * Voice activity detection constants.
+ */
+
 // WebRTCVAD's raw output
 export let rawVadOn = false;
 export function setRawVadOn(to: boolean): void { rawVadOn = to; }

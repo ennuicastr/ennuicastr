@@ -14,6 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file is part of Ennuicastr.
+ *
+ * Support for Jitsi Meet communications.
+ */
+
 // extern
 declare let JitsiMeetJS: any;
 
@@ -166,7 +172,7 @@ function initJitsi(retries: number = 0) {
                     domain: "jitsi." + config.url.host,
                     muc: "conference.jitsi." + config.url.host
                 },
-                bosh: config.jitsiUrl,
+                serviceUrl: config.jitsiUrl,
                 clientNode: "https://ennuicastr.com/"
             });
 

@@ -14,6 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file is part of Ennuicastr.
+ *
+ * Server network connection infrastructure.
+ */
+
 import * as config from "./config";
 import * as log from "./log";
 import { prot } from "./protocol";
