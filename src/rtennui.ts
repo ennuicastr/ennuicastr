@@ -138,7 +138,7 @@ export async function initRTEnnui() {
 
 // We initialize RTEnnui once we know our own ID
 util.events.addEventListener("net.info." + prot.info.id, function() {
-    if (config.useRTC)
+    if (config.useRTC && config.useRTEnnui.audio)
         initRTEnnui();
 });
 
