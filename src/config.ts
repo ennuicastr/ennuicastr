@@ -267,7 +267,9 @@ export async function load(): Promise<boolean> {
     }
 
     // The Jitsi URL
-    jitsiUrl = "//jitsi." + url.hostname + "/http-bind";
+    jitsiUrl =
+        (url.protocol==="http:"?"ws:":"wss:") +
+        "//jitsi." + url.hostname + "/xmpp-websocket";
 
     // The RTEnnui URL
     {

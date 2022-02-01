@@ -170,7 +170,7 @@ function initJitsi() {
                     domain: "jitsi." + config.url.host,
                     muc: "conference.jitsi." + config.url.host
                 },
-                bosh: config.jitsiUrl,
+                serviceUrl: config.jitsiUrl,
                 clientNode: "https://ennuicastr.com/"
             });
 
