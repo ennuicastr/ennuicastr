@@ -19,6 +19,7 @@ declare let JitsiMeetJS: any;
 
 import * as audio from "./audio";
 import * as config from "./config";
+import * as log from "./log";
 import * as net from "./net";
 import * as outproc from "./outproc";
 import { prot } from "./protocol";
@@ -101,10 +102,11 @@ function assertJitsiPeer(id: number, jid: string) {
 }
 
 // Initialize the Jitsi connection
-function initJitsi() {
+function initJitsi(retries: number = 0) {
     if (!audio.userMediaRTC) {
         // Wait until we have audio
-        util.events.addEventListener("usermediartcready", initJitsi, {once: true});
+        util.events.addEventListener(
+            "usermediartcready", () => initJitsi(), {once: true});
         return;
     }
 
@@ -172,7 +174,12 @@ function initJitsi() {
             connection.addEventListener(JitsiMeetJS.events.connection.CONNECTION_FAILED, () => { rej(new Error("Connection failed")); });
             connection.addEventListener(JitsiMeetJS.events.connection.CONNECTION_DISCONNECTED, config.disconnect);
 
-            timeout = setTimeout(() => { rej(new Error("Connection timeout")); }, 30000);
+            timeout = setTimeout(() => {
+                retries++;
+                log.pushStatus("jitsi", `Timeout connecting to live chat. Retrying... ${retries}`);
+                setTimeout(() => log.popStatus("jitsi"), 5000);
+                rej(new Error("Connection timeout"));
+            }, 30000);
             connection.connect();
         });
 
