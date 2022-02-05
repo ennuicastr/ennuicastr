@@ -21,16 +21,34 @@
  */
 
 import * as comm from "./comm";
+import * as config from "./config";
 import * as jitsi from "./jitsi";
+import * as rtennui from "./rtennui";
 
 export async function initComms() {
-    const j = new jitsi.Jitsi();
-    comm.comms.video =
-        comm.comms.audio =
-        comm.comms.data = j;
-    await j.init({
-        audio: true,
-        video: true,
+    const useJitsi = {
+        video: !config.useRTEnnui.video,
+        audio: !config.useRTEnnui.audio,
         data: true
-    });
+    };
+
+    // Jitsi communications
+    const j = new jitsi.Jitsi();
+    comm.comms.data = j;
+    if (useJitsi.video)
+        comm.comms.video = j;
+    if (useJitsi.audio)
+        comm.comms.audio = j;
+    await j.init(useJitsi);
+
+    // RTEnnui communications
+    const useRTEnnui = config.useRTEnnui;
+    if (useRTEnnui.audio) {
+        const e = new rtennui.RTEnnui();
+        if (useRTEnnui.video)
+            comm.comms.video = e;
+        if (useRTEnnui.audio)
+            comm.comms.audio = e;
+        await e.init(useRTEnnui);
+    }
 }

@@ -22,6 +22,7 @@
 
 import * as audio from "./audio";
 import * as avloader from "./avloader";
+import * as comm from "./comm";
 import * as config from "./config";
 import * as net from "./net";
 import * as outproc from "./outproc";
@@ -33,175 +34,193 @@ import * as vad from "./vad";
 import * as rtennui from "rtennui/rtennui.js";
 import * as wcp from "libavjs-webcodecs-polyfill";
 
-let inited = false;
-
 // Make our polyfill the global one
 declare let LibAVWebCodecs: typeof wcp;
 LibAVWebCodecs = wcp;
 
-// RTEnnui connection
-let connection: rtennui.Connection;
+// Has the RTEnnui library been initialized?
+let inited = false;
 
-// RTEnnui audio capture for our current audio device
-let cap: rtennui.AudioCapture = null;
+export class RTEnnui extends comm.Comms {
 
-// Map of RTEnnui IDs to our own peer IDs
-let idMap: Record<number, number> = null;
+    // Communication modes
+    commModes: comm.CommModes;
 
-// Initialize the RTEnnui connection
-export async function initRTEnnui() {
-    if (!audio.userMediaRTC) {
-        // Wait until we have audio
-        util.events.addEventListener("usermediartcready", initRTEnnui, {once: true});
-        return;
-    }
+    // RTEnnui connection
+    connection: rtennui.Connection = null;
 
-    if (!inited) {
-        await avloader.loadLibAV();
-        await wcp.load();
-        await rtennui.load();
-        inited = true;
-    }
+    // RTEnnui audio capture for our current audio device
+    cap: rtennui.AudioCapture = null;
 
-    // Destroy any old connection
-    if (connection)
-        connection.disconnect();
+    // Map of RTEnnui IDs to our own peer IDs
+    idMap: Record<number, number> = null;
 
-    // Create our connection
-    const c = connection = new rtennui.Connection(audio.ac);
-    idMap = Object.create(null);
-
-    // Prepare for events
-    c.on("peer-joined", ev => {
-        if (c !== connection)
+    // Initialize the RTEnnui connection
+    override async init(opts: comm.CommModes) {
+        // We initialize RTEnnui once we know our own ID
+        if (!net.selfId) {
+            util.events.addEventListener("net.info." + prot.info.id, () => {
+                this.init(opts);
+            }, {once: true});
             return;
-        idMap[ev.id] = ev.info.uid;
-    });
-
-    c.on("peer-left", ev => {
-        if (c !== connection)
-            return;
-        delete idMap[ev.id];
-    });
-
-    c.on("track-started-audio", ev => {
-        if (c !== connection)
-            return;
-        if (!(ev.peer in idMap))
-            return;
-
-        rteTrackStarted(idMap[ev.peer], ev.node);
-    });
-
-    c.on("*", ev => {
-        let str: string;
-        try {
-            str = JSON.stringify(ev);
-        } catch (ex) {
-            str = "" + ev;
         }
-        console.log(str);
-    });
 
-    // Connect
-    let connected = await new Promise<boolean>((res) => {
-        let timeout = setTimeout(() => {
-            timeout = null;
-            res(false);
-        }, 30000);
+        this.commModes = opts;
+        await this.initRTEnnui();
+    }
 
-        c.connect(config.rtennuiUrl, {
-            id: config.config.id,
-            key: config.config.key,
-            uid: net.selfId
-        }).then(ret => {
-            if (timeout) {
-                clearTimeout(timeout);
-                res(ret);
-            } else {
-                if (ret)
-                    c.disconnect();
-                res(false);
-            }
+    // Initialize RTEnnui
+    async initRTEnnui() {
+        if (!audio.userMediaRTC) {
+            // Wait until we have audio
+            util.events.addEventListener("usermediartcready", () => this.initRTEnnui(), {once: true});
+            return;
+        }
+
+        if (!inited) {
+            await avloader.loadLibAV();
+            await wcp.load();
+            await rtennui.load();
+            inited = true;
+        }
+
+        // Destroy any old connection
+        if (this.connection)
+            this.connection.disconnect();
+
+        // Create our connection
+        const c = this.connection = new rtennui.Connection(audio.ac);
+        this.idMap = Object.create(null);
+
+        // Prepare for events
+        c.on("peer-joined", ev => {
+            if (c !== this.connection)
+                return;
+            this.idMap[ev.id] = ev.info.uid;
         });
-    });
-    if (!connected) {
-        connection = null;
-        return;
+
+        c.on("peer-left", ev => {
+            if (c !== this.connection)
+                return;
+            delete this.idMap[ev.id];
+        });
+
+        c.on("track-started-audio", ev => {
+            if (c !== this.connection)
+                return;
+            if (!(ev.peer in this.idMap))
+                return;
+
+            this.rteTrackStarted(this.idMap[ev.peer], ev.node);
+        });
+
+        c.on("*", ev => {
+            let str: string;
+            try {
+                str = JSON.stringify(ev);
+            } catch (ex) {
+                str = "" + ev;
+            }
+            console.log(str);
+        });
+
+        // Connect
+        let connected = await new Promise<boolean>((res) => {
+            let timeout = setTimeout(() => {
+                timeout = null;
+                res(false);
+            }, 30000);
+
+            c.connect(config.rtennuiUrl, {
+                id: config.config.id,
+                key: config.config.key,
+                uid: net.selfId
+            }).then(ret => {
+                if (timeout) {
+                    clearTimeout(timeout);
+                    res(ret);
+                } else {
+                    if (ret)
+                        c.disconnect();
+                    res(false);
+                }
+            });
+        });
+        if (!connected) {
+            this.connection = null;
+            return;
+        }
+
+        // And add our track
+        if (this.commModes.audio) {
+            this.rteAddAudioTrack();
+            util.events.addEventListener("usermediartcready", () => this.rteAddAudioTrack());
+        }
     }
 
-    // And add our track
-    rteAddAudioTrack();
-    util.events.addEventListener("usermediartcready", rteAddAudioTrack);
-}
+    // Called to add our audio track
+    async rteAddAudioTrack() {
+        if (this.cap) {
+            // End the old capture
+            this.cap.close();
+            await this.connection.removeAudioTrack(this.cap);
+        }
 
+        this.cap = await rtennui.createAudioCapture(audio.ac,
+            audio.userMediaRTC);
+        this.connection.addAudioTrack(
+            this.cap,
+            {frameSize: 5000}
+        );
+        this.cap.setVADState(vad.rtcVadOn ? "yes" : "no");
 
-// We initialize RTEnnui once we know our own ID
-util.events.addEventListener("net.info." + prot.info.id, function() {
-    if (config.useRTC && config.useRTEnnui.audio)
-        initRTEnnui();
-});
-
-// Called to add our audio track
-async function rteAddAudioTrack() {
-    if (cap) {
-        // End the old capture
-        cap.close();
-        await connection.removeAudioTrack(cap);
+        // FIXME: This event will pile up with changes
+        util.events.addEventListener("vad.rtc", () => {
+            this.cap.setVADState(vad.rtcVadOn ? "yes" : "no");
+        });
     }
 
-    cap = await rtennui.createAudioCapture(audio.ac,
-        audio.userMediaRTC);
-    connection.addAudioTrack(
-        cap,
-        {frameSize: 5000}
-    );
-    cap.setVADState(vad.rtcVadOn ? "yes" : "no");
-    util.events.addEventListener("vad.rtc", () => {
-        cap.setVADState(vad.rtcVadOn ? "yes" : "no");
-    });
-}
+    // Called when a remote track is added
+    rteTrackStarted(id: number, node: AudioNode) {
+        // Make sure they have a video element
+        ui.videoAdd(id, null);
 
-// Called when a remote track is added
-function rteTrackStarted(id: number, node: AudioNode) {
-    // Make sure they have a video element
-    ui.videoAdd(id, null);
-
-    // Set this in the appropriate element
-    const el: HTMLMediaElement = <any> ui.ui.video.users[id].audio;
-    const msd = audio.ac.createMediaStreamDestination();
-    node.connect(msd);
-    el.srcObject = msd.stream;
-    if (el.paused)
-        el.play().catch(net.promiseFail());
-
-    /*
-    // Hide the standin if applicable
-    if (type === "video")
-        ui.ui.video.users[id].standin.style.display = "none";
-    */
-
-    // Create the compressor node
-    outproc.createCompressor(id, audio.ac, msd.stream,
-        ui.ui.video.users[id].waveformWrapper);
-}
-
-// Called when a remote track is removed
-function rteTrackStopped(id: number, node: AudioNode) {
-    // FIXME: If this isn't even their current track, ignore it
-
-    // Remove it from the UI
-    if (ui.ui.video.users[id]) {
-        const el: HTMLMediaElement = ui.ui.video.users[id].audio;
-        el.srcObject = null;
+        // Set this in the appropriate element
+        const el: HTMLMediaElement = <any> ui.ui.video.users[id].audio;
+        const msd = audio.ac.createMediaStreamDestination();
+        node.connect(msd);
+        el.srcObject = msd.stream;
+        if (el.paused)
+            el.play().catch(net.promiseFail());
 
         /*
-        // Show the standin if applicable
+        // Hide the standin if applicable
         if (type === "video")
-            ui.ui.video.users[id].standin.style.display = "";
+            ui.ui.video.users[id].standin.style.display = "none";
         */
+
+        // Create the compressor node
+        outproc.createCompressor(id, audio.ac, msd.stream,
+            ui.ui.video.users[id].waveformWrapper);
     }
 
-    // And destroy the compressor
-    outproc.destroyCompressor(id);
+    // Called when a remote track is removed
+    rteTrackStopped(id: number, node: AudioNode) {
+        // FIXME: If this isn't even their current track, ignore it
+
+        // Remove it from the UI
+        if (ui.ui.video.users[id]) {
+            const el: HTMLMediaElement = ui.ui.video.users[id].audio;
+            el.srcObject = null;
+
+            /*
+            // Show the standin if applicable
+            if (type === "video")
+                ui.ui.video.users[id].standin.style.display = "";
+            */
+        }
+
+        // And destroy the compressor
+        outproc.destroyCompressor(id);
+    }
 }
