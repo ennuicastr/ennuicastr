@@ -23,6 +23,8 @@
 // extern
 declare let Ennuiboard: any, ECDefaultHotkeys: any;
 
+import adapter from "webrtc-adapter";
+
 import * as audio from "./audio";
 import * as commImpl from "./comm-impl";
 import * as config from "./config";
