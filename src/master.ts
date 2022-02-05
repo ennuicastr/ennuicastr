@@ -20,8 +20,8 @@
  * Support for master (host) users.
  */
 
+import * as comm from "./comm";
 import * as config from "./config";
-import * as jitsi from "./jitsi";
 import * as log from "./log";
 import * as net from "./net";
 import { prot } from "./protocol";
@@ -690,7 +690,8 @@ function adminAction(target: number, action: number, opts?: any) {
 function acceptRemoteVideoChange() {
     const arv = ui.ui.panels.master.acceptRemoteVideo;
     localStorage.setItem("ecmaster-video-record-host", JSON.stringify(arv.checked));
-    jitsi.videoRecSend(void 0, prot.videoRec.videoRecHost, ~~arv.checked);
+    comm.comms.data.videoRecSend(
+        void 0, prot.videoRec.videoRecHost, ~~arv.checked);
 }
 
 // Allow or disallow admin access for this user

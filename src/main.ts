@@ -24,6 +24,7 @@
 declare let Ennuiboard: any, ECDefaultHotkeys: any;
 
 import * as audio from "./audio";
+import * as commImpl from "./comm-impl";
 import * as config from "./config";
 import * as downloadStream from "./download-stream";
 import * as log from "./log";
@@ -67,8 +68,7 @@ async function main() {
 
         // This will start up on its own in the background
         proc.localProcessing();
-        if (config.useRTEnnui.audio)
-            rtennui.initRTEnnui();
+        commImpl.initComms();
 
         // Get audio permissions, which also begins the next step
         await audio.getAudioPerms(uiImpl.mkAudioUI);

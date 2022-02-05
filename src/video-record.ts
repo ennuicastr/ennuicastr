@@ -25,10 +25,10 @@ declare let LibAV: any, MediaRecorder: any;
 
 import * as audio from "./audio";
 import * as avloader from "./avloader";
+import * as comm from "./comm";
 import * as config from "./config";
 import * as downloadStream from "./download-stream";
 import * as fileStorage from "./file-storage";
-import * as jitsi from "./jitsi";
 import * as log from "./log";
 import * as net from "./net";
 import { prot } from "./protocol";
@@ -115,7 +115,9 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
     if (opts.remote) {
         if (typeof opts.remotePeer !== "number") {
             // Verify first!
-            jitsi.videoRecSend(jitsi.videoRecHost, prot.videoRec.startVideoRecReq, {ext: outFormat});
+            comm.comms.data.videoRecSend(
+                comm.comms.data.getVideoRecHost(),
+                prot.videoRec.startVideoRecReq, {ext: outFormat});
 
             await new Promise<void>(res => {
                 recordVideoRemoteOK = (peer: number) => {
@@ -611,12 +613,12 @@ function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
 
 // Write data to an RTC peer
 function recordVideoRemoteWrite(peer: number, idx: number, buf: Uint8Array) {
-    jitsi.videoDataSend(peer, idx, buf);
+    comm.comms.data.videoDataSend(peer, idx, buf);
 }
 
 // Stop sending video data to a peer
 function recordVideoRemoteClose(peer: number) {
-    jitsi.videoRecSend(peer, prot.videoRec.endVideoRec);
+    comm.comms.data.videoRecSend(peer, prot.videoRec.endVideoRec);
 }
 
 // Configure the video recording UI based on the current state
