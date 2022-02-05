@@ -150,8 +150,7 @@ export class Jitsi extends comm.DataComms {
 
         // Disconnections
         util.events.addEventListener("net.info." + prot.info.peerLost, (ev: CustomEvent) => {
-            if (config.useRTC)
-                this.closeRTC(ev.detail.val);
+            this.closeRTC(ev.detail.val);
         });
 
         // If we get a speech event from us, send it out
@@ -172,23 +171,21 @@ export class Jitsi extends comm.DataComms {
 
        // Prepare to receive RTC negotiation messages
        util.events.addEventListener("net.dataSock." + prot.ids.rtc, (ev: CustomEvent) => {
-           if (config.useRTC) {
-               // Get out the important part
-               const p = prot.parts.rtc;
-               const peer = ev.detail.getUint32(p.peer, true);
+           // Get out the important part
+           const p = prot.parts.rtc;
+           const peer = ev.detail.getUint32(p.peer, true);
 
-               if (!(peer in this.jitsiPeers))
-                   return;
-               const j = this.jitsiPeers[peer];
-               if (!j.signal)
-                   return;
+           if (!(peer in this.jitsiPeers))
+               return;
+           const j = this.jitsiPeers[peer];
+           if (!j.signal)
+               return;
 
-               try {
-                   const tmsg = util.decodeText((new Uint8Array(ev.detail.buffer)).subarray(p.value));
-                   const msg = JSON.parse(tmsg);
-                   j.signal(msg);
-               } catch (ex) {}
-           }
+           try {
+               const tmsg = util.decodeText((new Uint8Array(ev.detail.buffer)).subarray(p.value));
+               const msg = JSON.parse(tmsg);
+               j.signal(msg);
+           } catch (ex) {}
        });
     }
 
@@ -828,9 +825,6 @@ export class Jitsi extends comm.DataComms {
 
     // Send a video recording subcommand to a peer
     override videoRecSend(peer: number, cmd: number, payloadData?: unknown): void {
-        if (!config.useRTC)
-            return;
-
         // Build the payload
         let payload: Uint8Array;
         if (typeof payloadData === "number") {
@@ -872,9 +866,6 @@ export class Jitsi extends comm.DataComms {
 
     // Send a speech message over RTC
     speech(status: boolean, peer?: number): void {
-        if (!config.useRTC)
-            return;
-
         // Build the message
         const p = prot.parts.speech;
         const msgv = new DataView(new ArrayBuffer(p.length));
@@ -891,9 +882,6 @@ export class Jitsi extends comm.DataComms {
 
     // Send a caption over RTC
     caption(complete: boolean, text: string) {
-        if (!config.useRTC)
-            return;
-
         // Maybe it's an append
         let append = false;
         if (this.lastCaption &&

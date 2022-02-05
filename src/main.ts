@@ -68,7 +68,8 @@ async function main() {
 
         // This will start up on its own in the background
         proc.localProcessing();
-        commImpl.initComms();
+        if (config.useRTC)
+            commImpl.initComms();
 
         // Get audio permissions, which also begins the next step
         await audio.getAudioPerms(uiImpl.mkAudioUI);
