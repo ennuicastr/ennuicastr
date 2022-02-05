@@ -41,8 +41,7 @@ LibAVWebCodecs = wcp;
 // Has the RTEnnui library been initialized?
 let inited = false;
 
-export class RTEnnui extends comm.Comms {
-
+export class RTEnnui implements comm.Comms {
     // Communication modes
     commModes: comm.CommModes;
 
@@ -56,7 +55,7 @@ export class RTEnnui extends comm.Comms {
     idMap: Record<number, number> = null;
 
     // Initialize the RTEnnui connection
-    override async init(opts: comm.CommModes) {
+    async init(opts: comm.CommModes) {
         // We initialize RTEnnui once we know our own ID
         if (!net.selfId) {
             util.events.addEventListener("net.info." + prot.info.id, () => {

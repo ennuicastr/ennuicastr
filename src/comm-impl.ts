@@ -22,19 +22,26 @@
 
 import * as comm from "./comm";
 import * as config from "./config";
+import * as ctcp from "./ctcp";
 import * as jitsi from "./jitsi";
 import * as rtennui from "./rtennui";
 
 export async function initComms() {
+    // CTCP communications
+    const c = new ctcp.CTCP();
+    comm.comms.data = c;
+    await c.init({data: true});
+
+    // Jitsi communications
     const useJitsi = {
         video: !config.useRTEnnui.video,
         audio: !config.useRTEnnui.audio,
-        data: true
+        broadcast: true,
+        data: false
     };
 
-    // Jitsi communications
     const j = new jitsi.Jitsi();
-    comm.comms.data = j;
+    comm.comms.broadcast = j;
     if (useJitsi.video)
         comm.comms.video = j;
     if (useJitsi.audio)

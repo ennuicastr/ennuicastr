@@ -26,39 +26,50 @@
 export interface CommModes {
     video?: boolean;
     audio?: boolean;
+    broadcast?: boolean;
     data?: boolean;
 }
 
 /**
  * Any form of communication system.
  */
-export abstract class Comms {
+export interface Comms {
     /**
      * Communication systems need asynchronous initialization, so do that here.
      */
-    abstract init(opts: CommModes): Promise<void>;
+    init(opts: CommModes): Promise<void>;
+}
+
+/**
+ * Broadcast communications.
+ */
+export interface BroadcastComms extends Comms {
+    /**
+     * Broadcast this message.
+     */
+    broadcast(msg: Uint8Array);
 }
 
 /**
  * Data communications.
  */
-export abstract class DataComms extends Comms {
+export interface DataComms extends Comms {
     /**
      * Get the current video recording host.
      */
-    abstract getVideoRecHost(): number;
+    getVideoRecHost(): number;
 
     /**
      * Send a video recording subcommand to a peer.
      */
-    abstract videoRecSend(
+    videoRecSend(
         peer: number, cmd: number, payloadData?: unknown
     ): void;
 
     /**
      * Send a chunk of video data to a peer.
      */
-    abstract videoDataSend(peer: number, idx: number, buf: Uint8Array): void;
+    videoDataSend(peer: number, idx: number, buf: Uint8Array): void;
 }
 
 /**
@@ -67,5 +78,6 @@ export abstract class DataComms extends Comms {
 export const comms = {
     video: <Comms> null,
     audio: <Comms> null,
+    broadcast: <Comms> null,
     data: <DataComms> null
 };
