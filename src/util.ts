@@ -26,7 +26,6 @@ import { prot } from "./protocol";
  * ready. "usermediastopped" fires when it stops. "usermediavideoready" fires
  * when video is ready. "spmediaready" fires when the media device that's
  * processed through the ScriptProcessor is ready. */
-// FIXME: This is before all the imports because of some nasty dependencies
 export let events: EventTarget;
 try {
     events = new EventTarget();

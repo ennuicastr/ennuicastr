@@ -996,7 +996,7 @@ export function mkAudioUI(): string {
     // Persistent video buttons
     video.updateVideoButtons();
 
-    // View mode (FIXME: doesn't belong here)
+    // View mode
     function viewModeChange(ev: Event) {
         // Set the view
         const mode = ui.video.mode = +main.modeS.value;
