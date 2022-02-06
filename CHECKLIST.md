@@ -8,4 +8,5 @@ Things to check before enabling a new version:
  * User volume indicator glowing while talking (host + guest)
  * Gallery mode
  * Studio mode
+ * Low latency mode
  * RTC muted mode
