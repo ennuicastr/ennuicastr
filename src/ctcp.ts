@@ -54,6 +54,17 @@ interface VideoRecIncoming {
     softStop: boolean;
 }
 
+/* Keep a record of continuing users from before CTCP was initialized, to
+ * assert them */
+let initialUsers: number[] = [];
+function addInitialUser(ev: CustomEvent) {
+    initialUsers.push(ev.detail.val);
+}
+util.events.addEventListener("net.info." + prot.info.peerContinuing, addInitialUser);
+
+/**
+ * CTCP communications.
+ */
 export class CTCP implements comm.DataComms {
     // Host which has indicated that it's willing to receive video recordings
     videoRecHost = -1;
@@ -101,6 +112,10 @@ export class CTCP implements comm.DataComms {
         util.events.addEventListener("net.info." + prot.info.peerContinuing, (ev: CustomEvent) => {
             this.assertPeer(ev.detail.val);
         });
+        for (const peer of initialUsers)
+            this.assertPeer(peer);
+        initialUsers = [];
+        util.events.removeEventListener("net.info." + prot.info.peerContinuing, addInitialUser);
 
         // Disconnections
         util.events.addEventListener("net.info." + prot.info.peerLost, (ev: CustomEvent) => {
