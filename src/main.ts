@@ -33,7 +33,6 @@ import * as log from "./log";
 import * as net from "./net";
 import * as proc from "./proc";
 import { prot } from "./protocol";
-import * as rtennui from "./rtennui";
 import * as uiImpl from "./ui-impl";
 import * as util from "./util";
 

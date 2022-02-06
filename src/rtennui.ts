@@ -36,6 +36,7 @@ import * as wcp from "libavjs-webcodecs-polyfill";
 
 // Make our polyfill the global one
 declare let LibAVWebCodecs: typeof wcp;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars, prefer-const
 LibAVWebCodecs = wcp;
 
 // Has the RTEnnui library been initialized?
@@ -55,7 +56,7 @@ export class RTEnnui implements comm.Comms {
     idMap: Record<number, number> = null;
 
     // Initialize the RTEnnui connection
-    async init(opts: comm.CommModes) {
+    async init(opts: comm.CommModes): Promise<void> {
         // We initialize RTEnnui once we know our own ID
         if (!net.selfId) {
             util.events.addEventListener("net.info." + prot.info.id, () => {
@@ -76,7 +77,7 @@ export class RTEnnui implements comm.Comms {
     }
 
     // Initialize RTEnnui
-    async initRTEnnui() {
+    async initRTEnnui(): Promise<void> {
         if (!audio.userMediaRTC) {
             // Wait until we have audio
             util.events.addEventListener("usermediartcready", () => this.initRTEnnui(), {once: true});
@@ -120,6 +121,15 @@ export class RTEnnui implements comm.Comms {
             this.rteTrackStarted(this.idMap[ev.peer], ev.node);
         });
 
+        c.on("track-ended-audio", ev => {
+            if (c !== this.connection)
+                return;
+            if (!(ev.peer in this.idMap))
+                return;
+
+            this.rteTrackEnded(this.idMap[ev.peer]);
+        });
+
         c.on("*", ev => {
             let str: string;
             try {
@@ -131,7 +141,7 @@ export class RTEnnui implements comm.Comms {
         });
 
         // Connect
-        let connected = await new Promise<boolean>((res) => {
+        const connected = await new Promise<boolean>((res) => {
             let timeout = setTimeout(() => {
                 timeout = null;
                 res(false);
@@ -165,7 +175,7 @@ export class RTEnnui implements comm.Comms {
     }
 
     // Called to add our audio track
-    async rteAddAudioTrack() {
+    async rteAddAudioTrack(): Promise<void> {
         if (this.cap) {
             // End the old capture
             this.cap.close();
@@ -184,7 +194,7 @@ export class RTEnnui implements comm.Comms {
     }
 
     // Called when a remote track is added
-    rteTrackStarted(id: number, node: AudioNode) {
+    rteTrackStarted(id: number, node: AudioNode): void {
         // Make sure they have a video element
         ui.videoAdd(id, null);
 
@@ -208,7 +218,7 @@ export class RTEnnui implements comm.Comms {
     }
 
     // Called when a remote track is removed
-    rteTrackStopped(id: number, node: AudioNode) {
+    rteTrackEnded(id: number): void {
         // FIXME: If this isn't even their current track, ignore it
 
         // Remove it from the UI

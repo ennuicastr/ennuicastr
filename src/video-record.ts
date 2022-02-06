@@ -260,6 +260,7 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
     const recordPromise = (async function() {
         // Transit the data from the input to the device in the background
         (async function() {
+            // eslint-disable-next-line no-constant-condition
             while (true) {
                 // Send the data to the dev
                 const rdres = await inputRdr.read();
@@ -352,7 +353,7 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
                     if (dtsOffset === null) {
                         dtsOffset = outEndTime - inEndTime;
                     } else {
-                        let portion = Math.min(globalFrameTime / 2000, 1);
+                        const portion = Math.min(globalFrameTime / 2000, 1);
                         dtsOffset = (outEndTime - inEndTime) * portion +
                             dtsOffset * (1-portion);
                     }
@@ -579,7 +580,7 @@ async function saveVideo(
     }
 
     // Do them
-    let promises: Promise<unknown>[] = [];
+    const promises: Promise<unknown>[] = [];
     if (dStream) {
         promises.push(downloadStream.stream(filename, dStream,
             {"content-type": mimeType}));

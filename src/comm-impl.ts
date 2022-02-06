@@ -26,7 +26,7 @@ import * as ctcp from "./ctcp";
 import * as jitsi from "./jitsi";
 import * as rtennui from "./rtennui";
 
-export async function initComms() {
+export async function initComms(): Promise<void> {
     // CTCP communications
     const c = new ctcp.CTCP();
     comm.comms.data = c;

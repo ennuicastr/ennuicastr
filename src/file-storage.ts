@@ -88,7 +88,7 @@ export interface FileInfo {
 /**
  * Get our file storage instance.
  */
-export async function getFileStorage() {
+export async function getFileStorage(): Promise<LocalForage> {
     if (fileStorage)
         return fileStorage;
     if (typeof localforage === "undefined")
@@ -111,11 +111,11 @@ export async function getFiles(): Promise<FileInfo[]> {
 /**
  * Clear out any files that are expired.
  */
-export async function clearExpired() {
+export async function clearExpired(): Promise<void> {
     await getFileStorage();
 
     // Get the list of expired files
-    let expiredP = storePromise.then(async function() {
+    const expiredP = storePromise.then(async function() {
         const now = Date.now();
         const files: string[] = await fileStorage.getItem("files") || [];
         const expired: string[] = [];
@@ -139,7 +139,7 @@ export async function clearExpired() {
  * Delete the file with the given ID.
  * @param id  The file's ID.
  */
-export async function deleteFile(id: string) {
+export async function deleteFile(id: string): Promise<void> {
     await getFileStorage();
 
     const info: FileInfo = await fileStorage.getItem("file-" + id);
@@ -176,7 +176,7 @@ export async function storeFile(
         mimeType?: string,
         report?: (ct: number, spaceUsed: number, spaceTotal: number) => unknown
     } = {}
-) {
+): Promise<void> {
     await getFileStorage();
 
     async function report() {
@@ -242,8 +242,9 @@ export async function storeFile(
     // Now, start accepting data
     const rdr = stream.getReader();
     const bufSz = 1024*1024;
-    let buf = new Uint8Array(bufSz);
+    const buf = new Uint8Array(bufSz);
     let bufUsed = 0;
+    // eslint-disable-next-line no-constant-condition
     while (true) {
         const rd = await rdr.read();
         if (rd.done)

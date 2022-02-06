@@ -275,6 +275,7 @@ export async function load(): Promise<boolean> {
     {
         const tmp = new URL(url);
         tmp.protocol = (tmp.protocol==="http:"?"ws:":"wss:");
+        // eslint-disable-next-line no-useless-escape
         tmp.pathname = url.pathname.replace(/\/[^\/]*$/, "/rtennui/ws");
         tmp.search = "";
         tmp.hash = "";

@@ -67,7 +67,7 @@ export class Jitsi implements comm.BroadcastComms {
     jitsiPeers: Record<number, JitsiPeer> = {};
 
     // Assert that a Jitsi peer exists
-    assertJitsiPeer(id: number, jid: string) {
+    assertJitsiPeer(id: number, jid: string): JitsiPeer {
         if (this.jitsiPeers[id])
             return this.jitsiPeers[id];
 
@@ -81,7 +81,7 @@ export class Jitsi implements comm.BroadcastComms {
     }
 
     // Initialize the Jitsi subsystem
-    async init(opts: comm.CommModes) {
+    async init(opts: comm.CommModes): Promise<void> {
         // We initialize Jitsi once we know our own ID
         if (!net.selfId) {
             util.events.addEventListener("net.info." + prot.info.id, () => {
@@ -104,7 +104,6 @@ export class Jitsi implements comm.BroadcastComms {
         }
 
         this.commModes = opts;
-        const ret = this.initJitsi();
 
         // Disconnections
         util.events.addEventListener("net.info." + prot.info.peerLost, (ev: CustomEvent) => {
@@ -126,10 +125,12 @@ export class Jitsi implements comm.BroadcastComms {
         util.events.addEventListener("ui.video.major", () => {
             this.setMajor(ui.ui.video.major);
         });
+
+        this.initJitsi();
     }
 
     // Initialize the Jitsi connection
-    initJitsi() {
+    async initJitsi(): Promise<void> {
         if (!audio.userMediaRTC) {
             // Wait until we have audio
             util.events.addEventListener("usermediartcready", () => this.initJitsi(), {once: true});
@@ -240,12 +241,12 @@ export class Jitsi implements comm.BroadcastComms {
             throw ex;
 
         }).catch(net.promiseFail());
-        return this.jPromise;
+        await this.jPromise;
     }
 
 
     // Set our UserMediaRTC track
-    jitsiSetUserMediaRTC(retries = 2) {
+    jitsiSetUserMediaRTC(retries = 2): Promise<unknown> {
         if (!audio.userMediaRTC)
             return Promise.all([]);
 
@@ -289,7 +290,7 @@ export class Jitsi implements comm.BroadcastComms {
     }
 
     // Unset our UserMediaRTC track
-    jitsiUnsetUserMediaRTC() {
+    jitsiUnsetUserMediaRTC(): Promise<unknown> {
         this.jPromise = this.jPromise.then(() => {
             if (!this.jAudio)
                 return;
@@ -309,13 +310,13 @@ export class Jitsi implements comm.BroadcastComms {
     }
 
     // Set our UserMediaVideo track
-    jitsiSetUserMediaVideo(retries = 2) {
+    jitsiSetUserMediaVideo(retries = 2): Promise<unknown> {
         if (config.useRecordOnly) {
             // Don't transmit video when we're in record-only mode
-            return;
+            return Promise.all([]);
         }
         if (!video.userMediaVideo)
-            return;
+            return Promise.all([]);
 
         // If we already had one, remove it
         this.jitsiUnsetUserMediaVideo();
@@ -350,7 +351,7 @@ export class Jitsi implements comm.BroadcastComms {
     }
 
     // Unset our UserMediaVideo track
-    jitsiUnsetUserMediaVideo() {
+    jitsiUnsetUserMediaVideo(): Promise<unknown> {
         this.jPromise = this.jPromise.then(() => {
             if (!this.jVideo)
                 return;
@@ -365,12 +366,13 @@ export class Jitsi implements comm.BroadcastComms {
     }
 
     // Get an Ennuicastr user ID from a Jitsi track
-    getUserIdFromTrack(track: any) {
+    // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+    getUserIdFromTrack(track: any): number {
         return this.getUserIdFromJid(track.getParticipantId());
     }
 
     // Get an Ennuicastr user ID from a Jitsi ID
-    getUserIdFromJid(jid: string) {
+    getUserIdFromJid(jid: string): number {
         let user: any = null;
         const parts: any[] = this.room.getParticipants();
         for (let i = 0; i < parts.length; i++) {
@@ -390,7 +392,8 @@ export class Jitsi implements comm.BroadcastComms {
     }
 
     // Called when a remote track is added
-    jitsiTrackAdded(track: any) {
+    // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+    jitsiTrackAdded(track: any): void {
         if (track.isLocal()) return;
         const stream: MediaStream = track.getOriginalStream();
         const type: string = track.getType();
@@ -434,7 +437,8 @@ export class Jitsi implements comm.BroadcastComms {
     }
 
     // Called when a remote track is removed
-    jitsiTrackRemoved(track: any) {
+    // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+    jitsiTrackRemoved(track: any): void {
         if (track.isLocal()) return;
         const type: string = track.getType();
 
@@ -467,7 +471,7 @@ export class Jitsi implements comm.BroadcastComms {
     }
 
     // Called when a user joins
-    jitsiUserJoined(jid: string) {
+    jitsiUserJoined(jid: string): void {
         // Get the user
         const id = this.getUserIdFromJid(jid);
         if (!(id in this.jitsiPeers))
@@ -478,7 +482,8 @@ export class Jitsi implements comm.BroadcastComms {
     }
 
     // Incoming Jitsi end-to-end messages
-    jitsiMessage(user: any, jmsg: any) {
+    // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+    jitsiMessage(user: any, jmsg: any): void {
         if (jmsg.type !== "ennuicastr")
             return;
 
@@ -499,11 +504,11 @@ export class Jitsi implements comm.BroadcastComms {
             buf[i] = ec.charCodeAt(i);
         const msg = new DataView(buf.buffer);
 
-        return this.peerMessage(peer, msg);
+        this.peerMessage(peer, msg);
     }
 
     // Incoming broadcast messages
-    peerMessage(peer: number, msg: DataView) {
+    peerMessage(peer: number, msg: DataView): void {
         if (msg.byteLength < 4)
             return;
         const cmd = msg.getUint32(0, true);
@@ -537,7 +542,8 @@ export class Jitsi implements comm.BroadcastComms {
     }
 
     // Send a Jitsi message with retries
-    sendJitsiMsg(msg: any, retries?: number) {
+    // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+    sendJitsiMsg(msg: any, retries?: number): void {
         if (typeof retries === "undefined")
             retries = 10;
 
@@ -558,7 +564,7 @@ export class Jitsi implements comm.BroadcastComms {
     }
 
     // Send an Ennuicastr broadcast message over Jitsi
-    broadcast(msg: Uint8Array) {
+    broadcast(msg: Uint8Array): void {
         if (!this.room)
             return;
 
@@ -574,7 +580,7 @@ export class Jitsi implements comm.BroadcastComms {
     }
 
     // Close a given peer's RTC connection
-    closeRTC(peer: number) {
+    closeRTC(peer: number): void {
         // Even if they're still on RTC, this should be considered catastrophic
         if (!(peer in this.jitsiPeers))
             return;
@@ -603,7 +609,7 @@ export class Jitsi implements comm.BroadcastComms {
     lastCaption = "";
 
     // Send a caption over RTC
-    caption(complete: boolean, text: string) {
+    caption(complete: boolean, text: string): void {
         // Maybe it's an append
         let append = false;
         if (this.lastCaption &&
@@ -631,7 +637,7 @@ export class Jitsi implements comm.BroadcastComms {
     }
 
     // Set the "major" (primary speaker) for video quality
-    setMajor(peer: number) {
+    setMajor(peer: number): void {
         if (!(peer in this.jitsiPeers) || !this.room)
             return;
         const jid = this.jitsiPeers[peer].id;

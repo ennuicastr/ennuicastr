@@ -20,19 +20,12 @@
  * Support for CTCP+RTC data communications.
  */
 
-// extern
-declare let JitsiMeetJS: any;
-
-import * as audio from "./audio";
 import * as comm from "./comm";
 import * as config from "./config";
 import * as net from "./net";
-import * as outproc from "./outproc";
 import { prot } from "./protocol";
 import * as ui from "./ui";
 import * as util from "./util";
-import * as vad from "./vad";
-import * as video from "./video";
 import * as videoRecord from "./video-record";
 
 import * as wsp from "web-streams-polyfill/ponyfill";
@@ -76,7 +69,7 @@ export class CTCP implements comm.DataComms {
     videoRecIncoming: Record<number, VideoRecIncoming> = {};
 
     // Assert that a peer exists
-    assertPeer(id: number) {
+    assertPeer(id: number): Peer {
         if (this.peers[id])
             return this.peers[id];
 
@@ -100,7 +93,7 @@ export class CTCP implements comm.DataComms {
     }
 
     // Initialize the CTCP/RTC subsystem
-    async init(opts: comm.CommModes) {
+    async init(opts: comm.CommModes): Promise<void> {
         // We initialize CTCP once we know our own ID
         if (!net.selfId) {
             util.events.addEventListener("net.info." + prot.info.id, () => {
@@ -150,7 +143,7 @@ export class CTCP implements comm.DataComms {
     }
 
     // Incoming CTCP messages
-    incomingCTCP(ev: CustomEvent) {
+    incomingCTCP(ev: CustomEvent): void {
         // Get out the important part
         const p = prot.parts.ctcp;
         const peer = ev.detail.getUint32(p.peer, true);
@@ -160,7 +153,7 @@ export class CTCP implements comm.DataComms {
     }
 
     // Incoming RTC or CTCP end-to-end messages
-    peerMessage(peer: number, msg: DataView) {
+    peerMessage(peer: number, msg: DataView): void {
         if (msg.byteLength < 4)
             return;
         const cmd = msg.getUint32(0, true);
@@ -299,7 +292,7 @@ export class CTCP implements comm.DataComms {
     }
 
     // Send an Ennuicastr message over CTCP or RTC
-    sendMsg(msg: Uint8Array, peer: number) {
+    sendMsg(msg: Uint8Array, peer: number): void {
         // Get the target ID
         let inc: Peer = null;
         if (!(peer in this.peers))
@@ -321,7 +314,7 @@ export class CTCP implements comm.DataComms {
         net.dataSock.send(cmsg.buffer);
     }
 
-    getVideoRecHost() {
+    getVideoRecHost(): number {
         return this.videoRecHost;
     }
 
@@ -354,7 +347,7 @@ export class CTCP implements comm.DataComms {
     }
 
     // Close a given peer's RTC connection
-    closeRTC(peer: number) {
+    closeRTC(peer: number): void {
         if (!(peer in this.peers))
             return;
         const inc = this.peers[peer];
@@ -378,7 +371,8 @@ export class CTCP implements comm.DataComms {
     }
 
     // Send an RTC negotiation message
-    sendRTCNegotiation(peer: number, cont: any) {
+    // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+    sendRTCNegotiation(peer: number, cont: any): void {
         const p = prot.parts.rtc;
         const contU8 = util.encodeText(JSON.stringify(cont));
         const msg = new DataView(new ArrayBuffer(p.length + contU8.length));
@@ -390,7 +384,7 @@ export class CTCP implements comm.DataComms {
 
     /* The RTC side: using Ennuicastr as a bridge, try to establish a direct
      * (RTC) connection for data */
-    startRTC(id: number, j: Peer) {
+    startRTC(id: number, j: Peer): void {
         // Perfect negotiation pattern
         const polite = (net.selfId > id);
 

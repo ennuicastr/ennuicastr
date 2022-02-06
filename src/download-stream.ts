@@ -51,7 +51,7 @@ async function swPostMessage(msg: any): Promise<any> {
     serviceWorkerPort.postMessage(msg);
 
     return await new Promise((res, rej) => {
-        let timeout = setTimeout(() => rej(new Error("Timeout")), 5000);
+        const timeout = setTimeout(() => rej(new Error("Timeout")), 5000);
         callbacks[no] = x => {
             clearTimeout(timeout);
             res(x);
@@ -81,7 +81,7 @@ export async function load(opts: {
                 if (!swr.installing && !swr.waiting && !swr.active) {
                     // Wait for it to install
                     await new Promise<void>((res, rej) => {
-                        let timeout = setTimeout(() => rej(new Error("Timeout")), 5000);
+                        const timeout = setTimeout(() => rej(new Error("Timeout")), 5000);
                         swr.onupdatefound = () => {
                             clearTimeout(timeout);
                             res();
@@ -93,8 +93,9 @@ export async function load(opts: {
 
                 // Wait for it to activate
                 console.log("Waiting for service worker to activate...");
+                // eslint-disable-next-line no-async-promise-executor
                 await new Promise<void>(async (res, rej) => {
-                    let timeout = setTimeout(() => rej(new Error("Timeout")), 5000);
+                    const timeout = setTimeout(() => rej(new Error("Timeout")), 5000);
                     while (serviceWorker.state !== "activated") {
                         await new Promise(res => {
                             serviceWorker.addEventListener("statechange", res, {once: true});
