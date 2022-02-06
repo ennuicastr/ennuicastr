@@ -42,12 +42,6 @@ interface JitsiPeer {
 }
 
 export class Jitsi implements comm.BroadcastComms {
-    // Jitsi features according to the server
-    jitsiFeatures = {
-        disableSimulcast: false,
-        disableP2P: false
-    };
-
     // The comm mode we were initialized with
     commModes: comm.CommModes;
 
@@ -99,23 +93,6 @@ export class Jitsi implements comm.BroadcastComms {
         this.commModes = opts;
         const ret = this.initJitsi();
 
-        // And reinitialize if Jitsi features change
-        util.events.addEventListener("net.info." + prot.info.jitsi, (ev: CustomEvent) => {
-            const msg = new Uint8Array(ev.detail.msg.buffer);
-            const p = prot.parts.info;
-            const jitsiStr = util.decodeText(msg.slice(p.value));
-            const jitsiF: any = JSON.parse(jitsiStr);
-            if (!!jitsiF.disableSimulcast !== this.jitsiFeatures.disableSimulcast ||
-                !!jitsiF.disableP2P !== this.jitsiFeatures.disableP2P) {
-                this.jitsiFeatures.disableSimulcast = !!jitsiF.disableSimulcast;
-                this.jitsiFeatures.disableP2P = !!jitsiF.disableP2P;
-                this.jPromise = this.jPromise.then(() => {
-                    if (this.room)
-                        this.initJitsi();
-                });
-            }
-        });
-
         // Disconnections
         util.events.addEventListener("net.info." + prot.info.peerLost, (ev: CustomEvent) => {
             this.closeRTC(ev.detail.val);
@@ -153,7 +130,7 @@ export class Jitsi implements comm.BroadcastComms {
 
         }).then(() => {
             if (typeof JitsiMeetJS === "undefined")
-                return util.loadLibrary("libs/lib-jitsi-meet.min.js");
+                return util.loadLibrary("libs/lib-jitsi-meet.6907.js");
 
         }).then(() => {
             // Get rid of any old Jitsi instance. First, clear tracks.
@@ -182,13 +159,7 @@ export class Jitsi implements comm.BroadcastComms {
 
             // Initialize Jitsi
             JitsiMeetJS.setLogLevel(JitsiMeetJS.logLevels.ERROR);
-            const initDict: any = {
-                disableAudioLevels: true,
-                disableSimulcast: this.jitsiFeatures.disableSimulcast
-            };
-            if (this.jitsiFeatures.disableSimulcast)
-                initDict.preferredCodec = "h264";
-            JitsiMeetJS.init(initDict);
+            JitsiMeetJS.init();
 
             // Create our connection
             return new Promise((res, rej) => {
@@ -214,14 +185,9 @@ export class Jitsi implements comm.BroadcastComms {
 
             // Join the "room"
             return new Promise((res, rej) => {
-                const roomNm = config.config.id.toString(36) + "_" + config.config.key.toString(36) +
-                    (this.jitsiFeatures.disableSimulcast ? "_nosc" : "") +
-                    (this.jitsiFeatures.disableP2P ? "_nop2p" : "");
+                const roomNm = config.config.id.toString(36) + "_" + config.config.key.toString(36);
                 this.room = this.connection.initJitsiConference(roomNm, {
-                    openBridgeChannel: true,
-                    p2p: {
-                        enabled: !this.jitsiFeatures.disableP2P
-                    }
+                    openBridgeChannel: true
                 });
 
                 this.room.addEventListener(JitsiMeetJS.events.conference.CONFERENCE_JOINED, res);
