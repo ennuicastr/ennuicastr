@@ -200,7 +200,10 @@ export class Jitsi implements comm.BroadcastComms {
             return new Promise((res, rej) => {
                 const roomNm = config.config.id.toString(36) + "_" + config.config.key.toString(36);
                 this.room = this.connection.initJitsiConference(roomNm, {
-                    openBridgeChannel: true
+                    openBridgeChannel: true,
+                    p2p: {
+                        enabled: false
+                    }
                 });
 
                 this.room.addEventListener(JitsiMeetJS.events.conference.CONFERENCE_JOINED, res);
