@@ -64,6 +64,13 @@ export class RTEnnui implements comm.Comms {
             return;
         }
 
+        // The way VAD works with RTEnnui is muting the capture device
+        util.events.addEventListener("vad.rtc", () => {
+            if (!this.cap)
+                return;
+            this.cap.setVADState(vad.rtcVadOn ? "yes" : "no");
+        });
+
         this.commModes = opts;
         await this.initRTEnnui();
     }
@@ -171,12 +178,9 @@ export class RTEnnui implements comm.Comms {
             this.cap,
             {frameSize: 5000}
         );
-        this.cap.setVADState(vad.rtcVadOn ? "yes" : "no");
 
-        // FIXME: This event will pile up with changes
-        util.events.addEventListener("vad.rtc", () => {
-            this.cap.setVADState(vad.rtcVadOn ? "yes" : "no");
-        });
+        // Set the VAD state
+        this.cap.setVADState(vad.rtcVadOn ? "yes" : "no");
     }
 
     // Called when a remote track is added

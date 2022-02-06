@@ -52,12 +52,9 @@ export function setVadSensitivity(to: number): void { vadSensitivity = to; }
 export let vadNoiseGate = -100;
 export function setVadNoiseGate(to: number): void { vadNoiseGate = to; }
 
-function rtcVad(destination: MediaStream, to: boolean) {
+function rtcVad(to: boolean) {
     vad.setRTCVadOn(to);
     util.dispatchEvent("vad.rtc");
-    destination.getTracks().forEach(function(track) {
-        track.enabled = to;
-    });
 }
 
 // All local processing: The VAD, wave display, and noise reduction
@@ -147,7 +144,7 @@ function localProcessingWorker() {
                 // VAD state
                 vad.setRawVadOn(msg.rawVadOn);
                 if (msg.rtcVadOn !== vad.rtcVadOn)
-                    rtcVad(capture.destination, msg.rtcVadOn);
+                    rtcVad(msg.rtcVadOn);
                 if (msg.vadOn !== vad.vadOn) {
                     if (msg.vadOn)
                         wd.updateWaveRetroactive(vad.vadExtension);
