@@ -326,6 +326,7 @@ export class Jitsi implements comm.BroadcastComms {
                 deviceId: video.userMediaVideo.id,
                 rtcId: video.userMediaVideo.id + ":" + (this.jCounter++),
                 mediaType: "video",
+                videoType: video.userMediaVideoType,
                 stream: video.userMediaVideo,
                 track: video.userMediaVideo.getVideoTracks()[0]
             });
@@ -412,9 +413,16 @@ export class Jitsi implements comm.BroadcastComms {
         if (el.paused)
             el.play().catch(net.promiseFail());
 
-        // Hide the standin if applicable
-        if (type === "video")
+        if (type === "video") {
+            // Hide the standin
             ui.ui.video.users[id].standin.style.display = "none";
+
+            // Prepare for it to end (which shouldn't have to be here...)
+            const t = stream.getVideoTracks()[0];
+            if (t) {
+                t.addEventListener("ended", () => this.jitsiTrackRemoved(track));
+            }
+        }
 
         // Create the compressor node
         if (type === "audio")

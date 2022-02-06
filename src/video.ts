@@ -31,6 +31,9 @@ import * as util from "./util";
 // The video device being read
 export let userMediaVideo: MediaStream = null;
 
+// The type of the video ("camera" or "desktop")
+export let userMediaVideoType: string = null;
+
 // The ID of the device being read
 export let userMediaVideoID: string = null;
 
@@ -87,6 +90,7 @@ export function shareVideo(id: string, res: number): Promise<unknown> {
                 track.stop();
             });
             userMediaVideo = null;
+            userMediaVideoType = null;
             util.dispatchEvent("usermediavideostopped", {});
         }
 
@@ -95,6 +99,14 @@ export function shareVideo(id: string, res: number): Promise<unknown> {
         
     }).then(userMediaIn => {
         userMediaVideo = userMediaIn;
+        if (userMediaIn) {
+            if (id === "-screen")
+                userMediaVideoType = "desktop";
+            else
+                userMediaVideoType = "camera";
+        } else {
+            userMediaVideoType = null;
+        }
 
         // Our own video UI
         ui.videoAdd(net.selfId, config.username);
