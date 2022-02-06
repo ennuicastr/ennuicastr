@@ -236,6 +236,17 @@ export class Jitsi implements comm.BroadcastComms {
         // If we already had one, remove it
         this.jitsiUnsetUserMediaRTC();
 
+        // Set up the VAD
+        const track = audio.userMediaRTC.getAudioTracks()[0];
+        if (track)
+            track.enabled = !vad.rtcVadOn;
+
+        // FIXME: This event will pile up with changes
+        util.events.addEventListener("vad.rtc", () => {
+            if (track)
+                track.enabled = !vad.rtcVadOn;
+        });
+
         // Then add the new one
         this.jPromise = this.jPromise.then(() => {
             // Make and add the new one
