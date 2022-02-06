@@ -180,7 +180,7 @@ export async function storeFile(
     await getFileStorage();
 
     async function report() {
-        if (opts.report) {
+        if (opts.report && navigator.storage && navigator.storage.estimate) {
             const e = await navigator.storage.estimate();
             opts.report(storeCt, e.usage, e.quota);
         }
