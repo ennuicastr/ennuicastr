@@ -138,7 +138,7 @@ export function getMic(deviceId?: string): Promise<unknown> {
         userMedia.getTracks().forEach(function(track) { track.stop(); });
         userMedia = null;
         if (userMediaRTC) {
-            // FIXME: Really need to properly destroy the whole chain
+            // The disconnection of the whole line happens in proc.ts
             userMediaRTC.getTracks().forEach(function(track) { track.stop(); });
             userMediaRTC = null;
         }
@@ -504,6 +504,18 @@ export function setEchoCancel(to: boolean): Promise<unknown> {
     return getMic(ui.ui.panels.inputConfig.device.value);
 }
 
+// Set the input device
+export function setInputDevice(to: string): Promise<unknown> {
+    // Update the UI
+    ui.ui.panels.inputConfig.device.value = to;
+
+    // Update any admins
+    net.updateAdminPerm({audioDevice: to});
+
+    // And make it so
+    return getMic(to);
+}
+
 // Play or stop a sound
 function playStopSound(url: string, status: number, time: number) {
     let sound = ui.ui.sounds.soundboard[url];
@@ -702,10 +714,7 @@ util.netEvent("data", "admin", function(ev) {
             {
                 const arg =
                     util.decodeText(msg.buffer.slice(p.argument));
-                // FIXME: Better way to do this setting
-                ui.ui.panels.inputConfig.device.value = arg;
-                net.updateAdminPerm({audioDevice: arg});
-                getMic(arg);
+                setInputDevice(arg);
                 break;
             }
 

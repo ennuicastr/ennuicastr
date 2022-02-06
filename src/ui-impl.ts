@@ -654,8 +654,7 @@ export function mkAudioUI(): string {
      *******************/
     function inputChange() {
         uiFE.showPanel(null, ui.persistent.main);
-        net.updateAdminPerm({audioDevice: input.device.value});
-        audio.getMic(input.device.value);
+        audio.setInputDevice(input.device.value);
     }
 
     navigator.mediaDevices.enumerateDevices().then(function(devices) {
