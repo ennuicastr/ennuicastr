@@ -87,6 +87,13 @@ export class CTCP implements comm.DataComms {
             rtcReady: false
         };
 
+        if ("master" in config.config) {
+            this.videoRecSend(
+                id, prot.videoRec.videoRecHost,
+                ~~ui.ui.panels.master.acceptRemoteVideo.checked
+            );
+        }
+
         this.startRTC(id, ret);
 
         return ret;
