@@ -49,14 +49,14 @@ function configurePTT(hotkey: null|string) {
 
     if (hotkey) {
         // Push-to-talk enabled
-        audio.toggleMute(false);
+        audio.input.toggleMute(false);
         document.body.addEventListener("keydown", pttDown);
         document.body.addEventListener("keyup", pttUp);
         localStorage.setItem("ec-ptt", hotkey);
 
     } else {
         // Push-to-talk disabled
-        audio.toggleMute(true);
+        audio.input.toggleMute(true);
         localStorage.removeItem("ec-ptt");
 
     }
@@ -82,12 +82,12 @@ export function userConfigurePTT(): Promise<unknown> {
 function pttDown(ev: KeyboardEvent) {
     if (ev.key !== ptt.hotkey)
         return;
-    audio.toggleMute(true);
+    audio.input.toggleMute(true);
 }
 
 // PTT key depressed
 function pttUp(ev: KeyboardEvent) {
     if (ev.key !== ptt.hotkey)
         return;
-    audio.toggleMute(false);
+    audio.input.toggleMute(false);
 }

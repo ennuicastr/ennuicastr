@@ -60,7 +60,7 @@ function rtcVad(to: boolean) {
 // All local processing: The VAD, wave display, and noise reduction
 export function localProcessing(): void {
     Promise.all([]).then(function() {
-        if (!audio.userMedia) {
+        if (!audio.input.userMedia) {
             // Need our MediaSource first!
             return new Promise(function(res) {
                 util.events.addEventListener("usermediaready", res, {once: true});
@@ -72,14 +72,14 @@ export function localProcessing(): void {
          * don't get messages about failing to send while everything starts up
          * */
         sentRecently = true;
-        audio.setLastSentTime(performance.now() + 2500);
+        audio.input.lastSentTime = performance.now() + 2500;
 
         // Some things done periodically other than audio per se
         if (!periodic) {
             periodic = setInterval(function() {
                 // Display an issue if we haven't sent recently
                 const now = performance.now();
-                sentRecently = (audio.lastSentTime > now-1500);
+                sentRecently = (audio.input.lastSentTime > now-1500);
                 if (sentRecently)
                     log.popStatus("notencoding");
                 else
@@ -117,7 +117,7 @@ function localProcessingWorker() {
 
     // Start the capture
     return capture.createCapture(audio.ac, {
-        ms: audio.userMedia,
+        ms: audio.input.userMedia,
         bufferSize: 1024,
         outStream: true,
         sampleRate: "sampleRate",
@@ -221,7 +221,7 @@ function localProcessingWorker() {
         };
 
         // The output from this is our RTC audio
-        audio.setUserMediaRTC(capture.destination);
+        audio.input.userMediaRTC = capture.destination;
         util.dispatchEvent("usermediartcready", {});
 
         // Restart if we change devices

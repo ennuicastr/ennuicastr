@@ -33,24 +33,14 @@ import * as util from "./util";
 import { dce } from "./util";
 import * as vad from "./vad";
 
-// The audio device being read
-export let userMedia: MediaStream = null;
-
-// The pseudodevice as processed to reduce noise, for RTC
-export let userMediaRTC: MediaStream = null;
-export function setUserMediaRTC(to: MediaStream): void { userMediaRTC = to; }
-
-// Audio context
+/* Audio context. No matter how many audio devices we use, we only have one
+ * audio context. */
 export let ac: AudioContext = null;
 
 // The Opus or FLAC packets to be handled. Format: [granulePos, data]
 type Packet = [number, DataView];
-let packets: Packet[] = [];
 
-// Opus zero packet, will be replaced with FLAC's version if needed
-let zeroPacket = new Uint8Array([0xF8, 0xFF, 0xFE]);
-
-// Our offset is updated every so often
+// Our offset is updated every so often by the ping socket
 export let timeOffset: null|number = null;
 
 /* So that the time offset doesn't jump all over the place, we adjust it
@@ -62,18 +52,6 @@ const timeOffsetAdjPerFrame = 0.0002;
 
 // The delays on the pongs we've received back
 const pongs: number[] = [];
-
-/* To help with editing by sending a clean silence sample, we send the
- * first few (arbitrarily, 8) seconds of VAD-off silence */
-let sendSilence = 400;
-
-// When we're not sending real data, we have to send a few (arbitrarily, 3) empty frames
-let sentZeroes = 999;
-
-/* We keep track of the last time we successfully encoded data for
- * transfer, to determine if anything's gone wrong */
-export let lastSentTime = 0;
-export function setLastSentTime(to: number): void { lastSentTime = to; }
 
 // Recording timer updater
 let recordingTimerInterval: null|number = null;
@@ -105,351 +83,12 @@ util.netEvent("ping", "pong", function(ev) {
         setTimeout(net.ping, 10000);
 
         // And figure out our offset
-        const latency = pongs.reduce(function(a,b){return a+b;})/10;
+        const latency = pongs.reduce((a,b) => a+b)/10;
         const remoteTime = msg.getFloat64(p.serverTime, true) + latency;
         targetTimeOffset = remoteTime - recvd;
         if (timeOffset === null) timeOffset = targetTimeOffset;
     }
 });
-
-// Get audio permission. First audio step of the process.
-export function getAudioPerms(mkAudioUI: ()=>string): Promise<unknown> {
-    return navigator.mediaDevices.getUserMedia({audio: true}).catch(() => null).then(function(userMediaIn) {
-        userMedia = userMediaIn; // So that it gets deleted by getMic
-        return getMic(mkAudioUI());
-    }).catch(function(err) {
-        config.disconnect();
-        log.pushStatus("fail", "Cannot get microphone: " + err);
-        log.popStatus("getmic");
-    });
-}
-
-/* The starting point for enabling encoding. Get our microphone input. Returns
- * a promise that resolves when encoding is active. */
-export function getMic(deviceId?: string): Promise<unknown> {
-    if (!net.connected)
-        return;
-
-    log.pushStatus("getmic", "Asking for microphone permission...");
-    log.popStatus("conn");
-
-    // First get rid of any active sources
-    if (userMedia) {
-        userMedia.getTracks().forEach(function(track) { track.stop(); });
-        userMedia = null;
-        if (userMediaRTC) {
-            // The disconnection of the whole line happens in proc.ts
-            userMediaRTC.getTracks().forEach(function(track) { track.stop(); });
-            userMediaRTC = null;
-        }
-        util.dispatchEvent("usermediastopped", {});
-    }
-
-    // Then request the new ones
-    return navigator.mediaDevices.getUserMedia({
-        audio: <any> {
-            deviceId: deviceId,
-            autoGainControl: {ideal: ui.ui.panels.inputConfig.agc.checked},
-            echoCancellation: {ideal: getEchoCancel()},
-            noiseSuppression: {ideal: false},
-            sampleRate: {ideal: 48000},
-            sampleSize: {ideal: 24}
-        }
-    }).catch(() => null).then(function(userMediaIn) {
-        userMedia = userMediaIn;
-
-        // And move on to the next step
-        return userMediaSet();
-    }).catch(function(err) {
-        config.disconnect();
-        log.pushStatus("fail", "Cannot get microphone: " + err);
-        log.popStatus("getmic");
-    });
-}
-
-/* Called once we have mic access. Returns a promise that resolves once
- * encoding is active. */
-function userMediaSet() {
-    if (!net.connected)
-        return;
-
-    // Create our AudioContext if needed
-    if (!ac) {
-        try {
-            ac = new AudioContext({latencyHint: "playback"});
-        } catch (ex) {
-            // Try Apple's, and if not that, nothing left to try, so crash
-            ac = new webkitAudioContext();
-        }
-
-        // Make an output context for it
-        const msd = (<any> ac).ecDestination = ac.createMediaStreamDestination();
-
-        // Start playing it when we're (relatively) sure we can
-        util.events.addEventListener("usermediartcready", function() {
-            if (!ui.ui.audioOutput) {
-                const a = ui.ui.audioOutput = dce("audio");
-                a.style.display = "none";
-                document.body.appendChild(a);
-            }
-
-            ui.ui.audioOutput.srcObject = msd.stream;
-            ui.ui.audioOutput.play().catch(console.error);
-        });
-    }
-
-    // If we don't *actually* have a userMedia, fake one
-    let noUserMedia = false;
-    if (!userMedia) {
-        noUserMedia = true;
-        const cs = ac.createConstantSource();
-        const msd = ac.createMediaStreamDestination();
-        cs.connect(msd);
-        userMedia = msd.stream;
-    }
-
-    return Promise.all([]).then(function() {
-        /* If AudioContext started paused, we need to unpause it in an event
-         * handler */
-        if (ac.state !== "running") {
-            ui.showPanel(ui.ui.panels.mobile, ui.ui.panels.mobile.button, true);
-            return new Promise(function(res) {
-                ui.ui.panels.mobile.button.onclick = function() {
-                    ui.unsetModal();
-                    ui.showPanel(null, ui.ui.persistent.main);
-                    ac.resume().catch(res).then(res);
-                };
-            });
-        }
-
-    }).then(<any> function() {
-        if (ac.state !== "running")
-            log.pushStatus("audiocontext", "Cannot capture audio! State: " + ac.state);
-
-        // At this point, we want to start catching errors
-        window.addEventListener("error", function(error) {
-            try {
-                let msg = "";
-                if (error.error)
-                    msg = error.error + "\n\n" + error.error.stack;
-                else
-                    msg = error.message + "\n\n" + error.filename + ":" + error.lineno;
-                net.errorHandler(msg);
-            } catch (ex) {}
-        });
-
-        window.addEventListener("unhandledrejection", function(error) {
-            error = error.reason;
-            if (error instanceof Error) {
-                net.errorHandler(error + "\n\n" + error.stack);
-            } else {
-                let msg;
-                try {
-                    msg = JSON.stringify(error);
-                } catch (ex) {
-                    msg = error+"";
-                }
-                msg += "\n\n" + new Error().stack;
-                net.errorHandler(msg);
-            }
-        });
-
-        if (noUserMedia) {
-            // Warn them
-            log.pushStatus("usermedia", "Failed to capture audio!");
-            setTimeout(function() {
-                log.popStatus("usermedia");
-            }, 10000);
-        }
-
-        // Now UserMedia and AudioContext are ready
-        util.dispatchEvent("audio.mute");
-
-        log.pushStatus("initenc", "Initializing encoder...");
-        log.popStatus("getmic");
-
-        util.dispatchEvent("usermediaready", {});
-
-    }).catch(net.promiseFail()).then(encoderLoaded);
-}
-
-/* Called once the specialized encoder is loaded, if it's needed. Returns a
- * promise that resolves once encoding is active. */
-function encoderLoaded() {
-    if (!net.connected)
-        return;
-
-    log.pushStatus("startenc", "Starting encoder...");
-    log.popStatus("initenc");
-
-    return encoderStart();
-}
-
-// Start our encoder
-function encoderStart() {
-    // We need to choose our target sample rate based on the input sample rate and format
-    let sampleRate = 48000;
-    if (config.useFlac && ac.sampleRate === 44100)
-        sampleRate = 44100;
-
-    // The server needs to be informed of FLAC's sample rate
-    if (config.useFlac) {
-        const p = prot.parts.info;
-        const info = new DataView(new ArrayBuffer(p.length));
-        info.setUint32(0, prot.ids.info, true);
-        info.setUint32(p.key, prot.info.sampleRate, true);
-        info.setUint32(p.value, sampleRate, true);
-        net.flacInfo(info.buffer);
-    }
-
-    // Set our zero packet as appropriate
-    if (config.useFlac) {
-        switch (sampleRate) {
-            case 44100:
-                zeroPacket = new Uint8Array([0xFF, 0xF8, 0x79, 0x0C, 0x00, 0x03, 0x71, 0x56, 0x00, 0x00, 0x00, 0x00, 0x63, 0xC5]);
-                break;
-            default:
-                zeroPacket = new Uint8Array([0xFF, 0xF8, 0x7A, 0x0C, 0x00, 0x03, 0xBF, 0x94, 0x00, 0x00, 0x00, 0x00, 0xB1, 0xCA]);
-        }
-    }
-
-    // Figure out our channel layout based on the number of channels
-    let channelLayout = 4;
-    const channelCount = ~~((<any> userMedia.getAudioTracks()[0].getSettings()).channelCount);
-    if (channelCount > 1)
-        channelLayout = Math.pow(2, channelCount) - 1;
-
-    // Create the capture stream
-    return capture.createCapture(ac, {
-        ms: userMedia,
-        matchSampleRate: true,
-        bufferSize: 16384 /* Max: Latency doesn't actually matter in this context */,
-        outStream: true,
-        sampleRate: "inSampleRate",
-        workerCommand: {
-            c: "encoder",
-            outSampleRate: sampleRate,
-            format: config.useFlac ? "flac" : "opus",
-            channelLayout: channelLayout,
-            channelCount: channelCount
-        }
-
-    }).then(capture => {
-        // Accept encoded packets
-        let last = 0;
-        capture.worker.onmessage = function(ev) {
-            const msg = ev.data;
-            if (msg.c !== "packets") return;
-
-            // Figure out the packet start time
-            const p = msg.d;
-            const now = msg.ts + performance.now() - Date.now(); // time adjusted from Date.now to performance.now
-            let pktTime = Math.round(
-                now * 48 -
-                p.length * 960
-            );
-
-            // Add them to our own packet buffer
-            for (let pi = 0; pi < p.length; pi++) {
-                packets.push([pktTime, new DataView(p[pi].buffer)]);
-                pktTime += 960;
-            }
-
-            // Check for sequence issues
-            if (msg.s > last)
-                net.errorHandler("Sequence error! " + msg.s + " " + last);
-            last = msg.s + p.length;
-
-            handlePackets();
-        };
-
-        // Terminate when user media stops
-        util.events.addEventListener("usermediastopped", capture.disconnect, {once: true});
-
-    }).catch(net.promiseFail());
-
-}
-
-
-// Once we've parsed new packets, we can do something with them
-function handlePackets() {
-    if (!packets.length || timeOffset === null) return;
-
-    const curGranulePos = packets[packets.length-1][0];
-    net.setTransmitting(true);
-
-    // We have *something* to handle
-    lastSentTime = performance.now();
-    log.popStatus("startenc");
-
-    // Don't actually *send* anything if we're not recording
-    if (net.mode !== prot.mode.rec) {
-        while (packets.length)
-            packets.pop();
-        return;
-    }
-
-    // Warn if we're buffering
-    const ba = net.bufferedAmount();
-    if (ba > 1024*1024)
-        log.pushStatus("buffering", util.bytesToRepr(ba) + " audio data buffered");
-    else
-        log.popStatus("buffering");
-
-    if (!vad.vadOn) {
-        // Drop any sufficiently old packets, or send them marked as silence in continuous mode
-        const old = curGranulePos - vad.vadExtension*48;
-        while (packets[0][0] < old) {
-            const packet = packets.shift();
-            const granulePos = adjustTime(packet);
-            if (granulePos < 0)
-                continue;
-            if (config.useContinuous || sendSilence > 0) {
-                /* Send it in VAD-off mode */
-                sendPacket(granulePos, packet[1], 0);
-                sendSilence--;
-
-            } else if (sentZeroes < 3) {
-                /* Send an empty packet in its stead */
-                if (granulePos < 0) continue;
-                sendPacket(granulePos, zeroPacket, 0);
-                sentZeroes++;
-            }
-        }
-
-    } else {
-        const vadVal = (vad.rawVadOn?2:1);
-
-        // VAD is on, so send packets
-        packets.forEach(function (packet) {
-            const data = packet[1];
-
-            const granulePos = adjustTime(packet);
-            if (granulePos < 0)
-                return;
-
-            sendPacket(granulePos, data, vadVal);
-        });
-
-        sentZeroes = 0;
-        packets = [];
-
-    }
-}
-
-// Send an audio packet
-function sendPacket(granulePos: number, data: {buffer: ArrayBuffer}, vadVal: number) {
-    const p = prot.parts.data;
-    const msg = new DataView(new ArrayBuffer(p.length + (config.useContinuous?1:0) + data.buffer.byteLength));
-    msg.setUint32(0, prot.ids.data, true);
-    msg.setUint32(p.granulePos, granulePos & 0xFFFFFFFF, true);
-    msg.setUint16(p.granulePos + 4, (granulePos / 0x100000000) & 0xFFFF, true);
-    if (config.useContinuous)
-        msg.setUint8(p.packet, vadVal);
-    const data8 = new Uint8Array(data.buffer);
-    (new Uint8Array(msg.buffer)).set(data8, p.packet + (config.useContinuous?1:0));
-    net.dataSock.send(msg.buffer);
-}
 
 // Adjust the time for a packet, and adjust the time-adjustment parameters
 function adjustTime(packet: Packet) {
@@ -468,52 +107,6 @@ function adjustTime(packet: Packet) {
 
     // And adjust the time
     return Math.round(packet[0] + timeOffset*48);
-}
-
-// Get the state of muting (true=MUTED)
-function getMute() {
-    const track = userMedia.getAudioTracks()[0];
-    return !track.enabled;
-}
-
-// Get the echo cancellation state
-export function getEchoCancel(): boolean {
-    return ui.ui.panels.inputConfig.echo.checked;
-}
-
-// Toggle the mute state of the input audio (true=UNMUTED)
-export function toggleMute(to?: boolean): void {
-    if (!userMedia) return;
-    const track = userMedia.getAudioTracks()[0];
-    if (typeof to === "undefined")
-        to = !track.enabled;
-    track.enabled = to;
-    util.dispatchEvent("audio.mute");
-    net.updateAdminPerm({mute: !to});
-}
-
-// Set the echo cancellation state of the input audio
-export function setEchoCancel(to: boolean): Promise<unknown> {
-    // Update the UI
-    ui.ui.panels.inputConfig.echo.checked = to;
-
-    // Update any admins
-    net.updateAdminPerm({echo: to});
-
-    // And make it so
-    return getMic(ui.ui.panels.inputConfig.device.value);
-}
-
-// Set the input device
-export function setInputDevice(to: string): Promise<unknown> {
-    // Update the UI
-    ui.ui.panels.inputConfig.device.value = to;
-
-    // Update any admins
-    net.updateAdminPerm({audioDevice: to});
-
-    // And make it so
-    return getMic(to);
 }
 
 // Play or stop a sound
@@ -596,7 +189,6 @@ util.netEvent("data", "sound", function(ev) {
     playStopSound(url, status, time);
 });
 
-
 // Set the recording timer
 export function setRecordingTimer(serverTime: number, recTime: number, ticking: boolean): void {
     recordingTimerBaseST = serverTime;
@@ -637,6 +229,426 @@ function tickRecordingTimer() {
     timer.innerText = (h?(h+":"):"") + m + ":" + s;
 }
 
+
+/**
+ * Audio capture and recording.
+ */
+export class Audio {
+    // The audio device being read
+    userMedia: MediaStream = null;
+
+    // The pseudodevice as processed to reduce noise, for RTC
+    userMediaRTC: MediaStream = null;
+
+    // Outstanding packets
+    packets: Packet[] = [];
+
+    // Opus zero packet, will be replaced with FLAC's version if needed
+    zeroPacket = new Uint8Array([0xF8, 0xFF, 0xFE]);
+
+    /* To help with editing by sending a clean silence sample, we send the
+     * first few (arbitrarily, 8) seconds of VAD-off silence */
+    sendSilence = 400;
+
+    /* When we're not sending real data, we have to send a few (arbitrarily, 3)
+     * empty frames */
+    sentZeroes = 999;
+
+    /* We keep track of the last time we successfully encoded data for
+     * transfer, to determine if anything's gone wrong */
+    lastSentTime = 0;
+
+    // Get audio permission. First audio step of the process.
+    getAudioPerms(mkAudioUI: ()=>string): Promise<unknown> {
+        return navigator.mediaDevices.getUserMedia({audio: true}).catch(() => null).then((userMediaIn) => {
+            this.userMedia = userMediaIn; // So that it gets deleted by getMic
+            return this.getMic(mkAudioUI());
+        }).catch((err) => {
+            config.disconnect();
+            log.pushStatus("fail", "Cannot get microphone: " + err);
+            log.popStatus("getmic");
+        });
+    }
+
+    /* The starting point for enabling encoding. Get our microphone input. Returns
+     * a promise that resolves when encoding is active. */
+    getMic(deviceId?: string): Promise<unknown> {
+        if (!net.connected)
+            return;
+
+        log.pushStatus("getmic", "Asking for microphone permission...");
+        log.popStatus("conn");
+
+        // First get rid of any active sources
+        if (this.userMedia) {
+            this.userMedia.getTracks().forEach(track => track.stop());
+            this.userMedia = null;
+            if (this.userMediaRTC) {
+                // The disconnection of the whole line happens in proc.ts
+                this.userMediaRTC.getTracks().forEach(track => track.stop());
+                this.userMediaRTC = null;
+            }
+            util.dispatchEvent("usermediastopped", {});
+        }
+
+        // Then request the new ones
+        return navigator.mediaDevices.getUserMedia({
+            audio: <any> {
+                deviceId: deviceId,
+                autoGainControl: {ideal: ui.ui.panels.inputConfig.agc.checked},
+                echoCancellation: {ideal: this.getEchoCancel()},
+                noiseSuppression: {ideal: false},
+                sampleRate: {ideal: 48000},
+                sampleSize: {ideal: 24}
+            }
+        }).catch(() => null).then(userMediaIn => {
+            this.userMedia = userMediaIn;
+
+            // And move on to the next step
+            return this.userMediaSet();
+        }).catch(err => {
+            config.disconnect();
+            log.pushStatus("fail", "Cannot get microphone: " + err);
+            log.popStatus("getmic");
+        });
+    }
+
+    /* Called once we have mic access. Returns a promise that resolves once
+     * encoding is active. */
+    private userMediaSet(): Promise<unknown> {
+        if (!net.connected)
+            return;
+
+        // Create our AudioContext if needed
+        if (!ac) {
+            try {
+                ac = new AudioContext({latencyHint: "playback"});
+            } catch (ex) {
+                // Try Apple's, and if not that, nothing left to try, so crash
+                ac = new webkitAudioContext();
+            }
+
+            // Make an output context for it
+            const msd = (<any> ac).ecDestination = ac.createMediaStreamDestination();
+
+            // Start playing it when we're (relatively) sure we can
+            util.events.addEventListener("usermediartcready", () => {
+                if (!ui.ui.audioOutput) {
+                    const a = ui.ui.audioOutput = dce("audio");
+                    a.style.display = "none";
+                    document.body.appendChild(a);
+                }
+
+                ui.ui.audioOutput.srcObject = msd.stream;
+                ui.ui.audioOutput.play().catch(console.error);
+            });
+        }
+
+        // If we don't *actually* have a userMedia, fake one
+        let noUserMedia = false;
+        if (!this.userMedia) {
+            noUserMedia = true;
+            const cs = ac.createConstantSource();
+            const msd = ac.createMediaStreamDestination();
+            cs.connect(msd);
+            this.userMedia = msd.stream;
+        }
+
+        return Promise.all([]).then(() => {
+            /* If AudioContext started paused, we need to unpause it in an event
+             * handler */
+            if (ac.state !== "running") {
+                ui.showPanel(ui.ui.panels.mobile, ui.ui.panels.mobile.button, true);
+                return new Promise(function(res) {
+                    ui.ui.panels.mobile.button.onclick = function() {
+                        ui.unsetModal();
+                        ui.showPanel(null, ui.ui.persistent.main);
+                        ac.resume().catch(res).then(res);
+                    };
+                });
+            }
+
+        }).then(<any> () => {
+            if (ac.state !== "running")
+                log.pushStatus("audiocontext", "Cannot capture audio! State: " + ac.state);
+
+            // At this point, we want to start catching errors
+            window.addEventListener("error", function(error) {
+                try {
+                    let msg = "";
+                    if (error.error)
+                        msg = error.error + "\n\n" + error.error.stack;
+                    else
+                        msg = error.message + "\n\n" + error.filename + ":" + error.lineno;
+                    net.errorHandler(msg);
+                } catch (ex) {}
+            });
+
+            window.addEventListener("unhandledrejection", function(error) {
+                error = error.reason;
+                if (error instanceof Error) {
+                    net.errorHandler(error + "\n\n" + error.stack);
+                } else {
+                    let msg;
+                    try {
+                        msg = JSON.stringify(error);
+                    } catch (ex) {
+                        msg = error+"";
+                    }
+                    msg += "\n\n" + new Error().stack;
+                    net.errorHandler(msg);
+                }
+            });
+
+            if (noUserMedia) {
+                // Warn them
+                log.pushStatus("usermedia", "Failed to capture audio!");
+                setTimeout(function() {
+                    log.popStatus("usermedia");
+                }, 10000);
+            }
+
+            // Now UserMedia and AudioContext are ready
+            util.dispatchEvent("audio.mute");
+
+            log.pushStatus("initenc", "Initializing encoder...");
+            log.popStatus("getmic");
+
+            util.dispatchEvent("usermediaready", {});
+
+        }).catch(net.promiseFail()).then(() => this.encoderLoaded());
+    }
+
+    /* Called once the specialized encoder is loaded, if it's needed. Returns a
+     * promise that resolves once encoding is active. */
+    private encoderLoaded(): Promise<unknown> {
+        if (!net.connected)
+            return;
+
+        log.pushStatus("startenc", "Starting encoder...");
+        log.popStatus("initenc");
+
+        return this.encoderStart();
+    }
+
+    // Start our encoder
+    private encoderStart(): Promise<unknown> {
+        // We need to choose our target sample rate based on the input sample rate and format
+        let sampleRate = 48000;
+        if (config.useFlac && ac.sampleRate === 44100)
+            sampleRate = 44100;
+
+        // The server needs to be informed of FLAC's sample rate
+        if (config.useFlac) {
+            const p = prot.parts.info;
+            const info = new DataView(new ArrayBuffer(p.length));
+            info.setUint32(0, prot.ids.info, true);
+            info.setUint32(p.key, prot.info.sampleRate, true);
+            info.setUint32(p.value, sampleRate, true);
+            net.flacInfo(info.buffer);
+        }
+
+        // Set our zero packet as appropriate
+        if (config.useFlac) {
+            switch (sampleRate) {
+                case 44100:
+                    this.zeroPacket = new Uint8Array([0xFF, 0xF8, 0x79, 0x0C, 0x00, 0x03, 0x71, 0x56, 0x00, 0x00, 0x00, 0x00, 0x63, 0xC5]);
+                    break;
+                default:
+                    this.zeroPacket = new Uint8Array([0xFF, 0xF8, 0x7A, 0x0C, 0x00, 0x03, 0xBF, 0x94, 0x00, 0x00, 0x00, 0x00, 0xB1, 0xCA]);
+            }
+        }
+
+        // Figure out our channel layout based on the number of channels
+        let channelLayout = 4;
+        const channelCount = ~~((<any> this.userMedia.getAudioTracks()[0].getSettings()).channelCount);
+        if (channelCount > 1)
+            channelLayout = Math.pow(2, channelCount) - 1;
+
+        // Create the capture stream
+        return capture.createCapture(ac, {
+            ms: this.userMedia,
+            matchSampleRate: true,
+            bufferSize: 16384 /* Max: Latency doesn't actually matter in this context */,
+            outStream: true,
+            sampleRate: "inSampleRate",
+            workerCommand: {
+                c: "encoder",
+                outSampleRate: sampleRate,
+                format: config.useFlac ? "flac" : "opus",
+                channelLayout: channelLayout,
+                channelCount: channelCount
+            }
+
+        }).then(capture => {
+            // Accept encoded packets
+            let last = 0;
+            capture.worker.onmessage = (ev) => {
+                const msg = ev.data;
+                if (msg.c !== "packets") return;
+
+                // Figure out the packet start time
+                const p = msg.d;
+                const now = msg.ts + performance.now() - Date.now(); // time adjusted from Date.now to performance.now
+                let pktTime = Math.round(
+                    now * 48 -
+                    p.length * 960
+                );
+
+                // Add them to our own packet buffer
+                for (let pi = 0; pi < p.length; pi++) {
+                    this.packets.push([pktTime, new DataView(p[pi].buffer)]);
+                    pktTime += 960;
+                }
+
+                // Check for sequence issues
+                if (msg.s > last)
+                    net.errorHandler("Sequence error! " + msg.s + " " + last);
+                last = msg.s + p.length;
+
+                this.handlePackets();
+            };
+
+            // Terminate when user media stops
+            util.events.addEventListener("usermediastopped", capture.disconnect, {once: true});
+
+        }).catch(net.promiseFail());
+
+    }
+
+
+    // Once we've parsed new packets, we can do something with them
+    private handlePackets() {
+        if (!this.packets.length || timeOffset === null) return;
+
+        const curGranulePos = this.packets[this.packets.length-1][0];
+        net.setTransmitting(true);
+
+        // We have *something* to handle
+        this.lastSentTime = performance.now();
+        log.popStatus("startenc");
+
+        // Don't actually *send* anything if we're not recording
+        if (net.mode !== prot.mode.rec) {
+            while (this.packets.length)
+                this.packets.pop();
+            return;
+        }
+
+        // Warn if we're buffering
+        const ba = net.bufferedAmount();
+        if (ba > 1024*1024)
+            log.pushStatus("buffering", util.bytesToRepr(ba) + " audio data buffered");
+        else
+            log.popStatus("buffering");
+
+        if (!vad.vadOn) {
+            // Drop any sufficiently old packets, or send them marked as silence in continuous mode
+            const old = curGranulePos - vad.vadExtension*48;
+            while (this.packets[0][0] < old) {
+                const packet = this.packets.shift();
+                const granulePos = adjustTime(packet);
+                if (granulePos < 0)
+                    continue;
+                if (config.useContinuous || this.sendSilence > 0) {
+                    /* Send it in VAD-off mode */
+                    this.sendPacket(granulePos, packet[1], 0);
+                    this.sendSilence--;
+
+                } else if (this.sentZeroes < 3) {
+                    /* Send an empty packet in its stead */
+                    if (granulePos < 0) continue;
+                    this.sendPacket(granulePos, this.zeroPacket, 0);
+                    this.sentZeroes++;
+                }
+            }
+
+        } else {
+            const vadVal = (vad.rawVadOn?2:1);
+
+            // VAD is on, so send packets
+            this.packets.forEach((packet) => {
+                const data = packet[1];
+
+                const granulePos = adjustTime(packet);
+                if (granulePos < 0)
+                    return;
+
+                this.sendPacket(granulePos, data, vadVal);
+            });
+
+            this.sentZeroes = 0;
+            this.packets = [];
+
+        }
+    }
+
+    // Send an audio packet
+    private sendPacket(granulePos: number, data: {buffer: ArrayBuffer}, vadVal: number) {
+        const p = prot.parts.data;
+        const msg = new DataView(new ArrayBuffer(p.length + (config.useContinuous?1:0) + data.buffer.byteLength));
+        msg.setUint32(0, prot.ids.data, true);
+        msg.setUint32(p.granulePos, granulePos & 0xFFFFFFFF, true);
+        msg.setUint16(p.granulePos + 4, (granulePos / 0x100000000) & 0xFFFF, true);
+        if (config.useContinuous)
+            msg.setUint8(p.packet, vadVal);
+        const data8 = new Uint8Array(data.buffer);
+        (new Uint8Array(msg.buffer)).set(data8, p.packet + (config.useContinuous?1:0));
+        net.dataSock.send(msg.buffer);
+    }
+
+    // Get the state of muting (true=MUTED)
+    private getMute() {
+        const track = this.userMedia.getAudioTracks()[0];
+        return !track.enabled;
+    }
+
+    // Get the echo cancellation state
+    getEchoCancel(): boolean {
+        return ui.ui.panels.inputConfig.echo.checked;
+    }
+
+    // Toggle the mute state of the input audio (true=UNMUTED)
+    toggleMute(to?: boolean): void {
+        if (!this.userMedia) return;
+        const track = this.userMedia.getAudioTracks()[0];
+        if (typeof to === "undefined")
+            to = !track.enabled;
+        track.enabled = to;
+        util.dispatchEvent("audio.mute");
+        net.updateAdminPerm({mute: !to});
+    }
+
+    // Set the echo cancellation state of the input audio
+    setEchoCancel(to: boolean): Promise<unknown> {
+        // Update the UI
+        ui.ui.panels.inputConfig.echo.checked = to;
+
+        // Update any admins
+        net.updateAdminPerm({echo: to});
+
+        // And make it so
+        return this.getMic(ui.ui.panels.inputConfig.device.value);
+    }
+
+    // Set the input device
+    setInputDevice(to: string): Promise<unknown> {
+        // Update the UI
+        ui.ui.panels.inputConfig.device.value = to;
+
+        // Update any admins
+        net.updateAdminPerm({audioDevice: to});
+
+        // And make it so
+        return this.getMic(to);
+    }
+}
+
+
+// The current audio input
+export const input = new Audio();
+
+
 // Get the available device info, for admin users
 export function deviceInfo(allowVideo: boolean): any {
     return navigator.mediaDevices.enumerateDevices().then((devices) => {
@@ -660,8 +672,8 @@ export function deviceInfo(allowVideo: boolean): any {
             videoDevice: allowVideo ? ui.ui.panels.videoConfig.device.value : null,
             videoRes: allowVideo ? +ui.ui.panels.videoConfig.res.value : null,
             videoRec: (typeof MediaRecorder !== "undefined"),
-            mute: getMute(),
-            echo: getEchoCancel(),
+            mute: this.getMute(),
+            echo: this.getEchoCancel(),
             vadSensitivity: +ui.ui.panels.inputConfig.vadSensitivity.value,
             vadNoiseGate: +ui.ui.panels.inputConfig.vadNoiseGate.value
         };
@@ -678,10 +690,10 @@ util.netEvent("data", "admin", function(ev) {
 
     // Some commands apply to all users
     if (action === acts.mute) {
-        toggleMute(false);
+        input.toggleMute(false);
 
     } else if (action === acts.echoCancel) {
-        setEchoCancel(true);
+        input.setEchoCancel(true);
 
     } else if (action === acts.request) {
         // Request for admin access
@@ -703,18 +715,18 @@ util.netEvent("data", "admin", function(ev) {
 
         switch (action) {
             case acts.unmute:
-                toggleMute(true);
+                input.toggleMute(true);
                 break;
 
             case acts.unechoCancel:
-                setEchoCancel(false);
+                input.setEchoCancel(false);
                 break;
 
             case acts.audioInput:
             {
                 const arg =
                     util.decodeText(msg.buffer.slice(p.argument));
-                setInputDevice(arg);
+                input.setInputDevice(arg);
                 break;
             }
 
@@ -747,4 +759,3 @@ util.netEvent("data", "admin", function(ev) {
         }
     }
 });
-

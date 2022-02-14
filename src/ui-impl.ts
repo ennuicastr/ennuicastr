@@ -294,7 +294,7 @@ function loadMainMenu() {
         };
     }
 
-    p.mute.onclick = function() { audio.toggleMute(); };
+    p.mute.onclick = function() { audio.input.toggleMute(); };
     btn(p.master, "master", "startStopB");
     btn(p.userAdmin, "userAdmin", "allB");
     btn(p.sounds, "soundboard", null);
@@ -654,7 +654,7 @@ export function mkAudioUI(): string {
      *******************/
     function inputChange() {
         uiFE.showPanel(null, ui.persistent.main);
-        audio.setInputDevice(input.device.value);
+        audio.input.setInputDevice(input.device.value);
     }
 
     navigator.mediaDevices.enumerateDevices().then(function(devices) {
@@ -701,7 +701,7 @@ export function mkAudioUI(): string {
             }, 10000);
         }
         uiFE.showPanel(null, ui.persistent.main);
-        audio.setEchoCancel(input.echo.checked);
+        audio.input.setEchoCancel(input.echo.checked);
     });
     uiFE.saveConfigCheckbox(input.agc, "agc3", inputChange);
 
@@ -1130,7 +1130,7 @@ function poppable(popout: HTMLElement, button: HTMLButtonElement,
 // Update the mute button when the mute state changes
 util.events.addEventListener("audio.mute", function() {
     const muteB = ui.persistent.mute;
-    if (audio.userMedia.getAudioTracks()[0].enabled) {
+    if (audio.input.userMedia.getAudioTracks()[0].enabled) {
         // It's unmuted
         muteB.innerHTML = '<i class="fas fa-microphone-alt" style="width: 1em;"></i><span class="menu-extra">Mute</span>';
         muteB.setAttribute("aria-label", "Mute");
