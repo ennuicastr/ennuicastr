@@ -368,7 +368,7 @@ export class Audio {
                 });
             }
 
-        }).then(<any> () => {
+        }).then(() => {
             if (ac.state !== "running")
                 log.pushStatus("audiocontext", "Cannot capture audio! State: " + ac.state);
 
