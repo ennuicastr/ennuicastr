@@ -28,10 +28,18 @@ for (let ai = 2; ai < process.argv.length; ai++) {
  
 if (minify)
     process.stdout.write(fs.readFileSync("src/license.js", "utf8"));
+
+let hadError = false;
 browserify({standalone})
     .add(main)
     .plugin(tsify, { noImplicitAny, files: [] })
     .plugin(minify ? tinyify : browserPackFlat)
     .bundle()
-    .on("error", function (error) { console.error(error.toString()); })
+    .on("error", error => {
+        console.error(error.toString());
+        hadError = true;
+    })
     .pipe(process.stdout);
+
+if (hadError)
+    process.exit(1);
