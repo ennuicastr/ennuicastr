@@ -93,7 +93,8 @@ export class Jitsi implements comm.BroadcastComms {
         // The way that VAD works with Jitsi is simply to mute the track
         if (opts.audio) {
             util.events.addEventListener("vad.rtc", () => {
-                const a = audio.input.userMediaRTC;
+                // FIXME
+                const a = audio.inputs[0].userMediaRTC;
                 if (!a)
                     return;
                 const t = a.getAudioTracks()[0];
@@ -131,7 +132,7 @@ export class Jitsi implements comm.BroadcastComms {
 
     // Initialize the Jitsi connection
     async initJitsi(): Promise<void> {
-        if (!audio.input.userMediaRTC) {
+        if (!audio.inputs[0].userMediaRTC) {
             // Wait until we have audio
             util.events.addEventListener("usermediartcready", () => this.initJitsi(), {once: true});
             return;
@@ -247,7 +248,7 @@ export class Jitsi implements comm.BroadcastComms {
 
     // Set our UserMediaRTC track
     jitsiSetUserMediaRTC(retries = 2): Promise<unknown> {
-        if (!audio.input.userMediaRTC)
+        if (!audio.inputs[0].userMediaRTC)
             return Promise.all([]);
 
         // If we already had one, remove it
@@ -255,7 +256,7 @@ export class Jitsi implements comm.BroadcastComms {
 
         // Set up the VAD
         {
-            const track = audio.input.userMediaRTC.getAudioTracks()[0];
+            const track = audio.inputs[0].userMediaRTC.getAudioTracks()[0];
             if (track)
                 track.enabled = vad.rtcVadOn;
         }
@@ -264,11 +265,11 @@ export class Jitsi implements comm.BroadcastComms {
         this.jPromise = this.jPromise.then(() => {
             // Make and add the new one
             this.jAudio = new JitsiMeetJS.JitsiLocalTrack({
-                deviceId: audio.input.userMediaRTC.id,
-                rtcId: audio.input.userMediaRTC.id + ":" + (this.jCounter++),
+                deviceId: audio.inputs[0].userMediaRTC.id,
+                rtcId: audio.inputs[0].userMediaRTC.id + ":" + (this.jCounter++),
                 mediaType: "audio",
-                stream: audio.input.userMediaRTC,
-                track: audio.input.userMediaRTC.getAudioTracks()[0]
+                stream: audio.inputs[0].userMediaRTC,
+                track: audio.inputs[0].userMediaRTC.getAudioTracks()[0]
             });
             return this.room.addTrack(this.jAudio);
 

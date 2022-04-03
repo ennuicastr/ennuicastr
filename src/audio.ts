@@ -258,6 +258,11 @@ export class Audio {
      * transfer, to determine if anything's gone wrong */
     lastSentTime = 0;
 
+    constructor(
+        /** Index of this audio input */
+        public idx: number
+    ) {}
+
     // Get audio permission. First audio step of the process.
     getAudioPerms(mkAudioUI: ()=>string): Promise<unknown> {
         return navigator.mediaDevices.getUserMedia({audio: true}).catch(() => null).then((userMediaIn) => {
@@ -288,7 +293,8 @@ export class Audio {
                 this.userMediaRTC.getTracks().forEach(track => track.stop());
                 this.userMediaRTC = null;
             }
-            util.dispatchEvent("usermediastopped", {});
+            util.dispatchEvent("usermediastopped", {idx: this.idx});
+            util.dispatchEvent("usermediastopped" + this.idx, {idx: this.idx});
         }
 
         // Then request the new ones
@@ -414,7 +420,8 @@ export class Audio {
             log.pushStatus("initenc", "Initializing encoder...");
             log.popStatus("getmic");
 
-            util.dispatchEvent("usermediaready", {});
+            util.dispatchEvent("usermediaready", {idx: this.idx});
+            util.dispatchEvent("usermediaready" + this.idx, {idx: this.idx});
 
         }).catch(net.promiseFail()).then(() => this.encoderLoaded());
     }
@@ -510,7 +517,7 @@ export class Audio {
             };
 
             // Terminate when user media stops
-            util.events.addEventListener("usermediastopped", capture.disconnect, {once: true});
+            util.events.addEventListener("usermediastopped" + this.idx, capture.disconnect, {once: true});
 
         }).catch(net.promiseFail());
 
@@ -609,14 +616,17 @@ export class Audio {
     }
 
     // Toggle the mute state of the input audio (true=UNMUTED)
-    toggleMute(to?: boolean): void {
+    toggleMute(to?: boolean): boolean {
         if (!this.userMedia) return;
         const track = this.userMedia.getAudioTracks()[0];
         if (typeof to === "undefined")
             to = !track.enabled;
         track.enabled = to;
-        util.dispatchEvent("audio.mute");
-        net.updateAdminPerm({mute: !to});
+        if (this.idx === 0) {
+            util.dispatchEvent("audio.mute");
+            net.updateAdminPerm({mute: !to});
+        }
+        return to;
     }
 
     // Set the echo cancellation state of the input audio
@@ -646,7 +656,7 @@ export class Audio {
 
 
 // The current audio input
-export const input = new Audio();
+export const inputs = [new Audio(0)];
 
 
 // Get the available device info, for admin users
@@ -690,10 +700,16 @@ util.netEvent("data", "admin", function(ev) {
 
     // Some commands apply to all users
     if (action === acts.mute) {
-        input.toggleMute(false);
+        for (const input of inputs) {
+            if (input)
+                input.toggleMute(false);
+        }
 
     } else if (action === acts.echoCancel) {
-        input.setEchoCancel(true);
+        for (const input of inputs) {
+            if (input)
+                input.setEchoCancel(true);
+        }
 
     } else if (action === acts.request) {
         // Request for admin access
@@ -715,18 +731,29 @@ util.netEvent("data", "admin", function(ev) {
 
         switch (action) {
             case acts.unmute:
-                input.toggleMute(true);
+                for (const input of inputs) {
+                    if (input)
+                        input.toggleMute(true);
+                }
                 break;
 
             case acts.unechoCancel:
-                input.setEchoCancel(false);
+                for (const input of inputs) {
+                    if (input)
+                        input.setEchoCancel(false);
+                }
                 break;
 
             case acts.audioInput:
             {
                 const arg =
                     util.decodeText(msg.buffer.slice(p.argument));
-                input.setInputDevice(arg);
+                for (const input of inputs) {
+                    if (input) {
+                        input.setInputDevice(arg);
+                        break;
+                    }
+                }
                 break;
             }
 

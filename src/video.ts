@@ -136,7 +136,7 @@ export function shareVideo(id: string, res: number): Promise<unknown> {
             // No video :(
             userMediaVideoID = null;
             videoLatency = 0;
-            v.srcObject = audio.input.userMedia;
+            v.srcObject = audio.inputs[0].userMedia;
             v.srcObject = null;
             s.style.display = "";
             net.updateAdminPerm({videoDevice: "-none"}, true);

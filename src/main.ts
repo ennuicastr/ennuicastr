@@ -68,12 +68,12 @@ async function main() {
         await net.connect();
 
         // This will start up on its own in the background
-        proc.localProcessing();
+        proc.localProcessing(0);
         if (config.useRTC)
             commImpl.initComms();
 
-        // Get audio permissions, which also begins the next step
-        await audio.input.getAudioPerms(uiImpl.mkAudioUI);
+        // Get audio permissions, continuing on to making the audio UI
+        await audio.inputs[0].getAudioPerms(uiImpl.mkAudioUI);
 
     } catch (ex) {
         log.pushStatus("error", ex + "\n\n" + ex.stack);

@@ -58,28 +58,29 @@ function rtcVad(to: boolean) {
 }
 
 // All local processing: The VAD, wave display, and noise reduction
-export function localProcessing(): void {
+export function localProcessing(idx: number): void {
     Promise.all([]).then(function() {
-        if (!audio.input.userMedia) {
+        if (!audio.inputs[idx].userMedia) {
             // Need our MediaSource first!
-            return new Promise(function(res) {
-                util.events.addEventListener("usermediaready", res, {once: true});
+            return new Promise(res => {
+                util.events.addEventListener("usermediaready" + idx, res, {once: true});
             });
         }
 
-    }).then(function() {
+    }).then(() => {
         /* Set sentRecently and lastSentTime to slightly in the future so we
          * don't get messages about failing to send while everything starts up
          * */
         sentRecently = true;
-        audio.input.lastSentTime = performance.now() + 2500;
+        const input = audio.inputs[idx];
+        input.lastSentTime = performance.now() + 2500;
 
         // Some things done periodically other than audio per se
         if (!periodic) {
             periodic = setInterval(function() {
                 // Display an issue if we haven't sent recently
                 const now = performance.now();
-                sentRecently = (audio.input.lastSentTime > now-1500);
+                sentRecently = (input.lastSentTime > now-1500);
                 if (sentRecently)
                     log.popStatus("notencoding");
                 else
@@ -90,13 +91,15 @@ export function localProcessing(): void {
             }, 100);
         }
 
-        return localProcessingWorker();
+        return localProcessingWorker(idx);
 
     }).catch(net.promiseFail());
 }
 
 // Worker-based processing
-function localProcessingWorker() {
+function localProcessingWorker(idx: number) {
+    const input = audio.inputs[idx];
+
     // Create a display for it, either in the main waveform wrapper or the studio location
     let studio = (ui.ui.video.mode === ui.ViewMode.Studio);
     let wd: waveform.Waveform;
@@ -117,7 +120,7 @@ function localProcessingWorker() {
 
     // Start the capture
     return capture.createCapture(audio.ac, {
-        ms: audio.input.userMedia,
+        ms: input.userMedia,
         bufferSize: 1024,
         outStream: true,
         sampleRate: "sampleRate",
@@ -221,13 +224,15 @@ function localProcessingWorker() {
         };
 
         // The output from this is our RTC audio
-        audio.input.userMediaRTC = capture.destination;
-        util.dispatchEvent("usermediartcready", {});
+        input.userMediaRTC = capture.destination;
+        util.dispatchEvent("usermediartcready", {idx});
+        util.dispatchEvent("usermediartcready" + idx, {idx});
 
         // Restart if we change devices
-        util.events.addEventListener("usermediastopped", function() {
+        // FIXME: This should probably be done elsewhere
+        util.events.addEventListener("usermediastopped" + idx, function() {
             capture.disconnect();
-            localProcessing();
+            localProcessing(idx);
         }, {once: true});
 
     });

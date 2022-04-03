@@ -78,7 +78,7 @@ export class RTEnnui implements comm.Comms {
 
     // Initialize RTEnnui
     async initRTEnnui(): Promise<void> {
-        if (!audio.input.userMediaRTC) {
+        if (!audio.inputs[0].userMediaRTC) {
             // Wait until we have audio
             util.events.addEventListener("usermediartcready", () => this.initRTEnnui(), {once: true});
             return;
@@ -183,7 +183,7 @@ export class RTEnnui implements comm.Comms {
         }
 
         this.cap = await rtennui.createAudioCapture(audio.ac,
-            audio.input.userMediaRTC);
+            audio.inputs[0].userMediaRTC);
         this.connection.addAudioTrack(
             this.cap,
             {frameSize: 5000}
