@@ -284,6 +284,12 @@ export class Audio {
         log.pushStatus("getmic", "Asking for microphone permission...");
         log.popStatus("conn");
 
+        // Make sure the VAD state is available
+        while (vad.vads.length <= this.idx)
+            vad.vads.push(null);
+        if (!vad.vads[this.idx])
+            vad.vads[this.idx] = new vad.VAD();
+
         // First get rid of any active sources
         if (this.userMedia) {
             this.userMedia.getTracks().forEach(track => track.stop());
@@ -549,7 +555,7 @@ export class Audio {
         else
             log.popStatus("buffering");
 
-        if (!vad.vadOn) {
+        if (!vad.vads[this.idx].vadOn) {
             // Drop any sufficiently old packets, or send them marked as silence in continuous mode
             const old = curGranulePos - vad.vadExtension*48;
             while (this.packets[0][0] < old) {
@@ -571,7 +577,7 @@ export class Audio {
             }
 
         } else {
-            const vadVal = (vad.rawVadOn?2:1);
+            const vadVal = (vad.vads[this.idx].rawVadOn?2:1);
 
             // VAD is on, so send packets
             this.packets.forEach((packet) => {

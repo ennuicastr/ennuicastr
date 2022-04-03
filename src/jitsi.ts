@@ -92,7 +92,7 @@ export class Jitsi implements comm.BroadcastComms {
 
         // The way that VAD works with Jitsi is simply to mute the track
         if (opts.audio) {
-            util.events.addEventListener("vad.rtc", () => {
+            util.events.addEventListener("vad.rtc0", () => {
                 // FIXME
                 const a = audio.inputs[0].userMediaRTC;
                 if (!a)
@@ -100,7 +100,7 @@ export class Jitsi implements comm.BroadcastComms {
                 const t = a.getAudioTracks()[0];
                 if (!t)
                     return;
-                t.enabled = vad.rtcVadOn;
+                t.enabled = vad.vads[0].rtcVadOn;
             });
         }
 
@@ -258,7 +258,7 @@ export class Jitsi implements comm.BroadcastComms {
         {
             const track = audio.inputs[0].userMediaRTC.getAudioTracks()[0];
             if (track)
-                track.enabled = vad.rtcVadOn;
+                track.enabled = vad.vads[0].rtcVadOn;
         }
 
         // Then add the new one
@@ -479,7 +479,7 @@ export class Jitsi implements comm.BroadcastComms {
             this.assertJitsiPeer(id, jid);
 
         // Initial "connection". Tell them our current speech status.
-        this.speech(vad.vadOn);
+        this.speech(vad.vads[0].vadOn);
     }
 
     // Incoming Jitsi end-to-end messages

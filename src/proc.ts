@@ -52,11 +52,6 @@ export function setVadSensitivity(to: number): void { vadSensitivity = to; }
 export let vadNoiseGate = -100;
 export function setVadNoiseGate(to: number): void { vadNoiseGate = to; }
 
-function rtcVad(to: boolean) {
-    vad.setRTCVadOn(to);
-    util.dispatchEvent("vad.rtc");
-}
-
 // All local processing: The VAD, wave display, and noise reduction
 export function localProcessing(idx: number): void {
     Promise.all([]).then(function() {
@@ -145,14 +140,20 @@ function localProcessingWorker(idx: number) {
             const msg = ev.data;
             if (msg.c === "state") {
                 // VAD state
-                vad.setRawVadOn(msg.rawVadOn);
-                if (msg.rtcVadOn !== vad.rtcVadOn)
-                    rtcVad(msg.rtcVadOn);
-                if (msg.vadOn !== vad.vadOn) {
+                const vadI = vad.vads[idx];
+                vadI.rawVadOn = msg.rawVadOn;
+                if (msg.rtcVadOn !== vadI.rtcVadOn) {
+                    vadI.rtcVadOn = msg.rtcVadOn;
+                    util.dispatchEvent("vad.rtc", {idx});
+                    util.dispatchEvent("vad.rtc" + idx, {idx});
+                }
+                if (msg.vadOn !== vadI.vadOn) {
                     if (msg.vadOn)
                         wd.updateWaveRetroactive(vad.vadExtension);
-                    vad.setVadOn(msg.vadOn);
-                    util.dispatchEvent("ui.speech", {user: null, status: msg.vadOn});
+                    vadI.vadOn = msg.vadOn;
+                    const state = {user: null, idx, status: msg.vadOn};
+                    util.dispatchEvent("ui.speech", state);
+                    util.dispatchEvent("ui.speech" + idx, state);
                 }
 
             } else if (msg.c === "max") {
@@ -166,7 +167,8 @@ function localProcessingWorker(idx: number) {
                 }
 
                 // Display
-                wd.push(msg.m, net.transmitting?(vad.rawVadOn?3:(vad.vadOn?2:1)):0);
+                const vadI = vad.vads[idx];
+                wd.push(msg.m, net.transmitting?(vadI.rawVadOn?3:(vadI.vadOn?2:1)):0);
                 wd.updateWave(msg.m, sentRecently);
 
             } else if (msg.c === "vosk") {

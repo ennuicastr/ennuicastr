@@ -69,7 +69,7 @@ export class RTEnnui implements comm.Comms {
         util.events.addEventListener("vad.rtc", () => {
             if (!this.cap)
                 return;
-            this.cap.setVADState(vad.rtcVadOn ? "yes" : "no");
+            this.cap.setVADState(vad.vads[0].rtcVadOn ? "yes" : "no");
         });
 
         this.commModes = opts;
@@ -190,7 +190,7 @@ export class RTEnnui implements comm.Comms {
         );
 
         // Set the VAD state
-        this.cap.setVADState(vad.rtcVadOn ? "yes" : "no");
+        this.cap.setVADState(vad.vads[0].rtcVadOn ? "yes" : "no");
     }
 
     // Called when a remote track is added

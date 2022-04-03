@@ -17,20 +17,39 @@
 /*
  * This file is part of Ennuicastr.
  *
- * Voice activity detection constants.
+ * VAD constants and state per input.
  */
 
-// WebRTCVAD's raw output
-export let rawVadOn = false;
-export function setRawVadOn(to: boolean): void { rawVadOn = to; }
+/**
+ * A single VAD's state.
+ */
+export class VAD {
+    /**
+     * The raw VAD state, as reported by WebRTC VAD.
+     */
+    rawVadOn: boolean;
 
-// Recording VAD after warmup and cooldown
-export let vadOn = false;
-export function setVadOn(to: boolean): void { vadOn = to; }
+    /**
+     * The recording VAD state, with buffering.
+     */
+    vadOn: boolean;
 
-// RTC VAD after cooldown
-export let rtcVadOn = false;
-export function setRTCVadOn(to: boolean): void { rtcVadOn = to; }
+    /**
+     * The RTC VAD state, with more urgent turn-on and less buffering.
+     */
+    rtcVadOn: boolean;
 
-// Number of milliseconds to run the VAD for before/after talking
+    constructor() {
+        this.rawVadOn = this.vadOn = this.rtcVadOn = false;
+    }
+}
+
+/**
+ * All current VAD states.
+ */
+export const vads: VAD[] = [new VAD()];
+
+/**
+ * Number of milliseconds to run the VAD for before/after talking.
+ */
 export const vadExtension = 2000;
