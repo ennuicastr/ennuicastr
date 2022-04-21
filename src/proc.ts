@@ -125,7 +125,8 @@ function localProcessingWorker(idx: number) {
             sentRecently: sentRecently,
             vadSensitivity: vadSensitivity,
             vadNoiseGate: vadNoiseGate,
-            useTranscription: config.useTranscription
+            useTranscription: config.useTranscription,
+            channel: input.channel
         }
 
     }).then(capture => {

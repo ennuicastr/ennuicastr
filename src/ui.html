@@ -287,9 +287,18 @@
 
             <!-- Input device -->
             <div class="rflex row">
-                <label for="ecinput-device-list" style="min-width: 6em; text-align: right;">Input device:&nbsp;</label>
+                <label for="ecinput-device-list" style="min-width: 8em; text-align: right;">Input device:&nbsp;</label>
                 <select id="ecinput-device-list" style="flex: auto; width: 6em;"></select>
             </div>
+
+            <!-- And channel -->
+            <div id="ecinput-channel-hider" class="rflex row" style="display: none;">
+                <label for="ecinput-channel-list" style="min-width: 8em; text-align: right;">Channel:&nbsp;</label>
+                <select id="ecinput-channel-list" style="flex: auto; width: 4em;"></select>
+            </div>
+
+            <!-- Ability to add more tracks -->
+            <button id="ecinput-add" class="row"><i class="fas fa-plus-square"></i> Secondary device(s)</button>
 
             <!-- And options -->
             <div class="bigrflex row">
@@ -319,6 +328,31 @@
                 <label for="ecvad-noise-gate" style="min-width: 8em; text-align: right;">Noise gate:&nbsp;</label>
                 <input id="ecvad-noise-gate" type="range" min=-100 max=0 value=-100 class="ecpeak-horizontal-self" style="flex: auto; width: 5em;" />
                 <span id="ecvad-noise-gate-status">&nbsp;-100dB</span>
+            </div>
+        </div>
+
+        <!-- Secondary track selector -->
+        <div id="ecinput-secondary-selector-wrapper" class="panel" role="dialog" aria-label="Secondary inputs">
+            <div class="rflex row">
+                <label for="ecinput-secondary-list" style="min-width: 6em; text-align: right;">Track:&nbsp;</label>
+                <select id="ecinput-secondary-list" style="flex: auto; width: 6em;"></select>
+            </div>
+        </div>
+
+        <!-- The secondary input device selector -->
+        <div id="ecinput-secondary-device-wrapper" class="panel" role="dialog" aria-label="Secondary input settings">
+            <button class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
+
+            <!-- Input device -->
+            <div class="rflex row">
+                <label for="ecinput-secondary-device-list" style="min-width: 8em; text-align: right;">Input device:&nbsp;</label>
+                <select id="ecinput-secondary-device-list" style="flex: auto; width: 6em;"></select>
+            </div>
+
+            <!-- And channel -->
+            <div id="ecinput-secondary-channel-hider" class="rflex row" style="display: none;">
+                <label for="ecinput-secondary-channel-list" style="min-width: 8em; text-align: right;">Channel:&nbsp;</label>
+                <select id="ecinput-secondary-channel-list" style="flex: auto; width: 4em;"></select>
             </div>
         </div>
 

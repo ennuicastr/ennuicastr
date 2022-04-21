@@ -207,6 +207,9 @@ function doEncoder(msg: any) {
     const format: string = msg.format || "opus";
     const channelLayout: number = msg.channelLayout || 4;
     const channelCount: number = msg.channelCount || 1;
+
+    let channel: number = (typeof msg.channel === "number") ? msg.channel : -1;
+
     let p: Promise<unknown> = Promise.all([]);
     let pts = 0;
     let seq = 0;
@@ -273,6 +276,8 @@ function doEncoder(msg: any) {
 
     function ondata(ts: number, data: Float32Array[]) {
         // Put it in libav format
+        if (channel >= 0 && data.length > channel)
+            data = [data[channel]];
         while (data.length < channelCount)
             data = data.concat(data);
         const frames = [{
@@ -326,6 +331,7 @@ function doFilter(msg: any) {
     let vadNoiseGate: number = msg.vadNoiseGate;
     let vadNoiseGateLvl = Math.pow(10, vadNoiseGate / 20);
     const useTranscription: boolean = msg.useTranscription;
+    let channel: number = (typeof msg.channel === "number") ? msg.channel : -1;
 
     // Let them update it
     onmessage = function(ev) {
@@ -451,19 +457,28 @@ function doFilter(msg: any) {
     // Called when we receive real data
     function ondata(ts: number, data: Float32Array[]) {
         // Merge together the channels
-        const ib = data[0];
-        const cc = data.length;
-        if (cc !== 1) {
-            // Mix it
-            for (let i = 1; i < cc; i++) {
-                const ibc = data[i];
-                for (let j = 0; j < ib.length; j++)
-                    ib[j] += ibc[j];
+        let ib: Float32Array;
+        if (channel >= 0 && data.length > channel) {
+            // Just one channel
+            ib = data[channel];
+
+        } else {
+            // Possibly multiple channels
+            ib = data[0];
+            const cc = data.length;
+            if (cc !== 1) {
+                // Mix it
+                for (let i = 1; i < cc; i++) {
+                    const ibc = data[i];
+                    for (let j = 0; j < ib.length; j++)
+                        ib[j] += ibc[j];
+                }
+
+                // Then temper it
+                for (let i = 0; i < ib.length; i++)
+                    ib[i] /= cc;
             }
 
-            // Then temper it
-            for (let i = 0; i < ib.length; i++)
-                ib[i] /= cc;
         }
 
 

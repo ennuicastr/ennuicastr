@@ -240,6 +240,12 @@ export class Audio {
     // The pseudodevice as processed to reduce noise, for RTC
     userMediaRTC: MediaStream = null;
 
+    // Where to save the channel setting
+    channelSettingName: string = null;
+
+    // Which channel to read, or -1 for all
+    channel: number = -1;
+
     // Outstanding packets
     packets: Packet[] = [];
 
@@ -315,6 +321,37 @@ export class Audio {
             }
         }).catch(() => null).then(userMediaIn => {
             this.userMedia = userMediaIn;
+
+            // Set up the channel selector
+            const channelCt = userMediaIn ?
+                userMediaIn.getAudioTracks()[0].getSettings().channelCount :
+                1;
+            if (channelCt > 1) {
+                ui.ui.panels.inputConfig.channelHider.style.display = "";
+            } else {
+                ui.ui.panels.inputConfig.channelHider.style.display = "none";
+            }
+
+            const channel = ui.ui.panels.inputConfig.channel;
+            channel.innerHTML = "";
+            const all = dce("option");
+            all.innerText = "All";
+            all.value = "-1";
+            channel.appendChild(all);
+            for (let i = 0; i < channelCt; i++) {
+                const ch = dce("option");
+                ch.innerText = "" + (i+1);
+                ch.value = "" + i;
+                channel.appendChild(ch);
+            }
+            channel.value = "-1";
+
+            // Load the channel setting
+            const csn = this.channelSettingName = "audio-" + deviceId + "-channel";
+            const cs = localStorage.getItem(csn);
+            if (cs)
+                channel.value = cs;
+            this.channel = +channel.value;
 
             // And move on to the next step
             return this.userMediaSet();
@@ -490,7 +527,8 @@ export class Audio {
                 outSampleRate: sampleRate,
                 format: config.useFlac ? "flac" : "opus",
                 channelLayout: channelLayout,
-                channelCount: channelCount
+                channelCount: channelCount,
+                channel: this.channel
             }
 
         }).then(capture => {
@@ -651,12 +689,25 @@ export class Audio {
     setInputDevice(to: string): Promise<unknown> {
         // Update the UI
         ui.ui.panels.inputConfig.device.value = to;
+        ui.ui.panels.inputConfig.channelHider.style.display = "none";
 
         // Update any admins
         net.updateAdminPerm({audioDevice: to});
 
         // And make it so
         return this.getMic(to);
+    }
+
+    // Set the input channel
+    setInputChannel(to: number): Promise<unknown> {
+        // Update the UI
+        ui.ui.panels.inputConfig.channel.value = "" + to;
+
+        // Save it
+        localStorage.setItem(this.channelSettingName, "" + to);
+
+        // And make it so
+        return this.getMic(ui.ui.panels.inputConfig.device.value);
     }
 }
 

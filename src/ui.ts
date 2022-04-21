@@ -364,6 +364,10 @@ export const ui = {
             // Device selection
             device: HTMLSelectElement,
 
+            // Channel selection
+            channelHider: HTMLElement,
+            channel: HTMLSelectElement,
+
             // PTT button
             ptt: HTMLButtonElement,
 

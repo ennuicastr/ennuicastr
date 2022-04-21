@@ -510,6 +510,8 @@ function loadInputConfig() {
     const input = ui.panels.inputConfig = {
         wrapper: gebi("ecinput-device-wrapper"),
         device: gebi("ecinput-device-list"),
+        channelHider: gebi("ecinput-channel-hider"),
+        channel: gebi("ecinput-channel-list"),
         ptt: gebi("ecpttb"),
         noiserHider: gebi("ecnoise-reduction-hider"),
         noiser: gebi("ecnoise-reduction"),
@@ -682,6 +684,11 @@ export function mkAudioUI(): string {
 
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     }).catch(function() {}); // Nothing really to do here
+
+    function channelChange() {
+        audio.inputs[0].setInputChannel(+input.channel.value);
+    }
+    input.channel.onchange = channelChange;
 
     // Gamepad PTT configuration
     if (typeof Ennuiboard !== "undefined" && Ennuiboard.supported.gamepad)
