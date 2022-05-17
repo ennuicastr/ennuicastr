@@ -41,6 +41,7 @@ import * as wsp from "web-streams-polyfill/ponyfill";
 interface Peer {
     rtc: RTCPeerConnection;
     data: RTCDataChannel;
+    queue: ArrayBuffer[];
     signal: (msg:any)=>unknown;
     rtcReady: boolean;
 }
@@ -83,6 +84,7 @@ export class CTCP implements comm.DataComms {
         const ret = this.peers[id] = {
             rtc: <RTCPeerConnection> null,
             data: <RTCDataChannel> null,
+            queue: <ArrayBuffer[]> [],
             signal: <(msg:any)=>unknown> null,
             rtcReady: false
         };
@@ -308,7 +310,13 @@ export class CTCP implements comm.DataComms {
 
         // If we can, send it directly
         if (inc.rtcReady) {
-            inc.data.send(msg.buffer);
+            if (inc.queue.length || inc.data.bufferedAmount) {
+                // Queue it
+                inc.queue.push(msg.buffer);
+            } else {
+                // Send it immediately
+                inc.data.send(msg.buffer);
+            }
             return;
         }
 
@@ -478,6 +486,13 @@ export class CTCP implements comm.DataComms {
                 // There's nothing left
                 delete this.peers[id];
             }
+        };
+
+        // Prepare for queueing
+        j.queue = [];
+        j.data.onbufferedamountlow = function() {
+            if (j.queue.length)
+                j.data.send(j.queue.shift());
         };
 
         onnegotiationneeded();
