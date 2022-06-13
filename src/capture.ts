@@ -21,7 +21,7 @@
  */
 
 // Worker paths to use
-const workerVer = "q";
+const workerVer = "r";
 const awpPath = "awp/ennuicastr-awp.js?v=" + workerVer;
 export const workerPath = "awp/ennuicastr-worker.js?v=" + workerVer;
 
