@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2021 Yahweasel
+ * Copyright (c) 2018-2022 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -47,6 +47,11 @@
 
             // Caption
             "caption": 0x33,
+
+            // Enhanced data (multitrack)
+            "data2": 0x34,
+
+            // Enhanced caption (multitrack)
 
             // Monitoring
             "user": 0x40,
@@ -107,6 +112,13 @@
                 "packet": 12
             },
 
+            "data2": {
+                "length": 13,
+                "trackNo": 4, // unique to this client
+                "granulePos": 5,
+                "packet": 13
+            },
+
             "text": {
                 "length": 8,
                 "reserved": 4,
@@ -137,6 +149,21 @@
                     "append": 4,
                     "complete": 5,
                     "text": 6
+                }
+            },
+
+            "caption2": {
+                "cs": { // C->S: Complete caption data
+                    "length": 5,
+                    "trackNo": 4,
+                    "data": 5
+                },
+                "cc": { // C->C: Live caption data
+                    "length": 7,
+                    "trackNo": 4,
+                    "append": 5,
+                    "complete": 6,
+                    "text": 7
                 }
             },
 

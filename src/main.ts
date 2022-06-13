@@ -73,7 +73,7 @@ async function main() {
             commImpl.initComms();
 
         // Get audio permissions, continuing on to making the audio UI
-        await audio.inputs[0].getAudioPerms(uiImpl.mkAudioUI);
+        await audio.getAudioPerms(uiImpl.mkAudioUI);
 
     } catch (ex) {
         log.pushStatus("error", ex + "\n\n" + ex.stack);

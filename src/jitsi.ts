@@ -275,6 +275,7 @@ export class Jitsi implements comm.BroadcastComms {
 
         }).then(() => {
             // And prepare to remove it
+            // FIXME: Indices
             util.events.addEventListener("usermediastopped", () => this.jitsiUnsetUserMediaRTC(), {once: true});
 
         }).catch(() => {

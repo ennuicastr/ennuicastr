@@ -368,6 +368,10 @@ export const ui = {
             channelHider: HTMLElement,
             channel: HTMLSelectElement,
 
+            // Secondary tracks
+            secondaryHider: HTMLElement,
+            secondary: HTMLSelectElement,
+
             // PTT button
             ptt: HTMLButtonElement,
 
@@ -381,6 +385,20 @@ export const ui = {
             vadSensitivityStatus: HTMLElement,
             vadNoiseGate: HTMLInputElement,
             vadNoiseGateStatus: HTMLElement
+        }> null,
+
+        // Secondary input device selection
+        secondaryInputConfig: <{
+            wrapper: HTMLElement,
+
+            // Index of the current track
+            idx: number,
+
+            // Device selection
+            device: HTMLSelectElement,
+
+            // Callback (changes based on panel visibility)
+            callback: ()=>void
         }> null,
 
         // Output device selection

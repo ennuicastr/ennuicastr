@@ -231,6 +231,50 @@ function tickRecordingTimer() {
 
 
 /**
+ * Get audio permission. First audio step of the process.
+ */
+export function getAudioPerms(mkAudioUI: ()=>string): Promise<unknown> {
+    return navigator.mediaDevices.getUserMedia({audio: true}).catch(() => null).then((userMediaIn) => {
+        inputs[0].userMedia = userMediaIn; // So that it gets deleted by getMic
+        return inputs[0].getMic(mkAudioUI());
+    }).catch((err) => {
+        config.disconnect();
+        log.pushStatus("fail", "Cannot get microphone: " + err);
+        log.popStatus("getmic");
+    });
+}
+
+/**
+ * Assert that ac is set to a valid AudioContext.
+ */
+function assertAC() {
+    if (ac)
+        return;
+
+    try {
+        ac = new AudioContext({latencyHint: "playback"});
+    } catch (ex) {
+        // Try Apple's, and if not that, nothing left to try, so crash
+        ac = new webkitAudioContext();
+    }
+
+    // Make an output context for it
+    const msd = (<any> ac).ecDestination = ac.createMediaStreamDestination();
+
+    // Start playing it when we're (relatively) sure we can
+    util.events.addEventListener("usermediartcready", () => {
+        if (!ui.ui.audioOutput) {
+            const a = ui.ui.audioOutput = dce("audio");
+            a.style.display = "none";
+            document.body.appendChild(a);
+        }
+
+        ui.ui.audioOutput.srcObject = msd.stream;
+        ui.ui.audioOutput.play().catch(console.error);
+    });
+}
+
+/**
  * Audio capture and recording.
  */
 export class Audio {
@@ -268,18 +312,6 @@ export class Audio {
         /** Index of this audio input */
         public idx: number
     ) {}
-
-    // Get audio permission. First audio step of the process.
-    getAudioPerms(mkAudioUI: ()=>string): Promise<unknown> {
-        return navigator.mediaDevices.getUserMedia({audio: true}).catch(() => null).then((userMediaIn) => {
-            this.userMedia = userMediaIn; // So that it gets deleted by getMic
-            return this.getMic(mkAudioUI());
-        }).catch((err) => {
-            config.disconnect();
-            log.pushStatus("fail", "Cannot get microphone: " + err);
-            log.popStatus("getmic");
-        });
-    }
 
     /* The starting point for enabling encoding. Get our microphone input. Returns
      * a promise that resolves when encoding is active. */
@@ -322,36 +354,40 @@ export class Audio {
         }).catch(() => null).then(userMediaIn => {
             this.userMedia = userMediaIn;
 
-            // Set up the channel selector
-            const channelCt = userMediaIn ?
-                userMediaIn.getAudioTracks()[0].getSettings().channelCount :
-                1;
-            if (channelCt > 1) {
-                ui.ui.panels.inputConfig.channelHider.style.display = "";
-            } else {
-                ui.ui.panels.inputConfig.channelHider.style.display = "none";
+            if (this.idx === 0) {
+                // Set up the channel selector
+                const channelCt = userMediaIn ?
+                    userMediaIn.getAudioTracks()[0].getSettings().channelCount :
+                    1;
+                if (channelCt > 1) {
+                    ui.ui.panels.inputConfig.channelHider.style.display = "";
+                } else {
+                    ui.ui.panels.inputConfig.channelHider.style.display = "none";
+                }
+
+                const channel = ui.ui.panels.inputConfig.channel;
+                channel.innerHTML = "";
+                const all = dce("option");
+                all.innerText = "All";
+                all.value = "-1";
+                channel.appendChild(all);
+                for (let i = 0; i < channelCt; i++) {
+                    const ch = dce("option");
+                    ch.innerText = "" + (i+1);
+                    ch.value = "" + i;
+                    channel.appendChild(ch);
+                }
+                channel.value = "-1";
+
+                // Load the channel setting
+                const csn = this.channelSettingName = "audio-" + deviceId + "-channel";
+                const cs = localStorage.getItem(csn);
+                if (cs)
+                    channel.value = cs;
+                this.channel = +channel.value;
             }
 
-            const channel = ui.ui.panels.inputConfig.channel;
-            channel.innerHTML = "";
-            const all = dce("option");
-            all.innerText = "All";
-            all.value = "-1";
-            channel.appendChild(all);
-            for (let i = 0; i < channelCt; i++) {
-                const ch = dce("option");
-                ch.innerText = "" + (i+1);
-                ch.value = "" + i;
-                channel.appendChild(ch);
-            }
-            channel.value = "-1";
-
-            // Load the channel setting
-            const csn = this.channelSettingName = "audio-" + deviceId + "-channel";
-            const cs = localStorage.getItem(csn);
-            if (cs)
-                channel.value = cs;
-            this.channel = +channel.value;
+            // FIXME: What if the idx>0 panel is open?
 
             // And move on to the next step
             return this.userMediaSet();
@@ -369,29 +405,12 @@ export class Audio {
             return;
 
         // Create our AudioContext if needed
-        if (!ac) {
-            try {
-                ac = new AudioContext({latencyHint: "playback"});
-            } catch (ex) {
-                // Try Apple's, and if not that, nothing left to try, so crash
-                ac = new webkitAudioContext();
-            }
+        assertAC();
 
-            // Make an output context for it
-            const msd = (<any> ac).ecDestination = ac.createMediaStreamDestination();
-
-            // Start playing it when we're (relatively) sure we can
-            util.events.addEventListener("usermediartcready", () => {
-                if (!ui.ui.audioOutput) {
-                    const a = ui.ui.audioOutput = dce("audio");
-                    a.style.display = "none";
-                    document.body.appendChild(a);
-                }
-
-                ui.ui.audioOutput.srcObject = msd.stream;
-                ui.ui.audioOutput.play().catch(console.error);
-            });
-        }
+        /* If we don't have a userMedia but we're not the primary source,
+         * that's fine */
+        if (this.idx > 0 && !this.userMedia)
+            return;
 
         // If we don't *actually* have a userMedia, fake one
         let noUserMedia = false;
@@ -422,6 +441,7 @@ export class Audio {
                 log.pushStatus("audiocontext", "Cannot capture audio! State: " + ac.state);
 
             // At this point, we want to start catching errors
+            // FIXME: Multi-audio, replacement, lots of issues here
             window.addEventListener("error", function(error) {
                 try {
                     let msg = "";
@@ -483,7 +503,8 @@ export class Audio {
 
     // Start our encoder
     private encoderStart(): Promise<unknown> {
-        // We need to choose our target sample rate based on the input sample rate and format
+        /* We need to choose our target sample rate based on the input sample
+         * rate and format */
         let sampleRate = 48000;
         if (config.useFlac && ac.sampleRate === 44100)
             sampleRate = 44100;
@@ -636,9 +657,13 @@ export class Audio {
 
     // Send an audio packet
     private sendPacket(granulePos: number, data: {buffer: ArrayBuffer}, vadVal: number) {
-        const p = prot.parts.data;
+        const p = (this.idx > 0) ? prot.parts.data2 : prot.parts.data;
         const msg = new DataView(new ArrayBuffer(p.length + (config.useContinuous?1:0) + data.buffer.byteLength));
-        msg.setUint32(0, prot.ids.data, true);
+        msg.setUint32(0, (this.idx > 0) ? prot.ids.data2 : prot.ids.data,
+            true);
+        if (this.idx > 0) {
+            msg.setUint8(p.trackNo, this.idx);
+        }
         msg.setUint32(p.granulePos, granulePos & 0xFFFFFFFF, true);
         msg.setUint16(p.granulePos + 4, (granulePos / 0x100000000) & 0xFFFF, true);
         if (config.useContinuous)

@@ -512,6 +512,8 @@ function loadInputConfig() {
         device: gebi("ecinput-device-list"),
         channelHider: gebi("ecinput-channel-hider"),
         channel: gebi("ecinput-channel-list"),
+        secondaryHider: gebi("ecinput-secondary-hider"),
+        secondary: gebi("ecinput-secondary"),
         ptt: gebi("ecpttb"),
         noiserHider: gebi("ecnoise-reduction-hider"),
         noiser: gebi("ecnoise-reduction"),
@@ -522,6 +524,13 @@ function loadInputConfig() {
         vadSensitivityStatus: gebi("ecvad-sensitivity-status"),
         vadNoiseGate: gebi("ecvad-noise-gate"),
         vadNoiseGateStatus: gebi("ecvad-noise-gate-status")
+    };
+
+    const secondary = ui.panels.secondaryInputConfig = {
+        wrapper: gebi("ecinput-secondary-selector-wrapper"),
+        idx: -1,
+        device: gebi("ecinput-secondary-list"),
+        callback: null
     };
 
     if (!config.useRTC || config.useRecordOnly) {
@@ -654,6 +663,7 @@ function loadInterfaceSounds() {
 export function mkAudioUI(): string {
     const main = ui.panels.main,
         input = ui.panels.inputConfig,
+        secondary = ui.panels.secondaryInputConfig,
         output = ui.panels.outputConfig,
         videoConfig = ui.panels.videoConfig;
 
@@ -746,6 +756,18 @@ export function mkAudioUI(): string {
         vadNoiseGateChange, vadNoiseGateInput);
     vadNoiseGateInput();
     vadNoiseGateChange();
+
+
+    /********************
+     * SECONDARY DEVICE CONFIGURATION
+     *******************/
+    function secondaryChange() {
+        const input = audio.inputs[secondary.idx];
+        if (!input)
+            return;
+    }
+
+    secondary.device.onchange = secondaryChange;
 
 
     /********************
