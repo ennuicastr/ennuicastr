@@ -121,6 +121,10 @@ export class CTCP implements comm.DataComms {
 
         // Disconnections
         util.events.addEventListener("net.info." + prot.info.peerLost, (ev: CustomEvent) => {
+            if (this.videoRecHost === ev.detail.val) {
+                this.videoRecHost = -1;
+                videoRecord.onVideoRecHostChange();
+            }
             this.closeRTC(ev.detail.val);
         });
 
@@ -193,10 +197,13 @@ export class CTCP implements comm.DataComms {
                         try {
                             accept = msg.getUint32(p.length, true);
                         } catch (ex) {}
-                        if (accept)
-                            this.videoRecHost = peer; // FIXME: Deal with disconnections
-                        else if (this.videoRecHost === peer)
+                        if (accept) {
+                            this.videoRecHost = peer;
+                            videoRecord.onVideoRecHostChange();
+                        } else if (this.videoRecHost === peer) {
                             this.videoRecHost = -1;
+                            videoRecord.onVideoRecHostChange();
+                        }
                         break;
                     }
 

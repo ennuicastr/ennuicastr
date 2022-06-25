@@ -60,9 +60,13 @@ const fixedTimeBase = {
     den: 1000
 };
 
+// Options for the *current* video recording
+let curVideoRecOpts: RecordVideoOptions = null;
+
 // Record video
 async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
     recordVideoUI(true);
+    curVideoRecOpts = opts;
 
     // Which format?
     const formats: [string, string, boolean][] = [
@@ -458,7 +462,9 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
             }
         }
 
-        await promises;
+        await Promise.all(promises);
+
+        curVideoRecOpts = null;
     })();
 
     // Make it possible to stop
@@ -722,6 +728,25 @@ export function loadVideoRecordPanel(): void {
     ui.saveConfigValue(recording.bitrate, "record-video-bitrate", maybeRecord);
 
     recordVideoUI();
+}
+
+/**
+ * Call to indicate that the video recording host has changed. FIXME: Should
+ * be an event.
+ */
+export function onVideoRecHostChange() {
+    const recording = ui.ui.panels.videoConfig.recording;
+
+    /* Restart if either we're currently recording remote, or we would like to
+     * be recording remote but aren't */
+    if (curVideoRecOpts && (
+        curVideoRecOpts.remote ||
+        (!("master" in config.config) &&
+         recording.remote.checked &&
+         config.useRTC))) {
+
+        maybeRecord();
+    }
 }
 
 // Make sure the recording updates when the video state updates
