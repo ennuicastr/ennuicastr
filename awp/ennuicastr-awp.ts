@@ -96,13 +96,22 @@ class WorkerProcessor extends AudioWorkletProcessor {
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     process(inputs: Float32Array[][], outputs: Float32Array[][], parameters: Record<string, Float32Array>) {
-        if (!this.workerPort || inputs.length === 0 || inputs[0].length === 0)
+        if (!this.workerPort || inputs.length === 0)
             return true;
+
+        // Find an input to use
+        let inputIndex = 0;
+        for (; inputIndex < inputs.length &&
+               inputs[inputIndex].length === 0;
+               inputIndex++) {}
+        if (inputIndex >= inputs.length)
+            return true;
+        const inp = inputs[inputIndex];
 
         // SETUP
 
         if (!this.incoming) {
-            const chans = inputs[0].length;
+            const chans = inp.length;
             this.incoming = [];
             for (let i = 0; i < chans; i++) {
                 this.incoming.push(new Float32Array(
@@ -142,7 +151,6 @@ class WorkerProcessor extends AudioWorkletProcessor {
         // INPUT (outgoing)
 
         // Transmit our current data
-        const inp = inputs[0];
         if (this.canShared) {
             // Write it into the buffer
             let writeHead = this.outgoingRW[1];
@@ -169,7 +177,7 @@ class WorkerProcessor extends AudioWorkletProcessor {
             /* Just send the data, along with a timestamp. Minimize allocation
              * by sending plain */
             this.workerPort.postMessage(Date.now());
-            this.workerPort.postMessage(inputs[0]);
+            this.workerPort.postMessage(inp);
 
         }
 

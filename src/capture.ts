@@ -20,8 +20,10 @@
  * Generalized audio capture on top of various subsystems.
  */
 
+import * as log from "./log";
+
 // Worker paths to use
-const workerVer = "r";
+const workerVer = "s";
 const awpPath = "awp/ennuicastr-awp.js?v=" + workerVer;
 export const workerPath = "awp/ennuicastr-worker.js?v=" + workerVer;
 
@@ -51,6 +53,10 @@ function isChrome() {
 export function isSafari(): boolean {
     // Chrome pretends to be Safari
     return navigator.userAgent.indexOf("Safari") >= 0 && !isChrome();
+}
+
+function isFirefox() {
+    return navigator.userAgent.indexOf("Firefox") >= 0;
 }
 
 
@@ -112,7 +118,11 @@ function createCaptureAWP(ac: AudioContext & {ecAWPP?: Promise<unknown>}, option
          * AudioWorkletNode in awp.js ->
          * Worker in worker.js ->
          * back to us */
-        const awn = new AudioWorkletNode(ac, "worker-processor");
+        const awn = new AudioWorkletNode(ac, "worker-processor", {
+            /* 2 inputs on Firefox because when input is muted, it doesn't run
+             * the processor at all, but we'd rather have it run with 0s */
+            numberOfInputs: isFirefox() ? 2 : 1
+        });
         const worker = new Worker(workerPath);
 
         // Need a channel for them to communicate
@@ -128,8 +138,16 @@ function createCaptureAWP(ac: AudioContext & {ecAWPP?: Promise<unknown>}, option
             source = ac.createMediaStreamSource(options.ms);
         else if (options.input)
             source = options.input;
+        let csn: ConstantSourceNode = null;
         if (source)
             source.connect(awn);
+        if (isFirefox()) {
+            /* On Firefox, make a constant node so that if no input is coming
+             * on the main node, the AWN can generate zeros from here. */
+            csn = new ConstantSourceNode(ac, {offset: 0});
+            csn.connect(awn, 0, 1);
+            csn.start();
+        }
         let msd: MediaStreamAudioDestinationNode = null;
         if (options.outStream) {
             msd = ac.createMediaStreamDestination();
@@ -144,6 +162,8 @@ function createCaptureAWP(ac: AudioContext & {ecAWPP?: Promise<unknown>}, option
 
             if (source)
                 source.disconnect(awn);
+            if (csn)
+                csn.disconnect(awn);
             if (msd)
                 awn.disconnect(msd);
             worker.terminate();
