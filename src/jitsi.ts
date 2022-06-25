@@ -145,7 +145,7 @@ export class Jitsi implements comm.BroadcastComms {
 
         }).then(() => {
             if (typeof JitsiMeetJS === "undefined")
-                return util.loadLibrary("libs/lib-jitsi-meet.6907.js");
+                return util.loadLibrary("libs/lib-jitsi-meet.7421.js");
 
         }).then(() => {
             // Get rid of any old Jitsi instance. First, clear tracks.
