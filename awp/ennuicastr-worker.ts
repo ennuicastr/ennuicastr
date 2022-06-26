@@ -209,6 +209,7 @@ function doEncoder(msg: any) {
     const channelCount: number = msg.channelCount || 1;
 
     let channel: number = (typeof msg.channel === "number") ? msg.channel : -1;
+    let outputChannelLayout: number = (typeof msg.outputChannelLayout === "number") ? msg.outputChannelLayout : 4;
 
     let p: Promise<unknown> = Promise.all([]);
     let pts = 0;
@@ -218,8 +219,7 @@ function doEncoder(msg: any) {
     const encOptions: any = {
         sample_rate: outSampleRate,
         frame_size: outSampleRate * 20 / 1000,
-        channel_layout: 4,
-        channels: 1
+        channel_layout: outputChannelLayout
     };
 
     let c: number, frame: number, pkt: number;
@@ -261,7 +261,7 @@ function doEncoder(msg: any) {
         }, {
             sample_rate: encOptions.sample_rate,
             sample_fmt: encOptions.sample_fmt,
-            channel_layout: 4,
+            channel_layout: outputChannelLayout,
             frame_size: encOptions.frame_size
         });
 

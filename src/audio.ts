@@ -246,6 +246,9 @@ export class Audio {
     // Which channel to read, or -1 for all
     channel: number = -1;
 
+    // Stereo encoding?
+    stereoEncoding: boolean = false;
+
     // Outstanding packets
     packets: Packet[] = [];
 
@@ -335,9 +338,13 @@ export class Audio {
             const channel = ui.ui.panels.inputConfig.channel;
             channel.innerHTML = "";
             const all = dce("option");
-            all.innerText = "All";
+            all.innerText = "All (mix)";
             all.value = "-1";
             channel.appendChild(all);
+            const stereo = dce("option");
+            stereo.innerText = "Stereo";
+            stereo.value = "-2";
+            channel.appendChild(stereo);
             for (let i = 0; i < channelCt; i++) {
                 const ch = dce("option");
                 ch.innerText = "" + (i+1);
@@ -352,6 +359,14 @@ export class Audio {
             if (cs)
                 channel.value = cs;
             this.channel = +channel.value;
+
+            // And stereo setting
+            if (this.channel === -2) {
+                this.channel = -1;
+                this.stereoEncoding = true;
+            } else {
+                this.stereoEncoding = false;
+            }
 
             // And move on to the next step
             return this.userMediaSet();
@@ -528,7 +543,8 @@ export class Audio {
                 format: config.useFlac ? "flac" : "opus",
                 channelLayout: channelLayout,
                 channelCount: channelCount,
-                channel: this.channel
+                channel: this.channel,
+                outputChannelLayout: this.stereoEncoding ? 3 /* left + right */ : 4 /* center */
             }
 
         }).then(capture => {
