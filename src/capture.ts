@@ -23,7 +23,7 @@
 import * as log from "./log";
 
 // Worker paths to use
-const workerVer = "t";
+const workerVer = "u";
 const awpPath = "awp/ennuicastr-awp.js?v=" + workerVer;
 export const workerPath = "awp/ennuicastr-worker.js?v=" + workerVer;
 
