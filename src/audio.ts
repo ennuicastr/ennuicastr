@@ -246,8 +246,8 @@ export class Audio {
     // Which channel to read, or -1 for all
     channel: number = -1;
 
-    // Stereo encoding?
-    stereoEncoding: boolean = false;
+    // Channel layout for encoding?
+    encodingChannelLayout: number = 4;
 
     // Outstanding packets
     packets: Packet[] = [];
@@ -341,6 +341,14 @@ export class Audio {
             all.innerText = "All (mix)";
             all.value = "-1";
             channel.appendChild(all);
+            /* FIXME: This doesn't work on the server right now, so not provided
+            if (channelCt > 2) {
+                const sep = dce("option");
+                sep.innerText = "All (separate channels)";
+                sep.value = "-3";
+                channel.appendChild(sep);
+            }
+            */
             const stereo = dce("option");
             stereo.innerText = "Stereo";
             stereo.value = "-2";
@@ -361,11 +369,14 @@ export class Audio {
             this.channel = +channel.value;
 
             // And stereo setting
-            if (this.channel === -2) {
+            if (this.channel === -2 /* stereo */ && channelCt >= 2) {
                 this.channel = -1;
-                this.stereoEncoding = true;
+                this.encodingChannelLayout = 3 /* left + right */;
+            } else if (this.channel === -3 /* all separated */ && channelCt > 2) {
+                this.channel = -1;
+                this.encodingChannelLayout = Math.pow(2, channelCt) - 1;
             } else {
-                this.stereoEncoding = false;
+                this.encodingChannelLayout = 4 /* center */;
             }
 
             // And move on to the next step
@@ -544,7 +555,7 @@ export class Audio {
                 channelLayout: channelLayout,
                 channelCount: channelCount,
                 channel: this.channel,
-                outputChannelLayout: this.stereoEncoding ? 3 /* left + right */ : 4 /* center */
+                outputChannelLayout: this.encodingChannelLayout
             }
 
         }).then(capture => {
