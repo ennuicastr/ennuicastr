@@ -244,10 +244,10 @@ export class Audio {
     channelSettingName: string = null;
 
     // Which channel to read, or -1 for all
-    channel: number = -1;
+    channel = -1;
 
     // Channel layout for encoding?
-    encodingChannelLayout: number = 4;
+    encodingChannelLayout = 4;
 
     // Outstanding packets
     packets: Packet[] = [];

@@ -734,7 +734,7 @@ export function loadVideoRecordPanel(): void {
  * Call to indicate that the video recording host has changed. FIXME: Should
  * be an event.
  */
-export function onVideoRecHostChange() {
+export function onVideoRecHostChange(): void {
     const recording = ui.ui.panels.videoConfig.recording;
 
     /* Restart if either we're currently recording remote, or we would like to

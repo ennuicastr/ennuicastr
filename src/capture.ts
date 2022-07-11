@@ -20,8 +20,6 @@
  * Generalized audio capture on top of various subsystems.
  */
 
-import * as log from "./log";
-
 // Worker paths to use
 const workerVer = "u";
 const awpPath = "awp/ennuicastr-awp.js?v=" + workerVer;

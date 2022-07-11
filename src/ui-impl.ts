@@ -33,6 +33,7 @@ import * as net from "./net";
 import * as outproc from "./outproc";
 import * as proc from "./proc";
 import * as ptt from "./ptt";
+import * as scenes from "./scenes";
 import * as uiFE from "./ui";
 import { ui } from "./ui";
 import * as uiCode from "./ui-code";
@@ -270,6 +271,11 @@ function loadMainMenu() {
         videoPopout: gebi("ecmenu-video-popout")
     };
 
+    const tmp = gebi("ecmenu-tmp");
+    tmp.onclick = () => {
+        scenes.sceneWindow.getWindow();
+    };
+
     ui.panels.mobile = {
         wrapper: gebi("ecmobile-join"),
         button: gebi("ecmobile-join-b")
@@ -344,7 +350,7 @@ function loadMainMenu() {
 
         // To make it flex properly, it needs the CSS
         const ssurl = new URL(<any> window.location);
-        ssurl.search = "?v=6";
+        ssurl.search = "?v=l";
         // eslint-disable-next-line no-useless-escape
         ssurl.pathname = ssurl.pathname.replace(/\/[^\/]*$/, "/ennuicastr2.css");
         w.document.head.innerHTML = '<link href="' + (<any> ssurl) + '" rel="stylesheet" />';

@@ -9,6 +9,7 @@
     "browserify": "^17.0.0",
     "ennuiboard": "^1.0.0",
     "file-saver": "^2.0.5",
+    "interactjs": "^1.10.17",
     "jquery": "^3.6.0",
     "libavjs-webcodecs-polyfill": "^0.2.8",
     "localforage": "^1.10.0",
