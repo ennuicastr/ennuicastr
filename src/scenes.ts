@@ -31,11 +31,14 @@ interface SceneData {
 // Serializable data for a single object
 interface ObjData {
     type: string;
+    displayName: string;
     left: number;
     top: number;
     width: number;
     height: number;
 }
+
+/////////////////////////////////////////////////////////////////
 
 /**
  * The window in which scenes are displayed
@@ -112,7 +115,8 @@ class SceneWindow {
         const sceneBox = this.sceneBox = dce("div");
         Object.assign(sceneBox.style, {
             flex: "auto",
-            backgroundColor: "black",
+            position: "relative",
+            backgroundColor: "#000",
             overflow: "hidden"
         });
         b.appendChild(sceneBox);
@@ -297,6 +301,7 @@ class SceneWindow {
         if (typeof obj !== "object" || obj === null) {
             obj = sceneData.objs[name] = {
                 type: "unknown",
+                displayName: "unknown",
                 left: 0,
                 top: 0,
                 width: 0.25,
@@ -307,6 +312,8 @@ class SceneWindow {
         // Check the parts
         if (typeof obj.type !== "string")
             obj.type = obj.type + "";
+        if (typeof obj.displayName !== "string")
+            obj.displayName = obj.displayName + "";
         for (const k of ["left", "top", "width", "height"]) {
             if (typeof obj[k] !== "number")
                 obj[k] = parseFloat(obj[k]);
@@ -375,6 +382,11 @@ class SceneWindow {
  * A loaded scene
  */
 class Scene {
+    /**
+     * The loaded objects
+     */
+    objList: SceneObject[] = null;
+
     constructor(
         /**
          * The parent window
@@ -400,17 +412,118 @@ class Scene {
         objList.innerHTML = "";
         for (let i = data.objList.length - 1; i >= 0; i--) {
             const name = data.objList[i];
-            const obj = data.objs[name];
+            const objData = data.objs[name];
 
             // Add it to the list
             const o = dce("option");
             o.value = name;
-            o.innerText = name;
+            o.innerText = objData.displayName;
             objList.appendChild(o);
+
+            // And create the actual object
+            const objType = creatables[objData.type];
+            let obj: SceneObject;
+            if (objType) {
+                obj = objType.load(this, objData);
+            } else {
+                obj = new SceneObject(this, objData,
+                                      this.parent.window.document.createElement("div"));
+            }
         }
         objList.value = "";
     }
 }
+
+/////////////////////////////////////////////////////////////////
+
+/**
+ * Create default data for an object with the given type
+ */
+function defaultData(type: string, name: string, ext?: object) {
+    const ret: ObjData = {
+        type,
+        displayName: name,
+        left: 0,
+        top: 0,
+        width: 0.25,
+        height: 0.25
+    };
+    if (ext)
+        Object.assign(ret, ext);
+    return ret;
+}
+
+/**
+ * Base object type
+ */
+class SceneObject {
+    constructor(
+        /**
+         * The parent scene
+         */
+        public parent: Scene,
+
+        /**
+         * The defining data
+         */
+        public data: ObjData,
+
+        /**
+         * The underlying element
+         */
+        public el: HTMLElement
+    ) {
+        Object.assign(el.style, {
+            left: (data.left * 100) + "%",
+            top: (data.top * 100) + "%",
+            width: (data.width * 100) + "%",
+            height: (data.height * 100) + "%"
+        });
+        parent.parent.sceneBox.appendChild(el);
+    }
+}
+
+/**
+ * Solid color object
+ */
+class ObjColor extends SceneObject {
+    constructor(
+        parent: Scene,
+        data?: ObjData & {color?: string}
+    ) {
+        data = data || defaultData("color", "Flat color");
+
+        const el = parent.parent.window.document.createElement("div");
+        data.color = data.color || "#ffffff";
+        el.style.backgroundColor = data.color;
+
+        super(parent, data, el);
+    }
+}
+
+/////////////////////////////////////////////////////////////////
+
+/**
+ * A "creatable" (and loadable) object
+ */
+interface Creatable {
+    type: string;
+    name: string;
+    create: (parent: Scene) => SceneObject;
+    load: (parent: Scene, data: ObjData) => SceneObject;
+}
+
+/**
+ * All object types
+ */
+const creatables: Record<string, Creatable> = {
+    color: {
+        type: "color",
+        name: "Flat color",
+        create: parent => new ObjColor(parent),
+        load: (parent, data) => new ObjColor(parent, data)
+    },
+};
 
 /**
  * We only need one actual scene window
