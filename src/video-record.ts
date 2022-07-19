@@ -384,6 +384,8 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
 
                     // If we haven't sent the starter packets, do so
                     if (starterPackets) {
+                        const targetTime = timeFrom(packets[0].dtshi, packets[0].dts);
+
                         if (starterPackets.length) {
                             // Use them to make sure we have an I-frame
                             packets = starterPackets.concat(packets);
@@ -393,6 +395,31 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
                             packet.dtshi = packet.dts = packet.ptshi = packet.pts = 0;
                         }
                         starterPackets = null;
+
+                        // Possibly repeat the first packet to get a manageable framerate
+                        let dts = 10000, pi = 1;
+                        for (; dts < targetTime; dts += 10000) {
+                            const pdts = timeTo(dts);
+                            const packet = Object.assign({}, packets[0], {
+                                dtshi: pdts.hi,
+                                dts: pdts.lo,
+                                ptshi: pdts.hi,
+                                pts: pdts.lo
+                            });
+                            packets.splice(pi++, 0, packet);
+                        }
+
+                        // Fix any 0-timed starter packets
+                        const lpacket = packets[pi-1];
+                        for (; pi < packets.length; pi++) {
+                            const packet = packets[pi];
+                            if (packet.dts || packet.dtshi)
+                                break;
+                            packet.dtshi = lpacket.dtshi;
+                            packet.dts = lpacket.dts;
+                            packet.ptshi = lpacket.ptshi;
+                            packet.pts = lpacket.pts;
+                        }
                     }
 
                     // Write these out
