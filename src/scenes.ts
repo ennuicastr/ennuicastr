@@ -14,8 +14,6 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-import interact from "interactjs";
-
 // Serializable data for all scenes
 interface ScenesData {
     sceneList: string[];
