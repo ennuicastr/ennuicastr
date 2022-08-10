@@ -94,6 +94,11 @@ export function createCapture(ac: AudioContext, options: CaptureOptions): Promis
 
 // Create a capture node using AudioWorkletProcessors
 function createCaptureAWP(ac: AudioContext & {ecAWPP?: Promise<unknown>}, options: CaptureOptions): Promise<Capture> {
+    if (options.ms) {
+        // Share it
+        return createCaptureSharedAWP(ac, options);
+    }
+
     // Possibly use a different AudioContext
     if (options.matchSampleRate) {
         const msSampleRate = options.ms.getAudioTracks()[0].getSettings().sampleRate;
@@ -162,8 +167,10 @@ function createCaptureAWP(ac: AudioContext & {ecAWPP?: Promise<unknown>}, option
 
             if (source)
                 source.disconnect(awn);
-            if (csn)
+            if (csn) {
                 csn.disconnect(awn);
+                csn.stop();
+            }
             if (msd)
                 awn.disconnect(msd);
             worker.terminate();
@@ -175,6 +182,115 @@ function createCaptureAWP(ac: AudioContext & {ecAWPP?: Promise<unknown>}, option
             worker: worker,
             node: awn,
             destination: msd ? msd.stream : null,
+            disconnect: disconnect
+        };
+
+    });
+
+}
+
+// Create a capture node using a single, shared AudioWorkletProcessor
+function createCaptureSharedAWP(
+    ac: AudioContext & {
+        ecAWPP?: Promise<unknown>, ecAWN?: any
+    },
+    options: CaptureOptions
+): Promise<Capture> {
+    if (!ac.ecAWN)
+        ac.ecAWN = {};
+
+    return Promise.all([]).then(() => {
+        // Make sure the module is loaded
+        if (!ac.ecAWPP)
+            ac.ecAWPP = ac.audioWorklet.addModule(awpPath);
+        return ac.ecAWPP;
+
+    }).then(() => {
+        let dead = false;
+
+        // Create a shared AudioWorkletNode for everybody
+        let awn: AudioWorkletNode & {
+            ecCt: number,
+            ecSource: AudioNode,
+            ecDestination: MediaStreamAudioDestinationNode,
+            ecDisconnect: ()=>unknown
+        } = ac.ecAWN[options.ms.id];
+
+        if (!awn) {
+            awn = ac.ecAWN[options.ms.id] = <any>
+                new AudioWorkletNode(ac, "worker-processor", {
+                /* 2 inputs on Firefox because when input is muted, it doesn't
+                 * run the processor at all, but we'd rather have it run with
+                 * 0s */
+                numberOfInputs: isFirefox() ? 2 : 1
+            });
+
+            // Keep track of how many users
+            awn.ecCt = 0;
+
+            // Connect it
+            const mss = ac.createMediaStreamSource(options.ms);
+            mss.connect(awn);
+            awn.ecSource = mss;
+            let csn: ConstantSourceNode = null;
+            if (isFirefox()) {
+                /* On Firefox, make a constant node so that if no input is
+                 * coming on the main node, the AWN can generate zeros from
+                 * here. */
+                csn = new ConstantSourceNode(ac, {offset: 0});
+                csn.connect(awn, 0, 1);
+                csn.start();
+            }
+            const msd = ac.createMediaStreamDestination();
+            awn.connect(msd);
+            awn.ecDestination = msd;
+
+            // Prepare to disconnect it
+            awn.ecDisconnect = function() {
+                mss.disconnect(awn);
+                if (csn) {
+                    csn.disconnect(awn);
+                    csn.stop();
+                }
+                awn.disconnect(msd);
+                delete ac.ecAWN[options.ms.id];
+            };
+        }
+
+        // The AWN is shared, but we have a single worker
+        const worker = new Worker(workerPath);
+
+        // Need a channel for them to communicate
+        const mc = new MessageChannel();
+        awn.port.postMessage({c: "workerPort", p: mc.port1}, [mc.port1]);
+        const cmd = Object.assign({port: mc.port2}, options.workerCommand);
+        cmd[options.sampleRate] = ac.sampleRate;
+        worker.postMessage(cmd, [mc.port2]);
+
+        // Prepare to terminate
+        function disconnect() {
+            if (dead)
+                return;
+            dead = true;
+
+            // FIXME: What if others are still happening? Dead ports?
+            worker.terminate();
+
+            awn.ecCt--;
+            if (awn.ecCt > 0) {
+                // Not ready to disconnect yet
+                return;
+            }
+
+            awn.ecDisconnect();
+        }
+
+        // Done!
+        return {
+            source: awn.ecSource,
+            worker: worker,
+            node: null,
+            destination: options.outStream ? awn.ecDestination.stream : null,
             disconnect: disconnect
         };
 
