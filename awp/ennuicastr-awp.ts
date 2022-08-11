@@ -197,13 +197,13 @@ class WorkerProcessor extends AudioWorkletProcessor {
                 if (writeHead + len > bufSz) {
                     // We wrap around
                     const brk = bufSz - writeHead;
-                    for (let i = 0; i < this.outgoing.length; i++) {
+                    for (let i = 0; i < outgoing.buffers.length; i++) {
                         outgoing.buffers[i].set(inp[i%inp.length].subarray(0, brk), writeHead);
                         outgoing.buffers[i].set(inp[i%inp.length].subarray(brk), 0);
                     }
                 } else {
                     // Simple case
-                    for (let i = 0; i < this.outgoing.length; i++)
+                    for (let i = 0; i < outgoing.buffers.length; i++)
                         outgoing.buffers[i].set(inp[i%inp.length], writeHead);
                 }
                 writeHead = (writeHead + len) % bufSz;
