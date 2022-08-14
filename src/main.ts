@@ -47,7 +47,10 @@ async function main() {
 
     // Then libraries
     try {
-        await util.loadLibrary("libs/ennuiboard.min.js");
+        await util.loadLibrary({
+            file: "libs/ennuiboard.min.js",
+            name: "hotkey library"
+        });
     } catch (ex) {}
     if (typeof Ennuiboard !== "undefined")
         Ennuiboard.enable("gamepad", {auto: true, manualPoll: true});
@@ -59,7 +62,10 @@ async function main() {
         // This can be loaded lazily
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         ECDefaultHotkeys = {"0000c": "ecmenu-chat"};
-        util.loadLibrary("hotkeys.min.js?v=5");
+        util.loadLibrary({
+            file: "hotkeys.min.js?v=5",
+            name: "hotkey library"
+        });
 
         // Resolve the configuration for lobbies
         await config.resolve();

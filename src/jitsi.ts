@@ -141,11 +141,17 @@ export class Jitsi implements comm.BroadcastComms {
         let timeout: number = null;
         this.jPromise = this.jPromise.then(() => {
             if (typeof JitsiMeetJS === "undefined")
-                return util.loadLibrary("libs/jquery.min.js");
+                return util.loadLibrary({
+                    file: "libs/jquery.min.js",
+                    name: "live chat"
+                });
 
         }).then(() => {
             if (typeof JitsiMeetJS === "undefined")
-                return util.loadLibrary("libs/lib-jitsi-meet.7421.js");
+                return util.loadLibrary({
+                    file: "libs/lib-jitsi-meet.7421.js",
+                    name: "live chat"
+                });
 
         }).then(() => {
             // Get rid of any old Jitsi instance. First, clear tracks.

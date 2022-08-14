@@ -92,7 +92,10 @@ export async function getFileStorage(): Promise<LocalForage> {
     if (fileStorage)
         return fileStorage;
     if (typeof localforage === "undefined")
-        await util.loadLibrary("libs/localforage.min.js");
+        await util.loadLibrary({
+            file: "libs/localforage.min.js",
+            name: "storage library"
+        });
     fileStorage = localforage.createInstance({name: "ennuicastr-file-storage"});
     return fileStorage;
 }

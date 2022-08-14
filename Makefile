@@ -4,6 +4,7 @@ LIBAV_VERSION=3.6b.4.4.1
 VOSK_MODEL_VER=en-us-0.15
 
 OUT=\
+    ecloader.js ecloader.min.js \
     ennuicastr.js ennuicastr.min.js \
     protocol.min.js sw.js fs/fs.js \
     awp/ennuicastr-awp.js awp/ennuicastr-worker.js \
@@ -36,6 +37,12 @@ EXTRA=\
 all: $(OUT) $(LIBS)
 
 test: $(TEST) $(LIBS)
+
+ecloader.js: src/loader.ts node_modules/.bin/browserify
+	./node_modules/.bin/tsc --lib es2015,dom $< --outFile $@
+
+ecloader.min.js: ecloader.js node_modules/.bin/browserify
+	./node_modules/.bin/minify --js < $< > $@
 
 ennuicastr.js: src/*.ts node_modules/.bin/browserify
 	./src/build.js > $@.tmp

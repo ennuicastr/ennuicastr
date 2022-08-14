@@ -40,6 +40,18 @@ export function loadLibAV(): Promise<unknown> {
         (<any> window).LibAV = {};
     LibAV.base = "libav";
 
-    loadLibAVPromise = util.loadLibrary("libav/libav-" + libavVersion + "-ennuicastr.js");
+    loadLibAVPromise =
+        util.loadLibrary({
+            file: "libav/libav-" + libavVersion + "-ennuicastr.js",
+            name: "audio encoder"
+        }, {
+            extras: [{
+                file: "libav/libav-" + libavVersion + "-ennuicastr.wasm.js",
+                name: "audio encoder"
+            }, {
+                file: "libav/libav-" + libavVersion + "-ennuicastr.wasm.wasm",
+                name: "audio encoder"
+            }]
+        });
     return loadLibAVPromise;
 }

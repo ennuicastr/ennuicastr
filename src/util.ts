@@ -87,14 +87,24 @@ export function bytesToRepr(x: number): string {
     return Math.round(x) + suffixes[0];
 }
 
-// Generic library loader
-export function loadLibrary(name: string): Promise<unknown> {
-    return new Promise(function(res, rej) {
-        const scr = dce("script");
-        scr.addEventListener("load", res);
-        scr.addEventListener("error", rej);
-        scr.src = name;
-        scr.async = true;
-        document.body.appendChild(scr);
-    });
+// We provide a wrapper around the loader in ecloader.js
+interface Library {
+    name: string;
+    file: string;
+}
+
+declare function ecLoadLibrary(
+    lib: Library, opts?: {
+        extras?: Library[],
+        noLoad?: boolean
+    }
+): Promise<unknown>;
+
+export function loadLibrary(
+    lib: Library, opts: {
+        extras?: Library[],
+        noLoad?: boolean
+    } = {}
+): Promise<unknown> {
+    return ecLoadLibrary(lib, opts);
 }
