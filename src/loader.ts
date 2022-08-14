@@ -44,8 +44,8 @@ async function ecLoadLibrary(
             const f = await fetch(lib.file);
 
             // Get the reader to manage progress
-            let reader: ReadableStreamDefaultReader = f.body.getReader();
-            let total = +f.headers.get("content-length") || 0;
+            const reader = f.body.getReader();
+            const total = +f.headers.get("content-length") || 0;
             let loaded = 0;
             let rdDone: (value:unknown)=>unknown = null;
             const rdDoneP = new Promise(res => rdDone = res);
@@ -58,7 +58,7 @@ async function ecLoadLibrary(
                         rdDone(null);
                         break;
                     }
-                    total += rd.value.length;
+                    loaded += rd.value.length;
                 }
             })();
 
@@ -77,7 +77,7 @@ async function ecLoadLibrary(
                         bottom: "0px",
                         zIndex: "1000",
                         background: "#000",
-                        foreground: "#aaa"
+                        color: "#aaa"
                     });
                     document.body.appendChild(box);
 
@@ -85,10 +85,10 @@ async function ecLoadLibrary(
                     Object.assign(loadedDisp.style, {
                         position: "absolute",
                         left: "0px",
-                        top: "0px",
-                        height: "100%",
                         width: "0%",
-                        background: "#090"
+                        top: "calc(50% - 1.125em)",
+                        height: "2.25em",
+                        background: "#030"
                     });
                     box.appendChild(loadedDisp);
 
@@ -97,7 +97,7 @@ async function ecLoadLibrary(
                         position: "absolute",
                         left: "0px",
                         width: "100%",
-                        top: "calc(50% - 0.5em)",
+                        top: "calc(50% - 0.75em)",
                         textAlign: "center"
                     });
                     info.innerText = `Loading ${lib.name}...`;
