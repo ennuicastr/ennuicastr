@@ -21,6 +21,7 @@
  */
 
 import * as log from "./log";
+import * as util from "./util";
 
 // Worker paths to use
 const workerVer = "u";
@@ -93,7 +94,9 @@ export function createCapture(ac: AudioContext, options: CaptureOptions): Promis
 }
 
 // Create a capture node using AudioWorkletProcessors
-function createCaptureAWP(ac: AudioContext & {ecAWPP?: Promise<unknown>}, options: CaptureOptions): Promise<Capture> {
+async function createCaptureAWP(
+    ac: AudioContext & {ecAWPP?: Promise<unknown>}, options: CaptureOptions
+): Promise<Capture> {
     // Possibly use a different AudioContext
     if (options.matchSampleRate) {
         const msSampleRate = options.ms.getAudioTracks()[0].getSettings().sampleRate;
@@ -104,81 +107,89 @@ function createCaptureAWP(ac: AudioContext & {ecAWPP?: Promise<unknown>}, option
             });
     }
 
-    return Promise.all([]).then(() => {
-        // Make sure the module is loaded
-        if (!ac.ecAWPP)
-            ac.ecAWPP = ac.audioWorklet.addModule(awpPath);
-        return ac.ecAWPP;
+    // Make sure the module is loaded
+    if (!ac.ecAWPP) {
+        ac.ecAWPP = (async () => {
+            // Load it traditionally first so we get a display
+            await util.loadLibrary({
+                file: awpPath, name: "audio capture"
+            }, {
+                extras: [{
+                    file: workerPath, name: "audio capture"
+                }],
+                noLoad: true
+            });
+            await ac.audioWorklet.addModule(awpPath);
+        })();
+    }
+    await ac.ecAWPP;
 
-    }).then(() => {
-        let dead = false;
+    let dead = false;
 
-        /* Here's how the whole setup works:
-         * input ->
-         * AudioWorkletNode in awp.js ->
-         * Worker in worker.js ->
-         * back to us */
-        const awn = new AudioWorkletNode(ac, "worker-processor", {
-            /* 2 inputs on Firefox because when input is muted, it doesn't run
-             * the processor at all, but we'd rather have it run with 0s */
-            numberOfInputs: isFirefox() ? 2 : 1
-        });
-        const worker = new Worker(workerPath);
-
-        // Need a channel for them to communicate
-        const mc = new MessageChannel();
-        awn.port.postMessage({c: "workerPort", p: mc.port1}, [mc.port1]);
-        const cmd = Object.assign({port: mc.port2}, options.workerCommand);
-        cmd[options.sampleRate] = ac.sampleRate;
-        worker.postMessage(cmd, [mc.port2]);
-
-        // Now hook everything up
-        let source: AudioNode = null;
-        if (options.ms)
-            source = ac.createMediaStreamSource(options.ms);
-        else if (options.input)
-            source = options.input;
-        let csn: ConstantSourceNode = null;
-        if (source)
-            source.connect(awn);
-        if (isFirefox()) {
-            /* On Firefox, make a constant node so that if no input is coming
-             * on the main node, the AWN can generate zeros from here. */
-            csn = new ConstantSourceNode(ac, {offset: 0});
-            csn.connect(awn, 0, 1);
-            csn.start();
-        }
-        let msd: MediaStreamAudioDestinationNode = null;
-        if (options.outStream) {
-            msd = ac.createMediaStreamDestination();
-            awn.connect(msd);
-        }
-
-        // Prepare to terminate
-        function disconnect() {
-            if (dead)
-                return;
-            dead = true;
-
-            if (source)
-                source.disconnect(awn);
-            if (csn)
-                csn.disconnect(awn);
-            if (msd)
-                awn.disconnect(msd);
-            worker.terminate();
-        }
-
-        // Done!
-        return {
-            source: source,
-            worker: worker,
-            node: awn,
-            destination: msd ? msd.stream : null,
-            disconnect: disconnect
-        };
-
+    /* Here's how the whole setup works:
+     * input ->
+     * AudioWorkletNode in awp.js ->
+     * Worker in worker.js ->
+     * back to us */
+    const awn = new AudioWorkletNode(ac, "worker-processor", {
+        /* 2 inputs on Firefox because when input is muted, it doesn't run
+         * the processor at all, but we'd rather have it run with 0s */
+        numberOfInputs: isFirefox() ? 2 : 1
     });
+    const worker = new Worker(workerPath);
+
+    // Need a channel for them to communicate
+    const mc = new MessageChannel();
+    awn.port.postMessage({c: "workerPort", p: mc.port1}, [mc.port1]);
+    const cmd = Object.assign({port: mc.port2}, options.workerCommand);
+    cmd[options.sampleRate] = ac.sampleRate;
+    worker.postMessage(cmd, [mc.port2]);
+
+    // Now hook everything up
+    let source: AudioNode = null;
+    if (options.ms)
+        source = ac.createMediaStreamSource(options.ms);
+    else if (options.input)
+        source = options.input;
+    let csn: ConstantSourceNode = null;
+    if (source)
+        source.connect(awn);
+    if (isFirefox()) {
+        /* On Firefox, make a constant node so that if no input is coming
+         * on the main node, the AWN can generate zeros from here. */
+        csn = new ConstantSourceNode(ac, {offset: 0});
+        csn.connect(awn, 0, 1);
+        csn.start();
+    }
+    let msd: MediaStreamAudioDestinationNode = null;
+    if (options.outStream) {
+        msd = ac.createMediaStreamDestination();
+        awn.connect(msd);
+    }
+
+    // Prepare to terminate
+    function disconnect() {
+        if (dead)
+            return;
+        dead = true;
+
+        if (source)
+            source.disconnect(awn);
+        if (csn)
+            csn.disconnect(awn);
+        if (msd)
+            awn.disconnect(msd);
+        worker.terminate();
+    }
+
+    // Done!
+    return {
+        source: source,
+        worker: worker,
+        node: awn,
+        destination: msd ? msd.stream : null,
+        disconnect: disconnect
+    };
 
 }
 
