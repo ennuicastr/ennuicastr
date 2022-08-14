@@ -26,6 +26,7 @@ declare let Ennuiboard: any, ECDefaultHotkeys: any;
 import "webrtc-adapter";
 
 import * as audio from "./audio";
+import * as avloader from "./avloader";
 import * as commImpl from "./comm-impl";
 import * as config from "./config";
 import * as downloadStream from "./download-stream";
@@ -54,6 +55,7 @@ async function main() {
     } catch (ex) {}
     if (typeof Ennuiboard !== "undefined")
         Ennuiboard.enable("gamepad", {auto: true, manualPoll: true});
+    await avloader.loadLibAV();
 
     try {
         // Build the UI
