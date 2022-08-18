@@ -298,7 +298,7 @@ function dataSockMsg(ev: MessageEvent) {
                     // Update the status
                     log.popStatus("mode");
                     if (mode < prot.mode.rec)
-                        log.pushStatus("mode", '<span class="warning" style="background: var(--bg); color: var(--fg);">&nbsp;Not yet recording&nbsp;</span>');
+                        log.pushStatus("mode", '<span class="warning" style="background: var(--bg); color: var(--fg); padding: 0.25em;">Not yet recording</span>');
                     else if (mode === prot.mode.paused)
                         log.pushStatus("mode", "Recording paused");
                     else if (mode > prot.mode.rec)
