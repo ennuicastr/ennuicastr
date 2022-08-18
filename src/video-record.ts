@@ -557,7 +557,7 @@ function storageReport(ct: number, used: number, max: number) {
     if (ct !== lastStorageCt) {
         lastStorageCt = ct;
         if (ct)
-            log.pushStatus("videoStorage", msg);
+            log.pushStatus("videoStorage", util.escape(msg));
         else
             log.popStatus("videoStorage");
     }

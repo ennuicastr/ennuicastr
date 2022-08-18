@@ -87,6 +87,15 @@ export function bytesToRepr(x: number): string {
     return Math.round(x) + suffixes[0];
 }
 
+// Escape a string for HTML
+export function escape(str: string): string {
+    return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+
 // We provide a wrapper around the loader in ecloader.js
 interface Library {
     name: string;

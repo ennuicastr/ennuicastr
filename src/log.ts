@@ -43,12 +43,12 @@ export function popStatus(id: string): void {
 function updateStatus() {
     let txt = "";
     for (const id in curStatus) {
-        txt += curStatus[id] + "\n";
+        txt += curStatus[id] + "<br/>";
     }
     txt = txt.trim();
     if (txt === "")
         txt = "Recording";
-    log.innerText = txt;
+    log.innerHTML = txt;
 
     util.dispatchEvent("ui.resize-needed");
 }

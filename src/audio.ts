@@ -279,7 +279,7 @@ export class Audio {
             return this.getMic(mkAudioUI());
         }).catch((err) => {
             config.disconnect();
-            log.pushStatus("fail", "Cannot get microphone: " + err);
+            log.pushStatus("fail", "Cannot get microphone: " + util.escape(err + ""));
             log.popStatus("getmic");
         });
     }
@@ -383,7 +383,7 @@ export class Audio {
             return this.userMediaSet();
         }).catch(err => {
             config.disconnect();
-            log.pushStatus("fail", "Cannot get microphone: " + err);
+            log.pushStatus("fail", "Cannot get microphone: " + util.escape(err + ""));
             log.popStatus("getmic");
         });
     }
@@ -445,7 +445,7 @@ export class Audio {
 
         }).then(() => {
             if (ac.state !== "running")
-                log.pushStatus("audiocontext", "Cannot capture audio! State: " + ac.state);
+                log.pushStatus("audiocontext", "Cannot capture audio! State: " + util.escape(ac.state));
 
             // At this point, we want to start catching errors
             window.addEventListener("error", function(error) {
