@@ -82,7 +82,7 @@ export function createCapture(ac: AudioContext, options: CaptureOptions): Promis
      *
      * Conclusion: Use AWP everywhere it's available except for Safari.
      */
-    if (typeof AudioWorkletNode !== "undefined") {
+    if (typeof AudioWorkletNode !== "undefined" && !isSafari()) {
         return createCaptureAWP(ac, options);
 
     } else {
