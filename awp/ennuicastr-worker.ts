@@ -16,7 +16,7 @@
 
 declare let LibAV: any, NoiseRepellent: any, NoiseRepellentFactory: any, Vosk: any, WebRtcVad: any, __filename: string;
 
-const libavVersion = "3.6b.4.4.1";
+const libavVersion = "3.8.5.1";
 const libavPath = "../libav/libav-" + libavVersion + "-ennuicastr.js";
 
 const voskModelVersion = "en-us-0.15";

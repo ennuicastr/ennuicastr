@@ -1,6 +1,6 @@
 PREFIX=inst
 
-LIBAV_VERSION=3.6b.4.4.1
+LIBAV_VERSION=3.8.5.1
 VOSK_MODEL_VER=en-us-0.15
 
 OUT=\
@@ -27,6 +27,8 @@ EXTRA=\
     libav/libav-$(LIBAV_VERSION)-ennuicastr.asm.js \
     libav/libav-$(LIBAV_VERSION)-ennuicastr.wasm.js \
     libav/libav-$(LIBAV_VERSION)-ennuicastr.wasm.wasm \
+    libav/libav-$(LIBAV_VERSION)-ennuicastr.simd.js \
+    libav/libav-$(LIBAV_VERSION)-ennuicastr.simd.wasm \
     libs/vad/vad-m2.js libs/vad/vad-m2.wasm.js libs/vad/vad-m2.wasm.wasm \
     libs/vosk.js libs/lib-jitsi-meet.7421.js \
     noise-repellent/noise-repellent-m.js \
