@@ -676,7 +676,7 @@ export class Audio {
     }
 
     // Get the state of muting (true=MUTED)
-    private getMute() {
+    getMute() {
         const track = this.userMedia.getAudioTracks()[0];
         return !track.enabled;
     }
@@ -766,8 +766,8 @@ export function deviceInfo(allowVideo: boolean): any {
             videoDevice: allowVideo ? ui.ui.panels.videoConfig.device.value : null,
             videoRes: allowVideo ? +ui.ui.panels.videoConfig.res.value : null,
             videoRec: (typeof MediaRecorder !== "undefined"),
-            mute: this.getMute(),
-            echo: this.getEchoCancel(),
+            mute: inputs[0].getMute(),
+            echo: inputs[0].getEchoCancel(),
             vadSensitivity: +ui.ui.panels.inputConfig.vadSensitivity.value,
             vadNoiseGate: +ui.ui.panels.inputConfig.vadNoiseGate.value
         };
