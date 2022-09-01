@@ -670,10 +670,13 @@ export function mkAudioUI(): string {
         audio.inputs[0].setInputDevice(input.device.value);
     }
 
-    navigator.mediaDevices.enumerateDevices().then(function(devices) {
+    // Enumerate the input devices when we can
+    async function enumerateInput() {
+        const devices = await navigator.mediaDevices.enumerateDevices();
         let ctr = 1;
-        devices.forEach(function(dev) {
-            if (dev.kind !== "audioinput") return;
+        input.device.innerHTML = "";
+        for (const dev of devices) {
+            if (dev.kind !== "audioinput") continue;
 
             // Create an option for this
             const opt = dce("option");
@@ -681,12 +684,26 @@ export function mkAudioUI(): string {
             opt.innerText = label;
             opt.value = dev.deviceId;
             input.device.appendChild(opt);
-        });
+        }
 
         uiFE.saveConfigValue(input.device, "input-device3", inputChange);
 
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    }).catch(function() {}); // Nothing really to do here
+    }
+
+    util.events.addEventListener("usermediaready", enumerateInput, {once: true});
+
+    // For the time being, at least load the current one so it'll be the default
+    {
+        const inputDevice = localStorage.getItem("input-device3");
+        if (inputDevice) {
+            const opt = dce("option");
+            const label = "Saved default";
+            opt.innerText = label;
+            opt.value = inputDevice;
+            input.device.appendChild(opt);
+            input.device.value = inputDevice;
+        }
+    }
 
     function channelChange() {
         audio.inputs[0].setInputChannel(+input.channel.value);
@@ -787,10 +804,11 @@ export function mkAudioUI(): string {
     }
 
     // Fill it with the available devices
-    navigator.mediaDevices.enumerateDevices().then(function(devices) {
+    async function enumerateOutput() {
+        const devices = await navigator.mediaDevices.enumerateDevices();
         let ctr = 1;
-        devices.forEach(function(dev) {
-            if (dev.kind !== "audiooutput") return;
+        for (const dev of devices) {
+            if (dev.kind !== "audiooutput") continue;
 
             // Create an option for this
             const opt = dce("option");
@@ -798,12 +816,13 @@ export function mkAudioUI(): string {
             opt.innerText = label;
             opt.value = dev.deviceId;
             output.device.appendChild(opt);
-        });
+        }
 
         uiFE.saveConfigValue(output.device, "output-device3", outputChange);
+        outputChange();
+    }
 
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    }).catch(function() {}); // Nothing really to do here
+    util.events.addEventListener("usermediaready", enumerateOutput, {once: true});
 
     // Volume
     uiFE.saveConfigSlider(output.volume, config.useRecordOnly ? "volume-master-record-only" : "volume-master3");
@@ -987,10 +1006,11 @@ export function mkAudioUI(): string {
     videoConfig.device.appendChild(opt);
 
     // Fill it with the available devices
-    navigator.mediaDevices.enumerateDevices().then(function(devices) {
+    async function enumerateInputVideo() {
+        const devices = await navigator.mediaDevices.enumerateDevices();
         let ctr = 1;
-        devices.forEach(function(dev) {
-            if (dev.kind !== "videoinput") return;
+        for (const dev of devices) {
+            if (dev.kind !== "videoinput") continue;
 
             // Create an option for this
             const opt = dce("option");
@@ -998,13 +1018,13 @@ export function mkAudioUI(): string {
             opt.innerText = label;
             opt.value = dev.deviceId;
             videoConfig.device.appendChild(opt);
-        });
+        }
 
         // Now that it's filled, we can load the value
         uiFE.saveConfigValue(videoConfig.device, "video-device", updateVideo);
+    }
 
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    }).catch(function() {}); // Nothing really to do here
+    util.events.addEventListener("usermediaready", enumerateInputVideo, {once: true});
 
     // Resolution selector
     function resChange() {
