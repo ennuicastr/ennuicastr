@@ -671,12 +671,22 @@ export function mkAudioUI(): string {
     }
 
     // Enumerate the input devices when we can
-    async function enumerateInput() {
+    async function enumerateInput(first: boolean) {
         const devices = await navigator.mediaDevices.enumerateDevices();
         let ctr = 1;
+        const prevValue = input.device.value;
         input.device.innerHTML = "";
+
+        // Default device
+        {
+            const opt = dce("option");
+            opt.innerText = "Default";
+            opt.value = "";
+            input.device.appendChild(opt);
+        }
+
         for (const dev of devices) {
-            if (dev.kind !== "audioinput") continue;
+            if (dev.kind !== "audioinput" || dev.deviceId === "default") continue;
 
             // Create an option for this
             const opt = dce("option");
@@ -686,11 +696,15 @@ export function mkAudioUI(): string {
             input.device.appendChild(opt);
         }
 
-        uiFE.saveConfigValue(input.device, "input-device3", inputChange);
-
+        if (first) {
+            uiFE.saveConfigValue(input.device, "input-device3", inputChange);
+            navigator.mediaDevices.addEventListener("devicechange", () => enumerateInput(false));
+        } else {
+            input.device.value = prevValue;
+        }
     }
 
-    util.events.addEventListener("usermediaready", enumerateInput, {once: true});
+    util.events.addEventListener("usermediaready", () => enumerateInput(true), {once: true});
 
     // For the time being, at least load the current one so it'll be the default
     {
@@ -782,7 +796,7 @@ export function mkAudioUI(): string {
         if (output.device.value === "-none") return;
         uiFE.showPanel(null, ui.persistent.main);
 
-        const v = output.device.value;
+        const v = output.device.value || "default";
 
         // Set the main audio output
         if (ui.audioOutput) {
@@ -804,11 +818,22 @@ export function mkAudioUI(): string {
     }
 
     // Fill it with the available devices
-    async function enumerateOutput() {
+    async function enumerateOutput(first: boolean) {
         const devices = await navigator.mediaDevices.enumerateDevices();
         let ctr = 1;
+        const prevValue = output.device.value;
+        output.device.innerHTML = "";
+
+        // Default device
+        {
+            const opt = dce("option");
+            opt.innerText = "Default";
+            opt.value = "";
+            output.device.appendChild(opt);
+        }
+
         for (const dev of devices) {
-            if (dev.kind !== "audiooutput") continue;
+            if (dev.kind !== "audiooutput" || dev.deviceId === "default") continue;
 
             // Create an option for this
             const opt = dce("option");
@@ -818,11 +843,16 @@ export function mkAudioUI(): string {
             output.device.appendChild(opt);
         }
 
-        uiFE.saveConfigValue(output.device, "output-device3", outputChange);
-        outputChange();
+        if (first) {
+            uiFE.saveConfigValue(output.device, "output-device3", outputChange);
+            navigator.mediaDevices.addEventListener("devicechange", () => enumerateOutput(false));
+            outputChange();
+        } else {
+            output.device.value = prevValue;
+        }
     }
 
-    util.events.addEventListener("usermediaready", enumerateOutput, {once: true});
+    util.events.addEventListener("usermediaready", () => enumerateOutput(true), {once: true});
 
     // Volume
     uiFE.saveConfigSlider(output.volume, config.useRecordOnly ? "volume-master-record-only" : "volume-master3");
@@ -999,16 +1029,19 @@ export function mkAudioUI(): string {
         updateVideo();
     };
 
-    // Add a pseudo-device so nothing is selected at first
-    opt = dce("option");
-    opt.innerText = "None";
-    opt.value = "-none";
-    videoConfig.device.appendChild(opt);
-
     // Fill it with the available devices
-    async function enumerateInputVideo() {
+    async function enumerateInputVideo(first: boolean) {
         const devices = await navigator.mediaDevices.enumerateDevices();
         let ctr = 1;
+        const prevValue = videoConfig.device.value;
+        videoConfig.device.innerHTML = "";
+
+        // Add a pseudo-device so nothing is selected at first
+        opt = dce("option");
+        opt.innerText = "None";
+        opt.value = "-none";
+        videoConfig.device.appendChild(opt);
+
         for (const dev of devices) {
             if (dev.kind !== "videoinput") continue;
 
@@ -1020,11 +1053,16 @@ export function mkAudioUI(): string {
             videoConfig.device.appendChild(opt);
         }
 
-        // Now that it's filled, we can load the value
-        uiFE.saveConfigValue(videoConfig.device, "video-device", updateVideo);
+        if (first) {
+            // Now that it's filled, we can load the value
+            uiFE.saveConfigValue(videoConfig.device, "video-device", updateVideo);
+            navigator.mediaDevices.addEventListener("devicechange", () => enumerateInputVideo(false));
+        } else {
+            videoConfig.device.value = prevValue;
+        }
     }
 
-    util.events.addEventListener("usermediaready", enumerateInputVideo, {once: true});
+    util.events.addEventListener("usermediaready", () => enumerateInputVideo(true), {once: true});
 
     // Resolution selector
     function resChange() {

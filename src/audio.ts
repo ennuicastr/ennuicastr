@@ -315,7 +315,7 @@ export class Audio {
         // Then request the new ones
         return navigator.mediaDevices.getUserMedia({
             audio: <any> {
-                deviceId: deviceId,
+                deviceId: deviceId || void 0,
                 autoGainControl: {ideal: ui.ui.panels.inputConfig.agc.checked},
                 echoCancellation: {ideal: this.getEchoCancel()},
                 noiseSuppression: {ideal: false},
