@@ -100,6 +100,14 @@ export class RTEnnui implements comm.Comms {
         this.idMap = Object.create(null);
 
         // Prepare for events
+        c.on("disconnected", ev => {
+            if (c !== this.connection)
+                return;
+
+            // This is catastrophic!
+            config.disconnect();
+        });
+
         c.on("peer-joined", ev => {
             if (c !== this.connection)
                 return;
