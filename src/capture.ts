@@ -37,12 +37,47 @@ export interface Capture {
 }
 
 export interface CaptureOptions {
+    /**
+     * Message to initialize the worker with, or null to not use a worker.
+     */
     workerCommand: any;
-    ms?: MediaStream; // Input as a MediaStream
-    input?: AudioNode; // Input as an AudioNode
+
+    /**
+     * A function to receive raw data. Set if a worker is not desired.
+     */
+    raw?: (data: Float32Array[]) => void;
+
+    /**
+     * Input as a media stream. Either this or input must be set.
+     */
+    ms?: MediaStream;
+
+    /**
+     * Input as an audio node. Either this or ms must be set.
+     */
+    input?: AudioNode;
+
+    /**
+     * Which property in the worker command to set as the sample rate. Depends
+     * on the worker command, but typically "sampleRate".
+     */
     sampleRate: string;
-    matchSampleRate?: boolean; // Must be false if input is set
+
+    /**
+     * Whether to match the sample rate to the input (if true) or to the
+     * default (if false). Must be false if input is set, because audio nodes
+     * are always matched to the default.
+     */
+    matchSampleRate?: boolean;
+
+    /**
+     * For ScriptProcessors, the buffer size to use.
+     */
     bufferSize?: number;
+
+    /**
+     * Set if an output stream is needed.
+     */
     outStream?: boolean;
 }
 
@@ -261,7 +296,9 @@ function createCaptureSP(ac: AudioContext, options: CaptureOptions): Promise<Cap
 
 /* Safari-specific capture node, because it doesnt support having more than one
  * ScriptProcessor on one audio device */
-function createCaptureSafari(ac: AudioContext & {ecSP?: any}, options: CaptureOptions): Promise<Capture> {
+export function createCaptureSafari(
+    ac: AudioContext & {ecSP?: any}, options: CaptureOptions
+): Promise<Capture> {
     /* Safari has major problems if you have more than one ScriptProcessor, so
      * we only allow one per MediaStream, and overload it. */
     if (!ac.ecSP)
@@ -319,17 +356,31 @@ function createCaptureSafari(ac: AudioContext & {ecSP?: any}, options: CaptureOp
     };
     sp.ecUsers.push(node);
     sp.ecCt++;
-    const worker = new Worker(workerPath);
 
-    // Need a channel to communicate from the ScriptProcessor to the worker
-    const mc = new MessageChannel();
-    const workerPort = mc.port1;
-    const cmd = Object.assign({port: mc.port2}, options.workerCommand);
-    cmd[options.sampleRate] = ac.sampleRate;
-    worker.postMessage(cmd, [mc.port2]);
+    let worker: Worker = null;
+    if (options.workerCommand) {
+        worker = new Worker(workerPath);
 
-    // Create the ScriptProcessor's behavior
-    node.onaudioprocess = createOnAudioProcess(workerPort);
+        // Need a channel to communicate from the ScriptProcessor to the worker
+        const mc = new MessageChannel();
+        const workerPort = mc.port1;
+        const cmd = Object.assign({port: mc.port2}, options.workerCommand);
+        cmd[options.sampleRate] = ac.sampleRate;
+        worker.postMessage(cmd, [mc.port2]);
+
+        // Create the ScriptProcessor's behavior
+        node.onaudioprocess = createOnAudioProcess(workerPort);
+
+    } else if (options.raw) {
+        // Send the audio directly
+        node.onaudioprocess = function(ev: AudioProcessingEvent) {
+            const data: Float32Array[] = [];
+            for (let i = 0; i < ev.inputBuffer.numberOfChannels; i++)
+                data.push(ev.inputBuffer.getChannelData(i));
+            options.raw(data);
+        };
+
+    }
 
     // Prepare to terminate
     function disconnect() {
@@ -350,7 +401,8 @@ function createCaptureSafari(ac: AudioContext & {ecSP?: any}, options: CaptureOp
         if (sp.ecCt === 0)
             sp.ecDisconnect();
 
-        worker.terminate();
+        if (worker)
+            worker.terminate();
     }
 
     // Done!

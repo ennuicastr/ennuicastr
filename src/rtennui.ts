@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2021 Yahweasel
+ * Copyright (c) 2018-2022 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -22,11 +22,13 @@
 
 import * as audio from "./audio";
 import * as avloader from "./avloader";
+import * as capture from "./capture";
 import * as comm from "./comm";
 import * as config from "./config";
 import * as net from "./net";
 import * as outproc from "./outproc";
 import { prot } from "./protocol";
+import * as rtennuiSafari from "./rtennui-safari";
 import * as ui from "./ui";
 import * as util from "./util";
 import * as vad from "./vad";
@@ -190,8 +192,18 @@ export class RTEnnui implements comm.Comms {
             await this.connection.removeAudioTrack(this.cap);
         }
 
-        this.cap = await rtennui.createAudioCapture(audio.ac,
-            audio.inputs[0].userMediaRTC);
+        if (capture.isSafari()) {
+            /* Can't have multiple captures of the same audio device, so we
+             * build our own audio capture */
+            this.cap = await rtennuiSafari.createCapture(
+                audio.ac, audio.inputs[0].userMedia);
+
+        } else {
+            this.cap = await rtennui.createAudioCapture(
+                audio.ac, audio.inputs[0].userMediaRTC);
+
+        }
+
         this.connection.addAudioTrack(
             this.cap,
             {frameSize: 5000}
