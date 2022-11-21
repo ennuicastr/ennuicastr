@@ -17,7 +17,9 @@ TEST=\
 LIBS=\
     libs/NoSleep.min.js libs/jquery.min.js \
     libs/ennuiboard.min.js libs/localforage.min.js \
-    libs/sha512-es.min.js \
+    libs/sha512-es.min.js
+
+DATA=\
     libs/vosk-model-small-$(VOSK_MODEL_VER).tar.gz
 
 EXTRA=\
@@ -36,7 +38,7 @@ EXTRA=\
     noise-repellent/noise-repellent-m.wasm.js \
     noise-repellent/noise-repellent-m.wasm.wasm
 
-all: $(OUT) $(LIBS)
+all: $(OUT) $(LIBS) $(DATA)
 
 test: $(TEST) $(LIBS)
 
@@ -127,3 +129,6 @@ install:
 
 clean:
 	rm -f $(OUT) $(TEST) $(LIBS)
+
+distclean: clean
+	rm -f $(DATA)
