@@ -55,6 +55,9 @@ export class RTEnnui implements comm.Comms {
     // Map of RTEnnui IDs to our own peer IDs
     idMap: Record<number, number> = null;
 
+    // The shared node, if there is one
+    shared: AudioNode = null;
+
     // Initialize the RTEnnui connection
     async init(opts: comm.CommModes): Promise<void> {
         // We initialize RTEnnui once we know our own ID
@@ -126,7 +129,7 @@ export class RTEnnui implements comm.Comms {
             if (!(ev.peer in this.idMap))
                 return;
 
-            this.rteTrackStarted(this.idMap[ev.peer], ev.node);
+            this.rteTrackStarted(this.idMap[ev.peer], ev.playback);
         });
 
         c.on("track-ended-audio", ev => {
@@ -202,27 +205,36 @@ export class RTEnnui implements comm.Comms {
     }
 
     // Called when a remote track is added
-    rteTrackStarted(id: number, node: AudioNode): void {
+    rteTrackStarted(id: number, playback: rtennui.AudioPlayback): void {
         // Make sure they have a video element
         ui.videoAdd(id, null);
 
-        // Set this in the appropriate element
-        const el: HTMLMediaElement = <any> ui.ui.video.users[id].audio;
-        const msd = audio.ac.createMediaStreamDestination();
-        node.connect(msd);
-        el.srcObject = msd.stream;
-        if (el.paused)
-            el.play().catch(net.promiseFail());
+        let node = playback.unsharedNode();
 
-        /*
-        // Hide the standin if applicable
-        if (type === "video")
-            ui.ui.video.users[id].standin.style.display = "none";
-        */
+        if (node) {
+            // Set this in the appropriate element
+            const el: HTMLMediaElement = <any> ui.ui.video.users[id].audio;
+            const msd = audio.ac.createMediaStreamDestination();
+            node.connect(msd);
+            el.srcObject = msd.stream;
+            if (el.paused)
+                el.play().catch(net.promiseFail());
 
-        // Create the compressor node
-        outproc.createCompressor(id, audio.ac, msd.stream,
-            ui.ui.video.users[id].waveformWrapper);
+            /*
+            // Hide the standin if applicable
+            if (type === "video")
+                ui.ui.video.users[id].standin.style.display = "none";
+            */
+
+            // Create the compressor node
+            outproc.createCompressor(id, audio.ac, msd.stream,
+                ui.ui.video.users[id].waveformWrapper);
+
+        } else if (!this.shared) {
+            // Shared node, just let it go
+            this.shared = playback.sharedNode();
+
+        }
     }
 
     // Called when a remote track is removed
