@@ -783,7 +783,7 @@ function doOutproc(msg: any) {
                 sample_fmt: la.AV_SAMPLE_FMT_FLT,
                 channels: 1,
                 channel_layout: 4,
-                frame_size: 1024
+                frame_size: 128
             });
 
         buffersrc_ctx = ret[1];
@@ -796,6 +796,7 @@ function doOutproc(msg: any) {
     async function ondata(ts: number, data: Float32Array[]) {
         // Handle input
         const ib = data[0];
+        let ob = [data];
 
         if (doMax) {
             // Find the max
@@ -826,25 +827,29 @@ function doOutproc(msg: any) {
             const frames = await la.ff_filter_multi(
                 buffersrc_ctx, buffersink_ctx, frame, inFrames, false);
 
+            ob = [];
             for (let fi = 0; fi < frames.length; fi++) {
                 const frame = [frames[fi].data];
                 while (frame.length < data.length)
                     frame.push(frame[0]);
-                data = frame;
+                ob.push(frame);
             }
-
         }
 
         if (gain !== 1) {
             // Apply gain
-            for (const channel of data) {
-                for (let i = 0; i < channel.length; i++)
-                    channel[i] *= gain;
+            for (const frame of ob) {
+                for (const channel of frame) {
+                    for (let i = 0; i < channel.length; i++)
+                        channel[i] *= gain;
+                }
             }
         }
 
         // Send it out
-        for (const outHandler of outHandlers)
-            outHandler.send(data);
+        for (const outHandler of outHandlers) {
+            for (const frame of ob)
+                outHandler.send(frame);
+        }
     }
 }
