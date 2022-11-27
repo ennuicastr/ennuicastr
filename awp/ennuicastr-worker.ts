@@ -19,6 +19,9 @@ declare let LibAV: any, NoiseRepellent: any, NoiseRepellentFactory: any, Vosk: a
 const libavVersion = "3.8.5.1";
 const libavPath = "../libav/libav-" + libavVersion + "-ennuicastr.js";
 
+const canShared = typeof SharedArrayBuffer !== "undefined";
+const bufSz = 96000;
+
 const voskModelVersion = "en-us-0.15";
 const voskModelPath = "../libs/vosk-model-small-" + voskModelVersion + ".tar.gz";
 
@@ -31,11 +34,11 @@ const rtcVadExtension = 1000;
 // Code for an atomic waiter, which simply informs us whenever the write head changes
 const waitWorkerCode = `
 onmessage = function(ev) {
-    var prevVal = 0;
     var buf = ev.data;
-    while (Atomics.wait(buf, 1, prevVal)) {
+    var prevVal = Atomics.load(buf, 0);
+    while (Atomics.wait(buf, 0, prevVal)) {
         var ts = Date.now();
-        var newVal = Atomics.load(buf, 1);
+        var newVal = Atomics.load(buf, 0);
         if (prevVal !== newVal) {
             postMessage([ts, prevVal, newVal]);
             prevVal = newVal;
@@ -44,138 +47,163 @@ onmessage = function(ev) {
 };
 `;
 
-// Handler for data from AWP
-class AWPHandler {
-    // Port for AWP
-    port: MessagePort;
-
-    // Handler for incoming data
-    ondata: (ts: number, data: Float32Array[]) => unknown;
-
+// Handler for data from the capture
+class InHandler {
     // If we're using shared buffers, these are set
     incoming: Float32Array[];
-    incomingRW: Int32Array;
-    outgoing: Float32Array[];
-    outgoingRW: Int32Array;
+    incomingH: Int32Array;
     waitWorker: Worker;
 
-    // Otherwise, these are used
-    ts: number;
-    buf: Float32Array[];
+    constructor(
+        /**
+         * Input port.
+         */
+        public port: MessagePort,
 
-    constructor(port: MessagePort, ondata: (ts: number, data: Float32Array[]) => unknown) {
-        this.port = port;
-        this.ondata = ondata;
+        /**
+         * Function to call when data is received.
+         */
+        public ondata: (ts: number, data: Float32Array[]) => unknown
+    ) {
         port.onmessage = this.onmessage.bind(this);
     }
 
+    /**
+     * Handler for captured data.
+     */
     onmessage(ev: MessageEvent) {
         const msg = ev.data;
 
-        // We could be receiving a command, or just data
-        if (typeof msg === "object" &&
-            msg.c === "buffers") {
-            // Buffers command
-            this.incoming = msg.outgoing;
-            this.incomingRW = msg.outgoingRW;
-            this.outgoing = msg.incoming;
-            this.outgoingRW = msg.incomingRW;
+        if (msg.length) {
+            // Raw data
+            this.ondata(Date.now(), msg);
+
+        } else if (msg.c === "buffers") {
+            // Input buffers
+            const incoming = this.incoming = msg.buffers;
+            this.incomingH = msg.head;
 
             // Create a worker to inform us when we have incoming data
-            const ww = this.waitWorker = new Worker("data:application/javascript," + encodeURIComponent(waitWorkerCode));
-            ww.onmessage = (ev: MessageEvent) => {
-                const msg: number[] = ev.data;
-                const ts = msg[0];
-                const start = msg[1];
-                const end = msg[2];
-                const buf: Float32Array[] = [];
-                const bufSz = this.incoming[0].length;
-                let len = end - start;
+            const ww = this.waitWorker =
+                new Worker("data:application/javascript," +
+                    encodeURIComponent(waitWorkerCode));
+            ww.onmessage = ev => {
+                const [ts, start, end]: [number, number, number] = ev.data;
 
-                /* We still need an atomic load just to guarantee a memory
-                 * fence in this thread */
-                Atomics.load(this.incomingRW, 1);
+                // Make sure there's a memory fence in this thread
+                Atomics.load(this.incomingH, 0);
 
                 if (end < start) {
-                    // We wrapped around
-                    len += bufSz;
-                    const brk = bufSz - start;
-                    for (let i = 0; i < this.incoming.length; i++) {
+                    // We wrapped around. Make it one message.
+                    const len = end - start + incoming[0].length;
+                    const brk = incoming[0].length - start;
+                    const buf: Float32Array[] = [];
+                    for (let i = 0; i < incoming.length; i++) {
                         const sbuf = new Float32Array(len);
-                        sbuf.set(this.incoming[i].subarray(start), 0);
-                        sbuf.set(this.incoming[i].subarray(0, end), brk);
+                        sbuf.set(incoming[i].subarray(start), 0);
+                        sbuf.set(incoming[i].subarray(0, end), brk);
                         buf.push(sbuf);
                     }
+                    this.ondata(ts, buf);
 
                 } else {
                     // Simple case
-                    for (let i = 0; i < this.incoming.length; i++)
-                        buf.push(this.incoming[i].slice(start, end));
+                    this.ondata(ts, incoming.map(x => x.slice(start, end)));
 
                 }
-
-                this.ondata(ts, buf);
             };
 
             // Start it up
-            ww.postMessage(this.incomingRW);
+            ww.postMessage(this.incomingH);
 
             return;
-
-        } else if (typeof msg === "number") {
-            // Timestamp
-            this.ts = msg;
-
-        } else {
-            // Must be data
-            this.buf = msg;
-
-        }
-
-        if (this.ts && this.buf) {
-            const ts = this.ts;
-            const buf = this.buf;
-            this.ts = null;
-            this.buf = null;
-            this.ondata(ts, buf);
-        }
-    }
-
-    sendData(buf: Float32Array[]) {
-        if (this.outgoing) {
-            // Using shared memory
-            const bufSz = this.outgoing[0].length;
-            let len = buf[0].length;
-            if (len > bufSz) {
-                // This is bad!
-                len = bufSz;
-            }
-            let writeHead = this.outgoingRW[1];
-            if (writeHead + len > bufSz) {
-                // We wrap around
-                const brk = bufSz - writeHead;
-                for (let i = 0; i < this.outgoing.length; i++) {
-                    this.outgoing[i].set(buf[i%buf.length].subarray(0, brk), writeHead);
-                    this.outgoing[i].set(buf[i%buf.length].subarray(brk), 0);
-                }
-            } else {
-                // Simple case
-                for (let i = 0; i < this.outgoing.length; i++)
-                    this.outgoing[i].set(buf[i%buf.length], writeHead);
-            }
-            writeHead = (writeHead + len) % bufSz;
-
-            // Inform AWP
-            Atomics.store(this.outgoingRW, 1, writeHead);
-            Atomics.notify(this.outgoingRW, 1);
-
-        } else {
-            // Just message passing
-            this.port.postMessage({c: "data", d: buf});
 
         }
     }
 }
+
+/**
+ * Output handler.
+ */
+class OutHandler {
+    constructor(
+        /**
+         * The message port targeting this receiver.
+         */
+        public port: MessagePort
+    ) {
+        this.outgoing = null;
+        this.outgoingH = null;
+    }
+
+    /**
+     * Send this data.
+     * @param data  The data itself.
+     */
+    send(data: Float32Array[]) {
+        const len = data[0].length;
+
+        if (canShared && !this.outgoing) {
+            // Set up our shared memory buffer
+            this.outgoing = [];
+            for (let ci = 0; ci < data.length; ci++) {
+                this.outgoing.push(
+                    new Float32Array(
+                        new SharedArrayBuffer(bufSz * 4)
+                    )
+                );
+            }
+            this.outgoingH = new Int32Array(new SharedArrayBuffer(4));
+
+            // Tell them about the buffers
+            this.port.postMessage({
+                c: "buffers",
+                buffers: this.outgoing,
+                head: this.outgoingH
+            });
+        }
+
+        if (canShared) {
+            // Write it into the buffer
+            let writeHead = this.outgoingH[0];
+            if (writeHead + len > bufSz) {
+                // We wrap around
+                const brk = bufSz - writeHead;
+                for (let i = 0; i < this.outgoing.length; i++) {
+                    this.outgoing[i].set(data[i%data.length].subarray(0, brk), writeHead);
+                    this.outgoing[i].set(data[i%data.length].subarray(brk), 0);
+                }
+            } else {
+                // Simple case
+                for (let i = 0; i < this.outgoing.length; i++)
+                    this.outgoing[i].set(data[i%data.length], writeHead);
+            }
+            writeHead = (writeHead + len) % bufSz;
+            Atomics.store(this.outgoingH, 0, writeHead);
+
+            // Notify the worker
+            Atomics.notify(this.outgoingH, 0);
+
+        } else {
+            // Just send the data. Minimize allocation by sending plain.
+            this.port.postMessage(data);
+
+        }
+    }
+
+    /**
+     * The outgoing data, if shared.
+     */
+    private outgoing: Float32Array[];
+
+    /**
+     * The write head, if shared.
+     */
+    private outgoingH: Int32Array;
+}
+
+// Our output handlers
+let outHandlers: OutHandler[] = [];
 
 // Our initial message tells us what kind of worker to be
 onmessage = function(ev) {
@@ -189,12 +217,12 @@ onmessage = function(ev) {
             doFilter(msg);
             break;
 
-        case "max":
-            doMax(msg);
+        case "outproc":
+            doOutproc(msg);
             break;
 
-        case "dynaudnorm":
-            doDynaudnorm(msg);
+        case "out":
+            outHandlers.push(new OutHandler(msg.p));
             break;
     }
 }
@@ -270,7 +298,7 @@ function doEncoder(msg: any) {
         buffersink_ctx = ret[2];
 
         // Now we're prepared for input
-        new AWPHandler(inPort, ondata);
+        new InHandler(inPort, ondata);
 
     }).catch(console.error);
 
@@ -319,11 +347,11 @@ function doEncoder(msg: any) {
 
 // Do a live filter
 function doFilter(msg: any) {
-    let awpHandler: AWPHandler;
+    let inHandler: InHandler;
 
     // Get out our info
     const inPort: MessagePort = msg.port;
-    const sampleRate: number = msg.sampleRate;
+    const sampleRate: number = msg.inSampleRate;
     let useNR: boolean = msg.useNR;
     let sentRecently: boolean = msg.sentRecently;
     let lastVadSensitivity: number = msg.vadSensitivity;
@@ -334,7 +362,7 @@ function doFilter(msg: any) {
     let channel: number = (typeof msg.channel === "number") ? msg.channel : -1;
 
     // Let them update it
-    onmessage = function(ev) {
+    addEventListener("message", ev => {
         const msg = ev.data;
         if (msg.c !== "state") return;
         useNR = msg.useNR;
@@ -342,7 +370,7 @@ function doFilter(msg: any) {
         vadSensitivity = msg.vadSensitivity;
         vadNoiseGate = msg.vadNoiseGate;
         vadNoiseGateLvl = Math.pow(10, vadNoiseGate / 20);
-    };
+    });
 
     // State for transfer to the host
     let rawVadLvl = 0;
@@ -434,7 +462,7 @@ function doFilter(msg: any) {
             loadVosk();
 
         // Now we're ready to receive messages
-        awpHandler = new AWPHandler(inPort, ondata);
+        inHandler = new InHandler(inPort, ondata);
 
     }).catch(console.error);
 
@@ -496,7 +524,8 @@ function doFilter(msg: any) {
             }
             while (od.length < data.length)
                 od.push(ob.slice(0));
-            awpHandler.sendData(od);
+            for (const outHandler of outHandlers)
+                outHandler.send(od);
         }
 
 
@@ -684,7 +713,7 @@ function doMax(msg: any) {
     let max = 0;
     let maxCtr = 0;
 
-    const awpHandler: AWPHandler = new AWPHandler(inPort, ondata);
+    const inHandler: InHandler = new InHandler(inPort, ondata);
 
     function ondata(ts: number, data: Float32Array[]) {
         const ib = data[0];
@@ -698,79 +727,124 @@ function doMax(msg: any) {
                 max = maxCtr = 0;
             }
         }
-        awpHandler.sendData(data);
+        for (const outHandler of outHandlers)
+            outHandler.send(data);
     }
 }
 
-// Do compression/normalization
-function doDynaudnorm(msg: any) {
-    let awpHandler: AWPHandler;
+/**
+ * Do output processing. Output processing involves looking for maximums (for
+ * waveview), dynamic compression, and final gain.
+ */
+function doOutproc(msg: any) {
+    let inHandler: InHandler;
+    let doMax = false;
+    let doCompress = false;
+    let gain = 1;
+
+    let max = 0;
+    let maxCtr = 0;
+
+    // Handle max/compress results ASAP
+    addEventListener("message", ev => {
+        const msg = ev.data;
+        if (msg.c === "max")
+            doMax = !!msg.a;
+        else if (msg.c === "dynaudnorm")
+            doCompress = !!msg.a;
+        else if (msg.c === "gain")
+            gain = msg.g;
+    });
 
     // Get out our info
     const inPort: MessagePort = msg.port;
-    const sampleRate: number = msg.sampleRate;
+    const sampleRate: number = msg.inSampleRate;
 
-    let la: any; // libav
-    let frame: number;
-    let buffersrc_ctx: number, buffersink_ctx: number;
-    let pts = 0;
+    let la: any, frame: number, pts = 0;
+    let buffersrc_ctx = 0, buffersink_ctx = 0;
 
-    // Load libav
-    LibAV = {nolibavworker: true, base: "../libav"};
-    __filename = libavPath; // To "trick" wasm loading
-    importScripts(__filename);
-    return LibAV.LibAV({noworker: true}).then((ret: any) => {
-        la = ret;
-        return la.av_frame_alloc();
+    // Load libav in the background
+    (async () => {
+        LibAV = {nolibavworker: true, base: "../libav"};
+        __filename = libavPath; // To "trick" wasm loading
+        importScripts(__filename);
 
-    }).then((ret: any) => {
-        frame = ret;
-        return la.ff_init_filter_graph("dynaudnorm=f=10:g=3", {
-            sample_rate: sampleRate,
-            sample_fmt: la.AV_SAMPLE_FMT_FLT,
-            channels: 1,
-            channel_layout: 4
-        }, {
-            sample_rate: sampleRate,
-            sample_fmt: la.AV_SAMPLE_FMT_FLT,
-            channels: 1,
-            channel_layout: 4,
-            frame_size: 1024
-        });
+        la = await LibAV.LibAV({noworker: true});
+        frame = await la.av_frame_alloc();
 
-    }).then((ret: any) => {
+        const ret =
+            await la.ff_init_filter_graph("dynaudnorm=f=10:g=3", {
+                sample_rate: sampleRate,
+                sample_fmt: la.AV_SAMPLE_FMT_FLT,
+                channels: 1,
+                channel_layout: 4
+            }, {
+                sample_rate: sampleRate,
+                sample_fmt: la.AV_SAMPLE_FMT_FLT,
+                channels: 1,
+                channel_layout: 4,
+                frame_size: 1024
+            });
+
         buffersrc_ctx = ret[1];
         buffersink_ctx = ret[2];
+    })();
 
-        // Now we're ready for input
-        awpHandler = new AWPHandler(inPort, ondata);
+    // Now we're ready for input
+    inHandler = new InHandler(inPort, ondata);
 
-    }).catch(console.error);
-
-    function ondata(ts: number, data: Float32Array[]) {
+    async function ondata(ts: number, data: Float32Array[]) {
         // Handle input
         const ib = data[0];
 
-        const frames = [{
-            data: ib,
-            channels: 1,
-            channel_layout: 4,
-            format: la.AV_SAMPLE_FMT_FLT,
-            pts: pts,
-            sample_rate: sampleRate
-        }];
-        pts += ib.length;
+        if (doMax) {
+            // Find the max
+            for (let i = 0; i < ib.length; i++) {
+                let v = ib[i];
+                if (v < 0) v = -v;
+                if (v > max) max = v;
+                if (++maxCtr >= 1024) {
+                    // Send a max count
+                    postMessage({c: "max", m: max});
+                    max = maxCtr = 0;
+                }
+            }
+        }
 
-        return la.ff_filter_multi(buffersrc_ctx, buffersink_ctx, frame, frames, false).then((frames: any) => {
+        if (doCompress && buffersink_ctx) {
+            // Run it through the compressor
+            const inFrames = [{
+                data: ib,
+                channels: 1,
+                channel_layout: 4,
+                format: la.AV_SAMPLE_FMT_FLT,
+                pts: pts,
+                sample_rate: sampleRate
+            }];
+            pts += ib.length;
+
+            const frames = await la.ff_filter_multi(
+                buffersrc_ctx, buffersink_ctx, frame, inFrames, false);
 
             for (let fi = 0; fi < frames.length; fi++) {
                 const frame = [frames[fi].data];
                 while (frame.length < data.length)
                     frame.push(frame[0]);
-                // Send it back
-                awpHandler.sendData(frame);
+                data = frame;
             }
 
-        }).catch(console.error);
+        }
+
+        if (gain !== 1) {
+            // Apply gain
+            for (const channel of data) {
+                for (let i = 0; i < channel.length; i++)
+                    channel[i] *= gain;
+            }
+        }
+
+        // Send it out
+        for (const outHandler of outHandlers)
+            outHandler.send(data);
     }
 }

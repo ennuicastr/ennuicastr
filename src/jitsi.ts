@@ -34,6 +34,8 @@ import * as util from "./util";
 import * as vad from "./vad";
 import * as video from "./video";
 
+import * as rtennui from "rtennui";
+
 // Jitsi peer information
 interface JitsiPeer {
     id: string; // Jitsi ID
@@ -56,6 +58,12 @@ export class Jitsi implements comm.BroadcastComms {
 
     // Jitsi tracks need a unique ID. Use this as a counter to generate them.
     jCounter = 0;
+
+    // Playback-ified version of our output
+    userMediaPlayback: rtennui.AudioPlayback;
+
+    // MediaStream-ified version of our output
+    userMediaRTC: MediaStream;
 
     // Jitsi outgoing audio track
     jAudio: any;
@@ -94,7 +102,7 @@ export class Jitsi implements comm.BroadcastComms {
         if (opts.audio) {
             util.events.addEventListener("vad.rtc0", () => {
                 // FIXME
-                const a = audio.inputs[0].userMediaRTC;
+                const a = this.userMediaRTC;
                 if (!a)
                     return;
                 const t = a.getAudioTracks()[0];
@@ -132,7 +140,7 @@ export class Jitsi implements comm.BroadcastComms {
 
     // Initialize the Jitsi connection
     async initJitsi(): Promise<void> {
-        if (!audio.inputs[0].userMediaRTC) {
+        if (!audio.inputs[0].userMediaCapture) {
             // Wait until we have audio
             util.events.addEventListener("usermediartcready", () => this.initJitsi(), {once: true});
             return;
@@ -253,16 +261,27 @@ export class Jitsi implements comm.BroadcastComms {
 
 
     // Set our UserMediaRTC track
-    jitsiSetUserMediaRTC(retries = 2): Promise<unknown> {
-        if (!audio.inputs[0].userMediaRTC)
-            return Promise.all([]);
+    async jitsiSetUserMediaRTC(retries = 2): Promise<unknown> {
+        if (!audio.inputs[0].userMediaCapture)
+            return;
 
         // If we already had one, remove it
         this.jitsiUnsetUserMediaRTC();
 
+        // Get a playback from it
+        const playback = this.userMediaPlayback =
+            await rtennui.createAudioPlayback(audio.ac);
+        let node = playback.unsharedNode() || playback.sharedNode();
+        node.disconnect();
+
+        // Turn it into a MediaStream
+        const msd = audio.ac.createMediaStreamDestination();
+        node.connect(msd);
+        const rtc = this.userMediaRTC = msd.stream;
+
         // Set up the VAD
         {
-            const track = audio.inputs[0].userMediaRTC.getAudioTracks()[0];
+            const track = rtc.getAudioTracks()[0];
             if (track)
                 track.enabled = vad.vads[0].rtcVadOn;
         }
@@ -271,11 +290,11 @@ export class Jitsi implements comm.BroadcastComms {
         this.jPromise = this.jPromise.then(() => {
             // Make and add the new one
             this.jAudio = new JitsiMeetJS.JitsiLocalTrack({
-                deviceId: audio.inputs[0].userMediaRTC.id,
-                rtcId: audio.inputs[0].userMediaRTC.id + ":" + (this.jCounter++),
+                deviceId: rtc.id,
+                rtcId: rtc.id + ":" + (this.jCounter++),
                 mediaType: "audio",
-                stream: audio.inputs[0].userMediaRTC,
-                track: audio.inputs[0].userMediaRTC.getAudioTracks()[0]
+                stream: rtc,
+                track: rtc.getAudioTracks()[0]
             });
             return this.room.addTrack(this.jAudio);
 
@@ -298,6 +317,10 @@ export class Jitsi implements comm.BroadcastComms {
 
     // Unset our UserMediaRTC track
     jitsiUnsetUserMediaRTC(): Promise<unknown> {
+        if (this.userMediaPlayback)
+            this.userMediaPlayback.close();
+        this.userMediaPlayback = this.userMediaRTC = null;
+
         this.jPromise = this.jPromise.then(() => {
             if (!this.jAudio)
                 return;
@@ -435,8 +458,17 @@ export class Jitsi implements comm.BroadcastComms {
         }
 
         // Create the compressor node
-        if (type === "audio")
-            outproc.createCompressor(id, audio.ac, stream, ui.ui.video.users[id].waveformWrapper);
+        if (type === "audio") {
+            if (outproc.supported) {
+                outproc.createCompressor(
+                    id, audio.ac, stream,
+                    ui.ui.video.users[id].waveformWrapper
+                );
+            } else {
+                const mss = audio.ac.createMediaStreamSource(stream);
+                mss.connect((<any> audio.ac).ecDestination);
+            }
+        }
 
         // If they're the major, ask for higher quality
         if (ui.ui.video.major === id)

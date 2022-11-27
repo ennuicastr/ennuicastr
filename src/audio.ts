@@ -237,8 +237,8 @@ export class Audio {
     // The audio device being read
     userMedia: MediaStream = null;
 
-    // The pseudodevice as processed to reduce noise, for RTC
-    userMediaRTC: MediaStream = null;
+    // The capture of this device, used for RTC
+    userMediaCapture: capture.Capture = null;
 
     // Where to save the channel setting
     channelSettingName: string = null;
@@ -303,10 +303,9 @@ export class Audio {
         if (this.userMedia) {
             this.userMedia.getTracks().forEach(track => track.stop());
             this.userMedia = null;
-            if (this.userMediaRTC) {
+            if (this.userMediaCapture) {
                 // The disconnection of the whole line happens in proc.ts
-                this.userMediaRTC.getTracks().forEach(track => track.stop());
-                this.userMediaRTC = null;
+                this.userMediaCapture.disconnect();
             }
             util.dispatchEvent("usermediastopped", {idx: this.idx});
             util.dispatchEvent("usermediastopped" + this.idx, {idx: this.idx});
@@ -543,11 +542,8 @@ export class Audio {
 
         // Create the capture stream
         return capture.createCapture(ac, {
-            ms: this.userMedia,
+            input: this.userMedia,
             matchSampleRate: true,
-            bufferSize: 16384 /* Max: Latency doesn't actually matter in this context */,
-            outStream: true,
-            sampleRate: "inSampleRate",
             workerCommand: {
                 c: "encoder",
                 outSampleRate: sampleRate,

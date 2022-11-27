@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2021 Yahweasel
+ * Copyright (c) 2018-2022 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -22,6 +22,7 @@
 
 import * as audio from "./audio";
 import * as avloader from "./avloader";
+import * as capture from "./capture";
 import * as comm from "./comm";
 import * as config from "./config";
 import * as net from "./net";
@@ -31,7 +32,7 @@ import * as ui from "./ui";
 import * as util from "./util";
 import * as vad from "./vad";
 
-import * as rtennui from "rtennui/rtennui.js";
+import * as rtennui from "rtennui";
 import * as wcp from "libavjs-webcodecs-polyfill";
 
 // Make our polyfill the global one
@@ -41,6 +42,62 @@ LibAVWebCodecs = wcp;
 
 // Has the RTEnnui library been initialized?
 let inited = false;
+
+/**
+ * Our own custom playback class that can perform our output processing.
+ */
+class OutProcAudioPlayback extends rtennui.AudioPlayback {
+    constructor(public ac: AudioContext) {
+        super();
+        const worker = this.worker = new Worker(capture.workerPath);
+        this.port = null;
+    }
+
+    override play(data: Float32Array[]): void {
+        if (!this.port) {
+            // Init the worker
+            const mc = new MessageChannel();
+            this.port = mc.port1;
+            this.worker.postMessage({
+                c: "outproc",
+                inSampleRate: this.ac.sampleRate,
+                port: mc.port2
+            }, [mc.port2]);
+        }
+        this.port.postMessage(data);
+    }
+
+    override pipeFrom(port: MessagePort): void {
+        this.worker.postMessage({
+            c: "outproc",
+            inSampleRate: this.ac.sampleRate,
+            port
+        }, [port]);
+    }
+
+    override channels(): number {
+        // FIXME
+        return 1;
+    }
+
+    override close(): void {
+        if (this.worker) {
+            this.worker.terminate();
+            this.worker = null;
+        }
+    }
+
+    /**
+     * The worker this data is being redirected to.
+     */
+    worker: Worker;
+
+    /**
+     * The port to communicate with the worker. Initialized on the first
+     * message, if needed.
+     */
+    port: MessagePort;
+}
 
 export class RTEnnui implements comm.Comms {
     // Communication modes
@@ -81,7 +138,7 @@ export class RTEnnui implements comm.Comms {
 
     // Initialize RTEnnui
     async initRTEnnui(): Promise<void> {
-        if (!audio.inputs[0].userMediaRTC) {
+        if (!audio.inputs[0].userMediaCapture) {
             // Wait until we have audio
             util.events.addEventListener("usermediartcready", () => this.initRTEnnui(), {once: true});
             return;
@@ -99,7 +156,10 @@ export class RTEnnui implements comm.Comms {
             this.connection.disconnect();
 
         // Create our connection
-        const c = this.connection = new rtennui.Connection(audio.ac);
+        const c = this.connection =
+            new rtennui.Connection(audio.ac, {
+                createAudioPlayback: async (ac) => new OutProcAudioPlayback(ac)
+            });
         this.idMap = Object.create(null);
 
         // Prepare for events
@@ -193,12 +253,8 @@ export class RTEnnui implements comm.Comms {
             await this.connection.removeAudioTrack(this.cap);
         }
 
-        this.cap = await rtennui.createAudioCapture(audio.ac,
-            audio.inputs[0].userMediaRTC);
-        this.connection.addAudioTrack(
-            this.cap,
-            {frameSize: 5000}
-        );
+        this.cap = audio.inputs[0].userMediaCapture.capture;
+        this.connection.addAudioTrack(this.cap, {frameSize: 5000});
 
         // Set the VAD state
         this.cap.setVADState(vad.vads[0].rtcVadOn ? "yes" : "no");
@@ -209,30 +265,43 @@ export class RTEnnui implements comm.Comms {
         // Make sure they have a video element
         ui.videoAdd(id, null);
 
-        let node = playback.unsharedNode();
+        if (!(playback instanceof OutProcAudioPlayback)) {
+            // This should never happen!
+            // FIXME
+            console.error("Incorrect node!");
+            let node = playback.unsharedNode();
 
-        if (node) {
-            // Set this in the appropriate element
-            const el: HTMLMediaElement = <any> ui.ui.video.users[id].audio;
-            const msd = audio.ac.createMediaStreamDestination();
-            node.connect(msd);
-            el.srcObject = msd.stream;
-            if (el.paused)
-                el.play().catch(net.promiseFail());
+            if (node) {
+                // Set this in the appropriate element
+                const el: HTMLMediaElement = <any> ui.ui.video.users[id].audio;
+                const msd = audio.ac.createMediaStreamDestination();
+                node.connect(msd);
+                el.srcObject = msd.stream;
+                if (el.paused)
+                    el.play().catch(net.promiseFail());
 
-            /*
-            // Hide the standin if applicable
-            if (type === "video")
-                ui.ui.video.users[id].standin.style.display = "none";
-            */
+                /*
+                // Hide the standin if applicable
+                if (type === "video")
+                    ui.ui.video.users[id].standin.style.display = "none";
+                */
+
+                // Create the compressor node
+                outproc.createCompressor(id, audio.ac, msd.stream,
+                    ui.ui.video.users[id].waveformWrapper);
+
+            } else if (!this.shared) {
+                // Shared node, just let it go
+                this.shared = playback.sharedNode();
+
+            }
+
+        } else {
+            const oppb = <OutProcAudioPlayback> playback;
 
             // Create the compressor node
-            outproc.createCompressor(id, audio.ac, msd.stream,
+            outproc.createCompressor(id, audio.ac, oppb.worker,
                 ui.ui.video.users[id].waveformWrapper);
-
-        } else if (!this.shared) {
-            // Shared node, just let it go
-            this.shared = playback.sharedNode();
 
         }
     }
