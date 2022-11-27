@@ -103,6 +103,17 @@ export async function createCompressor(
     if (gain !== 1)
         worker.postMessage({c: "gain", g: gain});
 
+    // Set up the waveview
+    const wf =
+        new waveform.Waveform("" + idx, ac.sampleRate / 1024, wrapper, null);
+    worker.addEventListener("message", ev => {
+        const msg = ev.data;
+        if (msg.c !== "max") return;
+        const max = msg.m;
+        wf.push(max, (max < 0.0001) ? 1 : 3);
+        wf.updateWave(max, true);
+    });
+
     // Create the player
     const player = await rtennui.createAudioPlayback(ac);
 
