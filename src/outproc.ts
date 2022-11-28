@@ -40,6 +40,9 @@ interface Compressor {
 }
 
 export const rtcCompression = {
+    // Global shared playback node, if it's shared
+    sharedPlayback: <AudioNode> null,
+
     // Should we be displaying waveforms?
     waveviewing: false,
 
@@ -125,9 +128,19 @@ export async function createCompressor(
     }, [mc.port1]);
 
     // Hook up the player
-    const node = player.unsharedNode();
-    if (node)
+    let node = player.unsharedNode();
+    if (node) {
         node.connect(ac.ecDestination);
+
+    } else {
+        node = player.sharedNode();
+        if (node !== rtcCompression.sharedPlayback) {
+            node.disconnect();
+            node.connect(ac.ecDestination);
+            rtcCompression.sharedPlayback = node;
+        }
+
+    }
 
     // Make the compressor instance
     const com: Compressor = {
