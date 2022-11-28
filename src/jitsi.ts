@@ -273,6 +273,7 @@ export class Jitsi implements comm.BroadcastComms {
             await rtennui.createAudioPlayback(audio.ac);
         let node = playback.unsharedNode() || playback.sharedNode();
         node.disconnect();
+        audio.inputs[0].userMediaCapture.pipe(playback);
 
         // Turn it into a MediaStream
         const msd = audio.ac.createMediaStreamDestination();
