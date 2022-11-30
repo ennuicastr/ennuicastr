@@ -704,34 +704,6 @@ function doFilter(msg: any) {
     }
 }
 
-// Do simply histogram generation
-function doMax(msg: any) {
-    // Get out our info
-    const inPort: MessagePort = msg.port;
-
-    // State for transfer to the host
-    let max = 0;
-    let maxCtr = 0;
-
-    const inHandler: InHandler = new InHandler(inPort, ondata);
-
-    function ondata(ts: number, data: Float32Array[]) {
-        const ib = data[0];
-        for (let i = 0; i < ib.length; i++) {
-            let v = ib[i];
-            if (v < 0) v = -v;
-            if (v > max) max = v;
-            if (++maxCtr >= 1024) {
-                // Send a max count
-                postMessage({c: "max", m: max});
-                max = maxCtr = 0;
-            }
-        }
-        for (const outHandler of outHandlers)
-            outHandler.send(data);
-    }
-}
-
 /**
  * Do output processing. Output processing involves looking for maximums (for
  * waveview), dynamic compression, and final gain.
@@ -742,8 +714,8 @@ function doOutproc(msg: any) {
     let doCompress = false;
     let gain = 1;
 
-    let max = 0;
-    let maxCtr = 0;
+    let max = 0, maxCtr = 0;
+    let sentMax = 0;
 
     // Handle max/compress results ASAP
     addEventListener("message", ev => {
@@ -790,6 +762,15 @@ function doOutproc(msg: any) {
         buffersink_ctx = ret[2];
     })();
 
+    // Prepare to send the max even if we don't have data
+    setInterval(() => {
+        if (sentMax) {
+            sentMax--;
+            return;
+        }
+        postMessage({c: "max", m: 0});
+    }, 1024000 / sampleRate);
+
     // Now we're ready for input
     inHandler = new InHandler(inPort, ondata);
 
@@ -807,6 +788,7 @@ function doOutproc(msg: any) {
                 if (++maxCtr >= 1024) {
                     // Send a max count
                     postMessage({c: "max", m: max});
+                    sentMax = 2;
                     max = maxCtr = 0;
                 }
             }
