@@ -95,16 +95,21 @@ export async function createCompressor(
 
     }
 
-    // Maybe enable features
-    if (rtcCompression.waveviewing)
-        worker.postMessage({c: "max", a: true});
-    if (rtcCompression.compressing)
-        worker.postMessage({c: "dynaudnorm", a: true});
-    let gain = rtcCompression.gain;
-    if (idx in rtcCompression.perUserGain)
-        gain *= rtcCompression.perUserGain[idx];
-    if (gain !== 1)
-        worker.postMessage({c: "gain", g: gain});
+    // Prepare to enable features
+    worker.addEventListener("message", ev => {
+        const msg = ev.data;
+        if (msg.c === "outproc-ready") {
+            if (rtcCompression.waveviewing)
+                worker.postMessage({c: "max", a: true});
+            if (rtcCompression.compressing)
+                worker.postMessage({c: "dynaudnorm", a: true});
+            let gain = rtcCompression.gain;
+            if (idx in rtcCompression.perUserGain)
+                gain *= rtcCompression.perUserGain[idx];
+            if (gain !== 1)
+                worker.postMessage({c: "gain", g: gain});
+        }
+    });
 
     // Set up the waveview
     const wf =

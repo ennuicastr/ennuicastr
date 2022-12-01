@@ -728,6 +728,9 @@ function doOutproc(msg: any) {
             gain = msg.g;
     });
 
+    // Tell the parent that outproc is ready for commands
+    postMessage({c: "outproc-ready"});
+
     // Get out our info
     const inPort: MessagePort = msg.port;
     const sampleRate: number = msg.inSampleRate;
