@@ -170,7 +170,8 @@ export function destroyCompressor(idx: number): void {
     if (!com)
         return;
     rtcCompression.compressors[idx] = null;
-    com.capture.disconnect();
+    if (com.capture)
+        com.capture.disconnect();
 }
 
 // En/disable waveviewing
