@@ -254,7 +254,9 @@ export class RTEnnui implements comm.Comms {
         }
 
         this.cap = audio.inputs[0].userMediaCapture.capture;
-        this.connection.addAudioTrack(this.cap, {frameSize: 5000});
+        this.connection.addAudioTrack(this.cap /*, {frameSize: 5000}*/);
+        /* NOTE: Due to a bug somewhere in RTEnnui or LibAV.js, setting the
+         * frame size above doesn't actually work. */
 
         // Set the VAD state
         this.cap.setVADState(vad.vads[0].rtcVadOn ? "yes" : "no");
