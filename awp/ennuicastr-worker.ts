@@ -715,6 +715,7 @@ function doOutproc(msg: any) {
     let gain = 1;
 
     let max = 0, maxCtr = 0;
+    const bufferMax = 8;
     let sentMax = 0;
 
     // Handle max/compress results ASAP
@@ -767,9 +768,14 @@ function doOutproc(msg: any) {
 
     // Prepare to send the max even if we don't have data
     setInterval(() => {
-        if (sentMax) {
+        if (sentMax >= 0) {
             sentMax--;
             return;
+        } else if (sentMax === 0) {
+            // Now send the maxes, but really, send the whole buffer we missed
+            for (let i = 1; i < bufferMax; i++)
+                postMessage({c: "max", m: 0});
+            sentMax--;
         }
         postMessage({c: "max", m: 0});
     }, 1024000 / sampleRate);
@@ -791,7 +797,7 @@ function doOutproc(msg: any) {
                 if (++maxCtr >= 1024) {
                     // Send a max count
                     postMessage({c: "max", m: max});
-                    sentMax = 2;
+                    sentMax = bufferMax;
                     max = maxCtr = 0;
                 }
             }
