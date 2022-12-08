@@ -115,10 +115,7 @@ function localProcessingWorker(idx: number) {
 
     // Start the capture
     return capture.createCapture(audio.ac, {
-        ms: input.userMedia,
-        bufferSize: 1024,
-        outStream: true,
-        sampleRate: "sampleRate",
+        input: input.userMedia,
         workerCommand: {
             c: "filter",
             useNR: useNR,
@@ -227,7 +224,7 @@ function localProcessingWorker(idx: number) {
         };
 
         // The output from this is our RTC audio
-        input.userMediaRTC = capture.destination;
+        input.userMediaCapture = capture;
         util.dispatchEvent("usermediartcready", {idx});
         util.dispatchEvent("usermediartcready" + idx, {idx});
 

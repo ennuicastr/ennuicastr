@@ -832,6 +832,7 @@ export function mkAudioUI(): string {
     }
     output.volume.oninput = volumeChange;
 
+    output.volumeStatus.innerHTML = "&nbsp;" + output.volume.value + "%";
     outproc.setGlobalGain((+output.volume.value) / 100);
 
     // SFX volume
