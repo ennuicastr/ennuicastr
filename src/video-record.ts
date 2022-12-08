@@ -488,14 +488,25 @@ function getMediaRecorderStream(ms: MediaStream, opts: any) {
     const buf: Blob[] = [];
     let notify: () => void = null;
 
+    // Timeout to make sure we receive data
+    let timeout: number|null = null;
+
     // Set up the media recorder itself
     mediaRecorder.addEventListener("dataavailable", (ev: any) => {
+        if (timeout) {
+            clearTimeout(timeout);
+            timeout = setTimeout(timeoutFunc, 5000);
+        }
         buf.push(ev.data);
         if (notify)
             notify();
     });
 
     mediaRecorder.addEventListener("stop", () => {
+        if (timeout) {
+            clearTimeout(timeout);
+            timeout = null;
+        }
         buf.push(null);
         if (notify)
             notify();
@@ -518,6 +529,24 @@ function getMediaRecorderStream(ms: MediaStream, opts: any) {
     });
 
     mediaRecorder.start(200);
+
+    // Make sure it actually gets data soon
+    function timeoutFunc() {
+        timeout = null;
+
+        log.pushStatus("video-rec-failed", "Failed to record video!");
+        setTimeout(() => log.popStatus("video-rec-failed"), 5000);
+
+        mediaRecorder.stop();
+
+        buf.push(null);
+        if (notify)
+            notify();
+
+        video.shareVideo("-none", 0);
+    }
+
+    timeout = setTimeout(timeoutFunc, 5000);
 
     return {mediaRecorder, stream};
 }
