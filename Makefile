@@ -52,15 +52,14 @@ ennuicastr.js: src/*.ts node_modules/.bin/browserify
 	./src/build.js > $@.tmp
 	mv $@.tmp $@
 
-ennuicastr.min.js: src/*.ts node_modules/.bin/browserify
-	./src/build.js -m > $@.tmp
-	mv $@.tmp $@
+ennuicastr.min.js: ennuicastr.js node_modules/.bin/browserify
+	./node_modules/.bin/minify --js < $< | cat src/license.js - > $@
 
 ennuicastr-test.js: src/*.ts node_modules/.bin/browserify
 	./src/build.js > $@
 
-ennuicastr-test.min.js: src/*.ts node_modules/.bin/browserify
-	./src/build.js -m > $@
+ennuicastr-test.min.js: ennuicastr-test.js node_modules/.bin/browserify
+	./node_modules/.bin/minify --js < $< | cat src/license.js - > $@
 
 sw.js: src/sw.ts node_modules/.bin/browserify
 	./node_modules/.bin/tsc --lib es2015,dom $< --outFile $@
