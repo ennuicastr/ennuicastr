@@ -228,6 +228,7 @@ function configureMasterInterface() {
     if (net.mode < prot.mode.rec) {
         pauseResume.style.display = "none";
         startStop.innerHTML = '<i class="fas fa-microphone-alt"></i> Start recording';
+        startStop.classList.add("warning");
         startStop.onclick = startRecording;
 
     } else if (net.mode === prot.mode.rec ||
@@ -241,6 +242,7 @@ function configureMasterInterface() {
             pauseResume.onclick = resumeRecording;
         }
         startStop.innerHTML = '<i class="fas fa-stop"></i> Stop recording';
+        startStop.classList.remove("warning");
         startStop.onclick = stopRecording;
 
     } else {
@@ -249,6 +251,7 @@ function configureMasterInterface() {
             startStop.innerText = "Waiting for audio from clients...";
         else
             startStop.innerHTML = '<i class="fas fa-check"></i> Recording finished';
+        startStop.classList.remove("warning");
         // eslint-disable-next-line @typescript-eslint/no-empty-function
         startStop.onclick = function() {};
         startStop.disabled = true;
@@ -256,7 +259,9 @@ function configureMasterInterface() {
     }
 
     updateCreditCost();
-    ui.resizeUI();
+    //ui.resizeUI();
+
+    util.dispatchEvent("ui.resize-needed");
 }
 
 
@@ -701,10 +706,10 @@ function allowAdmin(target: number, allowed: boolean, props: any) {
     const name = user.name || "Anonymous";
     if (allowed) {
         user.fullAccess = props;
-        log.pushStatus("allowAdmin", "User " + name + " has allowed admin access.");
+        log.pushStatus("allowAdmin", "User " + util.escape(name) + " has allowed admin access.");
     } else {
         user.fullAccess = null;
-        log.pushStatus("allowAdmin", "User " + name + " has disallowed admin access.");
+        log.pushStatus("allowAdmin", "User " + util.escape(name) + " has disallowed admin access.");
     }
     setTimeout(function() {
         log.popStatus("allowAdmin");

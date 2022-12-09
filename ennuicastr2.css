@@ -33,6 +33,11 @@
     --peak-3:   #080;
 }
 
+.warning {
+    --bg: #955;
+    --bg-hover: #a66;
+}
+
 body {
     background: var(--bg);
     color: var(--fg);

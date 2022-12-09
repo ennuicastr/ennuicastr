@@ -237,8 +237,8 @@ export class Audio {
     // The audio device being read
     userMedia: MediaStream = null;
 
-    // The pseudodevice as processed to reduce noise, for RTC
-    userMediaRTC: MediaStream = null;
+    // The capture of this device, used for RTC
+    userMediaCapture: capture.Capture = null;
 
     // Where to save the channel setting
     channelSettingName: string = null;
@@ -279,7 +279,7 @@ export class Audio {
             return this.getMic(mkAudioUI());
         }).catch((err) => {
             config.disconnect();
-            log.pushStatus("fail", "Cannot get microphone: " + err);
+            log.pushStatus("fail", "Cannot get microphone: " + util.escape(err + ""));
             log.popStatus("getmic");
         });
     }
@@ -303,10 +303,9 @@ export class Audio {
         if (this.userMedia) {
             this.userMedia.getTracks().forEach(track => track.stop());
             this.userMedia = null;
-            if (this.userMediaRTC) {
+            if (this.userMediaCapture) {
                 // The disconnection of the whole line happens in proc.ts
-                this.userMediaRTC.getTracks().forEach(track => track.stop());
-                this.userMediaRTC = null;
+                this.userMediaCapture.disconnect();
             }
             util.dispatchEvent("usermediastopped", {idx: this.idx});
             util.dispatchEvent("usermediastopped" + this.idx, {idx: this.idx});
@@ -383,7 +382,7 @@ export class Audio {
             return this.userMediaSet();
         }).catch(err => {
             config.disconnect();
-            log.pushStatus("fail", "Cannot get microphone: " + err);
+            log.pushStatus("fail", "Cannot get microphone: " + util.escape(err + ""));
             log.popStatus("getmic");
         });
     }
@@ -445,7 +444,7 @@ export class Audio {
 
         }).then(() => {
             if (ac.state !== "running")
-                log.pushStatus("audiocontext", "Cannot capture audio! State: " + ac.state);
+                log.pushStatus("audiocontext", "Cannot capture audio! State: " + util.escape(ac.state));
 
             // At this point, we want to start catching errors
             window.addEventListener("error", function(error) {
@@ -543,11 +542,8 @@ export class Audio {
 
         // Create the capture stream
         return capture.createCapture(ac, {
-            ms: this.userMedia,
+            input: this.userMedia,
             matchSampleRate: true,
-            bufferSize: 16384 /* Max: Latency doesn't actually matter in this context */,
-            outStream: true,
-            sampleRate: "inSampleRate",
             workerCommand: {
                 c: "encoder",
                 outSampleRate: sampleRate,
@@ -676,7 +672,7 @@ export class Audio {
     }
 
     // Get the state of muting (true=MUTED)
-    private getMute() {
+    getMute() {
         const track = this.userMedia.getAudioTracks()[0];
         return !track.enabled;
     }
@@ -766,8 +762,8 @@ export function deviceInfo(allowVideo: boolean): any {
             videoDevice: allowVideo ? ui.ui.panels.videoConfig.device.value : null,
             videoRes: allowVideo ? +ui.ui.panels.videoConfig.res.value : null,
             videoRec: (typeof MediaRecorder !== "undefined"),
-            mute: this.getMute(),
-            echo: this.getEchoCancel(),
+            mute: inputs[0].getMute(),
+            echo: inputs[0].getEchoCancel(),
             vadSensitivity: +ui.ui.panels.inputConfig.vadSensitivity.value,
             vadNoiseGate: +ui.ui.panels.inputConfig.vadNoiseGate.value
         };

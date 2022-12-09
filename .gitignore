@@ -1,6 +1,8 @@
 .*.swp
 
 awp/*.js
+ecloader.js
+ecloader.min.js
 ennuicastr-test.js
 ennuicastr-test.min.js
 ennuicastr.js

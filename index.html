@@ -5,11 +5,19 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link href="fa/css/all.min.css" rel="stylesheet" />
-        <link href="ennuicastr2.css?v=g" rel="stylesheet" />
-        <script type="text/javascript" src="protocol.js?v=l"></script>
+        <link href="ennuicastr2.css?v=h" rel="stylesheet" />
+        <script type="text/javascript" src="ecloader.min.js?v=1"></script>
     </head>
     <body>
         <div id="log"></div>
-        <script type="text/javascript" src="ennuicastr.js?v=9r"></script>
+        <script type="text/javascript">
+            ecLoadLibrary({file: "protocol.js?v=l", name: "Ennuicastr"})
+            .then(function() {
+            return ecLoadLibrary({
+                file: "ennuicastr.js?v=a0",
+                name: "Ennuicastr"
+            });
+            });
+        </script>
     </body>
 </html>

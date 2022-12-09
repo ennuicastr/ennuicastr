@@ -146,7 +146,10 @@ export function mkUI(): Promise<unknown> {
     // If we're on mobile, now is the time to NoSleep
     if (mobile) {
         return Promise.all([]).then(function() {
-            return util.loadLibrary("libs/NoSleep.min.js");
+            return util.loadLibrary({
+                file: "libs/NoSleep.min.js",
+                name: "mobile support"
+            });
 
         }).then(function() {
             noSleep = new NoSleep();
@@ -835,6 +838,7 @@ export function mkAudioUI(): string {
     }
     output.volume.oninput = volumeChange;
 
+    output.volumeStatus.innerHTML = "&nbsp;" + output.volume.value + "%";
     outproc.setGlobalGain((+output.volume.value) / 100);
 
     // SFX volume

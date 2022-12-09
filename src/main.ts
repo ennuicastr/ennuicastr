@@ -26,6 +26,7 @@ declare let Ennuiboard: any, ECDefaultHotkeys: any;
 import "webrtc-adapter";
 
 import * as audio from "./audio";
+import * as avloader from "./avloader";
 import * as commImpl from "./comm-impl";
 import * as config from "./config";
 import * as downloadStream from "./download-stream";
@@ -47,10 +48,14 @@ async function main() {
 
     // Then libraries
     try {
-        await util.loadLibrary("libs/ennuiboard.min.js");
+        await util.loadLibrary({
+            file: "libs/ennuiboard.min.js",
+            name: "hotkey library"
+        });
     } catch (ex) {}
     if (typeof Ennuiboard !== "undefined")
         Ennuiboard.enable("gamepad", {auto: true, manualPoll: true});
+    await avloader.loadLibAV();
 
     try {
         // Build the UI
@@ -59,7 +64,10 @@ async function main() {
         // This can be loaded lazily
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         ECDefaultHotkeys = {"0000c": "ecmenu-chat"};
-        util.loadLibrary("hotkeys.min.js?v=5");
+        util.loadLibrary({
+            file: "hotkeys.min.js?v=5",
+            name: "hotkey library"
+        });
 
         // Resolve the configuration for lobbies
         await config.resolve();
@@ -76,7 +84,7 @@ async function main() {
         await audio.inputs[0].getAudioPerms(uiImpl.mkAudioUI);
 
     } catch (ex) {
-        log.pushStatus("error", ex + "\n\n" + ex.stack);
+        log.pushStatus("error", util.escape(ex + "") + "\n\n" + util.escape(ex.stack + ""));
     }
 }
 main();

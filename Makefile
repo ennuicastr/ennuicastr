@@ -1,9 +1,10 @@
 PREFIX=inst
 
-LIBAV_VERSION=3.6b.4.4.1
+LIBAV_VERSION=3.8.5.1
 VOSK_MODEL_VER=en-us-0.15
 
 OUT=\
+    ecloader.js ecloader.min.js \
     ennuicastr.js ennuicastr.min.js \
     protocol.min.js sw.js fs/fs.js \
     awp/ennuicastr-awp.js awp/ennuicastr-worker.js \
@@ -16,7 +17,9 @@ TEST=\
 LIBS=\
     libs/NoSleep.min.js libs/jquery.min.js \
     libs/ennuiboard.min.js libs/localforage.min.js \
-    libs/sha512-es.min.js \
+    libs/sha512-es.min.js
+
+DATA=\
     libs/vosk-model-small-$(VOSK_MODEL_VER).tar.gz
 
 EXTRA=\
@@ -26,6 +29,8 @@ EXTRA=\
     libav/libav-$(LIBAV_VERSION)-ennuicastr.asm.js \
     libav/libav-$(LIBAV_VERSION)-ennuicastr.wasm.js \
     libav/libav-$(LIBAV_VERSION)-ennuicastr.wasm.wasm \
+    libav/libav-$(LIBAV_VERSION)-ennuicastr.simd.js \
+    libav/libav-$(LIBAV_VERSION)-ennuicastr.simd.wasm \
     libs/vad/vad-m2.js libs/vad/vad-m2.wasm.js libs/vad/vad-m2.wasm.wasm \
     libs/vosk.js libs/lib-jitsi-meet.7421.js \
     noise-repellent/noise-repellent-m.js \
@@ -33,9 +38,15 @@ EXTRA=\
     noise-repellent/noise-repellent-m.wasm.js \
     noise-repellent/noise-repellent-m.wasm.wasm
 
-all: $(OUT) $(LIBS)
+all: $(OUT) $(LIBS) $(DATA)
 
 test: $(TEST) $(LIBS)
+
+ecloader.js: src/loader.ts node_modules/.bin/browserify
+	./node_modules/.bin/tsc --lib es2015,dom $< --outFile $@
+
+ecloader.min.js: ecloader.js node_modules/.bin/browserify
+	./node_modules/.bin/minify --js < $< > $@
 
 ennuicastr.js: src/*.ts node_modules/.bin/browserify
 	./src/build.js > $@.tmp
@@ -118,3 +129,6 @@ install:
 
 clean:
 	rm -f $(OUT) $(TEST) $(LIBS)
+
+distclean: clean
+	rm -f $(DATA)

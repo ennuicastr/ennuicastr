@@ -22,7 +22,7 @@
 
 import * as fileStorage from "./file-storage";
 import { prot } from "./protocol";
-import { dce, gebi } from "./util";
+import { dce, gebi, escape } from "./util";
 
 /* These are the features selectable in the URL, not (necessarily) the
  * protocol */
@@ -217,7 +217,7 @@ export async function load(): Promise<boolean> {
         let def = "";
         if (typeof localStorage !== "undefined")
             def = localStorage.getItem("username") || "";
-        def = def.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        def = escape(def);
         let html =
             "<label for=\"nm\">Username: </label><input name=\"nm\" id=\"nm\" type=\"text\" value=\"" + def + "\" /> ";
         for (const key in config)
