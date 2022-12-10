@@ -402,8 +402,15 @@ export class Audio {
                 ac = new webkitAudioContext();
             }
 
-            // Make an output context for it
-            const msd = (<any> ac).ecDestination = ac.createMediaStreamDestination();
+            // Make an output for it
+            const msd = (<any> ac).ecDestination =
+                ac.createMediaStreamDestination();
+
+            // Keep the output from doing anything weird by giving it silence
+            const msdSilence = ac.createConstantSource();
+            msdSilence.offset.value = 0;
+            msdSilence.connect(msd);
+            msdSilence.start();
 
             // Start playing it when we're (relatively) sure we can
             util.events.addEventListener("usermediartcready", () => {
