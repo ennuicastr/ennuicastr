@@ -92,11 +92,16 @@ class SceneWindow {
             "width=640,height=540,menubar=0,toolbar=0,location=0,personalbar=0,status=0");
 
         // To make it flex properly, it needs the CSS
+        const faurl = new URL(<any> window.location);
+        faurl.search = "";
+        faurl.pathname = faurl.pathname.replace(/\/[^\/]*$/, "/fa/css/all.min.css");
         const ssurl = new URL(<any> window.location);
         ssurl.search = "?v=l";
         // eslint-disable-next-line no-useless-escape
         ssurl.pathname = ssurl.pathname.replace(/\/[^\/]*$/, "/ennuicastr2.css");
-        w.document.head.innerHTML = '<link href="' + (<any> ssurl) + '" rel="stylesheet" />';
+        w.document.head.innerHTML =
+            `<link href="${<any> faurl}" rel="stylesheet" />` +
+            `<link href="${<any> ssurl}" rel="stylesheet" />`;
 
         const dce = w.document.createElement.bind(w.document);
 
@@ -186,7 +191,7 @@ class SceneWindow {
         olb.add.innerHTML = '<i class="fas fa-plus"></i>';
         olb.add.setAttribute("aria-label", "Add a new element");
         olb.add.style.flex = "auto";
-        olbb.appendChid(olb.add);
+        olbb.appendChild(olb.add);
         olb.rem.innerHTML = '<i class="fas fa-minus"></i>';
         olb.rem.setAttribute("aria-label", "Remove element");
         olb.rem.style.flex = "auto";
