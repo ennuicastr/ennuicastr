@@ -52,6 +52,9 @@ export const rtcCompression = {
     // Global gain value
     gain: 1,
 
+    // Should we be using the .ecDestination instead of .destination?
+    useECDestination: false,
+
     // For each user, what is their independent gain
     perUserGain: <Record<number, number>> {},
 
@@ -135,13 +138,15 @@ export async function createCompressor(
     // Hook up the player
     let node = player.unsharedNode();
     if (node) {
-        node.connect(ac.ecDestination);
+        node.connect(rtcCompression.useECDestination ?
+            ac.ecDestination : ac.destination);
 
     } else {
         node = player.sharedNode();
         if (node !== rtcCompression.sharedPlayback) {
             node.disconnect();
-            node.connect(ac.ecDestination);
+            node.connect(rtcCompression.useECDestination ?
+                ac.ecDestination : ac.destination);
             rtcCompression.sharedPlayback = node;
         }
 
@@ -211,6 +216,28 @@ export function setGlobalGain(to: number): void {
     }
 }
 
+// Change whether we're using ecDestination
+function setUseECDestination(to: boolean) {
+    if (rtcCompression.useECDestination === to)
+        return;
+    rtcCompression.useECDestination = to;
+
+    for (const c of rtcCompression.compressors) {
+        if (!c)
+            continue;
+        let node = c.output.unsharedNode();
+        if (node) {
+            node.disconnect();
+            node.connect(to ? c.ac.ecDestination : c.ac.destination);
+        } else {
+            node = c.output.sharedNode();
+            node.disconnect();
+            node.connect(to ? c.ac.ecDestination : c.ac.destination);
+            break;
+        }
+    }
+}
+
 // Change the per-user gain
 function setPerUserGain(idx: number, to: number) {
     rtcCompression.perUserGain[idx] = to;
@@ -222,4 +249,5 @@ function setPerUserGain(idx: number, to: number) {
     com.worker.postMessage({c: "gain", g: gain});
 }
 
+ui.ui.outprocSetECDestination = setUseECDestination;
 ui.ui.outprocSetPerUserGain = setPerUserGain;

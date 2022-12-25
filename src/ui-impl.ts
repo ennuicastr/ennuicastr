@@ -755,23 +755,26 @@ export function mkAudioUI(): string {
      * OUTPUT CONFIGURATION
      *******************/
 
-    // Add a pseudo-device so nothing is selected at first
+    // Add a pseudo-device for the default
     let opt = dce("option");
-    opt.innerText = "-";
-    opt.value = "-none";
+    opt.innerText = "Default";
+    opt.value = "-default";
     output.device.appendChild(opt);
 
     function outputChange() {
-        if (output.device.value === "-none") return;
         uiFE.showPanel(null, ui.persistent.main);
 
         const v = output.device.value;
 
         // Set the main audio output
-        if (ui.audioOutput) {
+        if (v === "-default") {
+            ui.outprocSetECDestination(false);
+            return;
+        } else if (ui.audioOutput) {
             try {
                 (<any> ui.audioOutput).setSinkId(v).catch(console.error);
             } catch (ex) {}
+            ui.outprocSetECDestination(true);
         } else {
             // Just try again
             setTimeout(outputChange, 100);
