@@ -14,7 +14,7 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-declare let LibAV: any, NoiseRepellent: any, NoiseRepellentFactory: any, Vosk: any, WebRtcVad: any, __filename: string;
+declare let LibAV: any, LibSpecBleachFactory: any, Vosk: any, WebRtcVad: any, __filename: string;
 
 const libavVersion = "3.8.5.1";
 const libavPath = "../libav/libav-" + libavVersion + "-ennuicastr.js";
@@ -387,7 +387,9 @@ function doFilter(msg: any) {
     const vadBufSz = 640 /* 20ms at 32000Hz */;
     let vadBuf: Int16Array = null;
     let bi = 0;
+    let lsb: any = null;
     let nr: any = null;
+    let nrBlockSize: number = -1;
     let timeout: null|number = null, rtcTimeout: null|number = null;
     const step = sampleRate / 32000;
 
@@ -436,19 +438,13 @@ function doFilter(msg: any) {
         vadDataPtr = vad.malloc(vadBufSz * 2);
         vadBuf = new Int16Array(vad.HEAPU8.buffer, vadDataPtr, vadBufSz * 2);
 
-        // And load noise-repellent
-        __filename = "../noise-repellent/noise-repellent-m.wasm.js?v=2";
+        // And load specbleach
+        __filename = "../libs/specbleach/libspecbleach.wasm.js";
         importScripts(__filename);
-        NoiseRepellent = {NoiseRepellentFactory: NoiseRepellentFactory};
-        __filename = "../noise-repellent/noise-repellent-m.js?v=2";
-        importScripts(__filename);
-        return NoiseRepellent.NoiseRepellent(sampleRate);
+        return LibSpecBleachFactory();
 
     }).then(function(ret: any) {
-        nr = ret;
-        nr.set(NoiseRepellent.N_ADAPTIVE, 1);
-        nr.set(NoiseRepellent.AMOUNT, 20);
-        nr.set(NoiseRepellent.WHITENING, 50);
+        lsb = ret;
 
         // Possibly load Vosk
         if (useTranscription) {
@@ -512,10 +508,20 @@ function doFilter(msg: any) {
 
         // Perform noise reduction and output
         let nrbuf = ib;
+        if (nrBlockSize !== ib.length && lsb) {
+            if (nr)
+                nr.free();
+            nrBlockSize = ib.length;
+            nr = new lsb.SpecBleach({
+                adaptive: true,
+                block_size: nrBlockSize,
+                reduction_amount: 100
+            });
+        }
         if (nr) {
             let ob = ib;
-            nrbuf = nr.run(ib);
-            if (useNR)
+            nrbuf = nr.process(ib);
+            if (useNR || true)
                 ob = nrbuf;
             const od = [];
             if (!sentRecently) {
@@ -552,6 +558,7 @@ function doFilter(msg: any) {
                 rawVadLvl = vadLvl =
                     vad.Process(vadHandleLo, 32000, vadDataPtr, vadBufSz) +
                     vad.Process(vadHandleHi, 32000, vadDataPtr, vadBufSz);
+                rawVadLvl = vadLvl = 2;
                 vadSet = !!vadLvl;
                 bi = 0;
 
