@@ -794,6 +794,7 @@ export function mkAudioUI(): string {
         let ctr = 1;
         devices.forEach(function(dev) {
             if (dev.kind !== "audiooutput") return;
+            if (dev.label === "Default" || dev.deviceId === "default") return;
 
             // Create an option for this
             const opt = dce("option");
