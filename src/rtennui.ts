@@ -115,6 +115,9 @@ export class RTEnnui implements comm.Comms {
     // The shared node, if there is one
     shared: AudioNode = null;
 
+    // A timer used to turn off the VAD, to avoid short hiccups
+    vadOffTimer: number | null = null;
+
     // Initialize the RTEnnui connection
     async init(opts: comm.CommModes): Promise<void> {
         // We initialize RTEnnui once we know our own ID
@@ -129,7 +132,22 @@ export class RTEnnui implements comm.Comms {
         util.events.addEventListener("vad.rtc", () => {
             if (!this.cap)
                 return;
-            this.cap.setVADState(vad.vads[0].rtcVadOn ? "yes" : "no");
+            if (vad.vads[0].rtcVadOn) {
+                this.cap.setVADState("yes");
+                if (this.vadOffTimer) {
+                    clearTimeout(this.vadOffTimer);
+                    this.vadOffTimer = null;
+                }
+
+            } else {
+                if (!this.vadOffTimer) {
+                    this.vadOffTimer = setTimeout(() => {
+                        this.cap.setVADState("no");
+                        this.vadOffTimer = null;
+                    }, 200);
+                }
+
+            }
         });
 
         this.commModes = opts;
