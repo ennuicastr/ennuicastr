@@ -190,6 +190,9 @@ export function updateVideoButtons(): void {
     scr.onclick = function() {
         shareVideo("-screen", 0);
     };
+    if (!(<any> navigator.mediaDevices).getDisplayMedia) {
+        scr.style.display = "none";
+    }
 
 
     // Switch it based on our current mode
