@@ -24,6 +24,7 @@ import * as capture from "./capture";
 import * as config from "./config";
 import * as net from "./net";
 import * as ui from "./ui";
+import * as util from "./util";
 import * as waveform from "./waveform";
 
 import * as rtennui from "rtennui";
@@ -126,7 +127,10 @@ export async function createCompressor(
     });
 
     // Create the player
-    const player = await rtennui.createAudioPlayback(ac);
+    const playerOpts: rtennui.AudioPlaybackOptions = {};
+    if (util.isChrome())
+        playerOpts.preferredType = "shared-sp";
+    const player = await rtennui.createAudioPlayback(ac, playerOpts);
 
     const mc = new MessageChannel();
     player.pipeFrom(mc.port2);

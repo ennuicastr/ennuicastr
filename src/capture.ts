@@ -116,8 +116,11 @@ export async function createCapture(
         input.ecCapture = {};
     let captureP = input.ecCapture[ac.sampleRate];
     if (!captureP) {
+        const opts: rtennui.AudioCaptureOptions = {};
+        if (util.isChrome())
+            opts.preferredType = "shared-sp";
         captureP = input.ecCapture[ac.sampleRate] =
-            rtennui.createAudioCapture(ac, input);
+            rtennui.createAudioCapture(ac, input, opts);
     }
     const capture = await captureP;
 

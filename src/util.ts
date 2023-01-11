@@ -96,6 +96,10 @@ export function escape(str: string): string {
         .replace(/"/g, "&quot;");
 }
 
+export function isChrome() {
+    return navigator.userAgent.indexOf("Chrome") >= 0;
+}
+
 // We provide a wrapper around the loader in ecloader.js
 interface Library {
     name: string;
