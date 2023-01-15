@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
- * Copyright (c) 2018-2021 Yahweasel
+ * Copyright (c) 2018-2023 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -19,461 +19,74 @@
         <title>Ennuicastr</title>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link href="../fa/css/all.min.css" rel="stylesheet" />
-        <link href="../ennuicastr2.css" rel="stylesheet" />
+        <link href="../fka/css/fork-awesome.min.css" rel="stylesheet" />
+        <link href="../ennuicastr3.css" rel="stylesheet" />
     </head>
-    <body style="margin: 0; padding: 0; background-color: #111;">
+    <body>
 <!--START-->
-        <!-- Our overall interface is video box at the top, audio at the bottom, with the menu overlaid -->
-        <div id="ecouter">
-            <!-- The video display and chat -->
-            <div id="ecvideo-wrapper" role="main" aria-label="Video">
-                <div id="ecvideo-side-wrapper">
-                    <div id="ecvideo-side"></div>
-                    <button id="ecvideo-wrapper-fs" class="fsbutton tbutton interface hotkey-hidden" title="Fullscreen (all video)" aria-label="Fullscreen (all video)"><i class="fas fa-expand"></i></button>
+        <!-- Our overall interface is an informational bar at the top, main interface in the middle, and waveform and status bar below that. Within the main interface, it's split into a (hideable) menu at the left, video chat interface in the middle, and (usually hidden) chat interface at the right. -->
+        <div id="ec3-outer-wrapper" class="cflex">
+            <div id="ec3-top-row" class="rflex">
+                <div id="ec3-menu-button-wrapper" class="vcenter">
+                    <button id="ec3-menu-button" class="icon-button icon-button" aria-label="Hide main menu">
+                        <i class="fa fa-plus-square-o" aria-hidden="true"></i>
+                    </button>
                 </div>
-                <div id="ecvideo-main-wrapper">
-                    <div id="ecvideo-main"></div>
-                    <button id="ecvideo-main-fs" class="fsbutton tbutton interface hotkey-hidden" title="Fullscreen (single video)" aria-label="Fullscreen (single video)"><i class="fas fa-expand"></i></button>
+                <div id="ec3-recording-info" class="fauto vcenter">
+                    <div id="ec3-recording-title">Loading...</div>
+                    <div id="ec3-recording-timer">0:00</div>
                 </div>
-                <div id="ecchat-wrapper" style="display: none;">
-                    <div id="ecchat-incoming" class="chat" role="log" aria-live="polite"></div>
-                    <input id="ecchat-outgoing" type="text" data-hotkey-enter="ecchat-outgoing-b" />
-                    <input id="ecchat-outgoing-b" type="hidden" />
+                <div id="ec3-recording-startstop-wrapper" class="vcenter">
+                    <button id="ec3-startstop-button" class="pill-button rec-button">
+                        <i class="fa fa-microphone" aria-hidden="true"></i>
+                        Start recording
+                    </button>
                 </div>
+                <div class="fauto"></div>
+                <div id="ec3-interface-buttons" class="vcenter"><div>
+                    <button id="ec3-share-button" class="pill-button">
+                        <i class="fa fa-share-square-o" aria-hidden="true"></i>
+                        Invite
+                    </button>&nbsp;
+                    <button id="ec3-fs-button" class="round-button" aria-label="Fullscreen">
+                        <i class="fa fa-arrows-alt" aria-hidden="true"></i>
+                    </button>
+                </div></div>
             </div>
 
-            <!-- Boxes for elements that don't live here by default -->
-            <div id="ecdock">
-                <div id="ecsounds-dock" class="dock"></div>
-                <div id="ecuser-list-dock" class="dock"></div>
-                <div id="ecmaster-main-dock" class="dock"></div>
-                <div id="ecmaster-recording-cost-dock" class="dock"></div>
-            </div>
-
-            <!-- The audio stream -->
-            <div id="ecwaveform-wrapper" role="complementary" aria-label="Live audio waveform">
-                <img id="ecwave-watcher" src="images/watcher.webp" />
-            </div>
-
-            <!-- The status -->
-            <div id="ecstatus" class="rflex status-bar">
-                <div id="eclog" class="status" role="status"></div>
-                <div id="ectimer" class="timer">0:00</div>
-            </div>
-        </div>
-
-        <!-- Persistent menu buttons -->
-        <div id="ecmenu-persistent" class="menu" role="navigation" aria-label="Main menu">
-            <button id="ecmenu-master" class="tbutton interface hotkey-hidden" style="display: none;" aria-label="Host interface">
-                <i class="fas fa-wave-square"></i><span class="menu-extra">Host interface</span>
-            </button>
-            <button id="ecmenu-user-admin" class="tbutton interface hotkey-hidden" style="display: none;" aria-label="User administration">
-                <i class="fas fa-user-cog"></i><span class="menu-extra">User administration</span>
-            </button>
-            <button id="ecmenu-sounds" class="tbutton interface hotkey-hidden" style="display: none;" aria-label="Soundboard">
-                <i class="fas fa-music"></i><span class="menu-extra">Soundboard</span>
-            </button>
-            <div id="ecmenu-master-spacer" class="interface" style="width: 1em; min-width: 1em; height: 1em; min-height: 1em; display: none;"></div>
-            <button id="ecmenu-mute" class="tbutton interface hotkey-hidden" aria-label="Mute">
-                <i class="fas fa-microphone-alt" style="width: 2em;"></i><span class="menu-extra">Mute</span>
-            </button>
-            <button id="ecmenu-camera" class="tbutton interface hotkey-hidden" aria-label="Camera">
-                <i class="fas fa-video-slash"></i><span class="menu-extra">Camera</span>
-            </button>
-            <button id="ecmenu-share-screen" class="tbutton interface hotkey-hidden" aria-label="Share your screen">
-                <i class="fas fa-desktop" style="position: relative;"><i class="fas fa-slash" style="position: absolute; left: -0.1em;"></i></i><span class="menu-extra">Share your screen</span>
-            </button>
-            <button id="ecmenu-main" class="tbutton interface hotkey-hidden" aria-label="Settings">
-                <i class="fas fa-cog"></i><span class="menu-extra">Settings</span>
-            </button>
-            <button id="ecmenu-chat" class="tbutton interface hotkey-hidden" aria-label="Chat">
-                <i class="fas fa-keyboard"></i><span class="menu-extra">Chat</span>
-            </button>
-            <button id="ecmenu-video-popout" class="tbutton interface streamer-interface hotkey-hidden" aria-label="Pop out video">
-                <i class="fa fa-window-restore"></i><span class="menu-extra">Pop out video</span>
-            </button>
-        </div>
-
-        <!-- A layering separator to distinguish the menu from the entire interface -->
-        <div id="eclayer-separator" style="display: none;"></div>
-
-        <!-- A special panel to force mobile users to click a button -->
-        <div id="ecmobile-join" class="panel" style="position: fixed; left: 0px; top: 0px; right: 0px; bottom: 0px;">
-            <button id="ecmobile-join-b" style="width: 100%; min-height: 50%;">Join recording</button>
-        </div>
-
-        <!-- The main menu -->
-        <div id="ecmenu" class="panel" role="dialog" aria-label="Settings">
-            <button class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
-
-            <div id="ecview-mode-hider" class="rflex row">
-                <label for="ecview-mode">View mode:&nbsp;</label>
-                <select id="ecview-mode" style="flex: auto">
-                    <option value="0">Normal</option>
-                    <option value="1">Small</option>
-                    <option value="2">Gallery</option>
-                    <option value="3">Studio</option>
-                </select>
-            </div>
-
-            <div id="eccaption-hider" class="row">
-                <input type="checkbox" id="eccaption" />
-                <label for="eccaption">&nbsp;Show captions</label>
-            </div>
-
-            <button id="ecmenu-input-devices" class="row"><i class="fas fa-microphone-alt"></i> Input settings</button>
-            <button id="ecmenu-output-devices" class="row"><i class="fas fa-headphones-alt"></i> Output settings</button>
-            <button id="ecmenu-video-devices" class="row"><i class="fas fa-video"></i> Video settings</button>
-            <span id="ecmenu-user-list-hider">
-                <button id="ecmenu-user-list" class="row"><i class="fas fa-users"></i> User volume</button>
-            </span>
-            <button id="ecmenu-debug" class="row">Debugging</button>
-        </div>
-
-        <!-- The master interface -->
-        <div id="ecmaster-interface" class="panel" role="dialog" aria-label="Master interface">
-            <button id="ecmaster-interface-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
-            <!-- The main master interface is poppable so that it's visible by default -->
-            <div id="ecmaster-main-popout-dock">
-                <div id="ecmaster-main-popout-wrapper" data-popout-label="Master interface">
-                    <div class="rflex" style="align-items: start;">
-                        <div style="flex: auto;">
-                            <button id="ecmaster-pause-resume" class="row"><i class="fas fa-pause"></i> Pause recording</button>
-                            <button id="ecmaster-start-stop" class="row"><i class="fas fa-microphone-alt"></i> Start recording</button>
-                            <div class="bigrflex row" id="ecmaster-yes-no">
-                                <button id="ecmaster-yes" class="half" aria-label="I am sure, stop the recording">Yes</button>
-                                <button id="ecmaster-no" class="half" aria-label="Do not stop the recording">No</button>
-                            </div>
-                        </div>
-                        <button id="ecmaster-main-popout" class="tbutton" title="Pop out" aria-label="Pop out"><i class="far fa-window-restore"></i></button>
-                    </div>
-                    <div class="invite row">
-                        <div class="rflex">
-                            <label for="ecmaster-invite-link">&nbsp;Invite:&nbsp;</label>
-                            <input id="ecmaster-invite-link" type="text" readonly style="flex: auto; width: 1em;" />
-                            <button id="ecmaster-invite-link-copy" class="hotkey-hidden" title="Copy invite link" aria-label="Copy invite link"><i class="fas fa-clipboard"></i></button>
-                        </div>
-                        <div style="text-align: right;">
-                            <span id="ecmaster-invite-flac-hider">
-                                <input id="ecmaster-invite-flac" type="checkbox" />
-                                <label for="ecmaster-invite-flac">&nbsp;FLAC&nbsp;&nbsp;</label>
-                            </span>
-                            <span id="ecmaster-invite-continuous-hider">
-                                <input id="ecmaster-invite-continuous" type="checkbox" />
-                                <label for="ecmaster-invite-continuous">&nbsp;Continuous&nbsp;</label>
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="row">
-                <input id="ecmaster-video-record-host" type="checkbox" />
-                <label for="ecmaster-video-record-host">&nbsp;Accept video recordings from guests</label><br/>
-                <input id="ecmaster-video-save-in-browser" type="checkbox" />
-                <label for="ecmaster-video-save-in-browser">&nbsp;Save video recordings in in-browser storage space</label><br/>
-                <input id="ecmaster-video-download-live" type="checkbox" />
-                <label for="ecmaster-video-download-live">&nbsp;Download video recordings live while recording</label><br/>
-                <div id="ecmaster-video-status"></div><br/><br/>
-            </div>
-            <!-- Recording cost is poppable so it can be persistent -->
-            <div id="ecmaster-recording-cost-popout-wrapper" data-popout-label="Recording cost and rate">
-                <div class="rflex" style="align-items: start;">
-                    <div style="flex: auto;">
-                        <div class="rflex row">
-                            <span style="min-width: 10em; text-align: right;">Recording cost:&nbsp;</span>
-                            <input id="ecmaster-recording-cost" type="text" readonly style="flex: auto; width: 1em;" />
-                        </div>
-                        <div class="rflex row">
-                            <span style="min-width: 10em; text-align: right;">Current rate:&nbsp;</span>
-                            <input id="ecmaster-recording-rate" type="text" readonly style="flex: auto; width: 1em;" />
-                        </div>
-                    </div>
-                    <button id="ecmaster-recording-cost-popout" class="tbutton" title="Pop out" aria-label="Pop out"><i class="far fa-window-restore"></i></button>
-                </div>
-            </div>
-        </div>
-
-        <!-- User administration interface (list) -->
-        <div id="ecuser-admin-interface" class="panel" role="dialog" aria-label="User administration">
-            <button id="ecuser-admin-interface-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
-            <button id="ecuser-admin-all-b" class="row"><i class="fas fa-users"></i> All users</button>
-        </div>
-
-        <!-- User administration interface (particular user) -->
-        <div id="ecuser-admin-interface-user" class="panel" role="dialog" aria-label="User administration">
-            <button id="ecuser-admin-interface-user-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
-            <div id="ecuser-admin-interface-user-name" class="row" style="text-align: center;"><i class="fas fa-users"></i> All users</div>
-            <button id="ecuser-admin-kick" class="row"><i class="fas fa-user-slash"></i> Kick user</button>
-            <button id="ecuser-admin-mute" class="row"><i class="fas fa-microphone-alt-slash"></i> Mute</button>
-            <button id="ecuser-admin-echo" class="row"><span style="background: url('images/no-echo-white.svg') no-repeat center/contain; display: inline-block; width: 2em;">&nbsp;</span> Force echo cancellation</button>
-            <button id="ecuser-admin-request-full" class="row"><i class="fas fa-user-cog"></i> Request administrative access</button>
-        </div>
-
-        <!-- User administration interface (particular user, full access) -->
-        <div id="ecuser-admin-interface-user-full" class="panel" role="dialog" aria-label="User administration">
-            <button id="ecuser-admin-interface-user-full-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
-            <div id="ecuser-admin-interface-user-full-name" class="row" style="text-align: center;"></div>
-            <button id="ecuser-admin-full-kick" class="row"><i class="fas fa-user-slash"></i> Kick user</button>
-            <input id="ecuser-admin-full-mute" type="checkbox" /><label for="ecuser-admin-full-mute">&nbsp;Mute</label><br/>
-            <input id="ecuser-admin-full-echo" type="checkbox" /><label for="ecuser-admin-full-echo">&nbsp;Echo cancellation</label><br/>
-
-            <div class="rflex row">
-                <label for="ecuser-admin-full-vad-sensitivity" style="min-width: 8em; text-align: right;">Voice detection&nbsp;<br/>sensitivity:&nbsp;</label>
-                <input id="ecuser-admin-full-vad-sensitivity" type="range" min=1 max=4 value=4 style="flex: auto; width: 5em;" />
-                <span id="ecuser-admin-full-vad-sensitivity-status">&nbsp;4</span>
-            </div>
-
-            <div class="rflex row">
-                <label for="ecuser-admin-full-vad-noise-gate" style="min-width: 8em; text-align: right;">Noise gate:&nbsp;</label>
-                <input id="ecuser-admin-full-vad-noise-gate" type="range" min=-100 max=0 value=-100 style="flex: auto; width: 5em;" />
-                <span id="ecuser-admin-full-vad-noise-gate-status">&nbsp;-100dB</span>
-            </div>
-
-            <div class="rflex row">
-                <label for="ecuser-admin-full-audio-dev" style="min-width: 10em;">Audio device:&nbsp;</label>
-                <select id="ecuser-admin-full-audio-dev" style="flex: auto;"></select>
-            </div>
-
-            <div id="ecuser-admin-interface-user-full-video-hider">
-                <div class="rflex row">
-                    <label for="ecuser-admin-full-video-dev" style="min-width: 10em;">Video device:&nbsp;</label>
-                    <select id="ecuser-admin-full-video-dev" style="flex: auto;"></select>
-                </div>
-                <div class="rflex row">
-                    <label for="ecuser-admin-full-video-res" style="min-width: 10em;">Max resolution:&nbsp;</label>
-                    <select id="ecuser-admin-full-video-res" style="flex: auto;">
-                        <option value="360">360p</option>
-                        <option value="480">480p</option>
-                        <option value="720">720p</option>
-                        <option value="1080">1080p</option>
-                        <option value="0">Unlimited</option>
-                    </select>
-                </div>
-                <div class="rflex row" style="display: none">
-                    <label for="ecuser-admin-full-bitrate" style="min-width: 6em">Video bitrate:&nbsp;</label>
-                    <input id="ecuser-admin-full-bitrate" style="flex: auto" />
-                    &nbsp;
-                    <button id="ecuser-admin-full-video-record" title="Record video" aria-label="Record video"><i class="fas fa-circle"></i> Rec</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- User administration permission request -->
-        <div id="ecuser-admin-permission" class="panel" role="dialog" aria-label="Administrator request">
-            <div>The user <span id="ecuser-admin-permission-requester"></span> has requested permission to control your input device settings. Is this OK?</div>
-
-            <div class="rflex row">
-                <button id="ecuser-admin-permission-yes" style="flex: auto">Yes</button>&nbsp;
-                <button id="ecuser-admin-permission-audio" style="flex: auto">Audio only</button>&nbsp;
-                <button id="ecuser-admin-permission-no" style="flex: auto">No</button>
-            </div>
-        </div>
-
-        <!-- The soundboard -->
-        <div id="ecsounds-wrapper" class="panel" role="dialog" aria-label="Soundboard">
-            <button id="ecsounds-close" class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
-            <div id="ecsounds-popout-wrapper" data-popout-label="Soundboard">
-                <div class="rflex" style="align-items: start;">
-                    <div id="ecsounds" style="flex: auto;"></div>
-                    <button id="ecsounds-popout" class="tbutton" title="Pop out" aria-label="Pop out"><i class="far fa-window-restore"></i></button>
-                </div>
-            </div>
-        </div>
-
-        <!-- The input device selector -->
-        <div id="ecinput-device-wrapper" class="panel" role="dialog" aria-label="Input settings">
-            <button class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
-
-            <!-- Input device -->
-            <div class="rflex row">
-                <label for="ecinput-device-list" style="min-width: 8em; text-align: right;">Input device:&nbsp;</label>
-                <select id="ecinput-device-list" style="flex: auto; width: 6em;"></select>
-            </div>
-
-            <!-- And channel -->
-            <div id="ecinput-channel-hider" class="rflex row" style="display: none;">
-                <label for="ecinput-channel-list" style="min-width: 8em; text-align: right;">Channel:&nbsp;</label>
-                <select id="ecinput-channel-list" style="flex: auto; width: 4em;"></select>
-            </div>
-
-            <!-- And options -->
-            <div class="bigrflex row">
-                <button id="ecpttb"><i class="fas fa-gamepad"></i> Gamepad push-to-talk</button>
-                &nbsp;
-                <div id="ecinput-options-wrapper">
-                    <span id="ecnoise-reduction-hider">
-                        <input id="ecnoise-reduction" type="checkbox" checked />
-                        <label for="ecnoise-reduction">&nbsp;Apply noise reduction</label><br/>
-                    </span>
-                    <input id="ececho-cancellation" type="checkbox" />
-                    <label for="ececho-cancellation">&nbsp;Apply echo cancellation</label>
-                    <span id="ecagc-hider" style="display: none;"><br/>
-                        <input id="ecagc" type="checkbox" />
-                        <label for="ecagc">&nbsp;Automatic gain control</label>
-                    </span>
+            <div id="ec3-main-row" class="fauto rflex">
+                <div id="ec3-main-menu-wrapper"><div id="ec3-main-menu" class="cflex">
+                    <button id="ec3-host-interface-button" class="icon-button menu-button">
+                        <i class="fa fa-star-o" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">Host Interface</span></span>
+                    </button>
+                    <button id="ec3-user-admin-button" class="icon-button menu-button">
+                        <i class="fa fa-user-o" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">User Administration</span></span>
+                    </button>
+                    <button id="ec3-mute-button" class="icon-button menu-button">
+                        <i class="fa fa-microphone" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">Mute</span></span>
+                    </button>
+                    <button id="ec3-video-share-button" class="icon-button menu-button">
+                        <i class="fa fa-video-camera" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">Share Camera</span></span>
+                    </button>
+                    <button id="ec3-screen-share-button" class="icon-button menu-button">
+                        <i class="fa fa-window-maximize" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">Share Screen</span></span>
+                    </button>
+                    <button id="ec3-settings-button" class="icon-button menu-button">
+                        <i class="fa fa-cog" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">Settings</span></span>
+                    </button>
+                    <button id="ec3-chat-button" class="icon-button menu-button">
+                        <i class="fa fa-commenting-o" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">Chat</span></span>
+                    </button>
+                    <div class="fauto"></div>
+                </div></div>
+                <div id="ec3-main-video-wrapper" class="fauto"></div>
+                <div id="ec3-side-video-wrappera">
+                    <div id="ec3-side-video-wrapperb"></div>
                 </div>
             </div>
 
-            <div class="rflex row">
-                <label for="ecvad-sensitivity" style="min-width: 8em; text-align: right;">Voice detection&nbsp;<br/>sensitivity:&nbsp;</label>
-                <input id="ecvad-sensitivity" type="range" min=1 max=4 value=4 style="flex: auto; width: 5em;" />
-                <span id="ecvad-sensitivity-status">&nbsp;4</span>
-            </div>
-
-            <div class="rflex row">
-                <label for="ecvad-noise-gate" style="min-width: 8em; text-align: right;">Noise gate:&nbsp;</label>
-                <input id="ecvad-noise-gate" type="range" min=-100 max=0 value=-100 class="ecpeak-horizontal-self" style="flex: auto; width: 5em;" />
-                <span id="ecvad-noise-gate-status">&nbsp;-100dB</span>
-            </div>
-        </div>
-
-        <!-- Secondary track selector -->
-        <div id="ecinput-secondary-selector-wrapper" class="panel" role="dialog" aria-label="Secondary inputs">
-            <div class="rflex row">
-                <label for="ecinput-secondary-list" style="min-width: 6em; text-align: right;">Track:&nbsp;</label>
-                <select id="ecinput-secondary-list" style="flex: auto; width: 6em;"></select>
-            </div>
-        </div>
-
-        <!-- The secondary input device selector -->
-        <div id="ecinput-secondary-device-wrapper" class="panel" role="dialog" aria-label="Secondary input settings">
-            <button class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
-
-            <!-- Input device -->
-            <div class="rflex row">
-                <label for="ecinput-secondary-device-list" style="min-width: 8em; text-align: right;">Input device:&nbsp;</label>
-                <select id="ecinput-secondary-device-list" style="flex: auto; width: 6em;"></select>
-            </div>
-
-            <!-- And channel -->
-            <div id="ecinput-secondary-channel-hider" class="rflex row" style="display: none;">
-                <label for="ecinput-secondary-channel-list" style="min-width: 8em; text-align: right;">Channel:&nbsp;</label>
-                <select id="ecinput-secondary-channel-list" style="flex: auto; width: 4em;"></select>
-            </div>
-        </div>
-
-        <!-- The output device selector -->
-        <div id="ecoutput-device-wrapper" class="panel" role="dialog" aria-label="Output settings">
-            <button class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
-
-            <!-- The output device selector -->
-            <div id="ecoutput-device-list-hider" class="rflex row">
-                <label for="ecoutput-device-list" style="min-width: 6em; text-align: right;">Output:&nbsp;</label>
-                <select id="ecoutput-device-list" style="flex: auto; width: 6em;"></select>
-            </div>
-
-            <!-- Master volume -->
-            <div id="ecoutput-volume-hider" class="rflex row">
-                <label for="ecoutput-volume" style="min-width: 6em; text-align: right;">Volume:&nbsp;</label>
-                <input id="ecoutput-volume" type="range" min=0 max=400 value=100 style="flex: auto; width: 5em;" />
-                <span id="ecoutput-volume-status">&nbsp;100%</span>
-            </div>
-
-            <!-- SFX volume -->
-            <div id="ecsfx-volume-hider" class="rflex row" style="display: none;">
-                <label for="ecsfx-volume" style="min-width: 8em; text-align: right;">SFX volume:&nbsp;</label>
-                <input id="ecsfx-volume" type="range" min=0 max=100 value=100 style="flex: auto; width: 5em;" />
-                <span id="ecsfx-volume-status">&nbsp;100%</span>
-            </div>
-
-            <!-- Dynamic range compression -->
-            <div id="ecdynamic-range-compression-hider" class="row">
-                <input id="ecdynamic-range-compression" type="checkbox" />
-                <label for="ecdynamic-range-compression">&nbsp;Auto-level everyone's volume</label>
-            </div>
-
-            <!-- Interface sounds -->
-            <div class="row">
-                <input id="ecmute-interface-sounds" type="checkbox" />
-                <label for="ecmute-interface-sounds">&nbsp;Mute interface sounds</label>
-            </div>
-        </div>
-
-        <!-- Video device selector -->
-        <div id="ecvideo-device-wrapper" class="panel" role="dialog" aria-label="Video settings">
-            <button class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
-
-            <div id="ecvideo-device-preview" class="row" style="height: 120px; background-color: #333;"></div>
-
-            <div class="rflex row">
-                <label for="ecvideo-device-list" style="min-width: 8em; text-align: right;">Camera:&nbsp;</label>
-                <select id="ecvideo-device-list" style="flex: auto; width: 6em;"></select>
-            </div>
-
-            <button id="ecvideo-share" class="row"><i class="fas fa-video-slash"></i> Unshare your camera</button>
-
-            <!-- Spacer -->
-            <div class="row">&nbsp;</div>
-
-            <div class="rflex row">
-                <label for="ecvideo-res" style="min-width: 8em; text-align: right;">Max resolution:&nbsp;</label>
-                <select id="ecvideo-res" style="flex: auto; width: 6em;">
-                    <option value="360">360p</option>
-                    <option value="480">480p</option>
-                    <option value="720" selected>720p</option>
-                    <option value="1080">1080p</option>
-                    <option value="0">Unlimited</option>
-                </select>
-            </div>
-
-            <!-- Video recording -->
-            <div id="ecvideo-record-hider" class="invite row" style="box-sizing: border-box; padding: 0.25em 0.25em 0.01em 0.25em;">
-                <div class="rflex row">
-                    <input id="ecvideo-record" type="checkbox" />
-                    <label for="ecvideo-record">&nbsp;Record video</label>
-                </div>
-
-                <div id="ecvideo-record-opt-hider" style="display: none">
-                    <div class="rflex row">
-                        &nbsp;
-                        <input id="ecvideo-record-remote" type="checkbox" />
-                        <label for="ecvideo-record-remote">&nbsp;and send it to the host</label>
-                    </div>
-                    <div class="rflex row">
-                        &nbsp;
-                        <input id="ecvideo-record-local" type="checkbox" />
-                        <label for="ecvideo-record-local">&nbsp;and save it locally</label>
-                    </div>
-
-                    <div class="rflex row">
-                        <input id="ecvideo-record-bitrate-sel" type="checkbox" />
-                        <label for="ecvideo-record-bitrate-sel">&nbsp;Select bitrate</label>
-                    </div>
-
-                    <div id="ecvideo-record-bitrate-hider" style="display: none">
-                        <div class="rflex row">
-                            <label for="ecvideo-record-bitrate">Bitrate (Mbit):&nbsp;</label>
-                            <input id="ecvideo-record-bitrate" style="flex: auto;" type="text" size="3" />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Options -->
-            <div id="ecvideo-output-hider" class="row">
-                <div id="ecstreamer-mode-hider" class="row">
-                    <input id="ecstreamer-mode" type="checkbox" />
-                    <label for="ecstreamer-mode">&nbsp;Streamer-friendly popout windows</label>
-                </div>
-            </div>
-        </div>
-
-        <!-- The user list/volume -->
-        <div id="ecuser-list-wrapper" class="panel" role="dialog" aria-label="User volume">
-            <button class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
-            <div id="ecuser-list-popout-wrapper" data-popout-label="User volume">
-                <div id="ecuser-list-wrapper" class="rflex" style="align-items: start;">
-                    <div id="ecuser-list" style="flex: auto;"></div>
-                    <button id="ecuser-list-popout" class="tbutton" title="Pop out" aria-label="Pop out"><i class="far fa-window-restore"></i></button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Debugging -->
-        <div id="ecdebug-wrapper" class="panel" role="dialog" aria-label="Debugging">
-            <input type="text" id="ecdebug-input" /><br/>
-            <div id="ecdebug-output" class="row"></div>
+            <div id="ec3-waveform-row"></div>
+            <div id="ec3-status-row">Status</div>
         </div>
 
         <!-- Interface sounds -->
@@ -491,13 +104,11 @@
         <script>(function() {
             var gebi = document.getElementById.bind(document);
 
-            var outer = gebi("ecouter");
-            outer.style.minHeight = window.innerHeight + "px";
-            window.addEventListener("resize", function() {
-                outer.style.minHeight = window.innerHeight + "px";
-            });
+            gebi("ec3-startstop-button").onclick = function() {
+                window.open(document.location.href, "", "width=640,height=480,menubar=0,toolbar=0,location=0,personalbar=0,status=0");
+            };
 
-            var wcw = gebi("ecwaveform-wrapper");
+            var wcw = gebi("ec3-waveform-row");
             var wc = document.createElement("canvas");
             wcw.appendChild(wc);
             wc.width = wcw.offsetWidth;
@@ -514,29 +125,19 @@
                     form.push(Math.random());
 
                 var ctx = wc.getContext("2d");
-                ctx.fillStyle = "#122";
+                ctx.fillStyle = "#151529";
                 ctx.fillRect(0, 0, wc.offsetWidth, wc.offsetHeight);
                 for (var i = 0; i < wcw.offsetWidth; i++) {
-                    ctx.fillStyle = "#080";
+                    ctx.fillStyle = "#1fa5ff";
                     ctx.fillRect(i, ~~(hh-form[i]*hh), 1, ~~(form[i]*wcw.offsetHeight));
                 }
             }, 100);
 
-            var videoWrapper = gebi("ecvideo-wrapper");
-            wcw.onclick = function() {
-                if (videoWrapper.style.display === "none") {
-                    videoWrapper.style.display = "";
-                    wcw.style.flex = "";
-                } else {
-                    videoWrapper.style.display = "none";
-                    wcw.style.flex = "auto";
-                }
-            };
-
             // Demonstrate video with some images
             function vid(main, nm) {
                 var div = document.createElement("div");
-                div.classList.add("ecvideo");
+                div.classList.add("ec3-video");
+                div.style.minHeight = "96px";
 
                 var el = document.createElement("div");
                 var x = parseInt(btoa(unescape(encodeURIComponent(nm))).replace(/[^A-Za-z0-9]/g, ""), 36);
@@ -546,20 +147,20 @@
                 x = ~~(x / 4);
                 var b = x % 4;
                 Object.assign(el.style, {
-                    background: "url('images/watcher.webp') no-repeat center/contain #" + r + g + b,
+                    background: "url('data:image/jpeg;base64,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') no-repeat center/contain #" + r + g + b,
                     flex: "auto"
                 });
                 div.appendChild(el);
 
                 var nspan = document.createElement("span");
-                nspan.classList.add("namelabel");
+                nspan.classList.add("ec3-name-label");
                 nspan.innerText = nm;
                 div.appendChild(nspan);
 
                 if (main) {
-                    gebi("ecvideo-main").appendChild(div);
+                    gebi("ec3-main-video-wrapper").appendChild(div);
                 } else {
-                    gebi("ecvideo-side").appendChild(div);
+                    gebi("ec3-side-video-wrapperb").appendChild(div);
                 }
             }
             vid(true, "Yahweasel");

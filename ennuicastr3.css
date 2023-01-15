@@ -1,0 +1,324 @@
+/* General */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans&display=swap');
+
+/* Color scheme */
+:root {
+    --bg: #151529;
+    --bg-button-bright: #1fa5ff;
+    --bg-button-bright-hover: #3086bf;
+    --bg-button: #1b1b34;
+    --bg-button-hover: #363668;
+    --bg-rec: #801010;
+    --bg-rec-hover: #bf3030;
+    --bg-label: #262646;
+    --bg-label-t: rgba(38, 38, 70, 0);
+    --bg-status: #ccc;
+    --fg: #fff;
+    --fg-dim: #5d5d98;
+    --fg-dimmish: #7d7dcb;
+    --fg-dimmish-t: rgba(125, 125, 203, 0);
+    --fg-status: #000;
+
+    --scale-main: 32px;
+    --scale-main-2: 16px;
+    --scale-main-3: 11px;
+    --scale-main-4: 8px;
+    --scale-main-8: 4px;
+    --scale-main-16: 2px;
+    --scale-main2: 64px;
+    --scale-main3: 96px;
+    --scale-main4: 128px;
+}
+
+/* Generic */
+* {
+    transition: background-color 0.1s ease-in-out, color 0.1s ease-in-out;
+}
+
+*:active {
+    transition: none;
+}
+
+*::-webkit-scrollbar {
+    width: 4px;
+    background-color: var(--bg);
+}
+
+*::-webkit-scrollbar-thumb {
+    border-radius: 2px;
+    background-color: var(--bg);
+}
+
+*:hover::-webkit-scrollbar-thumb {
+    background-color: var(--fg-dim);
+}
+
+/* Standard classes */
+.cflex {
+    display: flex;
+    flex-direction: column;
+}
+
+.rflex {
+    display: flex;
+    flex-direction: row;
+}
+
+.fauto {
+    flex: auto;
+}
+
+.vcenter {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.icon-button {
+    background-color: inherit;
+    color: var(--fg-dimmish);
+    border-radius: 0;
+    border: 0;
+    cursor: pointer;
+    display: inline-block;
+    text-align: center;
+    text-decoration: none;
+    white-space: nowrap;
+    font-size: var(--scale-main-2);
+    line-height: var(--scale-main);
+}
+
+.icon-button:hover {
+    color: var(--fg);
+}
+
+.icon-button:active {
+    color: var(--fg-dimmish);
+}
+
+.pill-button {
+    border-radius: 0.5em;
+    border: 0;
+    cursor: pointer;
+    font-size: 1em;
+    text-transform: uppercase;
+    line-height: 2.5em;
+    padding: 0 1em 0 1em;
+    background-color: var(--bg-button);
+    color: var(--fg-dimmish);
+}
+
+.pill-button:hover {
+    background-color: var(--bg-button-hover);
+    color: var(--fg);
+}
+
+.pill-button:active {
+    background-color: var(--bg-button);
+}
+
+.rec-button {
+    background-color: var(--bg-rec);
+    color: var(--fg);
+}
+
+.rec-button:hover {
+    background-color: var(--bg-rec-hover);
+}
+
+.rec-button:active {
+    background-color: var(--bg-rec);
+}
+
+.round-button {
+    border-radius: 1.25em;
+    border: 0;
+    cursor: pointer;
+    font-size: 1em;
+    width: 2.5em;
+    height: 2.5em;
+    line-height: 2.5em;
+    text-align: center;
+    background-color: var(--bg-button);
+    color: var(--fg-dimmish);
+}
+
+.round-button:hover {
+    background-color: var(--bg-button-hover);
+    color: var(--fg);
+}
+
+.round-button:active {
+    background-color: var(--bg-button);
+}
+
+.menu-button {
+    position: relative;
+    padding-bottom: var(--scale-main-3);
+    --bg-label-m: var(--bg-label-t);
+    --fg-dimmish-m: var(--fg-dimmish-t);
+}
+
+.menu-button:hover {
+    --bg-label-m: var(--bg-label);
+    --fg-dimmish-m: var(--fg-dimmish);
+}
+
+.menu-button-lbox {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(var(--scale-main) - var(--scale-main-3));
+}
+
+.menu-button-label {
+    position: relative;
+    z-index: -1;
+    box-sizing: border-box;
+    max-width: var(--scale-main4);
+    background-color: var(--bg-label-m);
+    border-radius: var(--scale-main-8);
+    color: var(--fg-dimmish-m);
+    font-size: var(--scale-main-3);
+    text-align: center;
+    padding: var(--scale-main-16) var(--scale-main-4) var(--scale-main-16) var(--scale-main-4);
+    margin: auto;
+}
+
+.menu-button-label:before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: calc(50% - 6px);
+    border-bottom: 6px solid var(--bg-label-m);
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+}
+
+.ec3-video {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.ec3-video > video, .ec3-video > div {
+    border-radius: 1em;
+}
+
+.ec3-video .ec3-name-label {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    background-color: var(--bg);
+    color: var(--fg-dimmish);
+    padding: 0.2em;
+    border-top-right-radius: 0.2em;
+}
+
+/* Main body */
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg);
+    color: var(--fg);
+    font-family: 'Noto Sans', sans-serif;
+    font-size: var(--scale-main-2);
+}
+
+#ec3-outer-wrapper {
+    position: absolute;
+    left: 0;
+    top: 0;
+    min-width: 100%;
+    min-height: 100%;
+}
+
+#ec3-menu-button-wrapper {
+    color: var(--fg-dim);
+    min-width: var(--scale-main4);
+    text-align: center;
+}
+
+#ec3-recording-info {
+    min-width: 5em;
+}
+
+#ec3-recording-title {
+    font-size: 1.25em;
+    font-weight: bold;
+}
+
+#ec3-recording-timer {
+    color: var(--fg-dim);
+}
+
+#ec3-interface-buttons {
+    padding-right: var(--scale-main-2);
+}
+
+#ec3-main-menu-wrapper {
+    position: relative;
+    width: var(--scale-main4);
+}
+
+#ec3-main-menu {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    overflow: auto;
+}
+
+#ec3-main-video-wrapper {
+    padding: var(--scale-main-4);
+}
+
+#ec3-main-video-wrapper .ec3-video {
+    height: 100%;
+}
+
+#ec3-side-video-wrappera {
+    position: relative;
+    min-width: var(--scale-main4);
+}
+
+#ec3-side-video-wrapperb {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--scale-main-4);
+}
+
+#ec3-side-video-wrapperb .ec3-video {
+    min-height: var(--scale-main3);
+}
+
+#ec3-side-video-wrapperb .ec3-name-label {
+    font-size: var(--scale-main-3);
+}
+
+#ec3-waveform-row {
+    position: relative;
+    border-top: 1px solid var(--fg-dim);
+    height: var(--scale-main4);
+}
+
+#ec3-waveform-row > canvas {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+#ec3-status-row {
+    background-color: var(--bg-status);
+    color: var(--fg-status);
+    text-align: center;
+}
