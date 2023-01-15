@@ -127,10 +127,7 @@ export async function createCompressor(
     });
 
     // Create the player
-    const playerOpts: rtennui.AudioPlaybackOptions = {};
-    if (util.isChrome())
-        playerOpts.preferredType = "shared-sp";
-    const player = await rtennui.createAudioPlayback(ac, playerOpts);
+    const player = await rtennui.createAudioPlayback(ac);
 
     const mc = new MessageChannel();
     player.pipeFrom(mc.port2);
