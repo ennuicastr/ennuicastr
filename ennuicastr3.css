@@ -17,6 +17,7 @@
     --fg-dim: #5d5d98;
     --fg-dimmish: #7d7dcb;
     --fg-dimmish-t: rgba(125, 125, 203, 0);
+    --fg-selected: #1fa5ff;
     --fg-status: #000;
 
     --scale-main: 32px;
@@ -32,7 +33,9 @@
 
 /* Generic */
 * {
-    transition: background-color 0.1s ease-in-out, color 0.1s ease-in-out;
+    transition: background-color 0.1s ease-in-out,
+                border-color 0.1s ease-in-out,
+                color 0.1s ease-in-out;
 }
 
 *:active {
@@ -45,12 +48,64 @@
 }
 
 *::-webkit-scrollbar-thumb {
+    transition: background-color 0.1s ease-in-out;
     border-radius: 2px;
     background-color: var(--bg);
 }
 
 *:hover::-webkit-scrollbar-thumb {
     background-color: var(--fg-dim);
+}
+
+input[type="checkbox"] {
+    -webkit-appearance: none;
+    appearance: none;
+    display: inline-block;
+    position: relative;
+    width: var(--scale-main-2);
+    height: var(--scale-main-2);
+    background-color: var(--bg);
+    border: 1px solid var(--fg-dimmish);
+    border-radius: var(--scale-main-8);
+}
+
+input[type="checkbox"]:checked {
+    border-color: var(--fg-selected);
+}
+
+input[type="checkbox"]:hover {
+    border-color: var(--fg);
+}
+
+input[type="checkbox"]:checked:after {
+    font-family: "ForkAwesome";
+    font-weight: 900;
+    color: var(--fg-selected);
+    content: "\f00c";
+    position: absolute;
+    font-size: var(--scale-main-3);
+    left: var(--scale-main-16);
+    top: var(--scale-main-16);
+}
+
+input[type="checkbox"]:hover:after {
+    color: var(--fg);
+}
+
+input[type="text"] {
+    background-color: var(--bg);
+    color: var(--fg-dimmish);
+    border: 1px solid var(--fg-dimmish);
+}
+
+label {
+    flex: auto;
+    min-width: 5em;
+    color: var(--fg-dimmish);
+}
+
+label:hover {
+    color: var(--fg);
 }
 
 /* Standard classes */
@@ -72,6 +127,10 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
+}
+
+.row {
+    padding-top: var(--scale-main-4);
 }
 
 .icon-button {
@@ -164,6 +223,12 @@
     --fg-dimmish-m: var(--fg-dimmish);
 }
 
+.menu-button.menu-selected {
+    color: var(--fg-selected);
+    --bg-label-m: var(--bg-label);
+    --fg-dimmish-m: var(--fg);
+}
+
 .menu-button-lbox {
     position: absolute;
     left: 0;
@@ -193,6 +258,24 @@
     border-bottom: 6px solid var(--bg-label-m);
     border-left: 6px solid transparent;
     border-right: 6px solid transparent;
+}
+
+.panel {
+    display: none;
+    position: absolute;
+    left: calc(var(--scale-main4) + var(--scale-main-2));
+    top: var(--scale-main2);
+    background-color: var(--bg);
+    color: var(--fg-dimmish);
+    padding: var(--scale-main) var(--scale-main-2) var(--scale-main-2) var(--scale-main-2);
+    border-radius: var(--scale-main-4);
+}
+
+.close-button {
+    background-color: transparent;
+    position: absolute;
+    top: 0;
+    right: var(--scale-main-4);
 }
 
 .ec3-video {
@@ -306,7 +389,7 @@ body {
 #ec3-waveform-row {
     position: relative;
     border-top: 1px solid var(--fg-dim);
-    height: var(--scale-main4);
+    height: var(--scale-main3);
 }
 
 #ec3-waveform-row > canvas {
@@ -321,4 +404,18 @@ body {
     background-color: var(--bg-status);
     color: var(--fg-status);
     text-align: center;
+}
+
+#ec3-layer-separator {
+    display: none;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(0, 0, 0, 0.25);
+}
+
+#ec3-startstop-button2 {
+    width: 100%;
 }

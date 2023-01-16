@@ -89,6 +89,49 @@
             <div id="ec3-status-row">Status</div>
         </div>
 
+        <!-- The layer separator makes it easier to close panels -->
+        <div id="ec3-layer-separator"></div>
+
+        <!-- Panels -->
+        <div id="ec3-panel-host-interface" class="panel">
+            <button class="icon-button close-button" aria-label="Close">
+                <i class="fa fa-times-circle-o" aria-hidden="true"></i>
+            </button>
+            <button id="ec3-startstop-button2" class="pill-button">
+                <i class="fa fa-microphone" aria-hidden="true"></i>
+                Start recording
+            </button>
+            <div class="rflex row">
+                <input type="checkbox" id="ec3-accept-guest-video-chk" />
+                <label for="ec3-accept-guest-video-chk">
+                    &nbsp;Accept video recordings from guests
+                </label>
+            </div>
+            <div class="rflex row">
+                <input type="checkbox" id="ec3-video-rec-save-in-browser-chk" />
+                <label for="ec3-video-rec-save-in-browser-chk">
+                    &nbsp;Save video recordings in in-browser storage space
+                </label>
+            </div>
+            <div class="rflex row">
+                <input type="checkbox" id="ec3-video-rec-download-chk" />
+                <label for="ec3-video-rec-download-chk">
+                    &nbsp;Download video recordings live while recording
+                </label>
+            </div>
+            <div class="rflex row">
+                <div class="cflex" style="flex: auto">
+                    <span>Recording cost:</span>
+                    <input type="text" readonly />
+                </div>
+                <div>&nbsp;</div>
+                <div class="cflex" style="flex: auto">
+                    <span>Current rate:</span>
+                    <input type="text" readonly />
+                </div>
+            </div>
+        </div>
+
         <!-- Interface sounds -->
         <div style="display: none">
             <audio id="ecaudio-chime-up">
@@ -180,10 +223,14 @@
             document.body.addEventListener("mouseenter", mouseenter);
             document.body.addEventListener("mousemove", mouseenter);
 
-            var layerSeparator = gebi("eclayer-separator");
+            var layerSeparator = gebi("ec3-layer-separator");
             function panel(p, show) {
-                if (typeof p === "string")
+                let btn = null;
+                Array.prototype.slice.call(document.getElementsByClassName("menu-button"), 0).forEach(function(x) { x.classList.remove("menu-selected"); });
+                if (typeof p === "string") {
+                    btn = gebi(p.replace("-panel", "") + "-button");
                     p = gebi(p);
+                }
                 if (typeof show === "undefined")
                     show = (getComputedStyle(p).display === "none");
                 Array.prototype.slice.call(document.getElementsByClassName("panel"), 0).forEach(function(x) {
@@ -192,10 +239,12 @@
                 if (show) {
                     p.style.display = "block";
                     document.body.setAttribute("data-interface", "none");
+                    if (btn)
+                        btn.classList.add("menu-selected");
                 } else {
                     mouseenter();
                 }
-                layerSeparator.style.display = show ? "" : "none";
+                layerSeparator.style.display = show ? "block" : "none";
             }
             function btn(b, p) {
                 gebi(b).onclick = function() { panel(p); };
@@ -205,39 +254,7 @@
             Array.prototype.slice.call(document.getElementsByClassName("close-button"), 0).forEach(function(x) {
                 x.onclick = function() { panel(null, false); }
             });
-            gebi("ecmenu-master").style.display = "";
-            gebi("ecmenu-user-admin").style.display = "";
-            btn("ecmenu-master", "ecmaster-interface");
-            btn("ecmenu-user-admin", "ecuser-admin-interface");
-            btn("ecuser-admin-all-b", "ecuser-admin-interface-user");
-            btn("ecuser-admin-kick", "ecuser-admin-interface-user-full");
-            gebi("ecmenu-sounds").style.display = "";
-            btn("ecmenu-sounds", "ecsounds-wrapper");
-            btn("ecmenu-main", "ecmenu");
-            btn("ecmenu-input-devices", "ecinput-device-wrapper");
-            btn("ecmenu-output-devices", "ecoutput-device-wrapper");
-            btn("ecmenu-video-devices", "ecvideo-device-wrapper");
-            btn("ecmenu-user-list", "ecuser-list-wrapper");
-
-            var videoRecord = gebi("ecvideo-record");
-            videoRecord.onchange = function() {
-                gebi("ecvideo-record-hider").style.display = videoRecord.checked ? "" : "none";
-            };
-
-            var videoBitrateSel = gebi("ecvideo-record-bitrate-sel");
-            videoBitrateSel.onchange = function() {
-                gebi("ecvideo-record-bitrate-hider").style.display = videoBitrateSel.checked ? "" : "none";
-            };
-
-            var chatWrapper = gebi("ecchat-wrapper");
-            gebi("ecmenu-chat").onclick = function() {
-                if (chatWrapper.style.display === "none")
-                    chatWrapper.style.display = "";
-                else
-                    chatWrapper.style.display = "none";
-            };
-
-            gebi("eclog").innerText = "Not yet recording";
+            btn("ec3-host-interface-button", "ec3-panel-host-interface");
         })();</script>
     </body>
 </html>
