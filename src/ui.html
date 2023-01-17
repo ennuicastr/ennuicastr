@@ -19,7 +19,7 @@
         <title>Ennuicastr</title>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link href="../fka/css/fork-awesome.min.css" rel="stylesheet" />
+        <link href="../bx/css/boxicons.min.css" rel="stylesheet" />
         <link href="../ennuicastr3.css" rel="stylesheet" />
     </head>
     <body>
@@ -29,7 +29,7 @@
             <div id="ec3-top-row" class="rflex">
                 <div id="ec3-menu-button-wrapper" class="vcenter">
                     <button id="ec3-menu-button" class="icon-button icon-button" aria-label="Hide main menu">
-                        <i class="fa fa-plus-square-o" aria-hidden="true"></i>
+                        <i class="bx bx-menu" aria-hidden="true"></i>
                     </button>
                 </div>
                 <div id="ec3-recording-info" class="fauto vcenter">
@@ -38,18 +38,18 @@
                 </div>
                 <div id="ec3-recording-startstop-wrapper" class="vcenter">
                     <button id="ec3-startstop-button" class="pill-button rec-button">
-                        <i class="fa fa-microphone" aria-hidden="true"></i>
+                        <i class="bx bx-microphone" aria-hidden="true"></i>
                         Start recording
                     </button>
                 </div>
                 <div class="fauto"></div>
                 <div id="ec3-interface-buttons" class="vcenter"><div>
                     <button id="ec3-share-button" class="pill-button">
-                        <i class="fa fa-share-square-o" aria-hidden="true"></i>
+                        <i class="bx bx-share" aria-hidden="true"></i>
                         Invite
                     </button>&nbsp;
                     <button id="ec3-fs-button" class="round-button" aria-label="Fullscreen">
-                        <i class="fa fa-arrows-alt" aria-hidden="true"></i>
+                        <i class="bx bx-fullscreen" aria-hidden="true"></i>
                     </button>
                 </div></div>
             </div>
@@ -57,25 +57,25 @@
             <div id="ec3-main-row" class="fauto rflex">
                 <div id="ec3-main-menu-wrapper"><div id="ec3-main-menu" class="cflex">
                     <button id="ec3-host-interface-button" class="icon-button menu-button">
-                        <i class="fa fa-star-o" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">Host Interface</span></span>
+                        <i class="bx bx-star" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">Host<br/>Menu</span></span>
                     </button>
                     <button id="ec3-user-admin-button" class="icon-button menu-button">
-                        <i class="fa fa-user-o" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">User Administration</span></span>
+                        <i class="bx bx-user" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">User<br/>Admin</span></span>
                     </button>
                     <button id="ec3-mute-button" class="icon-button menu-button">
-                        <i class="fa fa-microphone" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">Mute</span></span>
+                        <i class="bx bx-microphone" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">Mute</span></span>
                     </button>
                     <button id="ec3-video-share-button" class="icon-button menu-button">
-                        <i class="fa fa-video-camera" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">Share Camera</span></span>
+                        <i class="bx bx-video" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">Share Camera</span></span>
                     </button>
                     <button id="ec3-screen-share-button" class="icon-button menu-button">
-                        <i class="fa fa-window-maximize" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">Share Screen</span></span>
+                        <i class="bx bx-window" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">Share Screen</span></span>
                     </button>
                     <button id="ec3-settings-button" class="icon-button menu-button">
-                        <i class="fa fa-cog" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">Settings</span></span>
+                        <i class="bx bxs-cog" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">Settings</span></span>
                     </button>
                     <button id="ec3-chat-button" class="icon-button menu-button">
-                        <i class="fa fa-commenting-o" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">Chat</span></span>
+                        <i class="bx bx-chat" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">Chat</span></span>
                     </button>
                     <div class="fauto"></div>
                 </div></div>
@@ -92,13 +92,13 @@
         <!-- The layer separator makes it easier to close panels -->
         <div id="ec3-layer-separator"></div>
 
-        <!-- Panels -->
-        <div id="ec3-panel-host-interface" class="panel">
+        <!-- Host interface panel -->
+        <div id="ec3-host-interface-panel" class="panel" role="dialog" aria-label="Host interface">
             <button class="icon-button close-button" aria-label="Close">
-                <i class="fa fa-times-circle-o" aria-hidden="true"></i>
+                <i class="bx bx-x" aria-hidden="true"></i>
             </button>
-            <button id="ec3-startstop-button2" class="pill-button">
-                <i class="fa fa-microphone" aria-hidden="true"></i>
+            <button id="ec3-startstop-button2" class="pill-button bright">
+                <i class="bx bx-microphone" aria-hidden="true"></i>
                 Start recording
             </button>
             <div class="rflex row">
@@ -132,6 +132,94 @@
             </div>
         </div>
 
+        <!-- User administration panel (list) -->
+        <div id="ec3-user-admin-list-panel" class="panel" role="dialog" aria-label="User administration">
+            <button class="icon-button close-button" aria-label="Close">
+                <i class="bx bx-x" aria-hidden="true"></i>
+            </button>
+            <button id="ec3-user-admin-all-button" class="pill-button bright row"><i class="bx bx-group"></i> All users</button>
+        </div>
+
+        <!-- User administration interface (particular user) -->
+        <div id="ec3-user-admin-user-panel" class="panel" role="dialog" aria-label="User administration">
+            <button class="icon-button close-button" aria-label="Close">
+                <i class="bx bx-x" aria-hidden="true"></i>
+            </button>
+            <div id="ec3-user-admin-user-name-lbl" class="row" style="text-align: center;"><i class="bx bx-group"></i> All users</div>
+            <button id="ec3-user-admin-kick-button" class="pill-button row"><i class="bx bx-user-x" aria-hidden="true"></i> Kick user</button>
+            <button id="ec3-user-admin-mute-button" class="pill-button row"><i class="bx bx-microphone-off" aria-hidden="true"></i> Mute</button>
+            <button id="ec3-user-admin-echo-button" class="pill-button row"><i class="bx bx-user-voice" aria-hidden="true"></i> Force echo cancellation</button>
+            <button id="ec3-user-admin-request-full-button" class="pill-button bright row"><i class="bx bxs-user-detail" aria-hidden="true"></i> Request administrative access</button>
+        </div>
+
+        <!-- User administration interface (particular user, full access) -->
+        <div id="ec3-user-admin-user-full-panel" class="panel" role="dialog" aria-label="User administration">
+            <button class="icon-button close-button" aria-label="Close">
+                <i class="bx bx-x" aria-hidden="true"></i>
+            </button>
+            <div id="ec3-user-admin-user-full-name" class="row" style="text-align: center;"><i class="bx bx-group"></i> All users</div>
+            <button id="ec3-user-admin-full-kick-button" class="pill-button row"><i class="bx bx-user-x"></i> Kick user</button>
+            <div class="rflex row">
+                <input id="ec3-user-admin-full-mute-chk" type="checkbox" />
+                <label for="ec3-user-admin-full-mute-chk">&nbsp;Mute</label>
+            </div>
+            <div class="rflex row">
+                <input id="ec3-user-admin-full-echo-chk" type="checkbox" />
+                <label for="ec3-user-admin-full-echo-chk">&nbsp;Echo cancellation</label>
+            </div>
+
+            <div class="rflex row">
+                <label for="ec3-user-admin-full-vad-sensitivity-rng" style="min-width: 8em; text-align: right;">Voice detection&nbsp;<br/>sensitivity:&nbsp;</label>
+                <input id="ec3-user-admin-full-vad-sensitivity-rng" type="range" min=1 max=4 value=4 style="flex: auto; width: 5em;" />
+                <span id="ec3-user-admin-full-vad-sensitivity-status">&nbsp;4</span>
+            </div>
+
+            <div class="rflex row">
+                <label for="ec3-user-admin-full-vad-noise-gate-rng" style="min-width: 8em; text-align: right;">Noise gate:&nbsp;</label>
+                <input id="ec3-user-admin-full-vad-noise-gate-rng" type="range" min=-100 max=0 value=-100 style="flex: auto; width: 5em;" />
+                <span id="ec3-user-admin-full-vad-noise-gate-status">&nbsp;-100dB</span>
+            </div>
+
+            <div class="rflex row">
+                <label for="ec3-user-admin-full-audio-dev-sel" style="min-width: 10em;">Audio device:&nbsp;</label>
+                <select id="ec3-user-admin-full-audio-dev-sel" style="flex: auto;"></select>
+            </div>
+
+            <div id="ec3-user-admin-interface-user-full-video-hider">
+                <div class="rflex row">
+                    <label for="ec3-user-admin-full-video-dev-sel" style="min-width: 10em;">Video device:&nbsp;</label>
+                    <select id="ec3-user-admin-full-video-dev-sel" style="flex: auto;"></select>
+                </div>
+                <div class="rflex row">
+                    <label for="ec3-user-admin-full-video-res-sel" style="min-width: 10em;">Max resolution:&nbsp;</label>
+                    <select id="ec3-user-admin-full-video-res-sel" style="flex: auto;">
+                        <option value="360">360p</option>
+                        <option value="480">480p</option>
+                        <option value="720">720p</option>
+                        <option value="1080">1080p</option>
+                        <option value="0">Unlimited</option>
+                    </select>
+                </div>
+                <div class="rflex row" style="display: none">
+                    <label for="ec3-user-admin-full-bitrate-inp" style="min-width: 6em">Video bitrate:&nbsp;</label>
+                    <input id="ec3-user-admin-full-bitrate-inp" type="text" style="flex: auto" />
+                    &nbsp;
+                    <button id="ec3-user-admin-full-video-record-button" title="Record video" aria-label="Record video"><i class="fas fa-circle"></i> Rec</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- User administration permission request -->
+        <div id="ecuser-admin-permission" class="panel" role="dialog" aria-label="Administrator request">
+            <div>The user <span id="ecuser-admin-permission-requester"></span> has requested permission to control your input device settings. Is this OK?</div>
+
+            <div class="rflex row">
+                <button id="ecuser-admin-permission-yes" style="flex: auto">Yes</button>&nbsp;
+                <button id="ecuser-admin-permission-audio" style="flex: auto">Audio only</button>&nbsp;
+                <button id="ecuser-admin-permission-no" style="flex: auto">No</button>
+            </div>
+        </div>
+
         <!-- Interface sounds -->
         <div style="display: none">
             <audio id="ecaudio-chime-up">
@@ -148,7 +236,7 @@
             var gebi = document.getElementById.bind(document);
 
             gebi("ec3-startstop-button").onclick = function() {
-                window.open(document.location.href, "", "width=640,height=480,menubar=0,toolbar=0,location=0,personalbar=0,status=0");
+                window.open(document.location.href, "", "width=800,height=600,menubar=0,toolbar=0,location=0,personalbar=0,status=0");
             };
 
             var wcw = gebi("ec3-waveform-row");
@@ -254,7 +342,15 @@
             Array.prototype.slice.call(document.getElementsByClassName("close-button"), 0).forEach(function(x) {
                 x.onclick = function() { panel(null, false); }
             });
-            btn("ec3-host-interface-button", "ec3-panel-host-interface");
+            btn("ec3-host-interface-button", "ec3-host-interface-panel");
+            btn("ec3-user-admin-button", "ec3-user-admin-list-panel");
+            btn("ec3-user-admin-all-button", "ec3-user-admin-user-panel");
+            btn("ec3-user-admin-request-full-button", "ec3-user-admin-user-full-panel");
+
+            gebi("ec3-menu-button").onclick = function() {
+                const menu = gebi("ec3-main-menu-wrapper");
+                menu.style.display = (menu.style.display === "none") ? "" : "none";
+            };
         })();</script>
     </body>
 </html>

@@ -6,6 +6,7 @@
   "dependencies": {
     "@types/file-saver": "^2.0.3",
     "@types/streamsaver": "^2.0.1",
+    "boxicons": "^2.1.4",
     "browser-pack-flat": "^3.5.0",
     "browserify": "^17.0.0",
     "ennuiboard": "^1.0.0",
