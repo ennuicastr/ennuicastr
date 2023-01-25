@@ -92,12 +92,12 @@
         <!-- The layer separator makes it easier to close panels -->
         <div id="ec3-layer-separator"></div>
 
-        <!-- Host interface panel -->
-        <div id="ec3-host-interface-panel" class="panel" role="dialog" aria-label="Host interface">
+        <!-- Host menu panel -->
+        <div id="ec3-host-interface-panel" class="panel" role="dialog" aria-label="Host menu">
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
-            <button id="ec3-startstop-button2" class="pill-button bright">
+            <button id="ec3-startstop-button2" class="pill-button primary">
                 <i class="bx bx-microphone" aria-hidden="true"></i>
                 Start recording
             </button>
@@ -124,7 +124,7 @@
                     <span>Recording cost:</span>
                     <input type="text" readonly />
                 </div>
-                <div>&nbsp;</div>
+                <div style="width: var(--scale-main);"></div>
                 <div class="cflex" style="flex: auto">
                     <span>Current rate:</span>
                     <input type="text" readonly />
@@ -137,7 +137,7 @@
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
-            <button id="ec3-user-admin-all-button" class="pill-button bright row"><i class="bx bx-group"></i> All users</button>
+            <button id="ec3-user-admin-all-button" class="pill-button primary row"><i class="bx bx-group"></i> All users</button>
         </div>
 
         <!-- User administration interface (particular user) -->
@@ -149,7 +149,7 @@
             <button id="ec3-user-admin-kick-button" class="pill-button row"><i class="bx bx-user-x" aria-hidden="true"></i> Kick user</button>
             <button id="ec3-user-admin-mute-button" class="pill-button row"><i class="bx bx-microphone-off" aria-hidden="true"></i> Mute</button>
             <button id="ec3-user-admin-echo-button" class="pill-button row"><i class="bx bx-user-voice" aria-hidden="true"></i> Force echo cancellation</button>
-            <button id="ec3-user-admin-request-full-button" class="pill-button bright row"><i class="bx bxs-user-detail" aria-hidden="true"></i> Request administrative access</button>
+            <button id="ec3-user-admin-request-full-button" class="pill-button primary row"><i class="bx bxs-user-detail" aria-hidden="true"></i> Request administrative access</button>
         </div>
 
         <!-- User administration interface (particular user, full access) -->
@@ -210,13 +210,242 @@
         </div>
 
         <!-- User administration permission request -->
-        <div id="ecuser-admin-permission" class="panel" role="dialog" aria-label="Administrator request">
-            <div>The user <span id="ecuser-admin-permission-requester"></span> has requested permission to control your input device settings. Is this OK?</div>
+        <div id="ec3-user-admin-permission-panel" class="panel" role="dialog" aria-label="Administrator request">
+            <div>The user <span id="ec3-user-admin-permission-requester"></span> has requested permission to control your input device settings. Is this OK?</div>
 
             <div class="rflex row">
-                <button id="ecuser-admin-permission-yes" style="flex: auto">Yes</button>&nbsp;
-                <button id="ecuser-admin-permission-audio" style="flex: auto">Audio only</button>&nbsp;
-                <button id="ecuser-admin-permission-no" style="flex: auto">No</button>
+                <button id="ec3-user-admin-permission-yes-button" class="pill-button primary fauto">Yes</button>&nbsp;
+                <button id="ec3-user-admin-permission-audio-button" class="pill-button fauto">Audio only</button>&nbsp;
+                <button id="ec3-user-admin-permission-no" class="pill-button fauto">No</button>
+            </div>
+        </div>
+
+        <!-- The soundboard -->
+        <div id="ec3-soundboard-panel" class="panel" role="dialog" aria-label="Soundboard">
+            <button class="icon-button close-button" aria-label="Close">
+                <i class="bx bx-x" aria-hidden="true"></i>
+            </button>
+            <div id="ecsounds-popout-wrapper" data-popout-label="Soundboard">
+                <div class="rflex" style="align-items: start;">
+                    <div id="ecsounds" style="flex: auto;"></div>
+                    <button id="ecsounds-popout" class="tbutton" title="Pop out" aria-label="Pop out"><i class="far fa-window-restore"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings -->
+        <div id="ec3-settings-panel" class="panel" role="dialog" aria-label="Settings">
+            <button class="icon-button close-button" aria-label="Close">
+                <i class="bx bx-x" aria-hidden="true"></i>
+            </button>
+
+            <label for="ec3-view-mode-sel" class="row">View mode:</label>
+            <select id="ec3-view-mode-sel" class="row">
+                <option value="0">Normal</option>
+                <option value="1">Small</option>
+                <option value="2">Gallery</option>
+                <option value="3">Studio</option>
+            </select>
+
+            <div id="ec3-caption-hider" class="row">
+                <input type="checkbox" id="ec3-caption-chk" />
+                <label for="ec3-caption-chk">&nbsp;Show captions</label>
+            </div>
+
+            <button id="ec3-input-devices-button" class="pill-button primary row"><i class="bx bx-microphone"></i> Input settings</button>
+            <button id="ec3-output-devices-button" class="pill-button row"><i class="bx bx-headphone"></i> Output settings</button>
+            <button id="ec3-video-devices-button" class="pill-button row"><i class="bx bx-video"></i> Video settings</button>
+            <span id="ec3-user-list-button-hider">
+                <button id="ec3-user-list-button" class="pill-button row"><i class="bx bx-group"></i> Members</button>
+            </span>
+        </div>
+
+        <!-- The input device selector -->
+        <div id="ecinput-device-wrapper" class="panel" role="dialog" aria-label="Input settings">
+            <button class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
+
+            <!-- Input device -->
+            <div class="rflex row">
+                <label for="ecinput-device-list" style="min-width: 8em; text-align: right;">Input device:&nbsp;</label>
+                <select id="ecinput-device-list" style="flex: auto; width: 6em;"></select>
+            </div>
+
+            <!-- And channel -->
+            <div id="ecinput-channel-hider" class="rflex row" style="display: none;">
+                <label for="ecinput-channel-list" style="min-width: 8em; text-align: right;">Channel:&nbsp;</label>
+                <select id="ecinput-channel-list" style="flex: auto; width: 4em;"></select>
+            </div>
+
+            <!-- And options -->
+            <div class="bigrflex row">
+                <button id="ecpttb"><i class="fas fa-gamepad"></i> Gamepad push-to-talk</button>
+                &nbsp;
+                <div id="ecinput-options-wrapper">
+                    <span id="ecnoise-reduction-hider">
+                        <input id="ecnoise-reduction" type="checkbox" checked />
+                        <label for="ecnoise-reduction">&nbsp;Apply noise reduction</label><br/>
+                    </span>
+                    <input id="ececho-cancellation" type="checkbox" />
+                    <label for="ececho-cancellation">&nbsp;Apply echo cancellation</label>
+                    <span id="ecagc-hider" style="display: none;"><br/>
+                        <input id="ecagc" type="checkbox" />
+                        <label for="ecagc">&nbsp;Automatic gain control</label>
+                    </span>
+                </div>
+            </div>
+
+            <div class="rflex row">
+                <label for="ecvad-sensitivity" style="min-width: 8em; text-align: right;">Voice detection&nbsp;<br/>sensitivity:&nbsp;</label>
+                <input id="ecvad-sensitivity" type="range" min=1 max=4 value=4 style="flex: auto; width: 5em;" />
+                <span id="ecvad-sensitivity-status">&nbsp;4</span>
+            </div>
+
+            <div class="rflex row">
+                <label for="ecvad-noise-gate" style="min-width: 8em; text-align: right;">Noise gate:&nbsp;</label>
+                <input id="ecvad-noise-gate" type="range" min=-100 max=0 value=-100 class="ecpeak-horizontal-self" style="flex: auto; width: 5em;" />
+                <span id="ecvad-noise-gate-status">&nbsp;-100dB</span>
+            </div>
+        </div>
+
+        <!-- Secondary track selector -->
+        <div id="ecinput-secondary-selector-wrapper" class="panel" role="dialog" aria-label="Secondary inputs">
+            <div class="rflex row">
+                <label for="ecinput-secondary-list" style="min-width: 6em; text-align: right;">Track:&nbsp;</label>
+                <select id="ecinput-secondary-list" style="flex: auto; width: 6em;"></select>
+            </div>
+        </div>
+
+        <!-- The secondary input device selector -->
+        <div id="ecinput-secondary-device-wrapper" class="panel" role="dialog" aria-label="Secondary input settings">
+            <button class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
+
+            <!-- Input device -->
+            <div class="rflex row">
+                <label for="ecinput-secondary-device-list" style="min-width: 8em; text-align: right;">Input device:&nbsp;</label>
+                <select id="ecinput-secondary-device-list" style="flex: auto; width: 6em;"></select>
+            </div>
+
+            <!-- And channel -->
+            <div id="ecinput-secondary-channel-hider" class="rflex row" style="display: none;">
+                <label for="ecinput-secondary-channel-list" style="min-width: 8em; text-align: right;">Channel:&nbsp;</label>
+                <select id="ecinput-secondary-channel-list" style="flex: auto; width: 4em;"></select>
+            </div>
+        </div>
+
+        <!-- The output device selector -->
+        <div id="ecoutput-device-wrapper" class="panel" role="dialog" aria-label="Output settings">
+            <button class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
+
+            <!-- The output device selector -->
+            <div id="ecoutput-device-list-hider" class="rflex row">
+                <label for="ecoutput-device-list" style="min-width: 6em; text-align: right;">Output:&nbsp;</label>
+                <select id="ecoutput-device-list" style="flex: auto; width: 6em;"></select>
+            </div>
+
+            <!-- Master volume -->
+            <div id="ecoutput-volume-hider" class="rflex row">
+                <label for="ecoutput-volume" style="min-width: 6em; text-align: right;">Volume:&nbsp;</label>
+                <input id="ecoutput-volume" type="range" min=0 max=400 value=100 style="flex: auto; width: 5em;" />
+                <span id="ecoutput-volume-status">&nbsp;100%</span>
+            </div>
+
+            <!-- SFX volume -->
+            <div id="ecsfx-volume-hider" class="rflex row" style="display: none;">
+                <label for="ecsfx-volume" style="min-width: 8em; text-align: right;">SFX volume:&nbsp;</label>
+                <input id="ecsfx-volume" type="range" min=0 max=100 value=100 style="flex: auto; width: 5em;" />
+                <span id="ecsfx-volume-status">&nbsp;100%</span>
+            </div>
+
+            <!-- Dynamic range compression -->
+            <div id="ecdynamic-range-compression-hider" class="row">
+                <input id="ecdynamic-range-compression" type="checkbox" />
+                <label for="ecdynamic-range-compression">&nbsp;Auto-level everyone's volume</label>
+            </div>
+
+            <!-- Interface sounds -->
+            <div class="row">
+                <input id="ecmute-interface-sounds" type="checkbox" />
+                <label for="ecmute-interface-sounds">&nbsp;Mute interface sounds</label>
+            </div>
+        </div>
+
+        <!-- Video device selector -->
+        <div id="ecvideo-device-wrapper" class="panel" role="dialog" aria-label="Video settings">
+            <button class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
+
+            <div id="ecvideo-device-preview" class="row" style="height: 120px; background-color: #333;"></div>
+
+            <div class="rflex row">
+                <label for="ecvideo-device-list" style="min-width: 8em; text-align: right;">Camera:&nbsp;</label>
+                <select id="ecvideo-device-list" style="flex: auto; width: 6em;"></select>
+            </div>
+
+            <button id="ecvideo-share" class="row"><i class="fas fa-video-slash"></i> Unshare your camera</button>
+
+            <!-- Spacer -->
+            <div class="row">&nbsp;</div>
+
+            <div class="rflex row">
+                <label for="ecvideo-res" style="min-width: 8em; text-align: right;">Max resolution:&nbsp;</label>
+                <select id="ecvideo-res" style="flex: auto; width: 6em;">
+                    <option value="360">360p</option>
+                    <option value="480">480p</option>
+                    <option value="720" selected>720p</option>
+                    <option value="1080">1080p</option>
+                    <option value="0">Unlimited</option>
+                </select>
+            </div>
+
+            <!-- Video recording -->
+            <div id="ecvideo-record-hider" class="invite row" style="box-sizing: border-box; padding: 0.25em 0.25em 0.01em 0.25em;">
+                <div class="rflex row">
+                    <input id="ecvideo-record" type="checkbox" />
+                    <label for="ecvideo-record">&nbsp;Record video</label>
+                </div>
+
+                <div id="ecvideo-record-opt-hider" style="display: none">
+                    <div class="rflex row">
+                        &nbsp;
+                        <input id="ecvideo-record-remote" type="checkbox" />
+                        <label for="ecvideo-record-remote">&nbsp;and send it to the host</label>
+                    </div>
+                    <div class="rflex row">
+                        &nbsp;
+                        <input id="ecvideo-record-local" type="checkbox" />
+                        <label for="ecvideo-record-local">&nbsp;and save it locally</label>
+                    </div>
+
+                    <div class="rflex row">
+                        <input id="ecvideo-record-bitrate-sel" type="checkbox" />
+                        <label for="ecvideo-record-bitrate-sel">&nbsp;Select bitrate</label>
+                    </div>
+
+                    <div id="ecvideo-record-bitrate-hider" style="display: none">
+                        <div class="rflex row">
+                            <label for="ecvideo-record-bitrate">Bitrate (Mbit):&nbsp;</label>
+                            <input id="ecvideo-record-bitrate" style="flex: auto;" type="text" size="3" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Options -->
+            <div id="ecvideo-output-hider" class="row">
+                <div id="ecstreamer-mode-hider" class="row">
+                    <input id="ecstreamer-mode" type="checkbox" />
+                    <label for="ecstreamer-mode">&nbsp;Streamer-friendly popout windows</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- The user list/volume -->
+        <div id="ecuser-list-wrapper" class="panel" role="dialog" aria-label="User volume">
+            <button class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
+            <div id="ecuser-list-popout-wrapper" data-popout-label="User volume">
+                <div id="ecuser-list-wrapper" class="rflex" style="align-items: start;">
+                    <div id="ecuser-list" style="flex: auto;"></div>
+                    <button id="ecuser-list-popout" class="tbutton" title="Pop out" aria-label="Pop out"><i class="far fa-window-restore"></i></button>
+                </div>
             </div>
         </div>
 
@@ -231,7 +460,60 @@
                 <source src="sounds/chime-down.m4a" type="audio/mp4" />
             </audio>
         </div>
+
+        <!-- Pill button hover behavior -->
+        <script type="text/javascript">(function() {
+            var timeout = null;
+            var bright = null;
+
+            Array.prototype.slice.call(
+                document.getElementsByClassName("pill-button"), 0).forEach(function(x) {
+                x.classList.remove("bright");
+                x.addEventListener("mouseover", function() {
+                    ec3PillButton(x);
+                });
+                x.addEventListener("mouseout", function() {
+                    if (timeout)
+                        clearTimeout(timeout);
+                    timeout = setTimeout(function() {
+                        timeout = null;
+                        ec3PillButton();
+                    }, 2000);
+                });
+            });
+
+
+            ec3PillButton = function(highlight) {
+                if (bright) {
+                    bright.classList.remove("bright");
+                    bright = null;
+                }
+                if (highlight) {
+                    if (highlight.classList.contains("pill-button")) {
+                        mkBright(highlight);
+                        return;
+                    }
+                    var prim = highlight.getElementsByClassName("primary");
+                    if (prim[0]) {
+                        mkBright(prim[0]);
+                        return;
+                    }
+                    var ch = highlight.getElementsByClassName("pill-button");
+                    if (ch[0]) {
+                        mkBright(ch[0]);
+                        return;
+                    }
+                }
+            };
+
+            function mkBright(x) {
+                x.classList.add("bright");
+                bright = x;
+            }
+        })();</script>
+
 <!--END-->
+
         <script>(function() {
             var gebi = document.getElementById.bind(document);
 
@@ -319,6 +601,8 @@
                     btn = gebi(p.replace("-panel", "") + "-button");
                     p = gebi(p);
                 }
+                if (p)
+                    ec3PillButton(p);
                 if (typeof show === "undefined")
                     show = (getComputedStyle(p).display === "none");
                 Array.prototype.slice.call(document.getElementsByClassName("panel"), 0).forEach(function(x) {
@@ -346,6 +630,8 @@
             btn("ec3-user-admin-button", "ec3-user-admin-list-panel");
             btn("ec3-user-admin-all-button", "ec3-user-admin-user-panel");
             btn("ec3-user-admin-request-full-button", "ec3-user-admin-user-full-panel");
+            btn("ec3-user-admin-kick-button", "ec3-user-admin-permission-panel");
+            btn("ec3-settings-button", "ec3-settings-panel");
 
             gebi("ec3-menu-button").onclick = function() {
                 const menu = gebi("ec3-main-menu-wrapper");

@@ -30,6 +30,7 @@
     --scale-main2: 64px;
     --scale-main3: 96px;
     --scale-main4: 128px;
+    --scale-main8: 256px;
 }
 
 /* Generic */
@@ -136,16 +137,16 @@ input[type=range]::-moz-range-thumb {
   cursor: pointer;
 }
 
-input[type="text"] {
+input[type="text"], select {
     background-color: var(--bg);
     color: var(--fg-dimmish);
     border: 1px solid var(--fg-dimmish);
+    border-radius: var(--scale-main-16);
+    padding: var(--scale-main-4) var(--scale-main-4) var(--scale-main-4) var(--scale-main-4);
 }
 
-select {
-    background-color: var(--bg);
-    color: var(--fg-dimmish);
-    border: 1px solid var(--fg-dimmish);
+input[type="text"]:hover, select:hover {
+    color: var(--fg);
 }
 
 label {
@@ -242,16 +243,16 @@ button.bright:active {
 }
 
 .rec-button {
-    background-color: var(--bg-rec);
+    background-color: var(--bg-rec) !important;
     color: var(--fg);
 }
 
 .rec-button:hover {
-    background-color: var(--bg-rec-hover);
+    background-color: var(--bg-rec-hover) !important;
 }
 
 .rec-button:active {
-    background-color: var(--bg-rec);
+    background-color: var(--bg-rec) !important;
 }
 
 .round-button {
@@ -278,7 +279,7 @@ button.bright:active {
 
 .menu-button {
     position: relative;
-    padding-bottom: calc(var(--scale-main) - var(--scale-main-3));
+    padding-top: calc(var(--scale-main) - var(--scale-main-4));
     --bg-label-m: var(--bg-label-t);
     --fg-dimmish-m: var(--fg-dimmish-t);
 }
@@ -298,8 +299,8 @@ button.bright:active {
     position: absolute;
     left: 0;
     right: 0;
-    /*top: calc(var(--scale-main) - var(--scale-main-3));*/
-    top: calc(var(--scale-main) - var(--scale-main-8));
+    /*top: calc(var(--scale-main) - var(--scale-main-8));*/
+    bottom: calc(100% - var(--scale-main-2) - var(--scale-main-4));
     display: block;
     white-space: normal;
     line-height: normal;
@@ -320,12 +321,12 @@ button.bright:active {
     margin: auto;
 }
 
-.menu-button-label:before {
+.menu-button-label:after {
     content: '';
     position: absolute;
-    top: -6px;
+    top: 100%;
     left: calc(50% - 6px);
-    border-bottom: 6px solid var(--bg-label-m);
+    border-top: 6px solid var(--bg-label-m);
     border-left: 6px solid transparent;
     border-right: 6px solid transparent;
 }
@@ -335,6 +336,7 @@ button.bright:active {
     position: absolute;
     left: calc(var(--scale-main2) + var(--scale-main-2));
     top: var(--scale-main2);
+    min-width: var(--scale-main8);
     background-color: var(--bg);
     color: var(--fg-dimmish);
     padding: var(--scale-main) var(--scale-main-2) var(--scale-main-2) var(--scale-main-2);
@@ -423,6 +425,7 @@ body {
     left: 0;
     right: 0;
     overflow: auto;
+    padding-top: var(--scale-main-4);
 }
 
 #ec3-main-video-wrapper {
