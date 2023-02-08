@@ -19,7 +19,10 @@ declare let LibAV: any, NoiseRepellent: any, NoiseRepellentFactory: any, Vosk: a
 const libavVersion = "3.8.5.1";
 const libavPath = "../libav/libav-" + libavVersion + "-ennuicastr.js";
 
-const canShared = typeof SharedArrayBuffer !== "undefined";
+// SAB is unreliable on Safari
+const canShared = typeof SharedArrayBuffer !== "undefined" &&
+    (navigator.userAgent.indexOf("Safari") === -1 ||
+     navigator.userAgent.indexOf("Chrome") !== -1);
 const bufSz = 96000;
 
 const voskModelVersion = "en-us-0.15";
