@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 Yahweasel
+ * Copyright (c) 2018-2023 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -26,7 +26,7 @@ declare let LibAV: any;
 import * as util from "./util";
 
 // libav version to load
-const libavVersion = "3.8.5.1";
+const libavVersion = "3.11.5.1.2";
 
 // Load LibAV if it's not already loaded
 let loadLibAVPromise: Promise<unknown> = null;
