@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022 Yahweasel
+ * Copyright (c) 2020-2023 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -684,7 +684,8 @@ async function maybeRecord() {
     if (recordVideoStop)
         await recordVideoStop();
 
-    if (supported && video.userMediaVideo && recording.record.checked) {
+    if (supported && video.userMediaVideo && recording.record.checked &&
+        net.mode < prot.mode.finished) {
         // We should be recording
         const opts: RecordVideoOptions = {
             remote: !("master" in config.config) && recording.remote.checked && config.useRTC,
@@ -780,6 +781,12 @@ export function onVideoRecHostChange() {
     }
 }
 
-// Make sure the recording updates when the video state updates
+// Make sure the recording updates when the video state or mode updates
 util.events.addEventListener("usermediavideoready", maybeRecord);
 util.events.addEventListener("usermediavideostopped", maybeRecord);
+util.events.addEventListener("net.info." + prot.info.mode, () => {
+    if (net.mode >= prot.mode.finished) {
+        // "Reconsider" here to make sure we stop when the recording stops
+        maybeRecord();
+    }
+});
