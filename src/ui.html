@@ -181,17 +181,17 @@
             </div>
 
             <div class="rflex row">
-                <label for="ec3-user-admin-full-audio-dev-sel" style="min-width: 10em;">Audio device:&nbsp;</label>
+                <label for="ec3-user-admin-full-audio-dev-sel" class="left-label" style="min-width: 8em;">Audio device:&nbsp;</label>
                 <select id="ec3-user-admin-full-audio-dev-sel" style="flex: auto;"></select>
             </div>
 
             <div id="ec3-user-admin-interface-user-full-video-hider">
                 <div class="rflex row">
-                    <label for="ec3-user-admin-full-video-dev-sel" style="min-width: 10em;">Video device:&nbsp;</label>
+                    <label for="ec3-user-admin-full-video-dev-sel" class="left-label" style="min-width: 8em;">Video device:&nbsp;</label>
                     <select id="ec3-user-admin-full-video-dev-sel" style="flex: auto;"></select>
                 </div>
                 <div class="rflex row">
-                    <label for="ec3-user-admin-full-video-res-sel" style="min-width: 10em;">Max resolution:&nbsp;</label>
+                    <label for="ec3-user-admin-full-video-res-sel" class="left-label" style="min-width: 8em;">Max resolution:&nbsp;</label>
                     <select id="ec3-user-admin-full-video-res-sel" style="flex: auto;">
                         <option value="360">360p</option>
                         <option value="480">480p</option>
@@ -241,25 +241,25 @@
 
             <label for="ec3-view-mode-sel" class="row">View mode:</label>
             <div class="rflex row">
-                <button id="ec3-view-mode-normal" class="pill-button">
+                <button id="ec3-view-mode-normal" class="pill-button fauto">
                     Normal<br/>
-                    <img src="/images/normal.svg" style="max-width: 8em; filter: invert(1) opacity(50%);" />
+                    <img src="/images/normal.svg" style="max-width: 4em; filter: invert(1) opacity(50%);" />
                 </button>
                 &nbsp;
-                <button id="ec3-view-mode-gallery" class="pill-button">
+                <button id="ec3-view-mode-gallery" class="pill-button fauto">
                     Gallery<br/>
-                    <img src="/images/gallery.svg" style="max-width: 8em; filter: invert(1) opacity(50%);" />
+                    <img src="/images/gallery.svg" style="max-width: 4em; filter: invert(1) opacity(50%);" />
                 </button>
             </div>
             <div class="rflex row">
-                <button id="ec3-view-mode-studio" class="pill-button">
+                <button id="ec3-view-mode-studio" class="pill-button fauto">
                     Studio<br/>
-                    <img src="/images/studio.svg" style="max-width: 8em; filter: invert(1) opacity(50%);" />
+                    <img src="/images/studio.svg" style="max-width: 4em; filter: invert(1) opacity(50%);" />
                 </button>
                 &nbsp;
-                <button id="ec3-view-mode-small" class="pill-button">
+                <button id="ec3-view-mode-small" class="pill-button fauto">
                     Small<br/>
-                    <img src="/images/small.svg" style="max-width: 8em; filter: invert(1) opacity(50%);" />
+                    <img src="/images/small.svg" style="max-width: 4em; filter: invert(1) opacity(50%);" />
                 </button>
             </div>
 
@@ -268,58 +268,66 @@
                 <label for="ec3-caption-chk">&nbsp;Show captions</label>
             </div>
 
-            <button id="ec3-input-devices-button" class="pill-button primary row"><i class="bx bx-microphone"></i> Input settings</button>
-            <button id="ec3-output-devices-button" class="pill-button row"><i class="bx bx-headphone"></i> Output settings</button>
-            <button id="ec3-video-devices-button" class="pill-button row"><i class="bx bx-video"></i> Video settings</button>
+            <button id="ec3-input-settings-button" class="pill-button primary row"><i class="bx bx-microphone"></i> Input settings</button>
+            <button id="ec3-output-settings-button" class="pill-button row"><i class="bx bx-headphone"></i> Output settings</button>
+            <button id="ec3-video-settings-button" class="pill-button row"><i class="bx bx-video"></i> Video settings</button>
             <span id="ec3-user-list-button-hider">
                 <button id="ec3-user-list-button" class="pill-button row"><i class="bx bx-group"></i> Members</button>
             </span>
         </div>
 
-        <!-- The input device selector -->
-        <div id="ecinput-device-wrapper" class="panel" role="dialog" aria-label="Input settings">
-            <button class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
+        <!-- The input settings menu -->
+        <div id="ec3-input-settings-panel" class="panel" role="dialog" aria-label="Input settings">
+            <button class="icon-button close-button" aria-label="Close">
+                <i class="bx bx-x" aria-hidden="true"></i>
+            </button>
 
             <!-- Input device -->
             <div class="rflex row">
-                <label for="ecinput-device-list" style="min-width: 8em; text-align: right;">Input device:&nbsp;</label>
-                <select id="ecinput-device-list" style="flex: auto; width: 6em;"></select>
+                <label for="ec3-input-device-sel" class="left-label">Input device:&nbsp;</label>
+                <select id="ecinput-device-sel" style="flex: auto;"></select>
             </div>
 
             <!-- And channel -->
-            <div id="ecinput-channel-hider" class="rflex row" style="display: none;">
-                <label for="ecinput-channel-list" style="min-width: 8em; text-align: right;">Channel:&nbsp;</label>
-                <select id="ecinput-channel-list" style="flex: auto; width: 4em;"></select>
+            <div id="ec3-input-channel-hider" class="rflex row">
+                <label for="ec3-input-channel-sel" class="left-label">Channel:&nbsp;</label>
+                <select id="ec3-input-channel-sel" style="flex: auto;"></select>
             </div>
 
             <!-- And options -->
-            <div class="bigrflex row">
-                <button id="ecpttb"><i class="fas fa-gamepad"></i> Gamepad push-to-talk</button>
-                &nbsp;
-                <div id="ecinput-options-wrapper">
-                    <span id="ecnoise-reduction-hider">
-                        <input id="ecnoise-reduction" type="checkbox" checked />
-                        <label for="ecnoise-reduction">&nbsp;Apply noise reduction</label><br/>
-                    </span>
-                    <input id="ececho-cancellation" type="checkbox" />
-                    <label for="ececho-cancellation">&nbsp;Apply echo cancellation</label>
-                    <span id="ecagc-hider" style="display: none;"><br/>
-                        <input id="ecagc" type="checkbox" />
-                        <label for="ecagc">&nbsp;Automatic gain control</label>
-                    </span>
-                </div>
+            <div class="rflex row">
+                <label for="ec3-vad-sensitivity-range" class="left-label" style="min-width: 8em; margin-top: 0;">Voice detection&nbsp;<br/>sensitivity:&nbsp;</label>
+                <input id="ec3-vad-sensitivity-range" type="range" min=1 max=4 value=4 style="flex: auto; width: 5em;" />
+                <span id="ec3-vad-sensitivity-status" style="margin-top: 0.75em;">&nbsp;4</span>
             </div>
 
             <div class="rflex row">
-                <label for="ecvad-sensitivity" style="min-width: 8em; text-align: right;">Voice detection&nbsp;<br/>sensitivity:&nbsp;</label>
-                <input id="ecvad-sensitivity" type="range" min=1 max=4 value=4 style="flex: auto; width: 5em;" />
-                <span id="ecvad-sensitivity-status">&nbsp;4</span>
+                <label for="ec3-vad-noise-gate-range" class="left-label" style="min-width: 8em; margin-top: 0.125em;">Noise gate:&nbsp;</label>
+                <input id="ec3-vad-noise-gate-range" type="range" min=-100 max=0 value=-100 class="ec3-peak-horizontal-self" style="flex: auto; min-width: 8em;" />
+                <span id="ec3-vad-noise-gate-status" style="margin-top: 0.125em;">&nbsp;-100dB</span>
+            </div>
+
+            <button id="ec3-ptt-btn" class="pill-button row"><i class="bx bxs-joystick"></i> Gamepad push-to-talk</button>
+
+            <div id="ec3-noise-reduction-hider" class="rflex row">
+                <input type="checkbox" id="ec3-noise-reduction-chk" checked />
+                <label for="ec3-noise-reduction-chk">
+                    &nbsp;Apply noise reduction
+                </label>
             </div>
 
             <div class="rflex row">
-                <label for="ecvad-noise-gate" style="min-width: 8em; text-align: right;">Noise gate:&nbsp;</label>
-                <input id="ecvad-noise-gate" type="range" min=-100 max=0 value=-100 class="ecpeak-horizontal-self" style="flex: auto; width: 5em;" />
-                <span id="ecvad-noise-gate-status">&nbsp;-100dB</span>
+                <input type="checkbox" id="ec3-echo-cancellation-chk" />
+                <label for="ec3-echo-cancellation-chk">
+                    &nbsp;Apply echo cancellation
+                </label>
+            </div>
+
+            <div id="ec3-agc-hider" class="rflex row">
+                <input type="checkbox" id="ec3-agc-chk" />
+                <label for="ec3-agc-chk">
+                    &nbsp;Automatic gain control
+                </label>
             </div>
         </div>
 
@@ -648,6 +656,7 @@
             btn("ec3-user-admin-request-full-button", "ec3-user-admin-user-full-panel");
             btn("ec3-user-admin-kick-button", "ec3-user-admin-permission-panel");
             btn("ec3-settings-button", "ec3-settings-panel");
+            btn("ec3-input-settings-button", "ec3-input-settings-panel");
 
             gebi("ec3-menu-button").onclick = function() {
                 const menu = gebi("ec3-main-menu-wrapper");
