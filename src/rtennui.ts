@@ -44,6 +44,66 @@ LibAVWebCodecs = wcp;
 let inited = false;
 
 /**
+ * Our own custom capture class that can use our filtered input.
+ */
+class InProcAudioCapture extends rtennui.AudioCapture {
+    constructor(
+        /**
+         * The raw capture (for sample rate).
+         */
+        public rawCapture: rtennui.AudioCapture,
+
+        /**
+         * The worker creating the actual data.
+         */
+        public worker: Worker
+    ) {
+        super();
+        this._port = null;
+    }
+
+    // Just thru to the raw capture
+    override getSampleRate(): number {
+        return this.rawCapture.getSampleRate();
+    }
+
+    // Overridden on to make sure we know if they want normal data
+    override on(ev: string, handler: any) {
+        if (ev !== "data")
+            return super.on(ev, handler);
+
+        // Connect it up
+        if (!this._port) {
+            const mc = new MessageChannel();
+            this.worker.postMessage({c: "out", p: mc.port1, tryShared: false},
+                [mc.port1]);
+            this._port = mc.port2;
+            mc.port2.onmessage = ev => {
+                this.emitEvent("data", ev.data);
+            };
+        }
+
+        return super.on(ev, handler);
+    }
+
+    // Pipe directly
+    override pipe(to: MessagePort, shared?: boolean): void {
+        if (!shared) {
+            super.pipe(to, shared);
+            return;
+        }
+
+        this.worker.postMessage({c: "out", p: to}, [to]);
+    }
+
+    override close(): void {
+        // Nothing (FIXME?)
+    }
+
+    private _port: MessagePort;
+}
+
+/**
  * Our own custom playback class that can perform our output processing.
  */
 class OutProcAudioPlayback extends rtennui.AudioPlayback {
@@ -271,7 +331,8 @@ export class RTEnnui implements comm.Comms {
             await this.connection.removeAudioTrack(this.cap);
         }
 
-        this.cap = audio.inputs[0].userMediaCapture.capture;
+        const umc = audio.inputs[0].userMediaCapture;
+        this.cap = new InProcAudioCapture(umc.rawCapture, umc.worker);
         this.connection.addAudioTrack(this.cap /*, {frameSize: 5000}*/);
         /* NOTE: Due to a bug somewhere in RTEnnui or LibAV.js, setting the
          * frame size above doesn't actually work. */

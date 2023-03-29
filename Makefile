@@ -7,12 +7,12 @@ OUT=\
     ecloader.js ecloader.min.js \
     ennuicastr.js ennuicastr.min.js \
     protocol.min.js sw.js fs/fs.js \
-    awp/ennuicastr-awp.js awp/ennuicastr-worker.js \
+    awp/ennuicastr-worker.js \
     hotkeys.min.js
 
 TEST=\
     ennuicastr-test.js ennuicastr-test.min.js \
-    awp/ennuicastr-awp-test.js awp/ennuicastr-worker-test.js
+    awp/ennuicastr-worker-test.js
 
 LIBS=\
     libs/NoSleep.min.js libs/jquery.min.js \
@@ -66,12 +66,6 @@ sw.js: src/sw.ts node_modules/.bin/browserify
 
 fs/fs.js: src/file-storage-main.ts src/file-storage.ts node_modules/.bin/browserify
 	./src/build.js $< -s EnnuicastrFileStorage > $@
-
-awp/ennuicastr-awp.js: awp/ennuicastr-awp.ts node_modules/.bin/tsc
-	./node_modules/.bin/tsc -t es2015 --lib es2017,dom $<
-
-awp/ennuicastr-awp-test.js: awp/ennuicastr-awp.ts node_modules/.bin/tsc
-	./node_modules/.bin/tsc -t es2015 --lib es2017,dom $< --outFile $@
 
 awp/ennuicastr-worker.js: awp/ennuicastr-worker.ts node_modules/.bin/tsc
 	./node_modules/.bin/tsc --lib es2017,webworker $<
