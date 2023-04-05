@@ -44,7 +44,7 @@
                 </div>
                 <div class="fauto"></div>
                 <div id="ec3-interface-buttons" class="vcenter"><div>
-                    <button id="ec3-share-button" class="pill-button">
+                    <button id="ec3-invite-button" class="pill-button">
                         <i class="bx bx-share" aria-hidden="true"></i>
                         Invite
                     </button>&nbsp;
@@ -91,6 +91,31 @@
 
         <!-- The layer separator makes it easier to close panels -->
         <div id="ec3-layer-separator"></div>
+
+        <!-- Invite panel -->
+        <div id="ec3-invite-panel" class="panel" role="dialog" aria-label="Invite menu">
+            <button class="icon-button close-button" aria-label="Close">
+                <i class="bx bx-x" aria-hidden="true"></i>
+            </button>
+
+            <div class="rflex row">
+                <label for="ec3-invite-link-txt" class="left-label">Invite:&nbsp;</label>
+                <input id="ec3-invite-link-txt" type="text" readonly style="flex: auto; min-width: 1em;" />
+                <button id="ec3-invite-link-copy-btn" class="icon-button" title="Copy invite link" aria-label="Copy invite link"><i class="bx bx-copy-alt"></i></button>
+            </div>
+
+            <div class="rflex row">
+                <div style="flex: auto;">&nbsp;</div>
+                <div id="ec3-invite-flac-hider" class="rflex">
+                    <input id="ec3-invite-flac-chk" type="checkbox" />
+                    <label for="ec3-invite-flac-chk">&nbsp;FLAC&nbsp;</label>
+                </div>
+                <div id="ec3-invite-continuous-hider" class="rflex">
+                    <input id="ec3-invite-continuous-chk" type="checkbox" />
+                    <label for="ec3-invite-continuous-chk">&nbsp;Continuous&nbsp;</label>
+                </div>
+            </div>
+        </div>
 
         <!-- Host menu panel -->
         <div id="ec3-host-interface-panel" class="panel" role="dialog" aria-label="Host menu">
@@ -263,9 +288,11 @@
                 </button>
             </div>
 
-            <div id="ec3-caption-hider" class="row">
+            <div id="ec3-caption-hider" class="rflex row">
                 <input type="checkbox" id="ec3-caption-chk" />
-                <label for="ec3-caption-chk">&nbsp;Show captions</label>
+                <label for="ec3-caption-chk">
+                    &nbsp;Show captions
+                </label>
             </div>
 
             <button id="ec3-input-settings-button" class="pill-button primary row"><i class="bx bx-microphone"></i> Input settings</button>
@@ -285,7 +312,7 @@
             <!-- Input device -->
             <div class="rflex row">
                 <label for="ec3-input-device-sel" class="left-label">Input device:&nbsp;</label>
-                <select id="ecinput-device-sel" style="flex: auto;"></select>
+                <select id="ec3-input-device-sel" style="flex: auto;"></select>
             </div>
 
             <!-- And channel -->
@@ -331,87 +358,70 @@
             </div>
         </div>
 
-        <!-- Secondary track selector -->
-        <div id="ecinput-secondary-selector-wrapper" class="panel" role="dialog" aria-label="Secondary inputs">
-            <div class="rflex row">
-                <label for="ecinput-secondary-list" style="min-width: 6em; text-align: right;">Track:&nbsp;</label>
-                <select id="ecinput-secondary-list" style="flex: auto; width: 6em;"></select>
-            </div>
-        </div>
-
-        <!-- The secondary input device selector -->
-        <div id="ecinput-secondary-device-wrapper" class="panel" role="dialog" aria-label="Secondary input settings">
-            <button class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
-
-            <!-- Input device -->
-            <div class="rflex row">
-                <label for="ecinput-secondary-device-list" style="min-width: 8em; text-align: right;">Input device:&nbsp;</label>
-                <select id="ecinput-secondary-device-list" style="flex: auto; width: 6em;"></select>
-            </div>
-
-            <!-- And channel -->
-            <div id="ecinput-secondary-channel-hider" class="rflex row" style="display: none;">
-                <label for="ecinput-secondary-channel-list" style="min-width: 8em; text-align: right;">Channel:&nbsp;</label>
-                <select id="ecinput-secondary-channel-list" style="flex: auto; width: 4em;"></select>
-            </div>
-        </div>
-
-        <!-- The output device selector -->
-        <div id="ecoutput-device-wrapper" class="panel" role="dialog" aria-label="Output settings">
-            <button class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
+        <!-- Output settings -->
+        <div id="ec3-output-settings-panel" class="panel" role="dialog" aria-label="Output settings">
+            <button class="icon-button close-button" aria-label="Close">
+                <i class="bx bx-x" aria-hidden="true"></i>
+            </button>
 
             <!-- The output device selector -->
-            <div id="ecoutput-device-list-hider" class="rflex row">
-                <label for="ecoutput-device-list" style="min-width: 6em; text-align: right;">Output:&nbsp;</label>
-                <select id="ecoutput-device-list" style="flex: auto; width: 6em;"></select>
+            <div id="ec3-output-device-list-hider" class="rflex row">
+                <label for="ec3-output-device-sel" class="left-label" style="min-width: 8em;">Output device:&nbsp;</label>
+                <select id="ec3-output-device-sel" style="flex: auto;"></select>
             </div>
 
             <!-- Master volume -->
-            <div id="ecoutput-volume-hider" class="rflex row">
-                <label for="ecoutput-volume" style="min-width: 6em; text-align: right;">Volume:&nbsp;</label>
-                <input id="ecoutput-volume" type="range" min=0 max=400 value=100 style="flex: auto; width: 5em;" />
-                <span id="ecoutput-volume-status">&nbsp;100%</span>
+            <div class="rflex row">
+                <label for="ec3-output-volume-range" class="left-label" style="min-width: 8em; margin-top: 0.125em;">Volume:&nbsp;</label>
+                <input id="ec3-output-volume-range" type="range" min=0 max=400 value=100 style="flex: auto; min-width: 8em;" />
+                <span id="ec3-output-volume-status" style="margin-top: 0.125em;">&nbsp;100%</span>
             </div>
 
             <!-- SFX volume -->
-            <div id="ecsfx-volume-hider" class="rflex row" style="display: none;">
-                <label for="ecsfx-volume" style="min-width: 8em; text-align: right;">SFX volume:&nbsp;</label>
-                <input id="ecsfx-volume" type="range" min=0 max=100 value=100 style="flex: auto; width: 5em;" />
-                <span id="ecsfx-volume-status">&nbsp;100%</span>
+            <div id="ec3-sfx-volume-hider" class="rflex row">
+                <label for="ec3-sfx-volume-range" class="left-label" style="min-width: 8em; margin-top: 0.125em;">SFX volume:&nbsp;</label>
+                <input id="ec3-sfx-volume-range" type="range" min=0 max=100 value=100 style="flex: auto; min-width: 8em;" />
+                <span id="ec3-sfx-volume-status" style="margin-top: 0.125em;">&nbsp;100%</span>
             </div>
 
             <!-- Dynamic range compression -->
-            <div id="ecdynamic-range-compression-hider" class="row">
-                <input id="ecdynamic-range-compression" type="checkbox" />
-                <label for="ecdynamic-range-compression">&nbsp;Auto-level everyone's volume</label>
+            <div id="ec3-dynamic-range-compression-hider" class="rflex row">
+                <input id="ec3-dynamic-range-compression-chk" type="checkbox" />
+                <label for="ec3-dynamic-range-compression-chk">
+                    &nbsp;Auto-level everyone's volume
+                </label>
             </div>
 
             <!-- Interface sounds -->
-            <div class="row">
-                <input id="ecmute-interface-sounds" type="checkbox" />
-                <label for="ecmute-interface-sounds">&nbsp;Mute interface sounds</label>
+            <div class="rflex row">
+                <input id="ec3-mute-interface-sounds-chk" type="checkbox" />
+                <label for="ec3-mute-interface-sounds-chk">
+                    &nbsp;Mute interface sounds
+                </label>
             </div>
         </div>
 
-        <!-- Video device selector -->
-        <div id="ecvideo-device-wrapper" class="panel" role="dialog" aria-label="Video settings">
-            <button class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
+        <!-- Video device menu -->
+        <div id="ec3-video-settings-panel" class="panel" role="dialog" aria-label="Video settings">
+            <button class="icon-button close-button" aria-label="Close">
+                <i class="bx bx-x" aria-hidden="true"></i>
+            </button>
 
-            <div id="ecvideo-device-preview" class="row" style="height: 120px; background-color: #333;"></div>
+            <div id="ec3-video-preview" class="row" style="height: 120px; background-color: #333;"></div>
 
             <div class="rflex row">
-                <label for="ecvideo-device-list" style="min-width: 8em; text-align: right;">Camera:&nbsp;</label>
-                <select id="ecvideo-device-list" style="flex: auto; width: 6em;"></select>
+                <label for="ec3-video-device-sel" class="left-label">Camera:&nbsp;</label>
+                <select id="ec3-video-device-sel" style="flex: auto;"></select>
             </div>
 
-            <button id="ecvideo-share" class="row"><i class="fas fa-video-slash"></i> Unshare your camera</button>
+            <button id="ec3-video-share-btn" class="pill-button row"><i class="bxs bs-camera"></i> Share your camera</button>
 
             <!-- Spacer -->
             <div class="row">&nbsp;</div>
 
             <div class="rflex row">
-                <label for="ecvideo-res" style="min-width: 8em; text-align: right;">Max resolution:&nbsp;</label>
-                <select id="ecvideo-res" style="flex: auto; width: 6em;">
+                <label for="ec3-video-res-sel" class="left-label" style="min-width: 8em;">Max resolution:&nbsp;</label>
+                <select id="ec3-video-res-sel" style="flex: auto;">
                     <option value="360">360p</option>
                     <option value="480">480p</option>
                     <option value="720" selected>720p</option>
@@ -421,65 +431,61 @@
             </div>
 
             <!-- Video recording -->
-            <div id="ecvideo-record-hider" class="invite row" style="box-sizing: border-box; padding: 0.25em 0.25em 0.01em 0.25em;">
+            <div id="ec3-video-record-hider" class="row">
                 <div class="rflex row">
-                    <input id="ecvideo-record" type="checkbox" />
-                    <label for="ecvideo-record">&nbsp;Record video</label>
+                    <input id="ec3-video-record-chk" type="checkbox" />
+                    <label for="ec3-video-record-chk">&nbsp;Record video</label>
                 </div>
 
-                <div id="ecvideo-record-opt-hider" style="display: none">
+                <div id="ec3-video-record-opt-hider">
                     <div class="rflex row">
                         &nbsp;
-                        <input id="ecvideo-record-remote" type="checkbox" />
-                        <label for="ecvideo-record-remote">&nbsp;and send it to the host</label>
+                        <input id="ec3-video-record-remote-chk" type="checkbox" />
+                        <label for="ec3-video-record-remote-chk">&nbsp;and send it to the host</label>
                     </div>
                     <div class="rflex row">
                         &nbsp;
-                        <input id="ecvideo-record-local" type="checkbox" />
-                        <label for="ecvideo-record-local">&nbsp;and save it locally</label>
+                        <input id="ec3-video-record-local-chk" type="checkbox" />
+                        <label for="ec3-video-record-local-chk">&nbsp;and save it locally</label>
                     </div>
 
                     <div class="rflex row">
-                        <input id="ecvideo-record-bitrate-sel" type="checkbox" />
-                        <label for="ecvideo-record-bitrate-sel">&nbsp;Select bitrate</label>
+                        <input id="ec3-video-record-bitrate-chk" type="checkbox" />
+                        <label for="ec3-video-record-bitrate-chk">&nbsp;Select bitrate</label>
                     </div>
 
-                    <div id="ecvideo-record-bitrate-hider" style="display: none">
+                    <div id="ec3-video-record-bitrate-hider">
                         <div class="rflex row">
-                            <label for="ecvideo-record-bitrate">Bitrate (Mbit):&nbsp;</label>
-                            <input id="ecvideo-record-bitrate" style="flex: auto;" type="text" size="3" />
+                            <label for="ec3-video-record-bitrate-txt" class="left-label" style="min-width: 8em;">Bitrate (Mbit):&nbsp;</label>
+                            <input id="ec3-video-record-bitrate-txt" style="flex: auto;" type="text" size="3" />
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Options -->
-            <div id="ecvideo-output-hider" class="row">
-                <div id="ecstreamer-mode-hider" class="row">
-                    <input id="ecstreamer-mode" type="checkbox" />
-                    <label for="ecstreamer-mode">&nbsp;Streamer-friendly popout windows</label>
-                </div>
+            <div id="ecstreamer-mode-hider" class="rflex row">
+                <input id="ec3-streamer-mode-chk" type="checkbox" />
+                <label for="ec3-streamer-mode-chk">&nbsp;Streamer-friendly popout windows</label>
             </div>
         </div>
 
         <!-- The user list/volume -->
-        <div id="ecuser-list-wrapper" class="panel" role="dialog" aria-label="User volume">
-            <button class="tbutton close-button" aria-label="Close"><i class="fas fa-times"></i></button>
-            <div id="ecuser-list-popout-wrapper" data-popout-label="User volume">
-                <div id="ecuser-list-wrapper" class="rflex" style="align-items: start;">
-                    <div id="ecuser-list" style="flex: auto;"></div>
-                    <button id="ecuser-list-popout" class="tbutton" title="Pop out" aria-label="Pop out"><i class="far fa-window-restore"></i></button>
-                </div>
-            </div>
+        <div id="ec3-user-list-panel" class="panel" role="dialog" aria-label="User volume">
+            <button class="icon-button close-button" aria-label="Close">
+                <i class="bx bx-x" aria-hidden="true"></i>
+            </button>
+
+            <div id="ec3-user-list" class="rflex row"></div>
         </div>
 
         <!-- Interface sounds -->
         <div style="display: none">
-            <audio id="ecaudio-chime-up">
+            <audio id="ec3-audio-chime-up">
                 <source src="sounds/chime-up.webm" type="audio/webm; codecs=opus" />
                 <source src="sounds/chime-up.m4a" type="audio/mp4" />
             </audio>
-            <audio id="ecaudio-chime-down">
+            <audio id="ec3-audio-chime-down">
                 <source src="sounds/chime-down.webm" type="audio/webm; codecs=opus" />
                 <source src="sounds/chime-down.m4a" type="audio/mp4" />
             </audio>
@@ -650,6 +656,7 @@
             Array.prototype.slice.call(document.getElementsByClassName("close-button"), 0).forEach(function(x) {
                 x.onclick = function() { panel(null, false); }
             });
+            btn("ec3-invite-button", "ec3-invite-panel");
             btn("ec3-host-interface-button", "ec3-host-interface-panel");
             btn("ec3-user-admin-button", "ec3-user-admin-list-panel");
             btn("ec3-user-admin-all-button", "ec3-user-admin-user-panel");
@@ -657,6 +664,9 @@
             btn("ec3-user-admin-kick-button", "ec3-user-admin-permission-panel");
             btn("ec3-settings-button", "ec3-settings-panel");
             btn("ec3-input-settings-button", "ec3-input-settings-panel");
+            btn("ec3-output-settings-button", "ec3-output-settings-panel");
+            btn("ec3-video-settings-button", "ec3-video-settings-panel");
+            btn("ec3-user-list-button", "ec3-user-list-panel");
 
             gebi("ec3-menu-button").onclick = function() {
                 const menu = gebi("ec3-main-menu-wrapper");
