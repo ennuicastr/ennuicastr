@@ -133,7 +133,12 @@ class OutHandler {
         /**
          * The message port targeting this receiver.
          */
-        public port: MessagePort
+        public port: MessagePort,
+
+        /**
+         * Use shared buffers if possible.
+         */
+        public tryShared: boolean = true
     ) {
         this.outgoing = null;
         this.outgoingH = null;
@@ -146,7 +151,7 @@ class OutHandler {
     send(data: Float32Array[]) {
         const len = data[0].length;
 
-        if (canShared && !this.outgoing) {
+        if (canShared && this.tryShared && !this.outgoing) {
             // Set up our shared memory buffer
             this.outgoing = [];
             for (let ci = 0; ci < data.length; ci++) {
@@ -166,7 +171,7 @@ class OutHandler {
             });
         }
 
-        if (canShared) {
+        if (canShared && this.tryShared) {
             // Write it into the buffer
             let writeHead = this.outgoingH[0];
             if (writeHead + len > bufSz) {
@@ -206,7 +211,7 @@ class OutHandler {
 }
 
 // Our output handlers
-let outHandlers: OutHandler[] = [];
+const outHandlers: OutHandler[] = [];
 
 // Our initial message tells us what kind of worker to be
 onmessage = function(ev) {
@@ -225,8 +230,13 @@ onmessage = function(ev) {
             break;
 
         case "out":
-            outHandlers.push(new OutHandler(msg.p));
+        {
+            let tryShared = true;
+            if (typeof msg.tryShared === "boolean")
+                tryShared = msg.tryShared;
+            outHandlers.push(new OutHandler(msg.p, tryShared));
             break;
+        }
     }
 }
 
@@ -515,21 +525,8 @@ function doFilter(msg: any) {
 
         // Perform noise reduction and output
         let nrbuf = ib;
-        if (nr) {
-            let ob = ib;
+        if (nr)
             nrbuf = nr.run(ib);
-            if (useNR)
-                ob = nrbuf;
-            const od = [];
-            if (!sentRecently) {
-                ob = ob.slice(0);
-                ob.fill(0);
-            }
-            while (od.length < data.length)
-                od.push(ob.slice(0));
-            for (const outHandler of outHandlers)
-                outHandler.send(od);
-        }
 
 
         // Transfer data for the VAD
@@ -670,6 +667,20 @@ function doFilter(msg: any) {
             vadOn: vadOn
         });
 
+        {
+            let ob = ib;
+            if (useNR)
+                ob = nrbuf;
+            const od = [];
+            if (!sentRecently) {
+                ob = ob.slice(0);
+                ob.fill(0);
+            }
+            while (od.length < data.length)
+                od.push(ob.slice(0));
+            for (const outHandler of outHandlers)
+                outHandler.send(od);
+        }
 
         // Perform transcription
         if (useTranscription && vosk.recognizer) {

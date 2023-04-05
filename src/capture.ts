@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2022 Yahweasel
+ * Copyright (c) 2020-2023 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -27,7 +27,7 @@ import * as util from "./util";
 import * as rtennui from "rtennui";
 
 // Worker path to use
-const workerVer = "10";
+const workerVer = "11";
 export const workerPath = "awp/ennuicastr-worker.js?v=" + workerVer;
 
 export interface Capture {
@@ -39,7 +39,7 @@ export interface Capture {
     /**
      * RTEnnui's underlying capture.
      */
-    capture: rtennui.AudioCapture,
+    rawCapture: rtennui.AudioCapture,
 
     /**
      * The worker this capture is communicating with.
@@ -155,7 +155,7 @@ export async function createCapture(
     // Done!
     return {
         ac,
-        capture,
+        rawCapture: capture,
         worker,
         pipe,
         disconnect: disconnect
