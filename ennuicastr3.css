@@ -46,6 +46,7 @@
 
 *::-webkit-scrollbar {
     width: 4px;
+    height: 4px;
     background-color: var(--bg);
 }
 
@@ -182,6 +183,17 @@ label.left-label {
     flex-direction: row;
 }
 
+/* multi-flexors that depend on screen size */
+.crflex {
+    display: flex;
+    flex-direction: column;
+}
+
+.rcflex {
+    display: flex;
+    flex-direction: row;
+}
+
 .fauto {
     flex: auto;
 }
@@ -190,6 +202,17 @@ label.left-label {
     display: flex;
     flex-direction: column;
     justify-content: center;
+}
+
+/* vertically center on wide screens, horizontally center on narrow screens */
+.vhcenter {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.smallshow {
+    display: none;
 }
 
 .icon-button {
@@ -343,6 +366,7 @@ button.bright:active {
     left: calc(var(--scale-main2) + var(--scale-main-2));
     top: var(--scale-main2);
     min-width: var(--scale-main8);
+    max-width: calc(100% - var(--scale-main4));
     background-color: var(--bg);
     color: var(--fg-dimmish);
     padding: var(--scale-main) var(--scale-main-2) var(--scale-main-2) var(--scale-main-2);
@@ -432,6 +456,7 @@ body {
     right: 0;
     overflow: auto;
     padding-top: var(--scale-main-4);
+    justify-content: space-evenly;
 }
 
 #ec3-main-video-wrapper {
@@ -445,6 +470,7 @@ body {
 #ec3-side-video-wrappera {
     position: relative;
     min-width: var(--scale-main4);
+    min-height: var(--scale-main4);
 }
 
 #ec3-side-video-wrapperb {
@@ -499,4 +525,67 @@ body {
 
 #ec3-startstop-button2 {
     width: 100%;
+}
+
+/* SMALL SCREEN */
+@media screen and (max-width: 640px) {
+    .crflex {
+        flex-direction: row;
+    }
+
+    .rcflex {
+        flex-direction: column;
+    }
+
+    .vhcenter {
+        flex-direction: row;
+    }
+
+    .smallhide {
+        display: none;
+    }
+
+    .smallshow {
+        display: block;
+    }
+
+    .icon-button {
+        font-size: calc(var(--scale-main-2) + var(--scale-main-4));
+    }
+
+    .panel {
+        left: var(--scale-main-2);
+        top: var(--scale-main-2);
+        bottom: var(--scale-main-2);
+        min-width: auto;
+        max-width: 100%;
+        right: var(--scale-main-2);
+    }
+
+    #ec3-main-menu-wrapper {
+        width: auto;
+        height: var(--scale-main2);
+    }
+
+    .menu-button-label:after {
+        left: 12px;
+    }
+
+    #ec3-side-video-wrappera {
+        min-width: var(--scale-main2);
+        min-height: var(--scale-main2);
+    }
+
+    #ec3-side-video-wrapperb {
+        flex-direction: row;
+    }
+
+    #ec3-side-video-wrapperb .ec3-video {
+        min-width: var(--scale-main3);
+        min-height: auto;
+    }
+
+    #ec3-waveform-row {
+        height: var(--scale-main2);
+    }
 }

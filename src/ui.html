@@ -33,20 +33,20 @@
                     </button>
                 </div>
                 <div id="ec3-recording-info" class="fauto vcenter">
-                    <div id="ec3-recording-title">Loading...</div>
+                    <div id="ec3-recording-title" class="smallhide">Loading...</div>
                     <div id="ec3-recording-timer">0:00</div>
                 </div>
                 <div id="ec3-recording-startstop-wrapper" class="vcenter">
-                    <button id="ec3-startstop-button" class="pill-button rec-button">
+                    <button id="ec3-startstop-button" class="pill-button rec-button" aria-label="Start recording">
                         <i class="bx bx-microphone" aria-hidden="true"></i>
-                        Start recording
+                        <span class="smallhide">Start recording</span>
                     </button>
                 </div>
                 <div class="fauto"></div>
-                <div id="ec3-interface-buttons" class="vcenter"><div>
-                    <button id="ec3-invite-button" class="pill-button">
+                <div id="ec3-interface-buttons" class="vhcenter"><div>
+                    <button id="ec3-invite-button" class="pill-button" aria-label="Invite">
                         <i class="bx bx-share" aria-hidden="true"></i>
-                        Invite
+                        <span class="smallhide">Invite</span>
                     </button>&nbsp;
                     <button id="ec3-fs-button" class="round-button" aria-label="Fullscreen">
                         <i class="bx bx-fullscreen" aria-hidden="true"></i>
@@ -54,8 +54,8 @@
                 </div></div>
             </div>
 
-            <div id="ec3-main-row" class="fauto rflex">
-                <div id="ec3-main-menu-wrapper"><div id="ec3-main-menu" class="cflex">
+            <div id="ec3-main-row" class="fauto rcflex">
+                <div id="ec3-main-menu-wrapper"><div id="ec3-main-menu" class="crflex">
                     <button id="ec3-host-interface-button" class="icon-button menu-button">
                         <i class="bx bx-star" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">Host<br/>Menu</span></span>
                     </button>
@@ -77,9 +77,9 @@
                     <button id="ec3-chat-button" class="icon-button menu-button">
                         <i class="bx bx-chat" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">Chat</span></span>
                     </button>
-                    <div class="fauto"></div>
+                    <div class="fauto smallhide"></div>
                 </div></div>
-                <div id="ec3-main-video-wrapper" class="fauto"></div>
+                <div id="ec3-main-video-wrapper" class="cflex fauto"></div>
                 <div id="ec3-side-video-wrappera">
                     <div id="ec3-side-video-wrapperb"></div>
                 </div>
@@ -147,12 +147,12 @@
                     &nbsp;Download video recordings live while recording
                 </label>
             </div>
-            <div class="rflex row">
+            <div class="rcflex row">
                 <div class="cflex" style="flex: auto">
                     <span>Recording cost:</span>
                     <input type="text" readonly />
                 </div>
-                <div style="width: var(--scale-main);"></div>
+                <div>&nbsp;</div>
                 <div class="cflex" style="flex: auto">
                     <span>Current rate:</span>
                     <input type="text" readonly />
@@ -583,7 +583,6 @@
             function vid(main, nm) {
                 var div = document.createElement("div");
                 div.classList.add("ec3-video");
-                div.style.minHeight = "96px";
 
                 var el = document.createElement("div");
                 var x = parseInt(btoa(unescape(encodeURIComponent(nm))).replace(/[^A-Za-z0-9]/g, ""), 36);
@@ -604,6 +603,7 @@
                 div.appendChild(nspan);
 
                 if (main) {
+                    div.classList.add("fauto");
                     gebi("ec3-main-video-wrapper").appendChild(div);
                 } else {
                     gebi("ec3-side-video-wrapperb").appendChild(div);
