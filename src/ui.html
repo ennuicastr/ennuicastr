@@ -85,8 +85,10 @@
                 </div>
             </div>
 
-            <div id="ec3-waveform-row"></div>
-            <div id="ec3-status-row">Status</div>
+            <div id="ec3-waveform-row" role="complementary" aria-label="Live audio waveform">
+                <img id="ec3-waveform-watcher" src="images/watcher.webp" />
+            </div>
+            <div id="ec3-status-row" role="status">Status</div>
         </div>
 
         <!-- The layer separator makes it easier to close panels -->
@@ -101,7 +103,8 @@
             <div class="rflex row">
                 <label for="ec3-invite-link-txt" class="left-label">Invite:&nbsp;</label>
                 <input id="ec3-invite-link-txt" type="text" readonly style="flex: auto; min-width: 1em;" />
-                <button id="ec3-invite-link-copy-btn" class="icon-button" title="Copy invite link" aria-label="Copy invite link"><i class="bx bx-copy-alt"></i></button>
+                &nbsp;
+                <button id="ec3-invite-link-copy-btn" class="round-button" title="Copy invite link" aria-label="Copy invite link"><i class="bx bx-copy-alt"></i></button>
             </div>
 
             <div class="rflex row">
@@ -568,10 +571,10 @@
                     form.push(Math.random());
 
                 var ctx = wc.getContext("2d");
-                ctx.fillStyle = "#151529";
+                ctx.fillStyle = "#151515";
                 ctx.fillRect(0, 0, wc.offsetWidth, wc.offsetHeight);
                 for (var i = 0; i < wcw.offsetWidth; i++) {
-                    ctx.fillStyle = "#1fa5ff";
+                    ctx.fillStyle = "#108052";
                     ctx.fillRect(i, ~~(hh-form[i]*hh), 1, ~~(form[i]*wcw.offsetHeight));
                 }
             }, 100);
