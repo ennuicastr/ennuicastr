@@ -88,7 +88,7 @@
             <div id="ec3-waveform-row" role="complementary" aria-label="Live audio waveform">
                 <img id="ec3-waveform-watcher" src="images/watcher.webp" />
             </div>
-            <div id="ec3-status-row" role="status">Status</div>
+            <div id="ec3-status" role="status">Status</div>
         </div>
 
         <!-- The layer separator makes it easier to close panels -->
@@ -96,6 +96,7 @@
 
         <!-- Invite panel -->
         <div id="ec3-invite-panel" class="panel" role="dialog" aria-label="Invite menu">
+            <div class="panel-title" role="heading">Invite</div>
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
@@ -122,9 +123,11 @@
 
         <!-- Host menu panel -->
         <div id="ec3-host-interface-panel" class="panel" role="dialog" aria-label="Host menu">
+            <div class="panel-title" role="heading">Host menu</div>
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
+
             <button id="ec3-startstop-button2" class="pill-button primary">
                 <i class="bx bx-microphone" aria-hidden="true"></i>
                 Start recording
@@ -162,17 +165,21 @@
 
         <!-- User administration panel (list) -->
         <div id="ec3-user-admin-list-panel" class="panel" role="dialog" aria-label="User administration">
+            <div class="panel-title" role="heading">User administration</div>
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
+
             <button id="ec3-user-admin-all-button" class="pill-button primary row"><i class="bx bx-group"></i> All users</button>
         </div>
 
         <!-- User administration interface (particular user) -->
         <div id="ec3-user-admin-user-panel" class="panel" role="dialog" aria-label="User administration">
+            <div class="panel-title" role="heading">User administration</div>
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
+
             <div id="ec3-user-admin-user-name-lbl" class="row" style="text-align: center;"><i class="bx bx-group"></i> All users</div>
             <button id="ec3-user-admin-kick-button" class="pill-button row"><i class="bx bx-user-x" aria-hidden="true"></i> Kick user</button>
             <button id="ec3-user-admin-mute-button" class="pill-button row"><i class="bx bx-microphone-off" aria-hidden="true"></i> Mute</button>
@@ -182,9 +189,11 @@
 
         <!-- User administration interface (particular user, full access) -->
         <div id="ec3-user-admin-user-full-panel" class="panel" role="dialog" aria-label="User administration">
+            <div class="panel-title" role="heading">User administration</div>
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
+
             <div id="ec3-user-admin-user-full-name" class="row" style="text-align: center;"><i class="bx bx-group"></i> All users</div>
             <button id="ec3-user-admin-full-kick-button" class="pill-button row"><i class="bx bx-user-x"></i> Kick user</button>
             <div class="rflex row">
@@ -239,6 +248,7 @@
 
         <!-- User administration permission request -->
         <div id="ec3-user-admin-permission-panel" class="panel" role="dialog" aria-label="Administrator request">
+            <div class="panel-title" role="heading">User administration</div>
             <div>The user <span id="ec3-user-admin-permission-requester"></span> has requested permission to control your input device settings. Is this OK?</div>
 
             <div class="rflex row">
@@ -250,9 +260,11 @@
 
         <!-- The soundboard -->
         <div id="ec3-soundboard-panel" class="panel" role="dialog" aria-label="Soundboard">
+            <div class="panel-title" role="heading">Soundboard</div>
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
+
             <div id="ecsounds-popout-wrapper" data-popout-label="Soundboard">
                 <div class="rflex" style="align-items: start;">
                     <div id="ecsounds" style="flex: auto;"></div>
@@ -263,6 +275,7 @@
 
         <!-- Settings -->
         <div id="ec3-settings-panel" class="panel" role="dialog" aria-label="Settings">
+            <div class="panel-title" role="heading">Settings</div>
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
@@ -308,6 +321,7 @@
 
         <!-- The input settings menu -->
         <div id="ec3-input-settings-panel" class="panel" role="dialog" aria-label="Input settings">
+            <div class="panel-title" role="heading">Input settings</div>
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
@@ -363,6 +377,7 @@
 
         <!-- Output settings -->
         <div id="ec3-output-settings-panel" class="panel" role="dialog" aria-label="Output settings">
+            <div class="panel-title" role="heading">Output settings</div>
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
@@ -406,6 +421,7 @@
 
         <!-- Video device menu -->
         <div id="ec3-video-settings-panel" class="panel" role="dialog" aria-label="Video settings">
+            <div class="panel-title" role="heading">Video settings</div>
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
@@ -474,7 +490,8 @@
         </div>
 
         <!-- The user list/volume -->
-        <div id="ec3-user-list-panel" class="panel" role="dialog" aria-label="User volume">
+        <div id="ec3-user-list-panel" class="panel" role="dialog" aria-label="Users">
+            <div class="panel-title" role="heading">Users</div>
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
@@ -554,28 +571,33 @@
                 window.open(document.location.href, "", "width=800,height=600,menubar=0,toolbar=0,location=0,personalbar=0,status=0");
             };
 
+            gebi("ec3-fs-button").onclick = function() {
+                window.resizeTo(360 + window.outerWidth - window.innerWidth,
+                                640 + window.outerHeight - window.innerHeight);
+            };
+
             var wcw = gebi("ec3-waveform-row");
             var wc = document.createElement("canvas");
             wcw.appendChild(wc);
-            wc.width = wcw.offsetWidth;
-            wc.height = wcw.offsetHeight;
+            wc.width = wcw.clientWidth;
+            wc.height = wcw.clientHeight;
             var form = [];
             setInterval(function() {
-                wc.width = wcw.offsetWidth;
-                wc.height = wcw.offsetHeight;
-                var hh = ~~(wcw.offsetHeight/2);
+                wc.width = wcw.clientWidth;
+                wc.height = wcw.clientHeight;
+                var hh = ~~(wcw.clientHeight/2);
 
                 if (form.length)
                     form.shift();
-                while (form.length < wcw.offsetWidth)
+                while (form.length < wcw.clientWidth)
                     form.push(Math.random());
 
                 var ctx = wc.getContext("2d");
                 ctx.fillStyle = "#151515";
-                ctx.fillRect(0, 0, wc.offsetWidth, wc.offsetHeight);
-                for (var i = 0; i < wcw.offsetWidth; i++) {
+                ctx.fillRect(0, 0, wc.clientWidth, wc.clientHeight);
+                for (var i = 0; i < wcw.clientWidth; i++) {
                     ctx.fillStyle = "#108052";
-                    ctx.fillRect(i, ~~(hh-form[i]*hh), 1, ~~(form[i]*wcw.offsetHeight));
+                    ctx.fillRect(i, ~~(hh-form[i]*hh), 1, ~~(form[i]*wcw.clientHeight));
                 }
             }, 100);
 

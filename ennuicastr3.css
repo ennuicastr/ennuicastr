@@ -13,7 +13,9 @@
     --bg-label: #262626;
     --bg-label-t: rgba(38, 38, 38, 0);
     --bg-status: #ccc;
+    --bg-status-transparent: rgba(204, 204, 204, 0.85);
     --bg-dim: #151504;
+    --bg-dimmish: #333;
     --fg: #fff;
     --fg-dim: #7d7d7d;
     --fg-dimmish: #aaa;
@@ -369,16 +371,27 @@ button.bright:active {
     max-width: calc(100% - var(--scale-main4));
     background-color: var(--bg);
     color: var(--fg-dimmish);
-    padding: var(--scale-main) var(--scale-main-2) var(--scale-main-2) var(--scale-main-2);
+    border: 1px solid var(--bg-dimmish);
+    padding: calc(var(--scale-main) + var(--scale-main-8)) var(--scale-main-2) var(--scale-main-2) var(--scale-main-2);
     border-radius: var(--scale-main-4);
     box-shadow: var(--scale-main-8) var(--scale-main-8) rgba(0, 0, 0, 0.5);
 }
 
+.panel-title {
+    position: absolute;
+    left: -1px;
+    top: -1px;
+    max-width: calc(100% - var(--scale-main2));
+    background-color: var(--bg-dimmish);
+    padding: var(--scale-main-8) var(--scale-main-4) var(--scale-main-8) var(--scale-main-4);
+    border-radius: var(--scale-main-4) 0 var(--scale-main-4) 0;
+}
+
 .close-button {
-    background-color: transparent;
     position: absolute;
     top: 0;
     right: var(--scale-main-4);
+    background-color: transparent;
 }
 
 .ec3-video {
@@ -507,8 +520,12 @@ body {
     right: 0;
 }
 
-#ec3-status-row {
-    background-color: var(--bg-status);
+#ec3-status {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background-color: var(--bg-status-transparent);
     color: var(--fg-status);
     text-align: center;
 }
