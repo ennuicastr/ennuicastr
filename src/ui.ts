@@ -50,17 +50,6 @@ let modal: Panel = null;
 
 // The entire user interface
 export const ui = {
-    // True if the user interface has been manually resized
-    manualSize: false,
-
-    // If we're currently resizing, the timeout before assuming we don't have the right
-    resizing: <null|number> null,
-    resized: false,
-
-    /* During resizing, we cache the inner-outer height difference, because
-     * some browsers mis-report it */
-    outerInnerHeightDiff: 0,
-
     /* Set by output processing to allow switching between ac.destination and
      * ac.ecDestination */
     outprocSetECDestination: <(to: boolean)=>unknown> null,
@@ -71,37 +60,19 @@ export const ui = {
     // Set by the master code to allow administration
     masterUserAdmin: <(target: number)=>unknown> null,
 
-    // The overall wrapper
-    wrapper: <HTMLElement> null,
-
     // Colors defined in CSS
     colors: <Record<string, string>> {},
 
     // Video interface
     video: <{
-        // Main wrapper
-        wrapper: HTMLElement,
-
         // The window, if it's been popped out into a window
         window: WindowProxy,
-
-        // Side wrapper
-        sideWrapper: HTMLElement,
 
         // Side container
         side: HTMLElement,
 
-        // Side fullscreen button
-        sideFS: HTMLButtonElement,
-
-        // Main video wrapper
-        mainWrapper: HTMLElement,
-
         // Main video element 
         main: HTMLElement,
-
-        // Main fullscreen button
-        mainFS: HTMLButtonElement,
 
         // Video components for each user
         users: {
@@ -160,9 +131,6 @@ export const ui = {
         outgoingB: HTMLButtonElement
     }> null,
 
-    // Dock group
-    dock: <HTMLElement> null,
-
     // Live waveform
     wave: <{
         wrapper: HTMLElement,
@@ -172,21 +140,18 @@ export const ui = {
     // Status
     log: <{
         wrapper: HTMLElement,
-        logWrapper: HTMLElement,
-        log: HTMLElement,
         timer: HTMLElement
     }> null,
 
-    // The persistent menu
-    persistent: <{
-        master: HTMLButtonElement,
+    // The main menu
+    mainMenu: <{
+        host: HTMLButtonElement,
         userAdmin: HTMLButtonElement,
         sounds: HTMLButtonElement,
-        masterSpacer: HTMLElement,
         mute: HTMLButtonElement,
-        camera: HTMLButtonElement,
+        shareVideo: HTMLButtonElement,
         shareScreen: HTMLButtonElement,
-        main: HTMLButtonElement,
+        settings: HTMLButtonElement,
         chat: HTMLButtonElement,
         videoPopout: HTMLButtonElement
     }> null,
@@ -196,54 +161,67 @@ export const ui = {
 
     // The panels
     panels: {
-        // Mobile join menu
-        mobile: <{
+        // "Join recording" panel
+        join: <{
             wrapper: HTMLElement,
             button: HTMLButtonElement
         }> null,
 
-        // Main (settings) menu
-        main: <{
+        // Settings menu
+        settings: <{
             wrapper: HTMLElement,
-            modeHider: HTMLElement,
-            modeS: HTMLSelectElement,
+            viewModes: {
+                normal: HTMLButtonElement,
+                gallery: HTMLButtonElement,
+                studio: HTMLButtonElement,
+                small: HTMLButtonElement,
+            },
             captionHider: HTMLElement,
             captionC: HTMLInputElement,
             inputB: HTMLButtonElement,
             outputB: HTMLButtonElement,
             videoB: HTMLButtonElement,
-            userListB: HTMLButtonElement,
-            debug: HTMLButtonElement
+            userListB: HTMLButtonElement
         }> null,
 
-        // Master interface
-        master: <{
+        // Invite panel
+        invite: <{
             wrapper: HTMLElement,
 
-            // Main popout behavior
-            mainPopout: HTMLButtonElement,
-            mainPopoutWrapper: HTMLElement,
-            mainPopoutDock: HTMLElement,
-            mainDock: HTMLElement,
+            // Invite
+            link: HTMLInputElement,
+            copyB: HTMLButtonElement,
+            flacHider: HTMLElement,
+            flac: HTMLInputElement,
+            continuousHider: HTMLElement,
+            continuous: HTMLInputElement,
+        }> null,
 
-            // Pause or resume
-            pauseResumeB: HTMLButtonElement,
+        // Host interface
+        host: <{
+            wrapper: HTMLElement,
 
-            // Start or stop
-            startStopB: HTMLButtonElement,
+            // Start recording
+            startB: HTMLButtonElement[],
+
+            // Hider for the pause/stop interface
+            stopHider: HTMLElement,
+
+            // Pause recording
+            pauseB: HTMLButtonElement[],
+
+            // Resume from pause
+            resumeB: HTMLButtonElement[],
+
+            // Stop recording
+            stopB: HTMLButtonElement[],
+
+            // Hider for the "are you sure" interface"
+            sureHider: HTMLElement,
 
             // Acknowledgement
-            yesNo: HTMLElement,
-            yesB: HTMLButtonElement,
-            noB: HTMLButtonElement,
-
-            // Invite
-            inviteLink: HTMLInputElement,
-            inviteCopyB: HTMLButtonElement,
-            inviteFLACHider: HTMLElement,
-            inviteFLAC: HTMLInputElement,
-            inviteContinuousHider: HTMLElement,
-            inviteContinuous: HTMLInputElement,
+            stopYesB: HTMLButtonElement,
+            stopNoB: HTMLButtonElement,
 
             // Accept guest video recordings
             acceptRemoteVideo: HTMLInputElement,
@@ -256,11 +234,6 @@ export const ui = {
 
             // Video storage status
             videoStatus: HTMLElement,
-
-            // Recording cost popout behavior
-            recordingCostPopout: HTMLButtonElement,
-            recordingCostPopoutWrapper: HTMLElement,
-            recordingCostDock: HTMLElement,
 
             // Recording cost/rate
             recordingCost: HTMLInputElement,
@@ -340,15 +313,6 @@ export const ui = {
         // Soundboard
         soundboard: <{
             wrapper: HTMLElement,
-
-            // Popout button
-            popout: HTMLButtonElement,
-
-            // Popout-able wrapper
-            popoutWrapper: HTMLElement,
-
-            // Dock
-            dock: HTMLElement,
 
             // Wrapper for the actual sounds
             soundsWrapper: HTMLElement,
@@ -440,9 +404,6 @@ export const ui = {
             // Resolution selection
             res: HTMLSelectElement,
 
-            // Hider for output options
-            outputHider: HTMLElement,
-
             // Recording-related options
             recording: {
                 // Hider for recording options if unsupported
@@ -479,15 +440,6 @@ export const ui = {
         userList: <{
             wrapper: HTMLElement,
 
-            // Popout button
-            popout: HTMLButtonElement,
-
-            // Popout-able wrapper
-            popoutWrapper: HTMLElement,
-
-            // Dock
-            dock: HTMLElement,
-
             // The actual user list
             userList: HTMLElement,
 
@@ -498,13 +450,6 @@ export const ui = {
                 volume: HTMLInputElement,
                 volumeStatus: HTMLElement
             }[]
-        }> null,
-
-        // Debugging
-        debug: <{
-            wrapper: HTMLElement,
-            input: HTMLInputElement,
-            output: HTMLElement
         }> null
     },
 
@@ -536,7 +481,7 @@ const standinSVG = [
 ];
 
 // Show the given panel, or none
-export function showPanel(panelName: Panel|string, autoFocusName: HTMLElement|string, makeModal?: boolean): void {
+export function showPanel(panelName: Panel|string, autoFocusName?: HTMLElement|string, makeModal?: boolean): void {
     let panel: Panel;
     let autoFocus: HTMLElement = null;
     if (typeof autoFocusName === "string")
@@ -547,6 +492,8 @@ export function showPanel(panelName: Panel|string, autoFocusName: HTMLElement|st
         panel = (<any> ui.panels)[panelName];
     else
         panel = panelName;
+    if (panel === null && autoFocus === null)
+        autoFocus = ui.mainMenu.settings;
 
     // Keep modal panels
     if (modal && panel !== modal)
@@ -586,8 +533,6 @@ export function showPanel(panelName: Panel|string, autoFocusName: HTMLElement|st
             autoFocus.focus();
 
     }
-
-    resizeUI();
 }
 
 // Unset the modal panel so it can be hidden
@@ -650,93 +595,13 @@ export function saveConfigSlider(
     };
 }
 
-// Resize the UI to fit visible components
-export function resizeUI(second?: boolean): void {
-    /* Since elements sometimes take an event loop to actually assert their
-     * sizes, resizeUI automatically runs itself twice */
-    if (!second)
-        setTimeout(function() { resizeUI(true); }, 0);
-
-    // In the small UI, some elements are irrelevant
-    if (ui.video.mode === ViewMode.Small && ui.chat.wrapper.style.display === "none") {
-        //if (ui.chat.wrapper.style.display === "none" && ui.video.mainWrapper.style.display === "none") {
-        ui.video.wrapper.style.display = "none";
-        ui.wave.wrapper.style.flex = "auto";
-    } else {
-        ui.video.wrapper.style.display = "";
-        ui.wave.wrapper.style.flex = "";
-    }
-
-    // Figure out the ideal size for the UI based on what's visible
-    let idealSize = 0;
-
-    // First, the standard elements
-    for (let ci = 0; ci < ui.wrapper.childNodes.length; ci++) {
-        const c = <HTMLElement> ui.wrapper.childNodes[ci];
-        if (c.style.display === "none")
-            continue;
-        if (c === ui.video.wrapper) {
-            if (ui.video.mode === ViewMode.Studio) {
-                // Doesn't flex
-                let vsize = ui.video.side.childNodes.length * 96;
-                if (vsize > 240)
-                    vsize = 240;
-                idealSize += vsize;
-            } else {
-                idealSize += 240;
-            }
-        } else if (c === ui.wave.wrapper && ui.video.mode !== ViewMode.Studio) {
-            idealSize += 100;
-        } else {
-            idealSize += c.offsetHeight;
-        }
-    }
-
-    // Then, any visible panel
-    for (const pn in ui.panels) {
-        const panel: HTMLElement = (<any> ui.panels)[pn].wrapper;
-        if (panel.style.display === "block")
-            idealSize = Math.max(idealSize, panel.scrollHeight + 60);
-    }
-
-    // Don't do anything if the size is already right
-    if (window.innerHeight === idealSize)
-        return;
-
-    // Don't try to seize control
-    if (ui.manualSize && window.innerHeight >= idealSize)
-        return;
-
-    // Adjust to outer size
-    if (!ui.resizing)
-        ui.outerInnerHeightDiff = window.outerHeight - window.innerHeight;
-
-    // Otherwise, try to resize
-    if (ui.resizing)
-        clearTimeout(ui.resizing);
-    ui.resized = false;
-    ui.resizing = setTimeout(function() {
-        ui.resizing = null;
-        if (!ui.resized)
-            onResize();
-    }, 500);
-    window.resizeTo(window.outerWidth, ui.outerInnerHeightDiff + idealSize);
-}
-
-// Resize when requested
-util.events.addEventListener("ui.resize-needed", function() { resizeUI(); });
-
-// React to the UI resizing
-export function onResize(): void {
-    ui.resized = true;
-    ui.manualSize = !ui.resizing;
-
-    // Some browsers need a real height to flex properly
-    ui.wrapper.style.height = window.innerHeight + "px";
-
-    // If we're in gallery mode, we may need to change the arrangement
-    if (ui.video.mode === ViewMode.Gallery)
-        updateVideoUI(0);
+// Saveable config for things that don't easily correspond to elements
+export function saveConfigGeneric(name: string, init: (value:string)=>void) {
+    const cur = localStorage.getItem(name);
+    init(cur);
+    return function(to: string) {
+        localStorage.setItem(name, to);
+    };
 }
 
 // Add a user to the user list
@@ -1220,10 +1085,6 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
         const mw = 100 / w;
         ui.video.css.innerHTML = '[data-view-mode="gallery"] #ecvideo-side .ecvideo-a { flex: auto; width: ' + ew +  '%; max-width: ' + mw + '%; }';
     }
-
-    // Studio sizing
-    if (studio && moved)
-        resizeUI();
 
     if (ui.video.major === prevMajor) {
         // No need to change the major

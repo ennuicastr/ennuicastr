@@ -4,6 +4,7 @@
 /* Color scheme */
 :root {
     --bg: #101010;
+    --bg-t: rgba(16, 16, 16, 0);
     --bg-button-bright: #1f1f1f;
     --bg-button-bright-hover: #303030;
     --bg-button: #1b1b1b;
@@ -13,7 +14,7 @@
     --bg-label: #262626;
     --bg-label-t: rgba(38, 38, 38, 0);
     --bg-status: #ccc;
-    --bg-status-transparent: rgba(204, 204, 204, 0.85);
+    --bg-status-t: rgba(204, 204, 204, 0.85);
     --bg-dim: #151504;
     --bg-dimmish: #333;
     --fg: #fff;
@@ -32,6 +33,7 @@
     --scale-main2: 64px;
     --scale-main3: 96px;
     --scale-main4: 128px;
+    --scale-main6: 192px;
     --scale-main8: 256px;
 }
 
@@ -47,15 +49,20 @@
 }
 
 *::-webkit-scrollbar {
+    transition: background-color 0.1s ease-in-out;
     width: 4px;
     height: 4px;
+    background-color: var(--bg-t);
+}
+
+*:hover::-webkit-scrollbar {
     background-color: var(--bg);
 }
 
 *::-webkit-scrollbar-thumb {
     transition: background-color 0.1s ease-in-out;
     border-radius: 2px;
-    background-color: var(--bg);
+    background-color: var(--bg-t);
 }
 
 *:hover::-webkit-scrollbar-thumb {
@@ -310,7 +317,7 @@ button.bright:active {
 
 .menu-button {
     position: relative;
-    padding-top: calc(var(--scale-main) - var(--scale-main-4));
+    padding-top: calc(var(--scale-main) - var(--scale-main-3));
     --bg-label-m: var(--bg-label-t);
     --fg-dimmish-m: var(--fg-dimmish-t);
 }
@@ -330,8 +337,7 @@ button.bright:active {
     position: absolute;
     left: 0;
     right: 0;
-    /*top: calc(var(--scale-main) - var(--scale-main-8));*/
-    bottom: calc(100% - var(--scale-main-2) - var(--scale-main-4));
+    bottom: calc(100% - var(--scale-main-2) - var(--scale-main-8));
     display: block;
     white-space: normal;
     line-height: normal;
@@ -369,12 +375,14 @@ button.bright:active {
     top: var(--scale-main2);
     min-width: var(--scale-main8);
     max-width: calc(100% - var(--scale-main4));
+    max-height: calc(100vh - var(--scale-main4));
     background-color: var(--bg);
     color: var(--fg-dimmish);
     border: 1px solid var(--bg-dimmish);
     padding: calc(var(--scale-main) + var(--scale-main-8)) var(--scale-main-2) var(--scale-main-2) var(--scale-main-2);
     border-radius: var(--scale-main-4);
     box-shadow: var(--scale-main-8) var(--scale-main-8) rgba(0, 0, 0, 0.5);
+    overflow: auto;
 }
 
 .panel-title {
@@ -459,16 +467,15 @@ body {
 #ec3-main-menu-wrapper {
     position: relative;
     width: var(--scale-main2);
+    overflow: auto;
 }
 
 #ec3-main-menu {
     position: absolute;
     top: 0;
-    bottom: 0;
     left: 0;
     right: 0;
-    overflow: auto;
-    padding-top: var(--scale-main-4);
+    padding-top: var(--scale-main-2);
     justify-content: space-evenly;
 }
 
@@ -506,6 +513,16 @@ body {
     font-size: var(--scale-main-3);
 }
 
+#ec3-chat-incoming {
+    flex: auto;
+    min-height: var(--scale-main4);
+    border: solid 1px;
+}
+
+#ec3-chat-outgoing-txt {
+    width: var(--scale-main6);
+}
+
 #ec3-waveform-row {
     position: relative;
     border-top: 1px solid var(--fg-dim);
@@ -525,7 +542,7 @@ body {
     left: 0;
     bottom: 0;
     right: 0;
-    background-color: var(--bg-status-transparent);
+    background-color: var(--bg-status-t);
     color: var(--fg-status);
     text-align: center;
 }
@@ -573,7 +590,6 @@ body {
     .panel {
         left: var(--scale-main-2);
         top: var(--scale-main-2);
-        bottom: var(--scale-main-2);
         min-width: auto;
         max-width: 100%;
         right: var(--scale-main-2);
@@ -581,11 +597,11 @@ body {
 
     #ec3-main-menu-wrapper {
         width: auto;
-        height: var(--scale-main2);
+        height: calc(var(--scale-main2) + var(--scale-main-4));
     }
 
     .menu-button-label:after {
-        left: 12px;
+        border: none;
     }
 
     #ec3-side-video-wrappera {
@@ -600,6 +616,10 @@ body {
     #ec3-side-video-wrapperb .ec3-video {
         min-width: var(--scale-main3);
         min-height: auto;
+    }
+
+    #ec3-chat-outgoing-txt {
+        width: 100%;
     }
 
     #ec3-waveform-row {

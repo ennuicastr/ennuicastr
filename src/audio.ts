@@ -439,11 +439,11 @@ export class Audio {
             /* If AudioContext started paused, we need to unpause it in an event
              * handler */
             if (ac.state !== "running") {
-                ui.showPanel(ui.ui.panels.mobile, ui.ui.panels.mobile.button, true);
+                ui.showPanel(ui.ui.panels.join, ui.ui.panels.join.button, true);
                 return new Promise(function(res) {
-                    ui.ui.panels.mobile.button.onclick = function() {
+                    ui.ui.panels.join.button.onclick = function() {
                         ui.unsetModal();
-                        ui.showPanel(null, ui.ui.persistent.main);
+                        ui.showPanel(null);
                         ac.resume().catch(res).then(res);
                     };
                 });

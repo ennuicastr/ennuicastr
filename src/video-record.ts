@@ -582,7 +582,7 @@ let lastStorageCt = -1;
 function storageReport(ct: number, used: number, max: number) {
     const s = (ct === 1) ? "" : "s";
     const msg = `Saving ${ct} video stream${s}`;
-    ui.ui.panels.master.videoStatus.innerHTML = msg + ". Storage used: " + Math.round(used/max*100) + "%";
+    ui.ui.panels.host.videoStatus.innerHTML = msg + ". Storage used: " + Math.round(used/max*100) + "%";
     if (ct !== lastStorageCt) {
         lastStorageCt = ct;
         if (ct)
@@ -600,9 +600,9 @@ async function saveVideo(
     let dStream: ReadableStream<Uint8Array> = null, lsStream: ReadableStream<Uint8Array> = null;
 
     // Should we be doing local storage?
-    if (("master" in config.config) && ui.ui.panels.master.saveVideoInBrowser.checked) {
+    if (("master" in config.config) && ui.ui.panels.host.saveVideoInBrowser.checked) {
         doLocalStorage = true;
-        if (!ui.ui.panels.master.downloadVideoLive.checked)
+        if (!ui.ui.panels.host.downloadVideoLive.checked)
             doDownloadStream = false;
     }
 

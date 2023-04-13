@@ -52,9 +52,6 @@ let noSleep: any = null;
 
 // Make the UI
 export function mkUI(): Promise<unknown> {
-    // Snag the original log before we overwrite it
-    const log = gebi("log");
-
     // Load in the UI
     document.body.style.margin =
         document.body.style.padding = "0";
@@ -79,23 +76,20 @@ export function mkUI(): Promise<unknown> {
     document.body.style.backgroundColor = ui.colors["bg-plain"];
 
     // Load the components
-    ui.wrapper = gebi("ecouter");
     loadVideo();
     loadChat();
-    ui.dock = gebi("ecdock");
     chat.mkChatBox();
     loadWave();
-    loadLog(log);
-    ui.layerSeparator = gebi("eclayer-separator");
+    loadLog();
+    ui.layerSeparator = gebi("ec3-layer-separator");
     loadMainMenu();
-    loadMasterUI();
+    loadHostUI();
     loadUserAdmin();
     loadSoundboard();
     loadInputConfig();
     loadOutputConfig();
     loadVideoConfig();
     loadUserList();
-    loadDebug();
     loadInterfaceSounds();
 
     if ("master" in config.config)
@@ -103,14 +97,14 @@ export function mkUI(): Promise<unknown> {
 
     // Every close button works the same
     Array.prototype.slice.call(document.getElementsByClassName("close-button"), 0).forEach(function(x: HTMLElement) {
-        x.onclick = function() { uiFE.showPanel(null, ui.persistent.main); };
+        x.onclick = function() { uiFE.showPanel(null); };
     });
-    ui.layerSeparator.onclick = function() { uiFE.showPanel(null, ui.persistent.main); };
+    ui.layerSeparator.onclick = function() { uiFE.showPanel(null); };
 
     // Escape also closes
     window.addEventListener("keydown", function(ev) {
         if (ev.key === "Esc" || ev.key === "Escape")
-            uiFE.showPanel(null, ui.persistent.main);
+            uiFE.showPanel(null);
         /*
         if (ev.key === "d") {
             let bad = new DataView(new ArrayBuffer(4));
@@ -120,27 +114,6 @@ export function mkUI(): Promise<unknown> {
         }
         */
     });
-
-    // Poppable panels
-    if ("master" in config.config) {
-        const m = ui.panels.master;
-        poppable(m.mainPopoutWrapper, m.mainPopout, null, "master-main-popout",
-            m.mainPopoutDock, m.mainDock, {defaultOut: true});
-        poppable(m.recordingCostPopoutWrapper, m.recordingCostPopout, null,
-            "recording-cost-popout3", m.wrapper, m.recordingCostDock);
-    }
-    {
-        const s = ui.panels.soundboard;
-        poppable(s.popoutWrapper, s.popout, ui.persistent.sounds, "sounds-popout3", s.wrapper, s.dock);
-    }
-    {
-        const u = ui.panels.userList;
-        poppable(u.popoutWrapper, u.popout, ui.panels.main.userListB, "user-list-popout3", u.wrapper, u.dock);
-    }
-
-    // When we resize, re-flex
-    window.addEventListener("resize", uiFE.onResize);
-    uiFE.resizeUI();
 
     // If we're on mobile, now is the time to NoSleep
     if (mobile) {
@@ -152,15 +125,15 @@ export function mkUI(): Promise<unknown> {
 
         }).then(function() {
             noSleep = new NoSleep();
-            uiFE.showPanel(ui.panels.mobile, ui.panels.mobile.button, true);
+            uiFE.showPanel(ui.panels.join, ui.panels.join.button, true);
             return new Promise((res) => {
-                ui.panels.mobile.button.onclick = res;
+                ui.panels.join.button.onclick = res;
             });
 
         }).then(function() {
             noSleep.enable();
             uiFE.unsetModal();
-            uiFE.showPanel(null, ui.persistent.main);
+            uiFE.showPanel(null);
 
         }).catch(net.promiseFail());
 
@@ -172,14 +145,9 @@ export function mkUI(): Promise<unknown> {
 
 function loadVideo() {
     ui.video = {
-        wrapper: gebi("ecvideo-wrapper"),
         window: null,
-        sideWrapper: gebi("ecvideo-side-wrapper"),
-        side: gebi("ecvideo-side"),
-        sideFS: gebi("ecvideo-wrapper-fs"),
-        mainWrapper: gebi("ecvideo-main-wrapper"),
-        main: gebi("ecvideo-main"),
-        mainFS: gebi("ecvideo-main-fs"),
+        side: gebi("ec3-side-video-wrapperb"),
+        main: gebi("ec3-main-video-wrapper"),
         users: [],
         selected: -1,
         major: -1,
@@ -212,23 +180,25 @@ function loadVideo() {
         });
     }
 
+    /* FIXME: fullscreen buttons
     fullscreen(video.wrapper, video.sideFS);
     fullscreen(video.mainWrapper, video.mainFS);
+    */
 }
 
 function loadChat() {
     ui.chat = {
-        wrapper: gebi("ecchat-wrapper"),
-        incoming: gebi("ecchat-incoming"),
-        outgoing: gebi("ecchat-outgoing"),
-        outgoingB: gebi("ecchat-outgoing-b")
+        wrapper: gebi("ec3-chat-wrapper"),
+        incoming: gebi("ec3-chat-incoming"),
+        outgoing: gebi("ec3-chat-outgoing-txt"),
+        outgoingB: gebi("ec3-chat-outgoing-btn")
     };
 }
 
 function loadWave() {
     const wave = ui.wave = {
-        wrapper: gebi("ecwaveform-wrapper"),
-        watcher: gebi("ecwave-watcher")
+        wrapper: gebi("ec3-waveform-row"),
+        watcher: gebi("ec3-waveform-watcher")
     };
 
     // Choose the watcher image's type based on support
@@ -249,46 +219,45 @@ function loadWave() {
     }
 }
 
-function loadLog(logEl: HTMLElement) {
+function loadLog() {
     const log = ui.log = {
-        wrapper: gebi("ecstatus"),
-        logWrapper: gebi("eclog"),
-        log: logEl,
-        timer: gebi("ectimer")
+        wrapper: gebi("ec3-status"),
+        timer: gebi("ec3-recording-timer")
     };
-    log.logWrapper.appendChild(log.log);
 }
 
 function loadMainMenu() {
-    const p = ui.persistent = {
-        master: gebi("ecmenu-master"),
-        userAdmin: gebi("ecmenu-user-admin"),
-        sounds: gebi("ecmenu-sounds"),
-        masterSpacer: gebi("ecmenu-master-spacer"),
-        mute: gebi("ecmenu-mute"),
-        camera: gebi("ecmenu-camera"),
-        shareScreen: gebi("ecmenu-share-screen"),
-        main: gebi("ecmenu-main"),
-        chat: gebi("ecmenu-chat"),
-        videoPopout: gebi("ecmenu-video-popout")
+    const p = ui.mainMenu = {
+        host: gebi("ec3-host-interface-button"),
+        userAdmin: gebi("ec3-user-admin-button"),
+        sounds: gebi("ec3-soundboard-button"),
+        mute: gebi("ec3-mute-button"),
+        shareVideo: gebi("ec3-video-share-button"),
+        shareScreen: gebi("ec3-screen-share-button"),
+        settings: gebi("ec3-settings-button"),
+        chat: gebi("ec3-chat-button"),
+        videoPopout: document.createElement("button") // FIXME
     };
 
-    ui.panels.mobile = {
-        wrapper: gebi("ecmobile-join"),
-        button: gebi("ecmobile-join-b")
+    ui.panels.join = {
+        wrapper: gebi("ec3-join-recording-panel"),
+        button: gebi("ec3-join-recording-btn")
     };
 
-    const m = ui.panels.main = {
-        wrapper: gebi("ecmenu"),
-        modeHider: gebi("ecview-mode-hider"),
-        modeS: gebi("ecview-mode"),
-        captionHider: gebi("eccaption-hider"),
-        captionC: gebi("eccaption"),
-        inputB: gebi("ecmenu-input-devices"),
-        outputB: gebi("ecmenu-output-devices"),
-        videoB: gebi("ecmenu-video-devices"),
-        userListB: gebi("ecmenu-user-list"),
-        debug: gebi("ecmenu-debug")
+    const sets = ui.panels.settings = {
+        wrapper: gebi("ec3-settings-panel"),
+        viewModes: {
+            normal: gebi("ec3-view-mode-normal-btn"),
+            gallery: gebi("ec3-view-mode-gallery-btn"),
+            studio: gebi("ec3-view-mode-studio-btn"),
+            small: gebi("ec3-view-mode-small-btn")
+        },
+        captionHider: gebi("ec3-caption-hider"),
+        captionC: gebi("ec3-caption-chk"),
+        inputB: gebi("ec3-input-settings-button"),
+        outputB: gebi("ec3-output-settings-button"),
+        videoB: gebi("ec3-video-settings-button"),
+        userListB: gebi("ec3-user-list-button")
     };
 
     function btn(b: HTMLButtonElement, p: string, a: string) {
@@ -304,10 +273,10 @@ function loadMainMenu() {
                 to = input.toggleMute(to);
         }
     };
-    btn(p.master, "master", "startStopB");
+    btn(p.host, "host", "startStopB");
     btn(p.userAdmin, "userAdmin", "allB");
     btn(p.sounds, "soundboard", null);
-    btn(p.main, "main", "inputB");
+    btn(p.settings, "settings", "inputB");
     p.chat.onclick = function() {
         const chat = ui.chat.wrapper;
         if (chat.style.display === "none") {
@@ -316,30 +285,19 @@ function loadMainMenu() {
         } else {
             chat.style.display = "none";
         }
-        uiFE.resizeUI();
     };
-    btn(m.inputB, "inputConfig", null);
-    btn(m.outputB, "outputConfig", null);
-    if (!config.useRTC) m.outputB.style.display = "none";
-    btn(m.videoB, "videoConfig", null);
-    btn(m.userListB, "userList", null);
+    btn(sets.inputB, "inputConfig", null);
+    btn(sets.outputB, "outputConfig", null);
+    if (!config.useRTC) sets.outputB.style.display = "none";
+    btn(sets.videoB, "videoConfig", null);
+    btn(sets.userListB, "userList", null);
     if (!config.useRTC && !("master" in config.config))
-        m.userListB.style.display = "none";
-    btn(m.debug, "debug", null);
-    if (!config.useDebug)
-        m.debug.style.display = "none";
-
-    // Auto-hide the persistent menu
-    uiFE.mouseenter();
-    document.body.addEventListener("mouseenter", uiFE.mouseenter);
-    document.body.addEventListener("mousemove", uiFE.mouseenter);
-    Array.prototype.slice.call(document.getElementsByClassName("interface"), 0).forEach(function(el: HTMLElement) {
-        el.onfocus = uiFE.mouseenter;
-    });
+        sets.userListB.style.display = "none";
 
     // Support for popping out the entire video block
     let w: WindowProxy = null;
     function popoutOpen() {
+        /* FIXME
         w = ui.video.window = window.open("", "", "width=1280,height=720,menubar=0,toolbar=0,location=0,personalbar=0,status=0");
         if (!w) return;
 
@@ -376,11 +334,12 @@ function loadMainMenu() {
 
         setTimeout(function() {
             uiFE.updateVideoUI(0);
-            uiFE.resizeUI();
         }, 0);
+        */
     }
 
     function popoutClose() {
+        /* FIXME
         w = ui.video.window = null;
         document.head.appendChild(ui.video.css);
         ui.wrapper.insertBefore(ui.video.wrapper, ui.wrapper.childNodes[0]);
@@ -395,8 +354,8 @@ function loadMainMenu() {
 
         setTimeout(function() {
             uiFE.updateVideoUI(0);
-            uiFE.resizeUI();
         }, 0);
+        */
     }
 
     p.videoPopout.onclick = function() {
@@ -407,124 +366,133 @@ function loadMainMenu() {
     };
 }
 
-function loadMasterUI() {
-    ui.panels.master = {
-        wrapper: gebi("ecmaster-interface"),
-        mainPopout: gebi("ecmaster-main-popout"),
-        mainPopoutWrapper: gebi("ecmaster-main-popout-wrapper"),
-        mainPopoutDock: gebi("ecmaster-main-popout-dock"),
-        mainDock: gebi("ecmaster-main-dock"),
-        pauseResumeB: gebi("ecmaster-pause-resume"),
-        startStopB: gebi("ecmaster-start-stop"),
-        yesNo: gebi("ecmaster-yes-no"),
-        yesB: gebi("ecmaster-yes"),
-        noB: gebi("ecmaster-no"),
-        inviteLink: gebi("ecmaster-invite-link"),
-        inviteCopyB: gebi("ecmaster-invite-link-copy"),
-        inviteFLACHider: gebi("ecmaster-invite-flac-hider"),
-        inviteFLAC: gebi("ecmaster-invite-flac"),
-        inviteContinuousHider: gebi("ecmaster-invite-continuous-hider"),
-        inviteContinuous: gebi("ecmaster-invite-continuous"),
-        acceptRemoteVideo: gebi("ecmaster-video-record-host"),
-        saveVideoInBrowser: gebi("ecmaster-video-save-in-browser"),
-        downloadVideoLive: gebi("ecmaster-video-download-live"),
-        videoStatus: gebi("ecmaster-video-status"),
-        recordingCostPopout: gebi("ecmaster-recording-cost-popout"),
-        recordingCostPopoutWrapper: gebi("ecmaster-recording-cost-popout-wrapper"),
-        recordingCostDock: gebi("ecmaster-recording-cost-dock"),
-        recordingCost: gebi("ecmaster-recording-cost"),
-        recordingRate: gebi("ecmaster-recording-rate")
+function loadHostUI() {
+    ui.panels.invite = {
+        wrapper: gebi("ec3-invite-panel"),
+        link: gebi("ec3-invite-link-txt"),
+        copyB: gebi("ec3-invite-link-copy-btn"),
+        flacHider: gebi("ec3-invite-flac-hider"),
+        flac: gebi("ec3-invite-flac-chk"),
+        continuousHider: gebi("ec3-invite-continuous-hider"),
+        continuous: gebi("ec3-invite-continuous-chk"),
+    };
+
+    ui.panels.host = {
+        wrapper: gebi("ec3-host-interface-panel"),
+        startB: [
+            gebi("ec3-start-recording-button"),
+            gebi("ec3-start-recording-button2")
+        ],
+        stopHider: gebi("ec3-stop-recording-hider"),
+        pauseB: [
+            gebi("ec3-pause-recording-button"),
+            gebi("ec3-pause-recording-button2")
+        ],
+        resumeB: [
+            gebi("ec3-resume-recording-button"),
+            gebi("ec3-resume-recording-button2")
+        ],
+        stopB: [
+            gebi("ec3-stop-recording-button"),
+            gebi("ec3-stop-recording-button2")
+        ],
+        sureHider: gebi("ec3-stop-sure-hider"),
+        stopYesB: gebi("ec3-stop-yes-button"),
+        stopNoB: gebi("ec3-stop-no-button"),
+        acceptRemoteVideo: gebi("ec3-accept-guest-video-chk"),
+        saveVideoInBrowser: gebi("ec3-video-rec-save-in-browser-chk"),
+        downloadVideoLive: gebi("ec3-video-rec-download-chk"),
+        videoStatus: gebi("ec3-video-rec-status"),
+        recordingCost: gebi("ec3-recording-cost-txt"),
+        recordingRate: gebi("ec3-recording-rate-txt")
     };
 }
 
 function loadUserAdmin() {
     ui.panels.userAdmin = {
-        wrapper: gebi("ecuser-admin-interface"),
-        allB: gebi("ecuser-admin-all-b"),
+        wrapper: gebi("ec3-user-admin-list-panel"),
+        allB: gebi("ec3-user-admin-all-button"),
         buttons: []
     };
 
     ui.panels.userAdminUser = {
-        wrapper: gebi("ecuser-admin-interface-user"),
+        wrapper: gebi("ec3-user-admin-user-panel"),
         user: -1,
-        name: gebi("ecuser-admin-interface-user-name"),
-        kick: gebi("ecuser-admin-kick"),
-        mute: gebi("ecuser-admin-mute"),
-        echo: gebi("ecuser-admin-echo"),
-        reqFull: gebi("ecuser-admin-request-full")
+        name: gebi("ec3-user-admin-user-name-lbl"),
+        kick: gebi("ec3-user-admin-kick-button"),
+        mute: gebi("ec3-user-admin-mute-button"),
+        echo: gebi("ec3-user-admin-echo-button"),
+        reqFull: gebi("ec3-user-admin-request-full-button")
     };
 
     ui.panels.userAdminFull = {
-        wrapper: gebi("ecuser-admin-interface-user-full"),
+        wrapper: gebi("ec3-user-admin-user-full-panel"),
         user: -1,
-        name: gebi("ecuser-admin-interface-user-full-name"),
-        kick: gebi("ecuser-admin-full-kick"),
-        mute: gebi("ecuser-admin-full-mute"),
-        echo: gebi("ecuser-admin-full-echo"),
-        vadSensitivity: gebi("ecuser-admin-full-vad-sensitivity"),
-        vadSensitivityStatus: gebi("ecuser-admin-full-vad-sensitivity-status"),
-        vadNoiseGate: gebi("ecuser-admin-full-vad-noise-gate"),
-        vadNoiseGateStatus: gebi("ecuser-admin-full-vad-noise-gate-status"),
-        audioInput: gebi("ecuser-admin-full-audio-dev"),
-        videoHider: gebi("ecuser-admin-interface-user-full-video-hider"),
-        videoInput: gebi("ecuser-admin-full-video-dev"),
-        videoRes: gebi("ecuser-admin-full-video-res"),
-        videoBR: gebi("ecuser-admin-full-video-record"),
-        videoRec: gebi("ecuser-admin-full-video-record")
+        name: gebi("ecuser-admin-user-full-name"),
+        kick: gebi("ec3-user-admin-full-kick-button"),
+        mute: gebi("ec3-user-admin-full-mute-chk"),
+        echo: gebi("ec3-user-admin-full-echo-chk"),
+        vadSensitivity: gebi("ec3-user-admin-full-vad-sensitivity-rng"),
+        vadSensitivityStatus: gebi("ec3-user-admin-full-vad-sensitivity-status"),
+        vadNoiseGate: gebi("ec3-user-admin-full-vad-noise-gate-rng"),
+        vadNoiseGateStatus: gebi("ec3-user-admin-full-vad-noise-gate-status"),
+        audioInput: gebi("ec3-user-admin-full-audio-dev-sel"),
+        videoHider: gebi("ec3-user-admin-full-video-hider"),
+        videoInput: gebi("ec3-user-admin-full-video-dev-sel"),
+        videoRes: gebi("ec3-user-admin-full-video-res-sel"),
+        videoBR: gebi("ec3-user-admin-full-bitrate-inp"),
+        videoRec: gebi("ec3-user-admin-full-video-record-button")
     };
 
     const req = ui.panels.userAdminReq = {
-        wrapper: gebi("ecuser-admin-permission"),
+        wrapper: gebi("ec3-user-admin-permission-panel"),
         user: -1,
-        name: gebi("ecuser-admin-permission-requester"),
-        yes: gebi("ecuser-admin-permission-yes"),
-        audio: gebi("ecuser-admin-permission-audio"),
-        no: gebi("ecuser-admin-permission-no")
+        name: gebi("ec3-user-admin-permission-requester"),
+        yes: gebi("ec3-user-admin-permission-yes-button"),
+        audio: gebi("ec3-user-admin-permission-audio-button"),
+        no: gebi("ec3-user-admin-permission-no-button")
     };
 
     req.yes.onclick = function() {
         net.setAdminPerm(req.user, audio.deviceInfo, true, true);
-        uiFE.showPanel(null, ui.persistent.main);
+        uiFE.showPanel(null);
     };
 
     req.audio.onclick = function() {
         net.setAdminPerm(req.user, audio.deviceInfo, true, false);
-        uiFE.showPanel(null, ui.persistent.main);
+        uiFE.showPanel(null);
     };
 
     req.no.onclick = function() {
         net.setAdminPerm(req.user, audio.deviceInfo, false, false);
-        uiFE.showPanel(null, ui.persistent.main);
+        uiFE.showPanel(null);
     };
 }
 
 function loadSoundboard() {
     ui.panels.soundboard = {
-        wrapper: gebi("ecsounds-wrapper"),
-        popout: gebi("ecsounds-popout"),
-        popoutWrapper: gebi("ecsounds-popout-wrapper"),
-        dock: gebi("ecsounds-dock"),
-        soundsWrapper: gebi("ecsounds"),
+        wrapper: gebi("ec3-soundboard-panel"),
+        soundsWrapper: gebi("ec3-sounds"),
         sounds: {}
     };
 }
 
 function loadInputConfig() {
     const input = ui.panels.inputConfig = {
-        wrapper: gebi("ecinput-device-wrapper"),
-        device: gebi("ecinput-device-list"),
-        channelHider: gebi("ecinput-channel-hider"),
-        channel: gebi("ecinput-channel-list"),
-        ptt: gebi("ecpttb"),
-        noiserHider: gebi("ecnoise-reduction-hider"),
-        noiser: gebi("ecnoise-reduction"),
-        echo: gebi("ececho-cancellation"),
-        agcHider: gebi("ecagc-hider"),
-        agc: gebi("ecagc"),
-        vadSensitivity: gebi("ecvad-sensitivity"),
-        vadSensitivityStatus: gebi("ecvad-sensitivity-status"),
-        vadNoiseGate: gebi("ecvad-noise-gate"),
-        vadNoiseGateStatus: gebi("ecvad-noise-gate-status")
+        wrapper: gebi("ec3-input-settings-panel"),
+        device: gebi("ec3-input-device-sel"),
+        channelHider: gebi("ec3-input-channel-hider"),
+        channel: gebi("ec3-input-channel-sel"),
+        ptt: gebi("ec3-ptt-btn"),
+        noiserHider: gebi("ec3-noise-reduction-hider"),
+        noiser: gebi("ec3-noise-reduction-chk"),
+        echo: gebi("ec3-echo-cancellation-chk"),
+        agcHider: gebi("ec3-agc-hider"),
+        agc: gebi("ec3-agc-chk"),
+        vadSensitivity: gebi("ec3-vad-sensitivity-rng"),
+        vadSensitivityStatus: gebi("ec3-vad-sensitivity-status"),
+        vadNoiseGate: gebi("ec3-vad-noise-gate-rng"),
+        vadNoiseGateStatus: gebi("ec3-vad-noise-gate-status")
     };
 
     if (!config.useRTC || config.useRecordOnly) {
@@ -535,18 +503,18 @@ function loadInputConfig() {
 
 function loadOutputConfig() {
     const output = ui.panels.outputConfig = {
-        wrapper: gebi("ecoutput-device-wrapper"),
-        deviceHider: gebi("ecoutput-device-list-hider"),
-        device: gebi("ecoutput-device-list"),
-        volumeHider: gebi("ecoutput-volume-hider"),
-        volume: gebi("ecoutput-volume"),
-        volumeStatus: gebi("ecoutput-volume-status"),
-        sfxVolumeHider: gebi("ecsfx-volume-hider"),
-        sfxVolume: gebi("ecsfx-volume"),
-        sfxVolumeStatus: gebi("ecsfx-volume-status"),
-        compressionHider: gebi("ecdynamic-range-compression-hider"),
-        compression: gebi("ecdynamic-range-compression"),
-        muteInterface: gebi("ecmute-interface-sounds")
+        wrapper: gebi("ec3-output-settings-panel"),
+        deviceHider: gebi("ec3-output-device-list-hider"),
+        device: gebi("ec3-output-device-sel"),
+        volumeHider: gebi("ec3-output-volume-hider"),
+        volume: gebi("ec3-output-volume-rng"),
+        volumeStatus: gebi("ec3-output-volume-status"),
+        sfxVolumeHider: gebi("ec3-sfx-volume-hider"),
+        sfxVolume: gebi("ec3-sfx-volume-rng"),
+        sfxVolumeStatus: gebi("ec3-sfx-volume-status"),
+        compressionHider: gebi("ec3-dynamic-range-compression-hider"),
+        compression: gebi("ec3-dynamic-range-compression-chk"),
+        muteInterface: gebi("ec3-mute-interface-sounds-chk")
     };
 
     if (!config.useRTC) {
@@ -558,31 +526,30 @@ function loadOutputConfig() {
 
 function loadVideoConfig() {
     const vc = ui.panels.videoConfig = {
-        wrapper: gebi("ecvideo-device-wrapper"),
+        wrapper: gebi("ec3-video-settings-panel"),
         visible: false,
         onshow: <()=>void> null,
         onhide: <()=>void> null,
-        preview: gebi("ecvideo-device-preview"),
+        preview: gebi("ec3-video-preview"),
         previewS: <MediaStream> null,
         previewV: <HTMLVideoElement> null,
-        device: gebi("ecvideo-device-list"),
-        shareB: gebi("ecvideo-share"),
-        res: gebi("ecvideo-res"),
-        outputHider: gebi("ecvideo-output-hider"),
+        device: gebi("ec3-video-device-sel"),
+        shareB: gebi("ec3-video-share-btn"),
+        res: gebi("ec3-video-res-sel"),
 
         recording: {
-            hider: gebi("ecvideo-record-hider"),
-            record: gebi("ecvideo-record"),
-            optHider: gebi("ecvideo-record-opt-hider"),
-            remote: gebi("ecvideo-record-remote"),
-            local: gebi("ecvideo-record-local"),
-            manualBitrate: gebi("ecvideo-record-bitrate-sel"),
-            bitrateHider: gebi("ecvideo-record-bitrate-hider"),
-            bitrate: gebi("ecvideo-record-bitrate")
+            hider: gebi("ec3-video-record-hider"),
+            record: gebi("ec3-video-record-chk"),
+            optHider: gebi("ec3-video-record-opt-hider"),
+            remote: gebi("ec3-video-record-remote-chk"),
+            local: gebi("ec3-video-record-local-chk"),
+            manualBitrate: gebi("ec3-video-record-bitrate-txt"),
+            bitrateHider: gebi("ec3-video-record-bitrate-hider"),
+            bitrate: gebi("ec3-video-record-bitrate-chk")
         },
 
-        streamerModeHider: gebi("ecstreamer-mode-hider"),
-        streamerMode: gebi("ecstreamer-mode")
+        streamerModeHider: gebi("ec3-streamer-mode-hider"),
+        streamerMode: gebi("ec3-streamer-mode-chk")
     };
 
     const bitrate = vc.recording.bitrate;
@@ -598,64 +565,23 @@ function loadVideoConfig() {
 
 function loadUserList() {
     ui.panels.userList = {
-        wrapper: gebi("ecuser-list-wrapper"),
-        popout: gebi("ecuser-list-popout"),
-        popoutWrapper: gebi("ecuser-list-popout-wrapper"),
-        dock: gebi("ecuser-list-dock"),
-        userList: gebi("ecuser-list"),
+        wrapper: gebi("ec3-user-list-panel"),
+        userList: gebi("ec3-user-list"),
         users: []
-    };
-}
-
-function loadDebug() {
-    const debug = ui.panels.debug = {
-        wrapper: gebi("ecdebug-wrapper"),
-        input: gebi("ecdebug-input"),
-        output: gebi("ecdebug-output")
-    };
-
-    const input = debug.input;
-    const output = debug.output;
-
-    input.value = "return ";
-
-    input.onkeydown = function(ev: KeyboardEvent) {
-        if (ev.key !== "Enter")
-            return;
-
-        try {
-            const f = Function(
-                "audio,config,log,master,net,util,video",
-                input.value);
-            const r = f(audio, config, log, master, net, util, video);
-
-            let rs: string;
-            try {
-                rs = JSON.stringify(r);
-            } catch (ex) {
-                rs = "" + r;
-            }
-
-            output.innerText = rs;
-
-        } catch (ex) {
-            output.innerText = ex + "\n" + ex.stack;
-
-        }
     };
 }
 
 function loadInterfaceSounds() {
     ui.sounds = {
-        chimeUp: gebi("ecaudio-chime-up"),
-        chimeDown: gebi("ecaudio-chime-down"),
+        chimeUp: gebi("ec3-chime-up-snd"),
+        chimeDown: gebi("ec3-chime-down-snd"),
         soundboard: {}
     };
 }
 
 // Load elements which require audio first
 export function mkAudioUI(): string {
-    const main = ui.panels.main,
+    const main = ui.panels.settings,
         input = ui.panels.inputConfig,
         output = ui.panels.outputConfig,
         videoConfig = ui.panels.videoConfig;
@@ -664,7 +590,7 @@ export function mkAudioUI(): string {
      * INPUT CONFIGURATION
      *******************/
     function inputChange() {
-        uiFE.showPanel(null, ui.persistent.main);
+        uiFE.showPanel(null);
 
         // FIXME
         audio.inputs[0].setInputDevice(input.device.value);
@@ -718,7 +644,7 @@ export function mkAudioUI(): string {
                 log.popStatus("echo-cancellation");
             }, 10000);
         }
-        uiFE.showPanel(null, ui.persistent.main);
+        uiFE.showPanel(null);
         for (const ainput of audio.inputs) {
             if (ainput)
                 ainput.setEchoCancel(input.echo.checked);
@@ -762,7 +688,7 @@ export function mkAudioUI(): string {
     output.device.appendChild(opt);
 
     function outputChange() {
-        uiFE.showPanel(null, ui.persistent.main);
+        uiFE.showPanel(null);
 
         const v = output.device.value;
 
@@ -1023,54 +949,59 @@ export function mkAudioUI(): string {
     video.updateVideoButtons();
 
     // View mode
-    function viewModeChange(ev: Event) {
+    let viewModeSave: (value: string) => void = null;
+    function viewModeChange(mode: number) {
+        // Save it
+        if (viewModeSave)
+            viewModeSave("" + mode);
+
         // Set the view
-        const mode = ui.video.mode = +main.modeS.value;
+        ui.video.mode = mode;
         const smode = ["normal", "small", "gallery", "studio"][mode] || "";
         document.body.setAttribute("data-view-mode", smode);
 
         // Reset UI elements
         ui.video.selected = ui.video.major = -1;
         ui.video.css.innerHTML = "";
+        /* FIXME?
         if (mode === uiFE.ViewMode.Small)
             ui.wrapper.insertBefore(ui.dock, ui.log.wrapper);
         else
             ui.wrapper.insertBefore(ui.dock, ui.wave.wrapper);
-        if (ev)
-            uiFE.showPanel(null, ui.persistent.main);
+        */
 
         // And update other components
         uiFE.updateVideoUI(0);
         outproc.setWaveviewing(mode === uiFE.ViewMode.Studio);
     }
 
+    let defaultViewMode = 0; // normal
+    let viewModeSetting = "view-mode";
     if (config.useRTC) {
         // Voice chat, so have different view modes
         if (config.useRecordOnly) {
             // Record only, so default to small or studio
             if ("master" in config.config) {
-                main.modeS.value = "3"; // studio
+                defaultViewMode = 3; // studio
             } else {
-                main.modeS.value = "1"; // small
+                defaultViewMode = 1; // small
             }
 
-            uiFE.saveConfigValue(main.modeS, "view-mode-record-only", viewModeChange);
-
-        } else {
-            // Default is normal
-            uiFE.saveConfigValue(main.modeS, "view-mode", viewModeChange);
+            viewModeSetting = "view-mode-record-only";
 
         }
 
-        viewModeChange(null);
-
     } else {
-        main.modeHider.style.display = "none";
-        videoConfig.outputHider.style.display = "none";
-        main.modeS.value = "" + uiFE.ViewMode.Small;
-        viewModeChange(null);
+        defaultViewMode = 1; // small
+        viewModeSetting = "view-mode-nortc";
 
     }
+
+    viewModeSave = uiFE.saveConfigGeneric(viewModeSetting, saved => {
+        if (typeof saved === "string")
+            defaultViewMode = +saved;
+    });
+    viewModeChange(defaultViewMode);
 
     function showCaptionChange() {
         document.body.setAttribute("data-captions", main.captionC.checked ? "show" : "hide");
@@ -1098,7 +1029,7 @@ export function mkAudioUI(): string {
         }
 
         if (ev)
-            uiFE.showPanel(null, ui.persistent.main);
+            uiFE.showPanel(null);
     }
     if (mobile) {
         videoConfig.streamerModeHider.style.display = "none";
@@ -1111,51 +1042,9 @@ export function mkAudioUI(): string {
     return localStorage.getItem("input-device3");
 }
 
-// Configure a panel for popping in or out
-function poppable(popout: HTMLElement, button: HTMLButtonElement,
-                  panelButton: HTMLButtonElement, name: string,
-                  panel: HTMLElement, dock: HTMLElement, opts: any = {}) {
-    let cur = false;
-    button.onclick = function() {
-        // Swap the state
-        cur = !cur;
-
-        // Set up ARIA
-        if (cur) {
-            popout.setAttribute("role", "dialog");
-            popout.setAttribute("aria-label", popout.getAttribute("data-popout-label"));
-        } else {
-            popout.removeAttribute("role");
-            popout.removeAttribute("aria-label");
-        }
-
-        // Put it either in the dock or the panel
-        (cur?dock:panel).appendChild(popout);
-
-        // Perhaps hide the panel button
-        if (panelButton)
-            panelButton.style.display = cur?"none":"";
-
-        // UI
-        if (cur)
-            uiFE.showPanel(null, ui.persistent.main);
-        else
-            ui.persistent.main.focus();
-        uiFE.resizeUI();
-
-        // Remember the setting
-        localStorage.setItem(name, cur?"1":"0");
-    };
-
-    const saved = localStorage.getItem(name);
-    if ((saved !== null && !!~~saved) ||
-        (saved === null && opts && opts.defaultOut))
-        button.onclick(null);
-}
-
 // Update the mute button when the mute state changes
 util.events.addEventListener("audio.mute", function() {
-    const muteB = ui.persistent.mute;
+    const muteB = ui.mainMenu.mute;
     if (audio.inputs[0].userMedia.getAudioTracks()[0].enabled) {
         // It's unmuted
         muteB.innerHTML = '<i class="fas fa-microphone-alt" style="width: 1em;"></i><span class="menu-extra">Mute</span>';

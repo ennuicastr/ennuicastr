@@ -49,6 +49,4 @@ function updateStatus() {
     if (txt === "")
         txt = "Recording";
     log.innerHTML = txt;
-
-    util.dispatchEvent("ui.resize-needed");
 }

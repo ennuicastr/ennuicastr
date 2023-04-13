@@ -49,25 +49,25 @@ const sounds = {
 
 // Set up the master interface
 export function createMasterInterface(): void {
-    const masterUI = ui.ui.panels.master;
+    const inviteUI = ui.ui.panels.invite;
+    const masterUI = ui.ui.panels.host;
 
     // Show the buttons
-    const persistent = ui.ui.persistent;
-    persistent.master.style.display = "";
-    persistent.userAdmin.style.display = "";
-    persistent.masterSpacer.style.display = "";
+    const mainMenu = ui.ui.mainMenu;
+    mainMenu.host.style.display = "";
+    mainMenu.userAdmin.style.display = "";
 
     // Invite options
     if ((config.config.format&prot.flags.dataTypeMask) === prot.flags.dataType.flac)
-        masterUI.inviteFLAC.checked = true;
+        inviteUI.flac.checked = true;
     else
-        masterUI.inviteFLACHider.style.display = "none";
+        inviteUI.flacHider.style.display = "none";
     if (config.config.format & config.features.continuous)
-        masterUI.inviteContinuous.checked = true;
+        inviteUI.continuous.checked = true;
     else
-        masterUI.inviteContinuousHider.style.display = "none";
-    masterUI.inviteFLAC.onchange = masterUI.inviteContinuous.onchange = genInvite;
-    masterUI.inviteCopyB.onclick = copyInvite;
+        inviteUI.continuousHider.style.display = "none";
+    inviteUI.flac.onchange = inviteUI.continuous.onchange = genInvite;
+    inviteUI.copyB.onclick = copyInvite;
     genInvite();
 
     // User admin
@@ -216,52 +216,56 @@ export function createMasterInterface(): void {
 
 // (Re)configure the master interface
 function configureMasterInterface() {
-    const masterUI = ui.ui.panels.master;
+    const masterUI = ui.ui.panels.host;
 
-    const pauseResume = masterUI.pauseResumeB;
-    const startStop = masterUI.startStopB;
-    masterUI.yesNo.style.display = "none";
+    for (const b of
+         masterUI.startB
+         .concat(masterUI.pauseB)
+         .concat(masterUI.resumeB)
+         .concat(masterUI.stopB))
+        b.style.display = "none";
+    masterUI.stopHider.style.display = "none";
+    masterUI.sureHider.style.display = "none";
 
     // Start/stop button
-    pauseResume.disabled = false;
-    startStop.disabled = false;
     if (net.mode < prot.mode.rec) {
-        pauseResume.style.display = "none";
-        startStop.innerHTML = '<i class="fas fa-microphone-alt"></i> Start recording';
-        startStop.classList.add("warning");
-        startStop.onclick = startRecording;
+        for (const b of masterUI.startB) {
+            b.style.display = "";
+            b.disabled = false;
+            b.onclick = startRecording;
+        }
 
     } else if (net.mode === prot.mode.rec ||
                net.mode === prot.mode.paused) {
-        pauseResume.style.display = "";
-        if (net.mode === prot.mode.rec) {
-            pauseResume.innerHTML = '<i class="fas fa-pause"></i> Pause recording';
-            pauseResume.onclick = pauseRecording;
-        } else {
-            pauseResume.innerHTML = '<i class="far fa-pause-circle"></i> Resume recording';
-            pauseResume.onclick = resumeRecording;
+        for (const b of masterUI.stopB) {
+            b.style.display = "";
+            b.disabled = false;
+            b.onclick = stopRecording;
         }
-        startStop.innerHTML = '<i class="fas fa-stop"></i> Stop recording';
-        startStop.classList.remove("warning");
-        startStop.onclick = stopRecording;
+        masterUI.stopHider.style.display = "";
+        if (net.mode === prot.mode.rec) {
+            for (const b of masterUI.pauseB) {
+                b.style.display = "";
+                b.disabled = false;
+                b.onclick = pauseRecording;
+            }
+        } else {
+            for (const b of masterUI.resumeB) {
+                b.style.display = "";
+                b.disabled = false;
+                b.onclick = resumeRecording;
+            }
+        }
 
     } else {
-        pauseResume.style.display = "none";
         if (net.mode === prot.mode.buffering)
-            startStop.innerText = "Waiting for audio from clients...";
+            log.pushStatus("buffering", "Waiting for audio from clients...");
         else
-            startStop.innerHTML = '<i class="fas fa-check"></i> Recording finished';
-        startStop.classList.remove("warning");
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        startStop.onclick = function() {};
-        startStop.disabled = true;
+            log.popStatus("buffering");
 
     }
 
     updateCreditCost();
-    //ui.resizeUI();
-
-    util.dispatchEvent("ui.resize-needed");
 }
 
 
@@ -276,43 +280,43 @@ function sendMode(mode: number) {
 
 // Start the recording (start button clicked)
 function startRecording() {
-    ui.ui.panels.master.startStopB.disabled = true;
+    for (const b of ui.ui.panels.host.startB)
+        b.disabled = true;
     sendMode(prot.mode.rec);
 }
 
 // Pause the recording
 function pauseRecording() {
-    ui.ui.panels.master.pauseResumeB.disabled = true;
+    for (const b of ui.ui.panels.host.pauseB)
+        b.disabled = true;
     sendMode(prot.mode.paused);
 }
 
 // Resume a paused recording
 function resumeRecording() {
-    ui.ui.panels.master.pauseResumeB.disabled = true;
+    for (const b of ui.ui.panels.host.resumeB)
+        b.disabled = true;
     sendMode(prot.mode.rec);
 }
 
 // Stop the recording (stop button clicked)
 function stopRecording() {
-    const startStop = ui.ui.panels.master.startStopB;
+    const masterUI = ui.ui.panels.host;
+    for (const b of masterUI.stopB)
+        b.disabled = true;
 
-    startStop.disabled = true;
-    startStop.innerText = "Are you sure?";
-
-    ui.ui.panels.master.yesNo.style.display = "";
-    ui.ui.panels.master.yesB.onclick = stopRecordingYes;
-    ui.ui.panels.master.yesB.focus();
-    ui.ui.panels.master.noB.onclick = stopRecordingNo;
-
-    ui.resizeUI();
+    masterUI.stopHider.style.display = "";
+    masterUI.stopYesB.onclick = stopRecordingYes;
+    masterUI.stopYesB.focus();
+    masterUI.stopNoB.onclick = stopRecordingNo;
+    ui.showPanel(masterUI, masterUI.stopYesB);
 }
 
 function stopRecordingYes() {
-    ui.ui.panels.master.yesNo.style.display = "none";
+    ui.ui.panels.host.sureHider.style.display = "none";
 
     // Send out the stop request
     sendMode(prot.mode.finished);
-    ui.resizeUI();
 }
 
 function stopRecordingNo() {
@@ -324,13 +328,13 @@ function stopRecordingNo() {
 function genInvite() {
     // Generate the search string
     const f = (
-        (ui.ui.panels.master.inviteContinuous.checked?config.features.continuous:0) +
+        (ui.ui.panels.invite.continuous.checked?config.features.continuous:0) +
         ((config.config.format&config.features.rtc)?config.features.rtc:0) +
         (config.useRecordOnly?config.features.recordOnly:0) +
         (config.useVideoRec?config.features.videorec:0) +
         (config.useRTEnnui.audio?config.features.rtennuiAudio:0) +
         (config.useTranscription?config.features.transcription:0) +
-        (ui.ui.panels.master.inviteFLAC.checked?prot.flags.dataType.flac:0)
+        (ui.ui.panels.invite.flac.checked?prot.flags.dataType.flac:0)
     );
     let sb = "?" + config.iconfig.id.toString(36) + "-" + config.iconfig.key.toString(36);
     if (config.iconfig.port)
@@ -341,12 +345,12 @@ function genInvite() {
     // Make the URL
     const url = new URL(<any> config.url);
     url.search = sb;
-    ui.ui.panels.master.inviteLink.value = url.toString();
+    ui.ui.panels.invite.link.value = url.toString();
 }
 
 // Copy the invite link
 function copyInvite() {
-    ui.ui.panels.master.inviteLink.select();
+    ui.ui.panels.invite.link.select();
     document.execCommand("copy");
 
     log.pushStatus("invite", "Copied invite link");
@@ -357,7 +361,7 @@ function copyInvite() {
 
 // Update the credit cost/rate meter
 function updateCreditCost() {
-    const masterUI = ui.ui.panels.master;
+    const masterUI = ui.ui.panels.host;
     if (!credits.creditCost || !credits.creditRate)
         return;
     const cc = credits.creditCost;
@@ -573,7 +577,7 @@ export function userAdmin(target: number): void {
                 log.popStatus("adminRequest");
             }, 3000);
             adminAction(target, prot.flags.admin.actions.request);
-            ui.showPanel(null, ui.ui.persistent.main);
+            ui.showPanel(null);
         };
     }
     ui.showPanel(userAdminUser, null);
@@ -615,7 +619,7 @@ function addSoundButton(sid: string, url: string, name: string) {
 
     soundboard.soundsWrapper.appendChild(b.b);
     soundboard.soundsWrapper.appendChild(spacer);
-    ui.ui.persistent.sounds.style.display = "";
+    ui.ui.mainMenu.sounds.style.display = "";
 }
 
 // Add many soundboard buttons
@@ -688,12 +692,12 @@ function adminAction(target: number, action: number, opts?: any) {
 
     // Hide the admin action window
     if (!opts.nohide)
-        ui.showPanel(null, ui.ui.persistent.main);
+        ui.showPanel(null);
 }
 
 // The change handler for accepting remote video
 function acceptRemoteVideoChange() {
-    const arv = ui.ui.panels.master.acceptRemoteVideo;
+    const arv = ui.ui.panels.host.acceptRemoteVideo;
     localStorage.setItem("ecmaster-video-record-host", JSON.stringify(arv.checked));
     comm.comms.data.videoRecSend(
         void 0, prot.videoRec.videoRecHost, ~~arv.checked);

@@ -85,7 +85,7 @@ export class CTCP implements comm.DataComms {
         if ("master" in config.config) {
             this.videoRecSend(
                 id, prot.videoRec.videoRecHost,
-                ~~ui.ui.panels.master.acceptRemoteVideo.checked
+                ~~ui.ui.panels.host.acceptRemoteVideo.checked
             );
         }
 
@@ -209,7 +209,7 @@ export class CTCP implements comm.DataComms {
 
                     case pv.startVideoRecReq:
                         if ("master" in config.config &&
-                            ui.ui.panels.master.acceptRemoteVideo.checked) {
+                            ui.ui.panels.host.acceptRemoteVideo.checked) {
 
                             // Check for options
                             let opts = {};
