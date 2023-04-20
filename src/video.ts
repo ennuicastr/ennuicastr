@@ -174,7 +174,7 @@ export function updateVideoButtons(): void {
 
     // By default: both are off and set to enable
     cam.setAttribute("aria-label", "Camera");
-    cam.innerHTML = '<i class="fas fa-video-slash"></i><span class="menu-extra">Camera</span>';
+    cam.innerHTML = '<i class="bx bx-video-off"></i><span class="menu-button-lbox"><span class="menu-button-label">Share<br/>Camera</span></span>';
     cam.onclick = function() {
         if (videoConfig.device.value !== "-none") {
             // We can share it directly
@@ -188,7 +188,7 @@ export function updateVideoButtons(): void {
     };
 
     scr.setAttribute("aria-label", "Share your screen");
-    scr.innerHTML = '<i class="fas fa-desktop" style="position: relative;"><i class="fas fa-slash" style="position: absolute; left: -0.1em;"></i></i><span class="menu-extra">Share your screen</span>';
+    scr.innerHTML = '<i class="bx bx-window-close"></i><span class="menu-button-lbox"><span class="menu-button-label">Share<br/>Screen</span></span>';
     scr.onclick = function() {
         shareVideo("-screen", 0);
     };
@@ -201,15 +201,15 @@ export function updateVideoButtons(): void {
     if (userMediaVideoID === "-screen") {
         // We're in screen-share mode, so make it a disable button
         scr.setAttribute("aria-label", "Stop sharing your screen");
-        scr.innerHTML = '<i class="fas fa-desktop"></i><span class="menu-extra">Stop sharing your screen</span>';
+        scr.innerHTML = '<i class="bx bx-window"></i><span class="menu-button-lbox"><span class="menu-button-label">Unshare<br/>Screen</span></span>';
         scr.onclick = function() {
             shareVideo("-none", 0);
         };
 
     } else if (userMediaVideoID !== null) {
         // We're sharing the camera, so click it to stop
-        cam.setAttribute("aria-label", "Disable camera");
-        cam.innerHTML = '<i class="fas fa-video"></i><span class="menu-extra">Disable camera</span>';
+        cam.setAttribute("aria-label", "Stop sharing your camera");
+        cam.innerHTML = '<i class="bx bx-video"></i><span class="menu-button-lbox"><span class="menu-button-label">Unshare<br/>Camera</span></span>';
         cam.onclick = function() {
             shareVideo("-none", 0);
         };

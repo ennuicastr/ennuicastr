@@ -423,6 +423,21 @@ button.bright:active {
     border-bottom-left-radius: 0.2em;
 }
 
+.caption {
+    display: none;
+    position: absolute;
+    left: 1em;
+    right: 1em;
+    bottom: 1em;
+    text-align: center;
+    font-size: 1.25rem;
+    color: #aaa;
+}
+
+[data-captions="show"] .caption {
+    display: block;
+}
+
 /* Main body */
 body {
     margin: 0;
@@ -484,6 +499,7 @@ body {
 }
 
 #ec3-main-video-wrapper .ec3-video {
+    flex: auto;
     height: 100%;
 }
 

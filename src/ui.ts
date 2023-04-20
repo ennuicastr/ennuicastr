@@ -76,24 +76,7 @@ export const ui = {
 
         // Video components for each user
         users: {
-            /* The arrangement goes like this
-             * <div box-a rflex>
-             *   <div box-b>
-             *     <video element />
-             *     <standin element />
-             *     <name label />
-             *     <captions />
-             *     <popout button />
-             *   </div>
-             *   <admin button />
-             *   <div flexible waveformWrapper>
-             *     <waveform canvas />
-             *   </div>
-             * </div>
-             */
-
-            boxA: HTMLElement,
-            boxB: HTMLElement,
+            box: HTMLElement,
             video: HTMLVideoElement,
             audio: HTMLAudioElement,
             standin: HTMLElement,
@@ -105,7 +88,6 @@ export const ui = {
                 complete: boolean,
                 timeout: number
             }[],
-            popout: HTMLButtonElement,
             admin: HTMLButtonElement,
             waveformWrapper: HTMLElement
         }[],
@@ -471,13 +453,13 @@ const lastSpeech: number[] = [];
 
 // Video standin's SVG code
 const standinSVG = [
-    '<svg viewBox="0 0 512 512" style="width:100%;height:100%"><g transform="translate(0,215)"><rect ry="128" rx="128" y="-215" x="0" height="512" width="512" style="opacity:0.5;fill:#ffffff" /><text style="font-size:298.66518928px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle" y="149.86458" x="256">##</text></g></svg>',
-    '<svg viewBox="0 0 640 512" style="width:100%;height:100%"><g transform="translate(64,215)"><path transform="matrix(1.3149081,0,0,1.1060609,-80.616476,-4.348493)" d="m 256.00001,-190.45201 243.36301,176.81359 -92.95641,286.09039 -300.81323,-1e-5 -92.956399,-286.090393 z" style="opacity:0.5;fill:#ffffff" /><text style="font-size:298.66519165px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle" y="149.86458" x="256">##</text></g></svg>',
-    '<svg viewBox="0 0 512 512" style="width:100%;height:100%"><g transform="translate(0,215)"><path transform="matrix(1.1552103,0,0,1.0004415,-39.733837,-24.463922)" d="m 256.00001,-190.45201 221.60466,127.943517 -10e-6,255.887023 -221.60467,127.94351 -221.604657,-127.94352 7e-6,-255.887025 z" style="opacity:0.5;fill:#ffffff" /><text style="font-size:298.66518928px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle" y="149.86458" x="256">##</text></g></svg>',
-    '<svg viewBox="0 0 576 512" style="width:100%;height:100%"><g transform="translate(32,215)"><path transform="matrix(1.1544409,0,0,1.0525596,-39.536869,-14.537931)" d="M 256.00001,-190.45201 456.06054,-94.107932 505.4714,122.37524 367.02521,295.98126 144.97478,295.98125 6.5285965,122.37523 55.939473,-94.107942 Z" style="opacity:0.5;fill:#ffffff" /><text style="font-size:298.66519165px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle" y="149.86458" x="256">##</text></g></svg>',
-    '<svg viewBox="0 0 640 512" style="width:100%;height:100%"><g transform="translate(64,215)"><path transform="matrix(1.25,0,0,1,-64,0)" d="M 256.00001,-215.00002 437.01934,-140.01935 512,40.999988 437.01933,222.01932 255.99999,296.99998 74.980659,222.01931 0,40.999974 74.980669,-140.01936 Z" style="opacity:0.5;fill:#ffffff" /><text style="font-size:298.66519165px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle" y="149.86458" x="256">##</text></g></svg>',
-    '<svg viewBox="0 0 576 512" style="width:100%;height:100%"><g transform="translate(32,215)"><path transform="matrix(1.1423549,0,0,1.0310912,-36.442856,6.6846075)" d="m 256.00001,-215.00002 164.55362,59.89263 87.55716,151.6534442 -30.40829,172.4539358 -134.14535,112.5613 -175.11431,0 L 34.297493,168.99997 3.8892164,-3.4539593 91.446377,-155.1074 Z" style="opacity:0.5;fill:#ffffff" /><text style="font-size:298.66519165px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle" y="149.86458" x="256">##</text></g></svg>',
-    '<svg viewBox="0 0 544 512" style="width:100%;height:100%"><g transform="translate(16,215)"><path transform="matrix(1.1171786,0,0,1,-29.997722,0)" d="m 256.00001,-215.00002 150.47302,48.89165 92.99744,128.000007 0,158.216703 -92.99745,128 -150.47303,48.89164 -150.47302,-48.89165 -92.99744,-128.00001 4e-6,-158.216696 92.997446,-127.999994 z" style="opacity:0.5;fill:#ffffff" /><text style="font-size:298.66519165px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle" y="149.86458" x="256">##</text></g></svg>'
+    '<svg viewBox="0 0 512 512" style="position:absolute;left:0;top:0;width:100%;height:100%"><g transform="translate(0,215)"><rect ry="128" rx="128" y="-215" x="0" height="512" width="512" style="opacity:0.5;fill:#ffffff" /><text style="font-size:298.66518928px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle" y="149.86458" x="256">##</text></g></svg>',
+    '<svg viewBox="0 0 640 512" style="position:absolute;left:0;top:0;width:100%;height:100%"><g transform="translate(64,215)"><path transform="matrix(1.3149081,0,0,1.1060609,-80.616476,-4.348493)" d="m 256.00001,-190.45201 243.36301,176.81359 -92.95641,286.09039 -300.81323,-1e-5 -92.956399,-286.090393 z" style="opacity:0.5;fill:#ffffff" /><text style="font-size:298.66519165px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle" y="149.86458" x="256">##</text></g></svg>',
+    '<svg viewBox="0 0 512 512" style="position:absolute;left:0;top:0;width:100%;height:100%"><g transform="translate(0,215)"><path transform="matrix(1.1552103,0,0,1.0004415,-39.733837,-24.463922)" d="m 256.00001,-190.45201 221.60466,127.943517 -10e-6,255.887023 -221.60467,127.94351 -221.604657,-127.94352 7e-6,-255.887025 z" style="opacity:0.5;fill:#ffffff" /><text style="font-size:298.66518928px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle" y="149.86458" x="256">##</text></g></svg>',
+    '<svg viewBox="0 0 576 512" style="position:absolute;left:0;top:0;width:100%;height:100%"><g transform="translate(32,215)"><path transform="matrix(1.1544409,0,0,1.0525596,-39.536869,-14.537931)" d="M 256.00001,-190.45201 456.06054,-94.107932 505.4714,122.37524 367.02521,295.98126 144.97478,295.98125 6.5285965,122.37523 55.939473,-94.107942 Z" style="opacity:0.5;fill:#ffffff" /><text style="font-size:298.66519165px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle" y="149.86458" x="256">##</text></g></svg>',
+    '<svg viewBox="0 0 640 512" style="position:absolute;left:0;top:0;width:100%;height:100%"><g transform="translate(64,215)"><path transform="matrix(1.25,0,0,1,-64,0)" d="M 256.00001,-215.00002 437.01934,-140.01935 512,40.999988 437.01933,222.01932 255.99999,296.99998 74.980659,222.01931 0,40.999974 74.980669,-140.01936 Z" style="opacity:0.5;fill:#ffffff" /><text style="font-size:298.66519165px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle" y="149.86458" x="256">##</text></g></svg>',
+    '<svg viewBox="0 0 576 512" style="position:absolute;left:0;top:0;width:100%;height:100%"><g transform="translate(32,215)"><path transform="matrix(1.1423549,0,0,1.0310912,-36.442856,6.6846075)" d="m 256.00001,-215.00002 164.55362,59.89263 87.55716,151.6534442 -30.40829,172.4539358 -134.14535,112.5613 -175.11431,0 L 34.297493,168.99997 3.8892164,-3.4539593 91.446377,-155.1074 Z" style="opacity:0.5;fill:#ffffff" /><text style="font-size:298.66519165px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle" y="149.86458" x="256">##</text></g></svg>',
+    '<svg viewBox="0 0 544 512" style="position:absolute;left:0;top:0;width:100%;height:100%"><g transform="translate(16,215)"><path transform="matrix(1.1171786,0,0,1,-29.997722,0)" d="m 256.00001,-215.00002 150.47302,48.89165 92.99744,128.000007 0,158.216703 -92.99745,128 -150.47303,48.89164 -150.47302,-48.89165 -92.99744,-128.00001 4e-6,-158.216696 92.997446,-127.999994 z" style="opacity:0.5;fill:#ffffff" /><text style="font-size:298.66519165px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle" y="149.86458" x="256">##</text></g></svg>'
 ];
 
 // Show the given panel, or none
@@ -720,41 +702,27 @@ export function videoAdd(idx: number, name: string): void {
         ui.video.users.push(null);
 
     const ctx = ui.video.users[idx] = {
-        boxA: dce("div"),
-        boxB: dce("div"),
+        box: dce("div"),
         video: dce("video"),
         audio: dce("audio"),
         standin: dce("div"),
         name: dce("span"),
         caption: dce("div"),
         captions: <any[]> [],
-        popout: dce("button"),
         admin: <HTMLButtonElement> null,
         waveformWrapper: dce("div")
     };
 
     /* The outer box */
-    const boxA = ctx.boxA;
-    boxA.classList.add("ecvideo-a");
-
-    /* The inner box */
-    const box = ctx.boxB;
-    box.classList.add("ecvideo");
+    const box = ctx.box;
+    box.classList.add("ec3-video");
     box.style.border = "4px solid " + ui.colors["video-silent"];
-    boxA.appendChild(box);
 
     // The video element itself
     const video = ctx.video;
     video.height = 0; // Use CSS for style
     video.muted = true; // Audio goes through a different system
     video.autoplay = true;
-    Object.assign(video.style, {
-        position: "absolute",
-        left: "0",
-        top: "0",
-        width: "100%",
-        height: "100%"
-    });
     box.appendChild(video);
 
     // The audio element, just used to make sure audio is actually playing
@@ -775,14 +743,7 @@ export function videoAdd(idx: number, name: string): void {
 
     // The standin for when there is no video
     const standin = ctx.standin;
-    Object.assign(standin.style, {
-        position: "absolute",
-        left: "8px",
-        top: "8px",
-        right: "8px",
-        bottom: "8px",
-        cursor: "default"
-    });
+    standin.classList.add("fauto");
     box.appendChild(standin);
     standin.onclick = video.onclick;
 
@@ -790,7 +751,7 @@ export function videoAdd(idx: number, name: string): void {
 
     // Their personal label
     const nspan = ctx.name;
-    nspan.classList.add("namelabel");
+    nspan.classList.add("ec3-name-label");
     nspan.innerText = name || "";
     nspan.setAttribute("role", "note");
     nspan.setAttribute("aria-label", nspan.innerText + ": Not speaking");
@@ -801,6 +762,7 @@ export function videoAdd(idx: number, name: string): void {
     caption.classList.add("caption");
     box.appendChild(caption);
 
+    /* FIXME?
     // And popout button
     const popout = ctx.popout;
     popout.classList.add("pobutton", "tbutton", "interface", "streamer-interface");
@@ -843,29 +805,31 @@ export function videoAdd(idx: number, name: string): void {
         else
             popoutOpen();
     };
+    */
 
-    // The admin button
+    // The admin button (FIXME)
     if ("master" in config.config) {
         const admin = ctx.admin = dce("button");
+        admin.style.display = "none";
         admin.classList.add("ecstudio-admin-button");
-        admin.innerHTML = '<i class="fas fa-user-cog"></i>';
+        admin.innerHTML = '<i class="bx bx-user"></i>';
         admin.title = "Administrate " + name;
         admin.setAttribute("aria-label", "Administrate " + name);
         admin.style.height = "100%";
         admin.onclick = function() {
             ui.masterUserAdmin(idx);
         };
-        boxA.appendChild(admin);
+        box.appendChild(admin);
     }
 
-    // The waveform wrapper (only in studio mode)
+    // The waveform wrapper (only in studio mode) (FIXME)
     const waveformWrapper = ctx.waveformWrapper;
     waveformWrapper.classList.add("ecvideo-waveform");
-    boxA.appendChild(waveformWrapper);
+    box.appendChild(waveformWrapper);
 }
 
 // Style a video element given a user's name
-function styleVideoEl(ctx: {video: HTMLVideoElement, boxA: HTMLElement, standin: HTMLElement}, name: string) {
+function styleVideoEl(ctx: {video: HTMLVideoElement, box: HTMLElement, standin: HTMLElement}, name: string) {
     if (!name) return;
     let x = parseInt(btoa(unescape(encodeURIComponent(name.slice(-6)))).replace(/[^A-Za-z0-9]/g, ""), 36);
     const r = x % 4;
@@ -876,7 +840,7 @@ function styleVideoEl(ctx: {video: HTMLVideoElement, boxA: HTMLElement, standin:
     x = Math.floor(x / 4);
     const s = x % standinSVG.length;
     ctx.video.style.backgroundColor =
-        ctx.boxA.style.backgroundColor = "#" + r + g + b;
+        ctx.box.style.backgroundColor = "#" + r + g + b;
     ctx.standin.innerHTML = standinSVG[s].replace("##", genStandinName(name || ""));
 }
 
@@ -1049,18 +1013,18 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
         if (u) {
             const selected = (ui.video.selected === pi);
             if (lastSpeech[pi] !== null)
-                v.boxB.style.borderColor = ui.colors["video-speaking" + (selected?"-sel":"")];
+                v.box.style.borderColor = ui.colors["video-speaking" + (selected?"-sel":"")];
             else
-                v.boxB.style.borderColor = ui.colors["video-silent" + (selected?"-sel":"")];
+                v.box.style.borderColor = ui.colors["video-silent" + (selected?"-sel":"")];
         }
 
         // Box positioning
         if (ui.video.major === pi) continue;
-        if (!u && v.boxA.parentNode) {
-            v.boxA.parentNode.removeChild(v.boxA);
+        if (!u && v.box.parentNode) {
+            v.box.parentNode.removeChild(v.box);
             moved++;
-        } else if (u && v.boxA.parentNode !== ui.video.side) {
-            ui.video.side.appendChild(v.boxA);
+        } else if (u && v.box.parentNode !== ui.video.side) {
+            ui.video.side.appendChild(v.box);
             moved++;
         }
     }
@@ -1097,7 +1061,7 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
     // And highlight it
     if (ui.video.major !== -1) {
         const v = ui.video.users[ui.video.major];
-        ui.video.main.appendChild(v.boxA);
+        ui.video.main.appendChild(v.box);
     }
 }
 

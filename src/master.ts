@@ -440,7 +440,7 @@ export function userAdmin(target: number): void {
         userAdminUser.name.innerText = user ? user.name : "";
         userAdminUser.kick.style.display = "";
     } else {
-        userAdminUser.name.innerHTML = '<i class="fas fa-users"></i> All users';
+        userAdminUser.name.innerHTML = '<i class="bx bx-group"></i> All users';
         userAdminUser.kick.style.display = "none";
     }
 
@@ -601,8 +601,8 @@ function addSoundButton(sid: string, url: string, name: string) {
     };
     b.b.classList.add("nouppercase");
     b.b.id = "ec-sound-" + sid;
-    b.i.classList.add("fas");
-    b.i.classList.add("fa-play");
+    b.i.classList.add("bx");
+    b.i.classList.add("bx-play");
     b.b.appendChild(b.i);
     b.n.innerText = " " + name;
     b.b.appendChild(b.n);
@@ -655,9 +655,9 @@ function soundButtonUpdate(url: string, play: unknown, el: HTMLAudioElement) {
     b.b.classList.remove("off");
 
     // And update the icon
-    b.i.classList.remove("fa-play");
-    b.i.classList.remove("fa-stop");
-    b.i.classList.add(play?"fa-stop":"fa-play");
+    b.i.classList.remove("bx-play");
+    b.i.classList.remove("bx-stop");
+    b.i.classList.add(play?"bx-stop":"bx-play");
 
     if (play) {
         el.addEventListener("ended", function() {

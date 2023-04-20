@@ -161,7 +161,7 @@ function loadVideo() {
 
     // A generic function to handle fullscreen buttons
     function fullscreen(el: HTMLElement, btn: HTMLButtonElement) {
-        btn.innerHTML = '<i class="fas fa-expand"></i>';
+        btn.innerHTML = '<i class="bx bx-fullscreen"></i>';
 
         // Toggle based on what's fullscreen
         function toggleFullscreen() {
@@ -174,9 +174,9 @@ function loadVideo() {
 
         document.addEventListener("fullscreenchange", function() {
             if (document.fullscreenElement === el)
-                btn.innerHTML = '<i class="fas fa-compress"></i>';
+                btn.innerHTML = '<i class="bx bx-exit-fullscreen"></i>';
             else
-                btn.innerHTML = '<i class="fas fa-expand"></i>';
+                btn.innerHTML = '<i class="bx bx-fullscreen"></i>';
         });
     }
 
@@ -845,7 +845,7 @@ export function mkAudioUI(): string {
         shareB.disabled = false;
         if (video.userMediaVideoID === dev || dev === "-none") {
             // Click this to *un*share
-            shareB.innerHTML = '<i class="fas fa-video-slash"></i> Unshare your camera';
+            shareB.innerHTML = '<i class="bx bx-video-off"></i><span class="menu-button-lbox"><span class="menu-button-label">Unshare<br/>Camera</span></span>';
             shareB.onclick = function() {
                 shareB.classList.add("off");
                 shareB.disabled = true;
@@ -860,7 +860,7 @@ export function mkAudioUI(): string {
 
         } else {
             // Click this to share
-            shareB.innerHTML = '<i class="fas fa-video"></i> Share your camera';
+            shareB.innerHTML = '<i class="bx bx-video"></i><span class="menu-button-lbox"><span class="menu-button-label">Share<br/>Camera</span></span>';
             shareB.onclick = function() {
                 shareB.classList.add("off");
                 shareB.disabled = true;
@@ -1047,12 +1047,12 @@ util.events.addEventListener("audio.mute", function() {
     const muteB = ui.mainMenu.mute;
     if (audio.inputs[0].userMedia.getAudioTracks()[0].enabled) {
         // It's unmuted
-        muteB.innerHTML = '<i class="fas fa-microphone-alt" style="width: 1em;"></i><span class="menu-extra">Mute</span>';
+        muteB.innerHTML = '<i class="bx bx-microphone"></i><span class="menu-button-lbox"><span class="menu-button-label">Mute</span></span>';
         muteB.setAttribute("aria-label", "Mute");
 
     } else {
         // It's muted
-        muteB.innerHTML = '<i class="fas fa-microphone-alt-slash" style="width: 1em;"></i><span class="menu-extra">Unmute</span>';
+        muteB.innerHTML = '<i class="bx bx-microphone-off"></i><span class="menu-button-lbox"><span class="menu-button-label">Unmute</span></span>';
         muteB.setAttribute("aria-label", "Unmute");
 
     }
