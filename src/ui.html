@@ -108,7 +108,7 @@
             <div id="ec3-waveform-row" role="complementary" aria-label="Live audio waveform">
                 <img id="ec3-waveform-watcher" src="images/watcher.webp" />
             </div>
-            <div id="ec3-status" role="status">Status</div>
+            <div id="ec3-status" role="status"></div>
         </div>
 
         <!-- The layer separator makes it easier to close panels -->
@@ -135,7 +135,7 @@
             </button>
 
             <div class="rflex row">
-                <label for="ec3-invite-link-txt" class="left-label">Invite:&nbsp;</label>
+                <label for="ec3-invite-link-txt" class="left-label">Link:&nbsp;</label>
                 <input id="ec3-invite-link-txt" type="text" readonly style="flex: auto; min-width: 1em;" />
                 &nbsp;
                 <button id="ec3-invite-link-copy-btn" class="round-button" title="Copy invite link" aria-label="Copy invite link"><i class="bx bx-copy-alt"></i></button>
@@ -260,7 +260,7 @@
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
 
-            <div id="ec3-user-admin-user-full-name" class="row" style="text-align: center;"><i class="bx bx-group"></i> All users</div>
+            <div id="ec3-user-admin-user-full-name-lbl" class="row" style="text-align: center;"><i class="bx bx-group"></i> All users</div>
             <button id="ec3-user-admin-full-kick-button" class="pill-button row"><i class="bx bx-user-x"></i> Kick user</button>
             <div class="rflex row">
                 <input id="ec3-user-admin-full-mute-chk" type="checkbox" />
@@ -288,7 +288,7 @@
                 <select id="ec3-user-admin-full-audio-dev-sel" style="flex: auto;"></select>
             </div>
 
-            <div id="ec3-user-admin-interface-user-full-video-hider">
+            <div id="ec3-user-admin-full-video-hider">
                 <div class="rflex row">
                     <label for="ec3-user-admin-full-video-dev-sel" class="left-label" style="min-width: 8em;">Video device:&nbsp;</label>
                     <select id="ec3-user-admin-full-video-dev-sel" style="flex: auto;"></select>
@@ -493,7 +493,7 @@
                 <select id="ec3-video-device-sel" style="flex: auto;"></select>
             </div>
 
-            <button id="ec3-video-share-btn" class="pill-button row"><i class="bxs bs-camera"></i> Share your camera</button>
+            <button id="ec3-video-share-btn" class="pill-button row"><i class="bxs bx-camera"></i> Share camera</button>
 
             <!-- Spacer -->
             <div class="row">&nbsp;</div>

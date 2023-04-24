@@ -305,7 +305,7 @@ function stopRecording() {
     for (const b of masterUI.stopB)
         b.disabled = true;
 
-    masterUI.stopHider.style.display = "";
+    masterUI.sureHider.style.display = "";
     masterUI.stopYesB.onclick = stopRecordingYes;
     masterUI.stopYesB.focus();
     masterUI.stopNoB.onclick = stopRecordingNo;
@@ -405,6 +405,7 @@ export function updateMasterAdmin(): void {
         if (!bs[i]) {
             // Create a button for this user
             b = bs[i] = dce("button");
+            b.classList.add("pill-button");
             b.classList.add("row");
             b.innerText = u.name;
             b.onclick = (function(i) {
@@ -452,9 +453,9 @@ export function userAdmin(target: number): void {
         userAdminFull.mute.onchange = function() {
             userAdminFull.mute.disabled = true;
             if (userAdminFull.mute.checked)
-                adminAction(target, acts.mute, {nohide: true});
+                adminAction(target, acts.mute);
             else
-                adminAction(target, acts.unmute, {nohide: true});
+                adminAction(target, acts.unmute);
             fullAccess.mute = userAdminFull.mute.checked;
         };
         userAdminFull.mute.checked = fullAccess.mute;
@@ -464,9 +465,9 @@ export function userAdmin(target: number): void {
         userAdminFull.echo.onchange = function() {
             userAdminFull.echo.disabled = true;
             if (userAdminFull.echo.checked)
-                adminAction(target, acts.echoCancel, {nohide: true});
+                adminAction(target, acts.echoCancel);
             else
-                adminAction(target, acts.unechoCancel, {nohide: true});
+                adminAction(target, acts.unechoCancel);
             fullAccess.echo = userAdminFull.echo.checked;
         };
         userAdminFull.echo.checked = fullAccess.echo;
@@ -475,7 +476,6 @@ export function userAdmin(target: number): void {
         // VAD sensitivity
         userAdminFull.vadSensitivity.onchange = function() {
             adminAction(target, acts.vadSensitivity, {
-                nohide: true,
                 arg: +userAdminFull.vadSensitivity.value
             });
             fullAccess.vadSensitivity = +userAdminFull.vadSensitivity.value;
@@ -490,7 +490,6 @@ export function userAdmin(target: number): void {
         // VAD noise gate
         userAdminFull.vadNoiseGate.onchange = function() {
             adminAction(target, acts.vadNoiseGate, {
-                nohide: true,
                 arg: +userAdminFull.vadNoiseGate.value
             });
             fullAccess.vadNoiseGate = +userAdminFull.vadNoiseGate.value;
@@ -508,7 +507,7 @@ export function userAdmin(target: number): void {
         const audioInput = userAdminFull.audioInput;
         audioInput.onchange = function() {
             audioInput.disabled = true;
-            adminAction(target, acts.audioInput, {nohide: true, arg: audioInput.value});
+            adminAction(target, acts.audioInput, {arg: audioInput.value});
         };
         audioInput.disabled = false;
 
@@ -536,7 +535,7 @@ export function userAdmin(target: number): void {
             const videoInput = userAdminFull.videoInput;
             videoInput.onchange = function() {
                 videoInput.disabled = true;
-                adminAction(target, acts.videoInput, {nohide: true, arg: videoInput.value});
+                adminAction(target, acts.videoInput, {arg: videoInput.value});
             };
             videoInput.disabled = false;
 
@@ -561,7 +560,7 @@ export function userAdmin(target: number): void {
             const videoRes = userAdminFull.videoRes;
             videoRes.onchange = function() {
                 videoRes.disabled = true;
-                adminAction(target, acts.videoRes, {nohide: true, arg: videoRes.value});
+                adminAction(target, acts.videoRes, {arg: videoRes.value});
             };
             videoRes.value = fullAccess.videoRes;
             videoRes.disabled = false;
@@ -577,7 +576,6 @@ export function userAdmin(target: number): void {
                 log.popStatus("adminRequest");
             }, 3000);
             adminAction(target, prot.flags.admin.actions.request);
-            ui.showPanel(null);
         };
     }
     ui.showPanel(userAdminUser, null);
@@ -689,10 +687,6 @@ function adminAction(target: number, action: number, opts?: any) {
     out.setUint32(p.action, action, true);
     (new Uint8Array(out.buffer)).set(argBuf, p.argument);
     net.masterSock.send(out.buffer);
-
-    // Hide the admin action window
-    if (!opts.nohide)
-        ui.showPanel(null);
 }
 
 // The change handler for accepting remote video

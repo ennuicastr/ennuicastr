@@ -137,7 +137,7 @@ export class Waveform {
 
         // Wrapper for the label and stats canvases
         const lblStatsWrapper = document.createElement("div");
-        lblStatsWrapper.classList.add("ecwaveform-label");
+        lblStatsWrapper.classList.add("ec3-waveform-label");
         Object.assign(lblStatsWrapper.style, {
             position: "absolute",
             left: "0px",
@@ -165,8 +165,8 @@ export class Waveform {
         const statsBox = this.statsBox = document.createElement("span");
         Object.assign(statsBox.style, {
             position: "absolute",
-            right: (peakWidth + 8) + "px",
-            bottom: "2px",
+            right: (peakWidth + 40) + "px",
+            top: "2px",
             fontSize: "0.8em"
         });
         lblStatsWrapper.appendChild(statsBox);
@@ -451,7 +451,7 @@ export class Waveform {
         }
 
         // Background color
-        ctx.fillStyle = ui.ui.colors["bg-wave"];
+        ctx.fillStyle = ui.ui.colors["bg"];
         ctx.fillRect(ndx, 0, w-ndx, h*2);
 
         // Level bar at 1% (-40dB) for "too soft"

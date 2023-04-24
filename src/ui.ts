@@ -69,6 +69,7 @@ export const ui = {
         window: WindowProxy,
 
         // Side container
+        sideOuter: HTMLElement,
         side: HTMLElement,
 
         // Main video element 
@@ -127,6 +128,8 @@ export const ui = {
 
     // The main menu
     mainMenu: <{
+        showHide: HTMLButtonElement,
+        wrapper: HTMLElement,
         host: HTMLButtonElement,
         userAdmin: HTMLButtonElement,
         sounds: HTMLButtonElement,
@@ -168,6 +171,9 @@ export const ui = {
 
         // Invite panel
         invite: <{
+            // Button to show the invite panel
+            button: HTMLButtonElement,
+
             wrapper: HTMLElement,
 
             // Invite
@@ -494,7 +500,7 @@ export function showPanel(panelName: Panel|string, autoFocusName?: HTMLElement|s
 
     // Show this one
     if (panel) {
-        ui.layerSeparator.style.display = "";
+        ui.layerSeparator.style.display = "block";
         panel.wrapper.style.display = "block";
         document.body.setAttribute("data-interface", "none");
 
@@ -630,7 +636,7 @@ export function userListAdd(idx: number, name: string, fromMaster: boolean): voi
     userList.userList.appendChild(user.wrapper);
 
     user.name.classList.add("half");
-    user.name.style.backgroundColor = ui.colors["user-list-silent"];
+    user.name.style.backgroundColor = "var(--user-list-silent)";
     user.name.innerText = name;
     user.name.setAttribute("role", "note");
     user.name.setAttribute("aria-label", name + ": Not speaking");
@@ -716,10 +722,11 @@ export function videoAdd(idx: number, name: string): void {
     /* The outer box */
     const box = ctx.box;
     box.classList.add("ec3-video");
-    box.style.border = "4px solid " + ui.colors["video-silent"];
+    box.style.border = "4px solid var(--video-silent)";
 
     // The video element itself
     const video = ctx.video;
+    video.classList.add("fauto");
     video.height = 0; // Use CSS for style
     video.muted = true; // Audio goes through a different system
     video.autoplay = true;
@@ -807,11 +814,11 @@ export function videoAdd(idx: number, name: string): void {
     };
     */
 
-    // The admin button (FIXME)
+    // The admin button
     if ("master" in config.config) {
         const admin = ctx.admin = dce("button");
         admin.style.display = "none";
-        admin.classList.add("ecstudio-admin-button");
+        admin.classList.add("ec3-studio-admin-button");
         admin.innerHTML = '<i class="bx bx-user"></i>';
         admin.title = "Administrate " + name;
         admin.setAttribute("aria-label", "Administrate " + name);
@@ -822,9 +829,9 @@ export function videoAdd(idx: number, name: string): void {
         box.appendChild(admin);
     }
 
-    // The waveform wrapper (only in studio mode) (FIXME)
+    // The waveform wrapper (only in studio mode)
     const waveformWrapper = ctx.waveformWrapper;
-    waveformWrapper.classList.add("ecvideo-waveform");
+    waveformWrapper.classList.add("ec3-studio-video-waveform");
     box.appendChild(waveformWrapper);
 }
 
@@ -883,7 +890,7 @@ export function userListUpdate(idx: number, speaking: boolean, fromMaster: boole
     if (!fromMaster) {
         const user = ui.panels.userList.users[idx];
         if (!user) return;
-        user.name.style.backgroundColor = ui.colors["user-list-" + (speaking?"speaking":"silent")];
+        user.name.style.backgroundColor = "var(--user-list-" + (speaking?"speaking":"silent") + ")";
         user.name.setAttribute("aria-label", user.name.innerText + ": " + (speaking?"Speaking":"Not speaking"));
     }
 
@@ -916,7 +923,9 @@ util.netEvent("data", "speech", function(ev) {
 });
 
 // Update the video UI based on new information about this peer
-export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boolean): void {
+export function updateVideoUI(
+    peer: number, speaking?: boolean, fromMaster?: boolean
+): void {
     const ctx = ui.video.users[peer];
     const users = ui.panels.userList.users;
     const user = users[peer];
@@ -1013,9 +1022,9 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
         if (u) {
             const selected = (ui.video.selected === pi);
             if (lastSpeech[pi] !== null)
-                v.box.style.borderColor = ui.colors["video-speaking" + (selected?"-sel":"")];
+                v.box.style.borderColor = "var(--video-speaking" + (selected?"-sel":"") + ")";
             else
-                v.box.style.borderColor = ui.colors["video-silent" + (selected?"-sel":"")];
+                v.box.style.borderColor = "var(--video-silent" + (selected?"-sel":"") + ")";
         }
 
         // Box positioning
@@ -1040,19 +1049,15 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
          * (9 * deviceWidth * elementCount) / (16 * deviceHeight) = w*w
          * w = sqrt((9 * deviceWidth * elementCount) / (16 * deviceHeight))
          */
+        ui.video.sideOuter.style.display = "";
         const side = ui.video.side;
         const total = side.childNodes.length;
-        let w = Math.round(Math.sqrt((9 * side.offsetWidth * total) / (16 * side.offsetHeight)));
+        let w = Math.round(Math.sqrt((9 * window.innerWidth * total) / (16 * side.offsetHeight)));
         if (w < 1)
             w = 1;
         const ew = Math.max((100 / w) - 1, 1);
         const mw = 100 / w;
-        ui.video.css.innerHTML = '[data-view-mode="gallery"] #ecvideo-side .ecvideo-a { flex: auto; width: ' + ew +  '%; max-width: ' + mw + '%; }';
-    }
-
-    if (ui.video.major === prevMajor) {
-        // No need to change the major
-        return;
+        ui.video.css.innerHTML = '[data-view-mode="gallery"] #ec3-side-video-wrapperb .ec3-video { flex: auto; width: ' + ew +  '%; max-width: ' + mw + '%; }';
     }
 
     // Remove anything left over highlighted
@@ -1063,7 +1068,16 @@ export function updateVideoUI(peer: number, speaking?: boolean, fromMaster?: boo
         const v = ui.video.users[ui.video.major];
         ui.video.main.appendChild(v.box);
     }
+
+    // Maybe get rid of the side view entirely
+    if (!gallery && !studio && !ui.video.side.children.length) {
+        ui.video.sideOuter.style.display = "none";
+    } else {
+        ui.video.sideOuter.style.display = "";
+    }
 }
+
+window.addEventListener("resize", () => updateVideoUI(0));
 
 // Generate a standin abbreviated name given a full name
 function genStandinName(name: string) {

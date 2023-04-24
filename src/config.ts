@@ -237,8 +237,7 @@ export async function load(): Promise<boolean> {
             target += "nm=" + encodeURIComponent(gebi("nm").value);
             if (params.get("debug"))
                 target += "&debug=1";
-            const height = ("master" in config)?480:240;
-            if (window.open(target, "", "width=640,height=" + height + ",menubar=0,toolbar=0,location=0,personalbar=0,status=0") === null) {
+            if (window.open(target, "", "width=800,height=800,menubar=0,toolbar=0,location=0,personalbar=0,status=0") === null) {
                 // Just use the regular submit
                 return true;
             }
@@ -378,12 +377,19 @@ export function resolve(): Promise<unknown> {
     return p;
 }
 
-// Color sets for wave vad colors
+/* Color sets for wave vad colors
+ * (s|r)(v|c):
+ *   s means stopped (not recording)
+ *   r means recording
+ *   v means using VAD
+ *   c means continuous mode
+ * Each set is four colors: error, no, maybe, yes
+ */
 const waveVADColorSets = {
-    "sv": ["#000", "#753", "#730", "#a30"],
-    "sc": ["#000", "#730", "#730", "#a30"],
-    "rv": ["#000", "#aaa", "#073", "#0a3"],
-    "rc": ["#000", "#073", "#073", "#0a3"]
+    "sv": ["#000", "#333", "#666", "#999"],
+    "sc": ["#000", "#666", "#666", "#999"],
+    "rv": ["#000", "#031", "#061", "#094"],
+    "rc": ["#000", "#061", "#061", "#094"],
 };
 
 // And the current colors

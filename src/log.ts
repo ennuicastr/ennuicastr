@@ -21,32 +21,33 @@
  */
 
 import * as util from "./util";
-
-export const log = util.gebi("log");
+import * as ui from "./ui";
 
 // Current status messages
-const curStatus: {[key: string]: string} = {};
+const curStatus: Record<string, HTMLElement> = Object.create(null);
 
 // "Log" is really status (whoops), and in order to control that we keep a status index
-export function pushStatus(id: string, text: string): void {
-    if (id in curStatus && curStatus[id] === text) return;
-    curStatus[id] = text;
-    updateStatus();
+export function pushStatus(id: string, html: string): void {
+    if (id in curStatus && curStatus[id].innerHTML === html) return;
+    const oldEl = curStatus[id];
+    const el = curStatus[id] = document.createElement("div");
+    el.innerHTML = html;
+    updateStatus(oldEl, el);
 }
 
 export function popStatus(id: string): void {
     if (!(id in curStatus)) return;
+    const el = curStatus[id];
     delete curStatus[id];
-    updateStatus();
+    updateStatus(el, null);
 }
 
-function updateStatus() {
-    let txt = "";
-    for (const id in curStatus) {
-        txt += curStatus[id] + "<br/>";
-    }
-    txt = txt.trim();
-    if (txt === "")
-        txt = "Recording";
-    log.innerHTML = txt;
+function updateStatus(remove, add) {
+    const w = ui.ui.log.wrapper;
+    if (!w)
+        return;
+    if (remove)
+        w.removeChild(remove);
+    if (add)
+        w.appendChild(add);
 }

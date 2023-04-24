@@ -63,17 +63,17 @@ export function mkUI(): Promise<unknown> {
 
     // Get the colors
     const cs = getComputedStyle(document.documentElement);
-    [
-        "bg", "bg-hover", "bg-off", "bg-plain", "bg-invite", "bg-status",
-        "bg-wave", "fg", "fg-status", "border-plain", "link-color",
-        "link-color-status", "wave-too-soft", "wave-too-loud",
-        "user-list-silent", "user-list-speaking", "video-speaking-sel",
-        "video-speaking", "video-silent-sel", "video-silent",
-        "peak-1", "peak-2", "peak-3", "nopeak-1", "nopeak-2", "nopeak-3",
-    ].forEach(function(nm) {
+    for (const nm of [
+        "bg",
+        "wave-too-soft", "wave-too-loud",
+        "nopeak-1", "peak-1",
+        "nopeak-2", "peak-2",
+        "nopeak-3", "peak-3"
+    ]) {
         ui.colors[nm] = cs.getPropertyValue("--" + nm);
-    });
-    document.body.style.backgroundColor = ui.colors["bg-plain"];
+        console.log(`${nm}: ${ui.colors[nm]}`);
+    }
+    document.body.style.backgroundColor = "var(--bg)";
 
     // Load the components
     loadVideo();
@@ -116,6 +116,7 @@ export function mkUI(): Promise<unknown> {
     });
 
     // If we're on mobile, now is the time to NoSleep
+    // FIXME: Combine this with starting the AC
     if (mobile) {
         return Promise.all([]).then(function() {
             return util.loadLibrary({
@@ -146,6 +147,7 @@ export function mkUI(): Promise<unknown> {
 function loadVideo() {
     ui.video = {
         window: null,
+        sideOuter: gebi("ec3-side-video-wrappera"),
         side: gebi("ec3-side-video-wrapperb"),
         main: gebi("ec3-main-video-wrapper"),
         users: [],
@@ -228,6 +230,8 @@ function loadLog() {
 
 function loadMainMenu() {
     const p = ui.mainMenu = {
+        showHide: gebi("ec3-menu-button"),
+        wrapper: gebi("ec3-main-menu-wrapper"),
         host: gebi("ec3-host-interface-button"),
         userAdmin: gebi("ec3-user-admin-button"),
         sounds: gebi("ec3-soundboard-button"),
@@ -258,6 +262,11 @@ function loadMainMenu() {
         outputB: gebi("ec3-output-settings-button"),
         videoB: gebi("ec3-video-settings-button"),
         userListB: gebi("ec3-user-list-button")
+    };
+
+    p.showHide.onclick = function() {
+        p.wrapper.style.display = (p.wrapper.style.display === "none")
+            ? "" : "none";
     };
 
     function btn(b: HTMLButtonElement, p: string, a: string) {
@@ -368,6 +377,7 @@ function loadMainMenu() {
 
 function loadHostUI() {
     ui.panels.invite = {
+        button: gebi("ec3-invite-button"),
         wrapper: gebi("ec3-invite-panel"),
         link: gebi("ec3-invite-link-txt"),
         copyB: gebi("ec3-invite-link-copy-btn"),
@@ -375,6 +385,10 @@ function loadHostUI() {
         flac: gebi("ec3-invite-flac-chk"),
         continuousHider: gebi("ec3-invite-continuous-hider"),
         continuous: gebi("ec3-invite-continuous-chk"),
+    };
+
+    ui.panels.invite.button.onclick = function() {
+        uiFE.showPanel(ui.panels.invite, ui.panels.invite.copyB);
     };
 
     ui.panels.host = {
@@ -428,7 +442,7 @@ function loadUserAdmin() {
     ui.panels.userAdminFull = {
         wrapper: gebi("ec3-user-admin-user-full-panel"),
         user: -1,
-        name: gebi("ecuser-admin-user-full-name"),
+        name: gebi("ec3-user-admin-user-full-name-lbl"),
         kick: gebi("ec3-user-admin-full-kick-button"),
         mute: gebi("ec3-user-admin-full-mute-chk"),
         echo: gebi("ec3-user-admin-full-echo-chk"),
@@ -590,8 +604,6 @@ export function mkAudioUI(): string {
      * INPUT CONFIGURATION
      *******************/
     function inputChange() {
-        uiFE.showPanel(null);
-
         // FIXME
         audio.inputs[0].setInputDevice(input.device.value);
     }
@@ -643,8 +655,11 @@ export function mkAudioUI(): string {
             setTimeout(function() {
                 log.popStatus("echo-cancellation");
             }, 10000);
+
+            /* Normally we wouldn't hide the panel for this, but we need to
+             * make sure this message is visible. */
+            uiFE.showPanel(null);
         }
-        uiFE.showPanel(null);
         for (const ainput of audio.inputs) {
             if (ainput)
                 ainput.setEchoCancel(input.echo.checked);
@@ -688,8 +703,6 @@ export function mkAudioUI(): string {
     output.device.appendChild(opt);
 
     function outputChange() {
-        uiFE.showPanel(null);
-
         const v = output.device.value;
 
         // Set the main audio output
@@ -845,7 +858,7 @@ export function mkAudioUI(): string {
         shareB.disabled = false;
         if (video.userMediaVideoID === dev || dev === "-none") {
             // Click this to *un*share
-            shareB.innerHTML = '<i class="bx bx-video-off"></i><span class="menu-button-lbox"><span class="menu-button-label">Unshare<br/>Camera</span></span>';
+            shareB.innerHTML = '<i class="bx bx-video-off"></i> Unshare camera';
             shareB.onclick = function() {
                 shareB.classList.add("off");
                 shareB.disabled = true;
@@ -860,7 +873,7 @@ export function mkAudioUI(): string {
 
         } else {
             // Click this to share
-            shareB.innerHTML = '<i class="bx bx-video"></i><span class="menu-button-lbox"><span class="menu-button-label">Share<br/>Camera</span></span>';
+            shareB.innerHTML = '<i class="bx bx-video"></i> Share camera';
             shareB.onclick = function() {
                 shareB.classList.add("off");
                 shareB.disabled = true;
@@ -1003,6 +1016,11 @@ export function mkAudioUI(): string {
     });
     viewModeChange(defaultViewMode);
 
+    main.viewModes.normal.onclick = () => viewModeChange(0);
+    main.viewModes.small.onclick = () => viewModeChange(1);
+    main.viewModes.gallery.onclick = () => viewModeChange(2);
+    main.viewModes.studio.onclick = () => viewModeChange(3);
+
     function showCaptionChange() {
         document.body.setAttribute("data-captions", main.captionC.checked ? "show" : "hide");
     }
@@ -1027,9 +1045,6 @@ export function mkAudioUI(): string {
                 log.popStatus("chrome");
             }, 10000);
         }
-
-        if (ev)
-            uiFE.showPanel(null);
     }
     if (mobile) {
         videoConfig.streamerModeHider.style.display = "none";
