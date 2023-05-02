@@ -76,6 +76,11 @@ export function mkUI(): Promise<unknown> {
     document.body.style.backgroundColor = "var(--bg)";
 
     // Load the components
+    ui.rows = {
+        top: gebi("ec3-top-row"),
+        main: gebi("ec3-main-row"),
+        waveform: gebi("ec3-waveform-row")
+    };
     loadVideo();
     loadChat();
     chat.mkChatBox();
@@ -267,6 +272,7 @@ function loadMainMenu() {
     p.showHide.onclick = function() {
         p.wrapper.style.display = (p.wrapper.style.display === "none")
             ? "" : "none";
+        uiFE.maybeResizeSoon();
     };
 
     function btn(b: HTMLButtonElement, p: string, a: string) {
@@ -294,6 +300,7 @@ function loadMainMenu() {
         } else {
             chat.style.display = "none";
         }
+        uiFE.maybeResizeSoon();
     };
     btn(sets.inputB, "inputConfig", null);
     btn(sets.outputB, "outputConfig", null);
@@ -968,10 +975,28 @@ export function mkAudioUI(): string {
         if (viewModeSave)
             viewModeSave("" + mode);
 
+        // Retake control of sizing if applicable
+        switch ("" + ui.video.mode + mode) {
+            case "01":
+            case "03":
+            case "10":
+            case "12":
+            case "21":
+            case "23":
+            case "30":
+            case "32":
+                /* Moving from a fixed-size mode to a variable-sized mode or
+                 * vice-versa, so retake control of sizing */
+                ui.userSized = false;
+        }
+
         // Set the view
         ui.video.mode = mode;
         const smode = ["normal", "small", "gallery", "studio"][mode] || "";
         document.body.setAttribute("data-view-mode", smode);
+
+        // Retake control of sizing if the mode is appropriate for it
+        ui.userSized = false;
 
         // Reset UI elements
         ui.video.selected = ui.video.major = -1;

@@ -50,4 +50,5 @@ function updateStatus(remove, add) {
         w.removeChild(remove);
     if (add)
         w.appendChild(add);
+    ui.maybeResizeSoon();
 }

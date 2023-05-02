@@ -50,6 +50,15 @@ let modal: Panel = null;
 
 // The entire user interface
 export const ui = {
+    /* Is the size controlled by the user? */
+    userSized: false,
+
+    /* The last time we attempted a resize */
+    autoResized: -1,
+
+    /* The last height we attempted to set */
+    lastHeight: -1,
+
     /* Set by output processing to allow switching between ac.destination and
      * ac.ecDestination */
     outprocSetECDestination: <(to: boolean)=>unknown> null,
@@ -62,6 +71,13 @@ export const ui = {
 
     // Colors defined in CSS
     colors: <Record<string, string>> {},
+
+    // Main rows
+    rows: <{
+        top: HTMLElement,
+        main: HTMLElement,
+        waveform: HTMLElement
+    }> null,
 
     // Video interface
     video: <{
@@ -513,12 +529,16 @@ export function showPanel(panelName: Panel|string, autoFocusName?: HTMLElement|s
         if (panel.onshow)
             panel.onshow();
 
+        maybeResizeSoon();
+
     } else {
         ui.layerSeparator.style.display = "none";
         mouseenter();
 
         if (autoFocus)
             autoFocus.focus();
+
+        maybeResizeSoon();
 
     }
 }
@@ -726,7 +746,9 @@ export function videoAdd(idx: number, name: string): void {
 
     // The video element itself
     const video = ctx.video;
-    video.classList.add("fauto");
+    video.classList.add("ec3-video-video");
+    //video.classList.add("fauto");
+    video.style.display = "none";
     video.height = 0; // Use CSS for style
     video.muted = true; // Audio goes through a different system
     video.autoplay = true;
@@ -750,7 +772,8 @@ export function videoAdd(idx: number, name: string): void {
 
     // The standin for when there is no video
     const standin = ctx.standin;
-    standin.classList.add("fauto");
+    standin.classList.add("ec3-video-standin");
+    //standin.classList.add("fauto");
     box.appendChild(standin);
     standin.onclick = video.onclick;
 
@@ -1075,9 +1098,75 @@ export function updateVideoUI(
     } else {
         ui.video.sideOuter.style.display = "";
     }
+
+    maybeResizeSoon();
 }
 
-window.addEventListener("resize", () => updateVideoUI(0));
+window.addEventListener("resize", () => {
+    if (performance.now() > ui.autoResized + 500) {
+        // Manual resize
+        ui.userSized = true;
+    }
+
+    updateVideoUI(0);
+});
+
+// Maybe resize the window
+export function maybeResize() {
+    ui.autoResized = performance.now();
+
+    // Figure out the correct size
+    let h = ui.rows.top.offsetHeight
+          + ui.log.wrapper.offsetHeight;
+    if (ui.mainMenu.wrapper.style.display !== "none")
+        h += ui.mainMenu.wrapper.offsetHeight
+    switch (ui.video.mode) {
+        case ViewMode.Normal:
+        case ViewMode.Gallery:
+            // Fixed height
+            h = 600;
+            break;
+
+        case ViewMode.Small:
+            // Just big enough
+            h += ui.rows.waveform.offsetHeight;
+            break;
+
+        case ViewMode.Studio:
+            // Plus the studio stuff
+            h += 2 + ui.video.side.scrollHeight;
+            if (h > 800)
+                h = 800;
+            break;
+    }
+
+    let force = false;
+
+    if (h < 600) {
+        // In certain cases, demand a minimum height
+        if (curPanel || ui.chat.wrapper.style.display !== "none") {
+            h = 600;
+            if (window.innerHeight < h)
+                force = true;
+        }
+    }
+
+    if (ui.userSized && !force)
+        return;
+    ui.userSized = false;
+
+    if (h != ui.lastHeight) {
+        ui.lastHeight = h;
+        window.resizeTo(window.outerWidth,
+            h + window.outerHeight - window.innerHeight);
+        updateVideoUI(0);
+    }
+}
+
+export function maybeResizeSoon() {
+    setTimeout(maybeResize, 0);
+    setTimeout(maybeResize, 100);
+}
 
 // Generate a standin abbreviated name given a full name
 function genStandinName(name: string) {

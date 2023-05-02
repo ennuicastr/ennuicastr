@@ -223,6 +223,10 @@ label.left-label {
     flex: auto;
 }
 
+.fwidth {
+    width: 100%;
+}
+
 .vcenter {
     display: flex;
     flex-direction: column;
@@ -425,7 +429,8 @@ button.bright:active {
     border-radius: 1em;
 }
 
-.ec3-video > video, .ec3-video > svg, .ec3-video > div {
+.ec3-video-video, .ec3-video-standin {
+    flex: auto;
     border-radius: 1em;
 }
 
@@ -591,7 +596,7 @@ body {
 }
 
 #ec3-status {
-    position: absolute;
+    position: fixed;
     left: 0;
     bottom: 0;
     right: 0;
@@ -688,71 +693,145 @@ body {
 }
 
 /* View modes */
-[data-view-mode="small"] #ec3-side-video-wrappera, [data-view-mode="small"] #ec3-main-video-wrapper {
-    display: none;
+[data-view-mode="gallery"] {
+    #ec3-main-video-wrapper {
+        display: none;
+    }
+
+    #ec3-side-video-wrappera {
+        flex: auto;
+    }
+
+    .ec3-name-label {
+        font-size: inherit;
+    }
 }
 
-[data-view-mode="gallery"] #ec3-main-video-wrapper, [data-view-mode="studio"] #ec3-main-video-wrapper {
-    display: none;
+[data-view-mode="small"] {
+    #ec3-main-row {
+        flex-direction: column;
+    }
+
+    #ec3-main-menu-wrapper {
+        width: auto;
+        height: auto;
+    }
+
+    #ec3-main-menu {
+        position: relative;
+        flex-direction: row;
+    }
+
+    #ec3-main-menu .smallhide {
+        display: none;
+    }
+
+    .menu-button-label:after {
+        border: none;
+    }
+
+    .icon-button {
+        font-size: calc(var(--scale-main-2) + var(--scale-main-4));
+    }
+
+    #ec3-side-video-wrappera, #ec3-main-video-wrapper {
+        display: none;
+    }
+
+    #ec3-status {
+        position: relative;
+    }
 }
 
-[data-view-mode="gallery"] #ec3-side-video-wrappera, [data-view-mode="studio"] #ec3-side-video-wrappera {
-    flex: auto;
-}
+[data-view-mode="studio"] {
+    #ec3-main-row {
+        flex-direction: column;
+    }
 
-[data-view-mode="gallery"] #ec3-side-video-wrapperb {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: stretch;
-    justify-content: center;
-}
+    #ec3-main-menu-wrapper {
+        width: auto;
+        height: auto;
+    }
 
-[data-view-mode="studio"] #ec3-side-video-wrapperb {
-    flex-direction: column;
-    gap: 6px;
-}
+    #ec3-main-menu {
+        position: relative;
+        flex-direction: row;
+    }
 
-[data-view-mode="studio"] .ec3-video {
-    width: 160px;
-    min-width: 160px;
-    max-width: 160px;
-    height: 90px;
-    max-height: 90px;
-    flex: 1;
-}
+    #ec3-main-menu .smallhide {
+        display: none;
+    }
 
-[data-view-mode="studio"] .ec3-studio-admin-button {
-    display: block;
-}
+    .menu-button-label:after {
+        border: none;
+    }
 
-[data-view-mode="studio"] .ec3-studio-video-waveform {
-    display: block;
-    flex: auto;
-}
+    .icon-button {
+        font-size: calc(var(--scale-main-2) + var(--scale-main-4));
+    }
 
-[data-view-mode="studio"] #ec3-waveform-row {
-    display: none;
-}
+    #ec3-main-video-wrapper {
+        display: none;
+    }
 
-[data-view-mode="gallery"] .ec3-name-label {
-    font-size: inherit;
-}
+    #ec3-side-video-wrappera {
+        min-height: auto;
+    }
 
-[data-view-mode="small"] #ec3-main-menu-wrapper {
-    flex: auto;
-    width: auto;
-    height: calc(var(--scale-main2) + var(--scale-main-4));
-}
+    #ec3-side-video-wrapperb {
+        position: relative;
+        bottom: auto;
+        flex-direction: column;
+        gap: 6px;
+    }
 
-[data-view-mode="small"] #ec3-main-menu {
-    flex-direction: row;
-}
+    @media screen and (max-width: 640px) {
+        #ec3-side-video-wrapperb {
+            bottom: 0;
+        }
+    }
 
-[data-view-mode="small"] .menu-button-label:after {
-    border: none;
-}
+    .ec3-video {
+        display: flex;
+        flex-direction: row;
+        height: 90px;
+        max-height: 90px;
+        flex: 1;
+    }
 
-[data-view-mode="small"] .icon-button {
-    font-size: calc(var(--scale-main-2) + var(--scale-main-4));
-}
+    .ec3-video-video, .ec3-video-standin {
+        position: relative;
+        width: 120px;
+        max-width: 120px;
+        flex: 1;
+    }
 
+    .ec3-video, .ec3-video-video, .ec3-video-standin {
+        border-radius: 0;
+    }
+
+    .ec3-studio-video-waveform {
+        display: block;
+        flex: auto;
+    }
+
+    .ec3-studio-admin-button {
+        display: block;
+    }
+
+    #ec3-waveform-row {
+        display: none;
+    }
+
+    #ec3-chat-wrapper {
+        flex: auto;
+    }
+
+    #ec3-chat-outgoing-txt {
+        width: 100%;
+    }
+
+    #ec3-status {
+        position: relative;
+    }
+}

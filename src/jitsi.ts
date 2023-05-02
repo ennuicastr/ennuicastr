@@ -450,6 +450,7 @@ export class Jitsi implements comm.BroadcastComms {
         if (type === "video") {
             // Hide the standin
             ui.ui.video.users[id].standin.style.display = "none";
+            ui.ui.video.users[id].video.style.display = "";
 
             // Prepare for it to end (which shouldn't have to be here...)
             const t = stream.getVideoTracks()[0];
@@ -501,8 +502,10 @@ export class Jitsi implements comm.BroadcastComms {
             el.srcObject = null;
 
             // Show the standin if applicable
-            if (type === "video")
+            if (type === "video") {
                 ui.ui.video.users[id].standin.style.display = "";
+                ui.ui.video.users[id].video.style.display = "none";
+            }
         }
 
         // And destroy the compressor
