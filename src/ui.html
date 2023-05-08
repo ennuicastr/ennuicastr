@@ -272,29 +272,29 @@
             </div>
 
             <div class="rflex row">
-                <label for="ec3-user-admin-full-vad-sensitivity-rng" style="min-width: 8em; text-align: right;">Voice detection&nbsp;<br/>sensitivity:&nbsp;</label>
+                <label for="ec3-user-admin-full-vad-sensitivity-rng" style="min-width: 8em; max-width: 8em; text-align: right;">Voice detection&nbsp;<br/>sensitivity:&nbsp;</label>
                 <input id="ec3-user-admin-full-vad-sensitivity-rng" type="range" min=1 max=4 value=4 style="flex: auto; width: 5em;" />
                 <span id="ec3-user-admin-full-vad-sensitivity-status">&nbsp;4</span>
             </div>
 
             <div class="rflex row">
-                <label for="ec3-user-admin-full-vad-noise-gate-rng" style="min-width: 8em; text-align: right;">Noise gate:&nbsp;</label>
+                <label for="ec3-user-admin-full-vad-noise-gate-rng" style="min-width: 8em; max-width: 8em; text-align: right;">Noise gate:&nbsp;</label>
                 <input id="ec3-user-admin-full-vad-noise-gate-rng" type="range" min=-100 max=0 value=-100 style="flex: auto; width: 5em;" />
                 <span id="ec3-user-admin-full-vad-noise-gate-status">&nbsp;-100dB</span>
             </div>
 
             <div class="rflex row">
-                <label for="ec3-user-admin-full-audio-dev-sel" class="left-label" style="min-width: 8em;">Audio device:&nbsp;</label>
+                <label for="ec3-user-admin-full-audio-dev-sel" class="left-label" style="min-width: 8em; max-width: 8em;">Audio device:&nbsp;</label>
                 <select id="ec3-user-admin-full-audio-dev-sel" style="flex: auto;"></select>
             </div>
 
             <div id="ec3-user-admin-full-video-hider">
                 <div class="rflex row">
-                    <label for="ec3-user-admin-full-video-dev-sel" class="left-label" style="min-width: 8em;">Video device:&nbsp;</label>
+                    <label for="ec3-user-admin-full-video-dev-sel" class="left-label" style="min-width: 8em; max-width: 8em;">Video device:&nbsp;</label>
                     <select id="ec3-user-admin-full-video-dev-sel" style="flex: auto;"></select>
                 </div>
                 <div class="rflex row">
-                    <label for="ec3-user-admin-full-video-res-sel" class="left-label" style="min-width: 8em;">Max resolution:&nbsp;</label>
+                    <label for="ec3-user-admin-full-video-res-sel" class="left-label" style="min-width: 8em; max-width: 8em;">Max resolution:&nbsp;</label>
                     <select id="ec3-user-admin-full-video-res-sel" style="flex: auto;">
                         <option value="360">360p</option>
                         <option value="480">480p</option>
@@ -304,7 +304,7 @@
                     </select>
                 </div>
                 <div class="rflex row" style="display: none">
-                    <label for="ec3-user-admin-full-bitrate-inp" style="min-width: 6em">Video bitrate:&nbsp;</label>
+                    <label for="ec3-user-admin-full-bitrate-inp" style="min-width: 6em; max-width: 6em;">Video bitrate:&nbsp;</label>
                     <input id="ec3-user-admin-full-bitrate-inp" type="text" style="flex: auto" />
                     &nbsp;
                     <button id="ec3-user-admin-full-video-record-button" title="Record video" aria-label="Record video"><i class="fas fa-circle"></i> Rec</button>
@@ -388,26 +388,26 @@
 
             <!-- Input device -->
             <div class="rflex row">
-                <label for="ec3-input-device-sel" class="left-label">Input device:&nbsp;</label>
+                <label for="ec3-input-device-sel" class="left-label" style="min-width: 8em; max-width: 8em;">Input device:&nbsp;</label>
                 <select id="ec3-input-device-sel" style="flex: auto;"></select>
             </div>
 
             <!-- And channel -->
             <div id="ec3-input-channel-hider" class="rflex row">
-                <label for="ec3-input-channel-sel" class="left-label">Channel:&nbsp;</label>
+                <label for="ec3-input-channel-sel" class="left-label" style="min-width: 8em; max-width: 8em;">Channel:&nbsp;</label>
                 <select id="ec3-input-channel-sel" style="flex: auto;"></select>
             </div>
 
             <!-- And options -->
             <div class="rflex row">
-                <label for="ec3-vad-sensitivity-rng" class="left-label" style="min-width: 8em; margin-top: 0;">Voice detection&nbsp;<br/>sensitivity:&nbsp;</label>
+                <label for="ec3-vad-sensitivity-rng" class="left-label" style="min-width: 8em; max-width: 8em; margin-top: 0;">Voice detection&nbsp;<br/>sensitivity:&nbsp;</label>
                 <input id="ec3-vad-sensitivity-rng" type="range" min=1 max=4 value=4 style="flex: auto; width: 5em;" />
                 <span id="ec3-vad-sensitivity-status" style="margin-top: 0.75em;">&nbsp;4</span>
             </div>
 
             <div class="rflex row">
-                <label for="ec3-vad-noise-gate-rng" class="left-label" style="min-width: 8em; margin-top: 0.125em;">Noise gate:&nbsp;</label>
-                <input id="ec3-vad-noise-gate-rng" type="range" min=-100 max=0 value=-100 class="ec3-peak-horizontal-self" style="flex: auto; min-width: 8em;" />
+                <label for="ec3-vad-noise-gate-rng" class="left-label" style="min-width: 8em; max-width: 8em; margin-top: 0.125em;">Noise gate:&nbsp;</label>
+                <input id="ec3-vad-noise-gate-rng" type="range" min=-100 max=0 value=-100 class="ec3-peak-horizontal-self" style="flex: auto; width: 5em;" />
                 <span id="ec3-vad-noise-gate-status" style="margin-top: 0.125em;">&nbsp;-100dB</span>
             </div>
 
@@ -444,21 +444,21 @@
 
             <!-- The output device selector -->
             <div id="ec3-output-device-list-hider" class="rflex row">
-                <label for="ec3-output-device-sel" class="left-label" style="min-width: 8em;">Output device:&nbsp;</label>
+                <label for="ec3-output-device-sel" class="left-label" style="min-width: 8em; max-width: 8em;">Output device:&nbsp;</label>
                 <select id="ec3-output-device-sel" style="flex: auto;"></select>
             </div>
 
             <!-- Master volume -->
             <div id="ec3-output-volume-hider" class="rflex row">
-                <label for="ec3-output-volume-rng" class="left-label" style="min-width: 8em; margin-top: 0.125em;">Volume:&nbsp;</label>
-                <input id="ec3-output-volume-rng" type="range" min=0 max=400 value=100 style="flex: auto; min-width: 8em;" />
+                <label for="ec3-output-volume-rng" class="left-label" style="min-width: 8em; max-width: 8em; margin-top: 0.125em;">Volume:&nbsp;</label>
+                <input id="ec3-output-volume-rng" type="range" min=0 max=400 value=100 style="flex: auto; min-width: 8em; max-width: 8em;" />
                 <span id="ec3-output-volume-status" style="margin-top: 0.125em;">&nbsp;100%</span>
             </div>
 
             <!-- SFX volume -->
             <div id="ec3-sfx-volume-hider" class="rflex row">
-                <label for="ec3-sfx-volume-rng" class="left-label" style="min-width: 8em; margin-top: 0.125em;">SFX volume:&nbsp;</label>
-                <input id="ec3-sfx-volume-rng" type="range" min=0 max=100 value=100 style="flex: auto; min-width: 8em;" />
+                <label for="ec3-sfx-volume-rng" class="left-label" style="min-width: 8em; max-width: 8em; margin-top: 0.125em;">SFX volume:&nbsp;</label>
+                <input id="ec3-sfx-volume-rng" type="range" min=0 max=100 value=100 style="flex: auto; min-width: 8em; max-width: 8em;" />
                 <span id="ec3-sfx-volume-status" style="margin-top: 0.125em;">&nbsp;100%</span>
             </div>
 
@@ -499,7 +499,7 @@
             <div class="row">&nbsp;</div>
 
             <div class="rflex row">
-                <label for="ec3-video-res-sel" class="left-label" style="min-width: 8em;">Max resolution:&nbsp;</label>
+                <label for="ec3-video-res-sel" class="left-label" style="min-width: 8em; max-width: 8em;">Max resolution:&nbsp;</label>
                 <select id="ec3-video-res-sel" style="flex: auto;">
                     <option value="360">360p</option>
                     <option value="480">480p</option>
@@ -535,7 +535,7 @@
 
                     <div id="ec3-video-record-bitrate-hider">
                         <div class="rflex row">
-                            <label for="ec3-video-record-bitrate-txt" class="left-label" style="min-width: 8em;">Bitrate (Mbit):&nbsp;</label>
+                            <label for="ec3-video-record-bitrate-txt" class="left-label" style="min-width: 8em; max-width: 8em;">Bitrate (Mbit):&nbsp;</label>
                             <input id="ec3-video-record-bitrate-txt" style="flex: auto;" type="text" size="3" />
                         </div>
                     </div>

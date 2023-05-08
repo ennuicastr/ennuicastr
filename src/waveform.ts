@@ -513,14 +513,14 @@ export class Waveform {
         const cssPeak = (peakDb < -100) ? 0 : peakDb + 100;
         let css = "";
         for (const part of [
-            `input[type=range].ecpeak-horizontal-${this.lbl}::-webkit-slider-runnable-track`,
-            `input[type=range].ecpeak-horizontal-${this.lbl}:focus::-webkit-slider-runnable-track`,
-            `input[type=range].ecpeak-horizontal-${this.lbl}::-moz-range-track`
+            `input[type=range].ec3-peak-horizontal-${this.lbl}::-webkit-slider-runnable-track`,
+            `input[type=range].ec3-peak-horizontal-${this.lbl}:focus::-webkit-slider-runnable-track`,
+            `input[type=range].ec3-peak-horizontal-${this.lbl}::-moz-range-track`
         ]) {
             css += `${part} { ` +
                 `background: linear-gradient(90deg, ` +
                     `var(--peak-3) 0 ${cssPeak}%, ` +
-                    `var(--bg-wave) ${cssPeak}% 100%); ` +
+                    `var(--bg-button) ${cssPeak}% 100%); ` +
                 `} `;
         }
         this.css.innerHTML = css;

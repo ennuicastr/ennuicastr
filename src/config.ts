@@ -237,7 +237,7 @@ export async function load(): Promise<boolean> {
             target += "nm=" + encodeURIComponent(gebi("nm").value);
             if (params.get("debug"))
                 target += "&debug=1";
-            if (window.open(target, "", "width=800,height=800,menubar=0,toolbar=0,location=0,personalbar=0,status=0") === null) {
+            if (window.open(target, "", "width=800,height=600,menubar=0,toolbar=0,location=0,personalbar=0,status=0") === null) {
                 // Just use the regular submit
                 return true;
             }

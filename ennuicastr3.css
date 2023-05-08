@@ -278,6 +278,10 @@ label.left-label {
     color: var(--fg-dimmish);
 }
 
+.pill-button.nouppercase {
+    text-transform: none;
+}
+
 .pill-button:hover {
     background-color: var(--bg-button-hover);
     color: var(--fg);

@@ -47,15 +47,30 @@ const sounds = {
     url2sid: <Record<string, string>> {}
 };
 
+// Hide the master interface, for non-host users
+export function hideMasterInterface(): void {
+    const mainMenu = ui.ui.mainMenu;
+    const hostPanel = ui.ui.panels.host;
+    for (const b of [mainMenu.host, mainMenu.userAdmin, mainMenu.sounds])
+        b.style.display = "none";
+    for (const b of (<HTMLElement[]> hostPanel.startB).concat(
+        [hostPanel.stopHider]).concat(
+        hostPanel.pauseB).concat(
+        hostPanel.resumeB).concat(
+        hostPanel.stopB).concat(
+        [ui.ui.panels.invite.button]))
+        b.style.display = "none";
+}
+
 // Set up the master interface
 export function createMasterInterface(): void {
     const inviteUI = ui.ui.panels.invite;
     const masterUI = ui.ui.panels.host;
 
-    // Show the buttons
     const mainMenu = ui.ui.mainMenu;
-    mainMenu.host.style.display = "";
-    mainMenu.userAdmin.style.display = "";
+
+    // Assume no soundboard until told otherwise
+    ui.ui.mainMenu.sounds.style.display = "none";
 
     // Invite options
     if ((config.config.format&prot.flags.dataTypeMask) === prot.flags.dataType.flac)
@@ -597,6 +612,7 @@ function addSoundButton(sid: string, url: string, name: string) {
         i: dce("i"),
         n: dce("span")
     };
+    b.b.classList.add("pill-button");
     b.b.classList.add("nouppercase");
     b.b.id = "ec-sound-" + sid;
     b.i.classList.add("bx");

@@ -99,6 +99,8 @@ export function mkUI(): Promise<unknown> {
 
     if ("master" in config.config)
         master.createMasterInterface();
+    else
+        master.hideMasterInterface();
 
     // Every close button works the same
     Array.prototype.slice.call(document.getElementsByClassName("close-button"), 0).forEach(function(x: HTMLElement) {
