@@ -139,12 +139,14 @@ export const ui = {
     // Status
     log: <{
         wrapper: HTMLElement,
+        name: HTMLElement,
         timer: HTMLElement
     }> null,
 
     // The main menu
     mainMenu: <{
         showHide: HTMLButtonElement,
+        fullscreen: HTMLButtonElement,
         wrapper: HTMLElement,
         host: HTMLButtonElement,
         userAdmin: HTMLButtonElement,

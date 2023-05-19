@@ -128,6 +128,7 @@ export function shareVideo(id: string, res: number): Promise<unknown> {
             // eslint-disable-next-line @typescript-eslint/no-empty-function
             v.play().catch(function(){});
             s.style.display = "none";
+            v.style.display = "";
 
             // And update any admins
             net.updateAdminPerm({videoDevice: userMediaVideoID}, true);
@@ -139,6 +140,7 @@ export function shareVideo(id: string, res: number): Promise<unknown> {
             v.srcObject = audio.inputs[0].userMedia;
             v.srcObject = null;
             s.style.display = "";
+            v.style.display = "none";
             net.updateAdminPerm({videoDevice: "-none"}, true);
 
         }

@@ -84,7 +84,11 @@ async function main() {
         await audio.inputs[0].getAudioPerms(uiImpl.mkAudioUI);
 
     } catch (ex) {
-        log.pushStatus("error", util.escape(ex + "") + "\n\n" + util.escape(ex.stack + ""));
+        try {
+            log.pushStatus("error", util.escape(ex + "") + "\n\n" + util.escape(ex.stack + ""));
+        } catch (logEx) {
+            alert(ex + "\n\n" + ex.stack);
+        }
     }
 }
 main();

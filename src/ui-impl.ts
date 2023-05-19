@@ -167,32 +167,6 @@ function loadVideo() {
 
     video.css.type = "text/css";
     document.head.appendChild(video.css);
-
-    // A generic function to handle fullscreen buttons
-    function fullscreen(el: HTMLElement, btn: HTMLButtonElement) {
-        btn.innerHTML = '<i class="bx bx-fullscreen"></i>';
-
-        // Toggle based on what's fullscreen
-        function toggleFullscreen() {
-            if (document.fullscreenElement === el)
-                document.exitFullscreen();
-            else
-                el.requestFullscreen();
-        }
-        btn.onclick = toggleFullscreen;
-
-        document.addEventListener("fullscreenchange", function() {
-            if (document.fullscreenElement === el)
-                btn.innerHTML = '<i class="bx bx-exit-fullscreen"></i>';
-            else
-                btn.innerHTML = '<i class="bx bx-fullscreen"></i>';
-        });
-    }
-
-    /* FIXME: fullscreen buttons
-    fullscreen(video.wrapper, video.sideFS);
-    fullscreen(video.mainWrapper, video.mainFS);
-    */
 }
 
 function loadChat() {
@@ -231,13 +205,21 @@ function loadWave() {
 function loadLog() {
     const log = ui.log = {
         wrapper: gebi("ec3-status"),
+        name: gebi("ec3-recording-title"),
         timer: gebi("ec3-recording-timer")
     };
+
+    if (net.recName)
+        log.name.innerText = net.recName;
+    util.events.addEventListener("net.info.recName", function() {
+        log.name.innerText = net.recName;
+    });
 }
 
 function loadMainMenu() {
     const p = ui.mainMenu = {
         showHide: gebi("ec3-menu-button"),
+        fullscreen: gebi("ec3-fs-button"),
         wrapper: gebi("ec3-main-menu-wrapper"),
         host: gebi("ec3-host-interface-button"),
         userAdmin: gebi("ec3-user-admin-button"),
@@ -276,6 +258,39 @@ function loadMainMenu() {
             ? "" : "none";
         uiFE.maybeResizeSoon();
     };
+
+    // A generic function to handle fullscreen buttons
+    function fullscreen(el: HTMLElement, btn: HTMLButtonElement) {
+        if (!el.requestFullscreen) {
+            btn.style.display = "none";
+            return;
+        }
+
+        btn.innerHTML = '<i class="bx bx-fullscreen"></i>';
+
+        // Toggle based on what's fullscreen
+        function toggleFullscreen() {
+            if (document.fullscreenElement === el)
+                document.exitFullscreen();
+            else
+                el.requestFullscreen();
+        }
+        btn.onclick = toggleFullscreen;
+
+        document.addEventListener("fullscreenchange", function() {
+            if (document.fullscreenElement === el)
+                btn.innerHTML = '<i class="bx bx-exit-fullscreen"></i>';
+            else
+                btn.innerHTML = '<i class="bx bx-fullscreen"></i>';
+        });
+    }
+
+    fullscreen(document.body, p.fullscreen);
+
+    /* FIXME: user-specific fullscreen buttons
+    fullscreen(video.wrapper, video.sideFS);
+    fullscreen(video.mainWrapper, video.mainFS);
+    */
 
     function btn(b: HTMLButtonElement, p: string, a: string) {
         b.onclick = function() {

@@ -298,7 +298,7 @@ function dataSockMsg(ev: MessageEvent) {
                     // Update the status
                     log.popStatus("mode");
                     if (mode < prot.mode.rec)
-                        log.pushStatus("mode", '<span style="background: var(--bg-rec); color: var(--fg); padding: 0 0.25em 0 0.25em;">Not yet recording</span>');
+                        log.pushStatus("mode", '<div style="background: var(--bg-rec); color: var(--fg);">Not yet recording</div>');
                     else if (mode === prot.mode.paused)
                         log.pushStatus("mode", "Recording paused");
                     else if (mode > prot.mode.rec)
@@ -321,6 +321,7 @@ function dataSockMsg(ev: MessageEvent) {
                 case prot.info.recName:
                     recName = util.decodeText(msg.buffer.slice(p.value));
                     document.title = recName + " — Ennuicastr";
+                    util.dispatchEvent("net.info.recName");
                     break;
 
                 case prot.info.ice:
