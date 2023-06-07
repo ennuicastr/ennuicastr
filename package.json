@@ -15,7 +15,7 @@
     "localforage": "^1.10.0",
     "minify": "^6.0.1",
     "nosleep.js": "^0.12.0",
-    "rtennui": "^0.3.16",
+    "rtennui": "^0.3.17",
     "sha512-es": "^1.8.2",
     "tsify": "^5.0.4",
     "typescript": "^4.5.4",
