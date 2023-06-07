@@ -842,8 +842,7 @@ export function videoAdd(idx: number, name: string): void {
     // The admin button
     if ("master" in config.config) {
         const admin = ctx.admin = dce("button");
-        admin.style.display = "none";
-        admin.classList.add("ec3-studio-admin-button");
+        admin.classList.add("round-button");
         admin.innerHTML = '<i class="bx bx-user"></i>';
         admin.title = "Administrate " + name;
         admin.setAttribute("aria-label", "Administrate " + name);
