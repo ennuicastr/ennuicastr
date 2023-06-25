@@ -811,6 +811,8 @@ body {
         position: relative;
         width: 120px;
         max-width: 120px;
+        height: var(--scale-main3);
+        max-height: var(--scale-main3);
         flex: 1;
     }
 
