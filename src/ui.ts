@@ -844,10 +844,10 @@ export function videoAdd(idx: number, name: string): void {
     if ("master" in config.config) {
         const admin = ctx.admin = dce("button");
         admin.classList.add("round-button");
+        admin.classList.add("ec3-studio-admin-button");
         admin.innerHTML = '<i class="bx bx-user"></i>';
         admin.title = "Administrate " + name;
         admin.setAttribute("aria-label", "Administrate " + name);
-        admin.style.height = "100%";
         admin.onclick = function() {
             ui.masterUserAdmin(idx);
         };

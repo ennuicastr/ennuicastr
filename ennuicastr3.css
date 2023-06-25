@@ -825,6 +825,7 @@ body {
 
     .ec3-studio-admin-button {
         display: block;
+        height: var(--scale-main3);
     }
 
     #ec3-waveform-row {

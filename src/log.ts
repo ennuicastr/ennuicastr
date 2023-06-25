@@ -57,7 +57,6 @@ export function pushStatus(
     }
 ): void {
     options = options || {};
-    console.log(Array.from(arguments));
 
     let status = curStatus[id];
     let add = false;
