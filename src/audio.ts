@@ -483,10 +483,9 @@ export class Audio {
 
             if (noUserMedia) {
                 // Warn them
-                log.pushStatus("usermedia", "Failed to capture audio!");
-                setTimeout(function() {
-                    log.popStatus("usermedia");
-                }, 10000);
+                log.pushStatus("usermedia", "Failed to capture audio!", {
+                    timeout: 10000
+                });
             }
 
             // Now UserMedia and AudioContext are ready

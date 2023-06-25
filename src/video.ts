@@ -157,10 +157,9 @@ export function shareVideo(id: string, res: number): Promise<unknown> {
         */
 
     }).catch(() => {
-        log.pushStatus("video", "Failed to capture video!");
-        setTimeout(function() {
-            log.popStatus("video");
-        }, 10000);
+        log.pushStatus("video", "Failed to capture video!", {
+            timeout: 10000
+        });
         updateVideoButtons();
 
     });

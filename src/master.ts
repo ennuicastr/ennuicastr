@@ -368,10 +368,9 @@ function copyInvite() {
     ui.ui.panels.invite.link.select();
     document.execCommand("copy");
 
-    log.pushStatus("invite", "Copied invite link");
-    setTimeout(function() {
-        log.popStatus("invite");
-    }, 3000);
+    log.pushStatus("invite", "Copied invite link", {
+        timeout: 3000
+    });
 }
 
 // Update the credit cost/rate meter
@@ -586,10 +585,9 @@ export function userAdmin(target: number): void {
         userAdminUser.mute.onclick = function() { adminAction(target, prot.flags.admin.actions.mute); };
         userAdminUser.echo.onclick = function() { adminAction(target, prot.flags.admin.actions.echoCancel); };
         ui.ui.panels.userAdminUser.reqFull.onclick = function() {
-            log.pushStatus("adminRequest", "Access requested...");
-            setTimeout(function() {
-                log.popStatus("adminRequest");
-            }, 3000);
+            log.pushStatus("adminRequest", "Access requested...", {
+                timeout: 3000
+            });
             adminAction(target, prot.flags.admin.actions.request);
         };
     }
@@ -720,14 +718,19 @@ function allowAdmin(target: number, allowed: boolean, props: any) {
     const name = user.name || "Anonymous";
     if (allowed) {
         user.fullAccess = props;
-        log.pushStatus("allowAdmin", "User " + util.escape(name) + " has allowed admin access.");
+        log.pushStatus(
+            "allowAdmin",
+            "User " + util.escape(name) + " has allowed admin access.", {
+            timeout: 5000
+        });
     } else {
         user.fullAccess = null;
-        log.pushStatus("allowAdmin", "User " + util.escape(name) + " has disallowed admin access.");
+        log.pushStatus(
+            "allowAdmin",
+            "User " + util.escape(name) + " has disallowed admin access.", {
+                timeout: 5000
+        });
     }
-    setTimeout(function() {
-        log.popStatus("allowAdmin");
-    }, 5000);
 }
 
 // Update admin information for this user

@@ -742,6 +742,10 @@ body {
         display: none;
     }
 
+    #ec3-status-spacer {
+        display: none;
+    }
+
     #ec3-status {
         position: relative;
     }
@@ -833,6 +837,10 @@ body {
 
     #ec3-chat-outgoing-txt {
         width: 100%;
+    }
+
+    #ec3-status-spacer {
+        display: none;
     }
 
     #ec3-status {

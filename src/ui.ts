@@ -139,6 +139,7 @@ export const ui = {
     // Status
     log: <{
         wrapper: HTMLElement,
+        spacer: HTMLElement,
         name: HTMLElement,
         timer: HTMLElement
     }> null,
@@ -1124,8 +1125,8 @@ export function maybeResize() {
     switch (ui.video.mode) {
         case ViewMode.Normal:
         case ViewMode.Gallery:
-            // Fixed height
-            h = 600;
+            // Fixed height plus status
+            h = 600 + ui.log.spacer.offsetHeight;
             break;
 
         case ViewMode.Small:

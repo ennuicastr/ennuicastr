@@ -71,7 +71,6 @@ export function mkUI(): Promise<unknown> {
         "nopeak-3", "peak-3"
     ]) {
         ui.colors[nm] = cs.getPropertyValue("--" + nm);
-        console.log(`${nm}: ${ui.colors[nm]}`);
     }
     document.body.style.backgroundColor = "var(--bg)";
 
@@ -205,6 +204,7 @@ function loadWave() {
 function loadLog() {
     const log = ui.log = {
         wrapper: gebi("ec3-status"),
+        spacer: gebi("ec3-status-spacer"),
         name: gebi("ec3-recording-title"),
         timer: gebi("ec3-recording-timer")
     };
@@ -675,10 +675,9 @@ export function mkAudioUI(): string {
     }
     uiFE.saveConfigCheckbox(input.echo, "echo-cancellation3", function() {
         if (input.echo.checked) {
-            log.pushStatus("echo-cancellation", "WARNING: Digital echo cancellation is usually effective in cancelling echo, but will SEVERELY impact the quality of your audio. If possible, find a way to reduce echo physically.");
-            setTimeout(function() {
-                log.popStatus("echo-cancellation");
-            }, 10000);
+            log.pushStatus("echo-cancellation", "WARNING: Digital echo cancellation is usually effective in cancelling echo, but will SEVERELY impact the quality of your audio. If possible, find a way to reduce echo physically.", {
+                timeout: 10000
+            });
 
             /* Normally we wouldn't hide the panel for this, but we need to
              * make sure this message is visible. */
@@ -1082,10 +1081,11 @@ export function mkAudioUI(): string {
         document.body.setAttribute("data-streamer-interface", s?"show":"hide");
         if (s) {
             // Tell them how much browser chrome they need to compete with
-            log.pushStatus("chrome", "Browser chrome: " + (window.outerWidth-window.innerWidth) + "x" + (window.outerHeight-window.innerHeight));
-            setTimeout(function() {
-                log.popStatus("chrome");
-            }, 10000);
+            log.pushStatus(
+                "chrome",
+                "Browser chrome: " + (window.outerWidth-window.innerWidth) + "x" + (window.outerHeight-window.innerHeight), {
+                timeout: 10000
+            });
         }
     }
     if (mobile) {

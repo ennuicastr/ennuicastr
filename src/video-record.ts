@@ -89,10 +89,9 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
             break;
     }
     if (fi === formats.length) {
-        log.pushStatus("mediaRecorder", "No supported video encoder found!");
-        setTimeout(function() {
-            log.popStatus("mediaRecorder");
-        }, 10000);
+        log.pushStatus("mediaRecorder", "No supported video encoder found!", {
+            timeout: 10000
+        });
         return;
     }
     const outFormat = (format[0] === "webm") ? "webm" : "mkv";
@@ -534,8 +533,9 @@ function getMediaRecorderStream(ms: MediaStream, opts: any) {
     function timeoutFunc() {
         timeout = null;
 
-        log.pushStatus("video-rec-failed", "Failed to record video!");
-        setTimeout(() => log.popStatus("video-rec-failed"), 5000);
+        log.pushStatus("video-rec-failed", "Failed to record video!", {
+            timeout: 5000
+        });
 
         mediaRecorder.stop();
 
@@ -700,8 +700,11 @@ async function maybeRecord() {
 
     } else if (!supported && video.userMediaVideo && recording.record.checked && config.useVideoRec) {
         // Warn that they're not "contributing"
-        log.pushStatus("video-rec-unsupported", "WARNING: Your browser does not support video recording!");
-        setTimeout(() => { log.popStatus("video-rec-unsupported"); }, 10000);
+        log.pushStatus(
+            "video-rec-unsupported",
+            "WARNING: Your browser does not support video recording!", {
+            timeout: 10000
+        });
 
     }
 
