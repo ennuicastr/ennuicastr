@@ -222,7 +222,7 @@ export async function load(): Promise<boolean> {
             "<label for=\"nm\">Username: </label><input name=\"nm\" id=\"nm\" type=\"text\" value=\"" + def + "\" /> ";
         for (const key in config)
             html += "<input name=\"" + key[0] + "\" type=\"hidden\" value=\"" + config[key].toString(36) + "\" />";
-        html += "<input type=\"submit\" value=\"Join\" />";
+        html += "<input type=\"submit\" value=\"Join\" class=\"pill-button\" />";
         form.innerHTML = html;
 
         form.onsubmit = function(ev: Event) {
