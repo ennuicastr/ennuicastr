@@ -84,6 +84,9 @@ export const ui = {
         // The window, if it's been popped out into a window
         window: WindowProxy,
 
+        // The main wrapper for all video
+        wrapper: HTMLElement,
+
         // Side container
         sideOuter: HTMLElement,
         side: HTMLElement,
@@ -1072,7 +1075,11 @@ export function updateVideoUI(
         ui.video.sideOuter.style.display = "";
         const side = ui.video.side;
         const total = side.childNodes.length;
-        let w = Math.round(Math.sqrt((9 * window.innerWidth * total) / (16 * side.offsetHeight)));
+        const useWindow = ui.video.window || window;
+        let w = Math.round(Math.sqrt(
+            (9 * useWindow.innerWidth * total) /
+            (16 * side.offsetHeight)
+        ));
         if (w < 1)
             w = 1;
         const ew = Math.max((100 / w) - 1, 1);

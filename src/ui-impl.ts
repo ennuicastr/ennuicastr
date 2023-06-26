@@ -153,6 +153,7 @@ export function mkUI(): Promise<unknown> {
 function loadVideo() {
     ui.video = {
         window: null,
+        wrapper: gebi("ec3-video-wrapper"),
         sideOuter: gebi("ec3-side-video-wrappera"),
         side: gebi("ec3-side-video-wrapperb"),
         main: gebi("ec3-main-video-wrapper"),
@@ -229,7 +230,7 @@ function loadMainMenu() {
         shareScreen: gebi("ec3-screen-share-button"),
         settings: gebi("ec3-settings-button"),
         chat: gebi("ec3-chat-button"),
-        videoPopout: document.createElement("button") // FIXME
+        videoPopout: gebi("ec3-streamer-popout-all-button")
     };
 
     ui.panels.join = {
@@ -343,7 +344,6 @@ function loadMainMenu() {
     // Support for popping out the entire video block
     let w: WindowProxy = null;
     function popoutOpen() {
-        /* FIXME
         w = ui.video.window = window.open("", "", "width=1280,height=720,menubar=0,toolbar=0,location=0,personalbar=0,status=0");
         if (!w) return;
 
@@ -351,9 +351,9 @@ function loadMainMenu() {
 
         // To make it flex properly, it needs the CSS
         const ssurl = new URL(<any> window.location);
-        ssurl.search = "?v=6";
+        ssurl.search = "?v=1";
         // eslint-disable-next-line no-useless-escape
-        ssurl.pathname = ssurl.pathname.replace(/\/[^\/]*$/, "/ennuicastr2.css");
+        ssurl.pathname = ssurl.pathname.replace(/\/[^\/]*$/, "/ennuicastr3.css");
         w.document.head.innerHTML = '<link href="' + (<any> ssurl) + '" rel="stylesheet" />';
         w.document.head.appendChild(ui.video.css);
         w.document.body.setAttribute("data-view-mode", document.body.getAttribute("data-view-mode"));
@@ -369,7 +369,6 @@ function loadMainMenu() {
         w.document.body.appendChild(ui.video.wrapper);
         w.onunload = popoutClose;
         w.onresize = function() { uiFE.updateVideoUI(0); }
-        ui.wave.wrapper.style.flex = "auto";
 
         // Play them
         for (let vi = 0; vi < ui.video.users.length; vi++) {
@@ -381,15 +380,12 @@ function loadMainMenu() {
         setTimeout(function() {
             uiFE.updateVideoUI(0);
         }, 0);
-        */
     }
 
     function popoutClose() {
-        /* FIXME
         w = ui.video.window = null;
         document.head.appendChild(ui.video.css);
-        ui.wrapper.insertBefore(ui.video.wrapper, ui.wrapper.childNodes[0]);
-        ui.wave.wrapper.style.flex = "";
+        ui.rows.main.insertBefore(ui.video.wrapper, ui.chat.wrapper);
 
         // Play them
         for (let vi = 0; vi < ui.video.users.length; vi++) {
@@ -401,7 +397,6 @@ function loadMainMenu() {
         setTimeout(function() {
             uiFE.updateVideoUI(0);
         }, 0);
-        */
     }
 
     p.videoPopout.onclick = function() {
@@ -1023,6 +1018,8 @@ export function mkAudioUI(): string {
         ui.video.mode = mode;
         const smode = ["normal", "small", "gallery", "studio"][mode] || "";
         document.body.setAttribute("data-view-mode", smode);
+        if (ui.video.window)
+            ui.video.window.document.body.setAttribute("data-view-mode", smode);
 
         // Retake control of sizing if the mode is appropriate for it
         ui.userSized = false;

@@ -392,6 +392,14 @@ button.bright:active {
     border-right: 6px solid transparent;
 }
 
+button.streamer-interface {
+    display: none;
+}
+
+[data-streamer-interface="show"] button.streamer-interface {
+    display: inline-block;
+}
+
 .panel {
     display: none;
     position: absolute;
