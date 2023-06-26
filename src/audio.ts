@@ -280,7 +280,6 @@ export class Audio {
         }).catch((err) => {
             config.disconnect();
             log.pushStatus("fail", "Cannot get microphone: " + util.escape(err + ""));
-            log.popStatus("getmic");
         });
     }
 
@@ -290,8 +289,9 @@ export class Audio {
         if (!net.connected)
             return;
 
-        log.pushStatus("getmic", "Asking for microphone permission...");
-        log.popStatus("conn");
+        log.pushStatus("getmic", "Asking for microphone permission...", {
+            timein: 1000
+        });
 
         // Make sure the VAD state is available
         while (vad.vads.length <= this.idx)
@@ -379,6 +379,7 @@ export class Audio {
             }
 
             // And move on to the next step
+            log.popStatus("getmic");
             return this.userMediaSet();
         }).catch(err => {
             config.disconnect();
@@ -491,8 +492,9 @@ export class Audio {
             // Now UserMedia and AudioContext are ready
             util.dispatchEvent("audio.mute");
 
-            log.pushStatus("initenc", "Initializing encoder...");
-            log.popStatus("getmic");
+            log.pushStatus("initenc", "Initializing encoder...", {
+                timein: 1000
+            });
 
             util.dispatchEvent("usermediaready", {idx: this.idx});
             util.dispatchEvent("usermediaready" + this.idx, {idx: this.idx});
@@ -506,7 +508,9 @@ export class Audio {
         if (!net.connected)
             return;
 
-        log.pushStatus("startenc", "Starting encoder...");
+        log.pushStatus("startenc", "Starting encoder...", {
+            timein: 1000
+        });
         log.popStatus("initenc");
 
         return this.encoderStart();

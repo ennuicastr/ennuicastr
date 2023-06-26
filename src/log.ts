@@ -39,6 +39,12 @@ interface StatusMessage {
     el: HTMLElement,
 
     /**
+     * The time *in* to *show* this status message. Used to avoid spamming
+     * status for things that are brief and often irrelevant.
+     */
+    timein: number | null,
+
+    /**
      * The timeout to hide this status message. Will be unset for permanent (or
      * long-term) messages.
      */
@@ -53,6 +59,7 @@ const curStatus: Record<string, StatusMessage> = Object.create(null);
  */
 export function pushStatus(
     id: string, html: string, options?: {
+        timein?: number,
         timeout?: number
     }
 ): void {
@@ -61,8 +68,14 @@ export function pushStatus(
     let status = curStatus[id];
     let add = false;
 
-    // Create a fresh status if we didn't already have one
+    /* Create a fresh status if we didn't already have one, or use the existing
+     * one if it's already there */
     if (status) {
+        if (status.timein) {
+            clearTimeout(status.timein);
+            status.timein = null;
+            add = true;
+        }
         if (status.timeout) {
             clearTimeout(status.timeout);
             status.timeout = null;
@@ -71,14 +84,24 @@ export function pushStatus(
         curStatus[id] = status = {
             category: id,
             el: document.createElement("div"),
+            timein: null,
             timeout: null
         };
         add = true;
     }
 
+    if (options.timein && add) {
+        // Don't add this yet.
+        status.timein = setTimeout(() => {
+            delete curStatus[id];
+            delete options.timein;
+            pushStatus(id, html, options);
+        }, options.timein);
+        return;
+    }
+
     status.el.innerHTML = html;
     if (options.timeout) {
-        console.log(options.timeout);
         status.timeout = setTimeout(() => {
             status.timeout = null;
             popStatus(id);
@@ -94,10 +117,16 @@ export function pushStatus(
 export function popStatus(id: string): void {
     const status = curStatus[id];
     if (!status) return;
+    let remove = true;
+    if (status.timein) {
+        clearTimeout(status.timein);
+        remove = false;
+    }
     if (status.timeout)
         clearTimeout(status.timeout);
     delete curStatus[id];
-    updateStatus(status, null);
+    if (remove)
+        updateStatus(status, null);
 }
 
 function updateStatus(remove: StatusMessage, add: StatusMessage) {

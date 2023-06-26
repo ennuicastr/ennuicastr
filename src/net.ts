@@ -170,7 +170,9 @@ export function connect(): Promise<unknown> {
 
     return Promise.all([]).then(() => {
         connected = true;
-        log.pushStatus("conn", "Connecting...");
+        log.pushStatus("conn", "Connecting...", {
+            timein: 1000
+        });
 
         // (1) The ping socket
         pingSock = new ReconnectableWebSocket(config.wsUrl(), config.disconnect, connecter);
@@ -219,6 +221,9 @@ export function connect(): Promise<unknown> {
             sock.addEventListener("message", masterSockMsg);
             return Promise.all([]);
         }
+
+    }).then(function() {
+        log.popStatus("conn");
     });
 }
 
