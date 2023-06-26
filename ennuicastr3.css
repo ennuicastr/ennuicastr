@@ -400,6 +400,7 @@ button.bright:active {
     min-width: var(--scale-main8);
     max-width: calc(100% - var(--scale-main4));
     max-height: calc(100vh - var(--scale-main4));
+    margin: 0;
     background-color: var(--bg);
     color: var(--fg-dimmish);
     border: 1px solid var(--bg-dimmish);

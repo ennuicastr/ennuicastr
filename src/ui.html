@@ -26,7 +26,7 @@
 <!--START-->
         <!-- Our overall interface is an informational bar at the top, main interface in the middle, and waveform and status bar below that. Within the main interface, it's split into a (hideable) menu at the left, video chat interface in the middle, and (usually hidden) chat interface at the right. -->
         <div id="ec3-outer-wrapper" class="cflex">
-            <div id="ec3-top-row" class="rflex">
+            <nav id="ec3-top-row" class="rflex" aria-label="Quick menu">
                 <div id="ec3-menu-button-wrapper" class="vcenter">
                     <button id="ec3-menu-button" class="icon-button" aria-label="Hide main menu">
                         <i class="bx bx-menu" aria-hidden="true"></i>
@@ -63,10 +63,10 @@
                         <i class="bx bx-fullscreen" aria-hidden="true"></i>
                     </button>
                 </div></div>
-            </div>
+            </nav>
 
             <div id="ec3-main-row" class="fauto rcflex">
-                <div id="ec3-main-menu-wrapper"><div id="ec3-main-menu" class="crflex">
+                <div id="ec3-main-menu-wrapper"><nav id="ec3-main-menu" class="crflex" aria-label="Main menu">
                     <button id="ec3-host-interface-button" class="icon-button menu-button">
                         <i class="bx bx-star" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">Host<br/>Menu</span></span>
                     </button>
@@ -92,32 +92,32 @@
                         <i class="bx bx-chat" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">Chat</span></span>
                     </button>
                     <div class="fauto smallhide"></div>
-                </div></div>
-                <div id="ec3-main-video-wrapper" class="cflex fauto"></div>
+                </div></nav>
+                <section id="ec3-main-video-wrapper" class="cflex fauto" aria-label="Main video"></section>
                 <div id="ec3-side-video-wrappera">
-                    <div id="ec3-side-video-wrapperb"></div>
+                    <section id="ec3-side-video-wrapperb" aria-label="Side video"></section>
                 </div>
-                <div id="ec3-chat-wrapper" class="cflex" style="display: none">
+                <section id="ec3-chat-wrapper" class="cflex" style="display: none" aria-label="Text chat">
                     <div id="ec3-chat-incoming" role="log" aria-live="polite"></div>
                     <input id="ec3-chat-outgoing-txt" type="text" data-hotkey-enter="ec3-chat-outgoing-btn" />
                     <input id="ec3-chat-outgoing-btn" type="hidden" />
 
-                </div>
+                </section>
             </div>
 
-            <div id="ec3-waveform-row" role="complementary" aria-label="Live audio waveform">
+            <section id="ec3-waveform-row" role="complementary" aria-label="Live audio waveform">
                 <img id="ec3-waveform-watcher" src="images/watcher.webp" />
-            </div>
+            </section>
             <div id="ec3-status-spacer"></div>
-            <div id="ec3-status" role="status"></div>
+            <section id="ec3-status" role="status" aria-label="Status"></section>
         </div>
 
         <!-- The layer separator makes it easier to close panels -->
         <div id="ec3-layer-separator"></div>
 
         <!-- "Join recording" button, as a panel because interaction is required in some configurations -->
-        <div id="ec3-join-recording-panel" class="panel" role="dialog" aria-label="Join recording">
-            <div class="panel-title" role="heading">Join recording</div>
+        <dialog id="ec3-join-recording-panel" class="panel" role="dialog" aria-labelledby="ec3-join-recording-panel-label">
+            <div id="ec3-join-recording-panel-label" class="panel-title" role="heading">Join recording</div>
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
@@ -126,11 +126,11 @@
                 <i class="bx bx-door-open"></i>
                 Join recording
             </button>
-        </div>
+        </dialog>
 
         <!-- Invite panel -->
-        <div id="ec3-invite-panel" class="panel" role="dialog" aria-label="Invite menu">
-            <div class="panel-title" role="heading">Invite</div>
+        <dialog id="ec3-invite-panel" class="panel" role="dialog" aria-labelledby="ec3-invite-panel-label">
+            <div id="ec3-invite-panel-label" class="panel-title" role="heading">Invite</div>
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
@@ -153,11 +153,11 @@
                     <label for="ec3-invite-continuous-chk">&nbsp;Continuous&nbsp;</label>
                 </div>
             </div>
-        </div>
+        </dialog>
 
         <!-- Host menu panel -->
-        <div id="ec3-host-interface-panel" class="panel" role="dialog" aria-label="Host menu">
-            <div class="panel-title" role="heading">Host menu</div>
+        <dialog id="ec3-host-interface-panel" class="panel" role="dialog" aria-labelledby="ec3-host-interface-panel-label">
+            <div id="ec3-host-interface-panel-label" class="panel-title" role="heading">Host menu</div>
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
@@ -228,21 +228,21 @@
                     <input id="ec3-recording-rate-txt" type="text" readonly />
                 </div>
             </div>
-        </div>
+        </dialog>
 
         <!-- User administration panel (list) -->
-        <div id="ec3-user-admin-list-panel" class="panel" role="dialog" aria-label="User administration">
-            <div class="panel-title" role="heading">User administration</div>
+        <dialog id="ec3-user-admin-list-panel" class="panel" role="dialog" aria-labelledby="ec3-user-admin-list-panel-label">
+            <div id="ec3-user-admin-list-panel-label" class="panel-title" role="heading">User administration</div>
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
 
             <button id="ec3-user-admin-all-button" class="pill-button primary row"><i class="bx bx-group"></i> All users</button>
-        </div>
+        </dialog>
 
         <!-- User administration interface (particular user) -->
-        <div id="ec3-user-admin-user-panel" class="panel" role="dialog" aria-label="User administration">
-            <div class="panel-title" role="heading">User administration</div>
+        <dialog id="ec3-user-admin-user-panel" class="panel" role="dialog" aria-labelledby="ec3-user-admin-user-panel-label">
+            <div id="ec3-user-admin-user-panel-label" class="panel-title" role="heading">User administration</div>
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
@@ -252,11 +252,11 @@
             <button id="ec3-user-admin-mute-button" class="pill-button row"><i class="bx bx-microphone-off" aria-hidden="true"></i> Mute</button>
             <button id="ec3-user-admin-echo-button" class="pill-button row"><i class="bx bx-user-voice" aria-hidden="true"></i> Force echo cancellation</button>
             <button id="ec3-user-admin-request-full-button" class="pill-button primary row"><i class="bx bxs-user-detail" aria-hidden="true"></i> Request administrative access</button>
-        </div>
+        </dialog>
 
         <!-- User administration interface (particular user, full access) -->
-        <div id="ec3-user-admin-user-full-panel" class="panel" role="dialog" aria-label="User administration">
-            <div class="panel-title" role="heading">User administration</div>
+        <dialog id="ec3-user-admin-user-full-panel" class="panel" role="dialog" aria-labelledby="ec3-user-admin-user-full-panel-label">
+            <div id="ec3-user-admin-user-full-panel-label" class="panel-title" role="heading">User administration</div>
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
@@ -311,11 +311,11 @@
                     <button id="ec3-user-admin-full-video-record-button" title="Record video" aria-label="Record video"><i class="fas fa-circle"></i> Rec</button>
                 </div>
             </div>
-        </div>
+        </dialog>
 
         <!-- User administration permission request -->
-        <div id="ec3-user-admin-permission-panel" class="panel" role="dialog" aria-label="Administrator request">
-            <div class="panel-title" role="heading">User administration</div>
+        <dialog id="ec3-user-admin-permission-panel" class="panel" role="dialog" aria-labelledby="ec3-user-admin-permission-panel-label">
+            <div id="ec3-user-admin-permission-panel-label" class="panel-title" role="heading">User administration</div>
             <div>The user <span id="ec3-user-admin-permission-requester"></span> has requested permission to control your input device settings. Is this OK?</div>
 
             <div class="rflex row">
@@ -323,43 +323,43 @@
                 <button id="ec3-user-admin-permission-audio-button" class="pill-button fauto">Audio only</button>&nbsp;
                 <button id="ec3-user-admin-permission-no-button" class="pill-button fauto">No</button>
             </div>
-        </div>
+        </dialog>
 
         <!-- The soundboard -->
-        <div id="ec3-soundboard-panel" class="panel" role="dialog" aria-label="Soundboard">
-            <div class="panel-title" role="heading">Soundboard</div>
+        <dialog id="ec3-soundboard-panel" class="panel" role="dialog" aria-labelledby="ec3-soundboard-panel-label">
+            <div id="ec3-soundboard-panel-label" class="panel-title" role="heading">Soundboard</div>
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
 
             <div id="ec3-sounds"></div>
-        </div>
+        </dialog>
 
         <!-- Settings -->
-        <div id="ec3-settings-panel" class="panel" role="dialog" aria-label="Settings">
-            <div class="panel-title" role="heading">Settings</div>
+        <dialog id="ec3-settings-panel" class="panel" role="dialog" aria-labelledby="ec3-settings-panel-label">
+            <div id="ec3-settings-panel-label" class="panel-title" role="heading">Settings</div>
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
 
             <div class="rflex row">
-                <button id="ec3-view-mode-normal-btn" class="pill-button fauto fwidth">
+                <button id="ec3-view-mode-normal-btn" class="pill-button fauto fwidth" aria-label="Normal view mode">
                     Normal<br/>
                     <img src="/images/normal.svg" style="max-width: 4em; filter: invert(1) opacity(50%);" />
                 </button>
                 &nbsp;
-                <button id="ec3-view-mode-gallery-btn" class="pill-button fauto fwidth">
+                <button id="ec3-view-mode-gallery-btn" class="pill-button fauto fwidth" aria-label="Gallery view mode">
                     Gallery<br/>
                     <img src="/images/gallery.svg" style="max-width: 4em; filter: invert(1) opacity(50%);" />
                 </button>
             </div>
             <div class="rflex row">
-                <button id="ec3-view-mode-studio-btn" class="pill-button fauto fwidth">
+                <button id="ec3-view-mode-studio-btn" class="pill-button fauto fwidth" aria-label="Studio view mode">
                     Studio<br/>
                     <img src="/images/studio.svg" style="max-width: 4em; filter: invert(1) opacity(50%);" />
                 </button>
                 &nbsp;
-                <button id="ec3-view-mode-small-btn" class="pill-button fauto fwidth">
+                <button id="ec3-view-mode-small-btn" class="pill-button fauto fwidth" aria-label="Small view mode">
                     Small<br/>
                     <img src="/images/small.svg" style="max-width: 4em; filter: invert(1) opacity(50%);" />
                 </button>
@@ -378,11 +378,11 @@
             <span id="ec3-user-list-button-hider">
                 <button id="ec3-user-list-button" class="pill-button row"><i class="bx bx-group"></i> Members</button>
             </span>
-        </div>
+        </dialog>
 
         <!-- The input settings menu -->
-        <div id="ec3-input-settings-panel" class="panel" role="dialog" aria-label="Input settings">
-            <div class="panel-title" role="heading">Input settings</div>
+        <dialog id="ec3-input-settings-panel" class="panel" role="dialog" aria-labelledby="ec3-input-settings-panel-label">
+            <div id="ec3-input-settings-panel-label" class="panel-title" role="heading">Input settings</div>
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
@@ -434,11 +434,11 @@
                     &nbsp;Automatic gain control
                 </label>
             </div>
-        </div>
+        </dialog>
 
         <!-- Output settings -->
-        <div id="ec3-output-settings-panel" class="panel" role="dialog" aria-label="Output settings">
-            <div class="panel-title" role="heading">Output settings</div>
+        <dialog id="ec3-output-settings-panel" class="panel" role="dialog" aria-labelledby="ec3-output-settings-panel-label">
+            <div id="ec3-output-settings-panel-label" class="panel-title" role="heading">Output settings</div>
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
@@ -478,11 +478,11 @@
                     &nbsp;Mute interface sounds
                 </label>
             </div>
-        </div>
+        </dialog>
 
         <!-- Video device menu -->
-        <div id="ec3-video-settings-panel" class="panel" role="dialog" aria-label="Video settings">
-            <div class="panel-title" role="heading">Video settings</div>
+        <dialog id="ec3-video-settings-panel" class="panel" role="dialog" aria-labelledby="ec3-video-settings-panel-label">
+            <div id="ec3-video-settings-panel-label" class="panel-title" role="heading">Video settings</div>
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
@@ -548,17 +548,17 @@
                 <input id="ec3-streamer-mode-chk" type="checkbox" />
                 <label for="ec3-streamer-mode-chk">&nbsp;Streamer-friendly popout windows</label>
             </div>
-        </div>
+        </dialog>
 
         <!-- The user list/volume -->
-        <div id="ec3-user-list-panel" class="panel" role="dialog" aria-label="Users">
-            <div class="panel-title" role="heading">Users</div>
+        <dialog id="ec3-user-list-panel" class="panel" role="dialog" aria-labelledby="ec3-user-list-panel-label">
+            <div id="ec3-user-list-panel-label" class="panel-title" role="heading">Users</div>
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
 
             <div id="ec3-user-list" class="cflex row"></div>
-        </div>
+        </dialog>
 
         <!-- Interface sounds -->
         <div style="display: none">

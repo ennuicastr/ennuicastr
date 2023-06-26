@@ -260,6 +260,8 @@ function loadMainMenu() {
         p.wrapper.style.display = to ? "" : "none";
         if (showHideSave)
             showHideSave(to ? "1" : "0");
+        p.showHide.setAttribute("aria-label", to ?
+            "Hide main menu" : "Show main menu");
     }
 
     showHideSave = uiFE.saveConfigGeneric(

@@ -36,7 +36,7 @@ export enum ViewMode {
 
 // A panel needs at least a showable wrapper
 interface Panel {
-    wrapper: HTMLElement;
+    wrapper: HTMLDialogElement,
     onshow?: ()=>void;
     onhide?: ()=>void;
 }
@@ -167,13 +167,13 @@ export const ui = {
     panels: {
         // "Join recording" panel
         join: <{
-            wrapper: HTMLElement,
+            wrapper: HTMLDialogElement,
             button: HTMLButtonElement
         }> null,
 
         // Settings menu
         settings: <{
-            wrapper: HTMLElement,
+            wrapper: HTMLDialogElement,
             viewModes: {
                 normal: HTMLButtonElement,
                 gallery: HTMLButtonElement,
@@ -193,7 +193,7 @@ export const ui = {
             // Button to show the invite panel
             button: HTMLButtonElement,
 
-            wrapper: HTMLElement,
+            wrapper: HTMLDialogElement,
 
             // Invite
             link: HTMLInputElement,
@@ -206,7 +206,7 @@ export const ui = {
 
         // Host interface
         host: <{
-            wrapper: HTMLElement,
+            wrapper: HTMLDialogElement,
 
             // Start recording
             startB: HTMLButtonElement[],
@@ -249,7 +249,7 @@ export const ui = {
 
         // User administration interface
         userAdmin: <{
-            wrapper: HTMLElement,
+            wrapper: HTMLDialogElement,
 
             // Administration for *all* users
             allB: HTMLButtonElement,
@@ -260,7 +260,7 @@ export const ui = {
 
         // User administration for a particular user
         userAdminUser: <{
-            wrapper: HTMLElement,
+            wrapper: HTMLDialogElement,
 
             // Which user are we administrating?
             user: number,
@@ -277,7 +277,7 @@ export const ui = {
 
         // User administration for a particular user, full interface
         userAdminFull: <{
-            wrapper: HTMLElement,
+            wrapper: HTMLDialogElement,
 
             // Which user are we administrating?
             user: number,
@@ -303,7 +303,7 @@ export const ui = {
 
         // User administration request
         userAdminReq: <{
-            wrapper: HTMLElement,
+            wrapper: HTMLDialogElement,
 
             // Which user is requesting access?
             user: number,
@@ -319,7 +319,7 @@ export const ui = {
 
         // Soundboard
         soundboard: <{
-            wrapper: HTMLElement,
+            wrapper: HTMLDialogElement,
 
             // Wrapper for the actual sounds
             soundsWrapper: HTMLElement,
@@ -334,7 +334,7 @@ export const ui = {
 
         // Input device selection
         inputConfig: <{
-            wrapper: HTMLElement,
+            wrapper: HTMLDialogElement,
 
             // Device selection
             device: HTMLSelectElement,
@@ -360,7 +360,7 @@ export const ui = {
 
         // Output device selection
         outputConfig: <{
-            wrapper: HTMLElement,
+            wrapper: HTMLDialogElement,
 
             // Device selection
             deviceHider: HTMLElement,
@@ -384,7 +384,7 @@ export const ui = {
 
         // Video device
         videoConfig: <{
-            wrapper: HTMLElement,
+            wrapper: HTMLDialogElement,
 
             // Currently visible?
             visible: boolean;
@@ -445,7 +445,7 @@ export const ui = {
 
         // User list
         userList: <{
-            wrapper: HTMLElement,
+            wrapper: HTMLDialogElement,
 
             // The actual user list
             userList: HTMLElement,
@@ -514,6 +514,8 @@ export function showPanel(panelName: Panel|string, autoFocusName?: HTMLElement|s
     if (curPanel) {
         if (curPanel.onhide)
             curPanel.onhide();
+        if (curPanel.wrapper.showModal)
+            curPanel.wrapper.close();
         curPanel = null;
     }
 
@@ -522,6 +524,13 @@ export function showPanel(panelName: Panel|string, autoFocusName?: HTMLElement|s
         ui.layerSeparator.style.display = "block";
         panel.wrapper.style.display = "block";
         document.body.setAttribute("data-interface", "none");
+
+        if (panel.wrapper.showModal) {
+            if (makeModal)
+                panel.wrapper.showModal();
+            else
+                panel.wrapper.show();
+        }
 
         if (autoFocus)
             autoFocus.focus();
