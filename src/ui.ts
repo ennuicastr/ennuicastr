@@ -523,7 +523,6 @@ export function showPanel(panelName: Panel|string, autoFocusName?: HTMLElement|s
     if (panel) {
         ui.layerSeparator.style.display = "block";
         panel.wrapper.style.display = "block";
-        document.body.setAttribute("data-interface", "none");
 
         if (panel.wrapper.showModal) {
             if (makeModal)
@@ -545,7 +544,6 @@ export function showPanel(panelName: Panel|string, autoFocusName?: HTMLElement|s
 
     } else {
         ui.layerSeparator.style.display = "none";
-        mouseenter();
 
         if (autoFocus)
             autoFocus.focus();
@@ -558,18 +556,6 @@ export function showPanel(panelName: Panel|string, autoFocusName?: HTMLElement|s
 // Unset the modal panel so it can be hidden
 export function unsetModal(): void {
     modal = null;
-}
-
-// Functionality for auto-hiding the persistent panel
-let metimeout: null|number = null;
-export function mouseenter(): void {
-    if (metimeout)
-        clearTimeout(metimeout);
-    document.body.setAttribute("data-interface", "show");
-    metimeout = setTimeout(function() {
-        if (document.body.getAttribute("data-interface") === "show")
-            document.body.setAttribute("data-interface", "hide");
-    }, 2000);
 }
 
 // Saveable config for a box with a string value
