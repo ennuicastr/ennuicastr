@@ -698,156 +698,162 @@ body {
 }
 
 /* View modes */
-[data-view-mode="gallery"] {
-    #ec3-main-video-wrapper {
-        display: none;
-    }
 
-    #ec3-side-video-wrappera {
-        flex: auto;
-    }
+[data-view-mode="gallery"] #ec3-main-video-wrapper {
+    display: none;
+}
 
-    .ec3-name-label {
-        font-size: inherit;
+[data-view-mode="gallery"] #ec3-side-video-wrappera {
+    flex: auto;
+}
+
+[data-view-mode="gallery"] #ec3-side-video-wrapperb {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: stretch;
+    justify-content: center;
+}
+
+[data-view-mode="gallery"] .ec3-name-label {
+    font-size: inherit;
+}
+
+[data-view-mode="small"] #ec3-main-row {
+    flex-direction: column;
+}
+
+[data-view-mode="small"] #ec3-main-menu-wrapper {
+    width: auto;
+    height: auto;
+}
+
+[data-view-mode="small"] #ec3-main-menu {
+    position: relative;
+    flex-direction: row;
+}
+
+[data-view-mode="small"] #ec3-main-menu .smallhide {
+    display: none;
+}
+
+[data-view-mode="small"] .menu-button-label:after {
+    border: none;
+}
+
+[data-view-mode="small"] .icon-button {
+    font-size: calc(var(--scale-main-2) + var(--scale-main-4));
+}
+
+[data-view-mode="small"] #ec3-side-video-wrappera, [data-view-mode="small"] #ec3-main-video-wrapper {
+    display: none;
+}
+
+[data-view-mode="small"] #ec3-status-spacer {
+    display: none;
+}
+
+[data-view-mode="small"] #ec3-status {
+    position: relative;
+}
+
+[data-view-mode="studio"] #ec3-main-row {
+    flex-direction: column;
+}
+
+[data-view-mode="studio"] #ec3-video-wrapper {
+    flex-direction: column;
+}
+
+[data-view-mode="studio"] #ec3-main-menu-wrapper {
+    width: auto;
+    height: auto;
+}
+
+[data-view-mode="studio"] #ec3-main-menu {
+    position: relative;
+    flex-direction: row;
+}
+
+[data-view-mode="studio"] #ec3-main-menu .smallhide {
+    display: none;
+}
+
+[data-view-mode="studio"] .menu-button-label:after {
+    border: none;
+}
+
+[data-view-mode="studio"] .icon-button {
+    font-size: calc(var(--scale-main-2) + var(--scale-main-4));
+}
+
+[data-view-mode="studio"] #ec3-main-video-wrapper {
+    display: none;
+}
+
+[data-view-mode="studio"] #ec3-side-video-wrappera {
+    min-height: auto;
+}
+
+[data-view-mode="studio"] #ec3-side-video-wrapperb {
+    position: relative;
+    bottom: auto;
+    flex-direction: column;
+    gap: 6px;
+}
+
+@media screen and (max-width: 640px) {
+    [data-view-mode="studio"] #ec3-side-video-wrapperb {
+        bottom: 0;
     }
 }
 
-[data-view-mode="small"] {
-    #ec3-main-row {
-        flex-direction: column;
-    }
-
-    #ec3-main-menu-wrapper {
-        width: auto;
-        height: auto;
-    }
-
-    #ec3-main-menu {
-        position: relative;
-        flex-direction: row;
-    }
-
-    #ec3-main-menu .smallhide {
-        display: none;
-    }
-
-    .menu-button-label:after {
-        border: none;
-    }
-
-    .icon-button {
-        font-size: calc(var(--scale-main-2) + var(--scale-main-4));
-    }
-
-    #ec3-side-video-wrappera, #ec3-main-video-wrapper {
-        display: none;
-    }
-
-    #ec3-status-spacer {
-        display: none;
-    }
-
-    #ec3-status {
-        position: relative;
-    }
+[data-view-mode="studio"] .ec3-video {
+    display: flex;
+    flex-direction: row;
+    height: 90px;
+    max-height: 90px;
+    flex: 1;
 }
 
-[data-view-mode="studio"] {
-    #ec3-main-row {
-        flex-direction: column;
-    }
+[data-view-mode="studio"] .ec3-video-video, [data-view-mode="studio"] .ec3-video-standin {
+    position: relative;
+    width: 120px;
+    max-width: 120px;
+    height: var(--scale-main3);
+    max-height: var(--scale-main3);
+    flex: 1;
+}
 
-    #ec3-main-menu-wrapper {
-        width: auto;
-        height: auto;
-    }
+[data-view-mode="studio"] .ec3-video, [data-view-mode="studio"] .ec3-video-video, [data-view-mode="studio"] .ec3-video-standin {
+    border-radius: 0;
+}
 
-    #ec3-main-menu {
-        position: relative;
-        flex-direction: row;
-    }
+[data-view-mode="studio"] .ec3-studio-video-waveform {
+    display: block;
+    flex: auto;
+}
 
-    #ec3-main-menu .smallhide {
-        display: none;
-    }
+[data-view-mode="studio"] .ec3-studio-admin-button {
+    display: block;
+    height: var(--scale-main3);
+}
 
-    .menu-button-label:after {
-        border: none;
-    }
+[data-view-mode="studio"] #ec3-waveform-row {
+    display: none;
+}
 
-    .icon-button {
-        font-size: calc(var(--scale-main-2) + var(--scale-main-4));
-    }
+[data-view-mode="studio"] #ec3-chat-wrapper {
+    flex: auto;
+}
 
-    #ec3-main-video-wrapper {
-        display: none;
-    }
+[data-view-mode="studio"] #ec3-chat-outgoing-txt {
+    width: 100%;
+}
 
-    #ec3-side-video-wrappera {
-        min-height: auto;
-    }
+[data-view-mode="studio"] #ec3-status-spacer {
+    display: none;
+}
 
-    #ec3-side-video-wrapperb {
-        position: relative;
-        bottom: auto;
-        flex-direction: column;
-        gap: 6px;
-    }
-
-    @media screen and (max-width: 640px) {
-        #ec3-side-video-wrapperb {
-            bottom: 0;
-        }
-    }
-
-    .ec3-video {
-        display: flex;
-        flex-direction: row;
-        height: 90px;
-        max-height: 90px;
-        flex: 1;
-    }
-
-    .ec3-video-video, .ec3-video-standin {
-        position: relative;
-        width: 120px;
-        max-width: 120px;
-        height: var(--scale-main3);
-        max-height: var(--scale-main3);
-        flex: 1;
-    }
-
-    .ec3-video, .ec3-video-video, .ec3-video-standin {
-        border-radius: 0;
-    }
-
-    .ec3-studio-video-waveform {
-        display: block;
-        flex: auto;
-    }
-
-    .ec3-studio-admin-button {
-        display: block;
-        height: var(--scale-main3);
-    }
-
-    #ec3-waveform-row {
-        display: none;
-    }
-
-    #ec3-chat-wrapper {
-        flex: auto;
-    }
-
-    #ec3-chat-outgoing-txt {
-        width: 100%;
-    }
-
-    #ec3-status-spacer {
-        display: none;
-    }
-
-    #ec3-status {
-        position: relative;
-    }
+[data-view-mode="studio"] #ec3-status {
+    position: relative;
 }
