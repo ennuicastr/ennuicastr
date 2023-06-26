@@ -253,11 +253,22 @@ function loadMainMenu() {
         userListB: gebi("ec3-user-list-button")
     };
 
-    p.showHide.onclick = function() {
-        p.wrapper.style.display = (p.wrapper.style.display === "none")
-            ? "" : "none";
-        uiFE.maybeResizeSoon();
-    };
+    let showHideSave: (value: string) => void = null;
+    function menuShowHide(to?: boolean) {
+        if (typeof to === "undefined")
+            to = (p.wrapper.style.display === "none");
+        p.wrapper.style.display = to ? "" : "none";
+        if (showHideSave)
+            showHideSave(to ? "1" : "0");
+    }
+
+    showHideSave = uiFE.saveConfigGeneric(
+        "ec3-show-main-menu", saved => {
+        if (typeof saved === "string")
+            menuShowHide(!!+saved);
+    });
+
+    p.showHide.onclick = () => menuShowHide();
 
     // A generic function to handle fullscreen buttons
     function fullscreen(el: HTMLElement, btn: HTMLButtonElement) {
