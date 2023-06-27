@@ -108,6 +108,7 @@ export const ui = {
                 complete: boolean,
                 timeout: number
             }[],
+            popout: HTMLButtonElement,
             admin: HTMLButtonElement,
             waveformWrapper: HTMLElement
         }[],
@@ -736,6 +737,7 @@ export function videoAdd(idx: number, name: string): void {
         name: dce("span"),
         caption: dce("div"),
         captions: <any[]> [],
+        popout: <HTMLButtonElement> dce("button"),
         admin: <HTMLButtonElement> null,
         waveformWrapper: dce("div")
     };
@@ -793,11 +795,10 @@ export function videoAdd(idx: number, name: string): void {
     caption.classList.add("caption");
     box.appendChild(caption);
 
-    /* FIXME?
     // And popout button
     const popout = ctx.popout;
-    popout.classList.add("pobutton", "tbutton", "interface", "streamer-interface");
-    popout.innerHTML = '<i class="fa fa-window-restore"></i>';
+    popout.classList.add("ec3-individual-popout-button", "round-button", "streamer-interface");
+    popout.innerHTML = '<i class="bx bx-windows"></i>';
     popout.title = "Pop out";
     popout.setAttribute("aria-label", "Pop out");
     box.appendChild(popout);
@@ -817,8 +818,14 @@ export function videoAdd(idx: number, name: string): void {
 
         w = window.open("", "", "width=" + width + ",height=" + height + ",menubar=0,toolbar=0,location=0,personalbar=0,status=0");
         if (!w) return;
-
         w.document.title = nspan.innerText;
+
+        const css = document.createElement("style");
+        css.innerHTML =
+            "body { margin: 0; }\n" +
+            "body > video { width: 100%; height: 100%; }";
+        w.document.head.appendChild(css);
+
         w.document.body.appendChild(video);
         w.onunload = popoutClose;
         video.play().catch(console.error);
@@ -836,7 +843,6 @@ export function videoAdd(idx: number, name: string): void {
         else
             popoutOpen();
     };
-    */
 
     // The admin button
     if ("master" in config.config) {

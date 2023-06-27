@@ -22,7 +22,7 @@
         <link href="../bx/css/boxicons.min.css" rel="stylesheet" />
         <link href="../ennuicastr3.css" rel="stylesheet" />
     </head>
-    <body>
+    <body data-streamer-interface="show">
 <!--START-->
         <!-- Our overall interface is an informational bar at the top, main interface in the middle, and waveform and status bar below that. Within the main interface, it's split into a (hideable) menu at the left, video chat interface in the middle, and (usually hidden) chat interface at the right. -->
         <div id="ec3-outer-wrapper" class="cflex">
@@ -693,6 +693,12 @@
                 nspan.classList.add("ec3-name-label");
                 nspan.innerText = nm;
                 div.appendChild(nspan);
+
+                var popout = document.createElement("button");
+                popout.classList.add("ec3-individual-popout-button", "round-button", "streamer-interface");
+                popout.innerHTML = '<i class="bx bx-windows"></i>';
+                popout.title = "Pop out";
+                div.appendChild(popout);
 
                 if (main) {
                     div.classList.add("fauto");

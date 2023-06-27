@@ -463,6 +463,16 @@ button.streamer-interface {
     display: none;
 }
 
+.ec3-individual-popout-button {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+}
+
+#ec3-side-video-wrappera .ec3-individual-popout-button {
+    font-size: 0.75em;
+}
+
 .caption {
     display: none;
     position: absolute;
