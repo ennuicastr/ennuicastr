@@ -94,6 +94,7 @@ export function mkUI(): Promise<unknown> {
     loadOutputConfig();
     loadVideoConfig();
     loadUserList();
+    loadHelp();
     loadInterfaceSounds();
 
     if ("master" in config.config)
@@ -230,6 +231,7 @@ function loadMainMenu() {
         shareScreen: gebi("ec3-screen-share-button"),
         settings: gebi("ec3-settings-button"),
         chat: gebi("ec3-chat-button"),
+        help: gebi("ec3-help-button"),
         videoPopout: gebi("ec3-streamer-popout-all-button")
     };
 
@@ -334,6 +336,7 @@ function loadMainMenu() {
         }
         uiFE.maybeResizeSoon();
     };
+    btn(p.help, "help", null);
     btn(sets.inputB, "inputConfig", null);
     btn(sets.outputB, "outputConfig", null);
     if (!config.useRTC) sets.outputB.style.display = "none";
@@ -615,6 +618,12 @@ function loadUserList() {
         wrapper: gebi("ec3-user-list-panel"),
         userList: gebi("ec3-user-list"),
         users: []
+    };
+}
+
+function loadHelp() {
+    ui.panels.help = {
+        wrapper: gebi("ec3-help-panel")
     };
 }
 

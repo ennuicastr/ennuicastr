@@ -406,7 +406,7 @@ button.streamer-interface {
     left: calc(var(--scale-main2) + var(--scale-main-2));
     top: var(--scale-main2);
     min-width: var(--scale-main8);
-    max-width: calc(100% - var(--scale-main4));
+    max-width: calc(min(100% - var(--scale-main4), 52em));
     max-height: calc(100vh - var(--scale-main4));
     margin: 0;
     background-color: var(--bg);
@@ -499,6 +499,14 @@ button.streamer-interface {
 
 [data-persist-peak-labels="yes"] .ec3-waveform-label {
     opacity: 1;
+}
+
+[data-ec3-host="yes"] .ec3-guest-only {
+    display: none;
+}
+
+[data-ec3-host="no"] .ec3-host-only {
+    display: none;
 }
 
 /* Main body */

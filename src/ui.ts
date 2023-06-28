@@ -161,6 +161,7 @@ export const ui = {
         shareScreen: HTMLButtonElement,
         settings: HTMLButtonElement,
         chat: HTMLButtonElement,
+        help: HTMLButtonElement,
         videoPopout: HTMLButtonElement
     }> null,
 
@@ -461,6 +462,11 @@ export const ui = {
                 volume: HTMLInputElement,
                 volumeStatus: HTMLElement
             }[]
+        }> null,
+
+        // Help screen
+        help: <{
+            wrapper: HTMLDialogElement
         }> null
     },
 

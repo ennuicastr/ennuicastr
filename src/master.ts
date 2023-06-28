@@ -49,6 +49,7 @@ const sounds = {
 
 // Hide the master interface, for non-host users
 export function hideMasterInterface(): void {
+    document.body.setAttribute("data-ec3-host", "no");
     const mainMenu = ui.ui.mainMenu;
     const hostPanel = ui.ui.panels.host;
     for (const b of [mainMenu.host, mainMenu.userAdmin, mainMenu.sounds])
@@ -68,6 +69,8 @@ export function createMasterInterface(): void {
     const masterUI = ui.ui.panels.host;
 
     const mainMenu = ui.ui.mainMenu;
+
+    document.body.setAttribute("data-ec3-host", "yes");
 
     // Assume no soundboard until told otherwise
     ui.ui.mainMenu.sounds.style.display = "none";

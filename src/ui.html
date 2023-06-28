@@ -94,6 +94,9 @@
                     <button id="ec3-streamer-popout-all-button" class="icon-button menu-button streamer-interface">
                         <i class="bx bx-windows" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">Pop out</span></span>
                     </button>
+                    <button id="ec3-help-button" class="icon-button menu-button">
+                        <i class="bx bx-help-circle" aria-hidden="true"></i><span class="menu-button-lbox"><span class="menu-button-label">Help</span></span>
+                    </button>
                     <div class="fauto smallhide"></div>
                 </div></nav>
                 <main id="ec3-video-wrapper" class="rflex fauto" aria-label="Video chat">
@@ -565,6 +568,34 @@
             <div id="ec3-user-list" class="cflex row"></div>
         </dialog>
 
+        <!-- Help -->
+        <dialog id="ec3-help-panel" class="panel" role="dialog" aria-labelledby="ec3-help-panel-label">
+            <div id="ec3-help-panel-label" class="panel-title" role="heading">Help</div>
+            <button class="icon-button close-button" aria-label="Close">
+                <i class="bx bx-x" aria-hidden="true"></i>
+            </button>
+
+            <p>Welcome to Ennuicastr.</p>
+
+            <p class="ec3-guest-only">Hopefully, your microphone was picked up automatically and is of good quality, in which case you're done! All you need to do is talk. You can use the waveform at the bottom of the screen to verify that audio capture is working. If necessary, you can mute yourself at any time by using the mute button (<i class="bx bx-microphone"></i>).</p>
+
+            <p class="ec3-host-only">To invite guests, use the invite button at the top of the screen (<i class="bx bx-share"></i>) and then copy the link. To start recording, use the “start recording” button in the quick menu at the top of the screen, or the same button in the host interface, which you can access with the host interface button (<i class="bx bx-star"></i>) from the main menu. Remember, nothing is being recorded until and unless you start recording!</p>
+
+            <p>Use the “share camera” (<i class="bx bx-video"></i>) or “share screen” (<i class="bx bx-window"></i>) buttons to share your camera or screen video, respectively.</p>
+
+            <p>If the wrong input device is used or you have any other problems, use the settings screen (<i class="bx bxs-cog"></i>) to change your settings. You can do things like decrease sensitivity to background noise, change your input device, change your camera, etc.</p>
+
+            <p class="ec3-host-only">As the host, you can also change many settings for your guests, by using the user administration screen (<i class="bx bx-user"></i>). Sensitive settings will require permission from the guest, which you can also request from that screen.</p>
+
+            <p>You can use text chat (<i class="bx bx-chat"></i>) to communicate if you're having audio issues. In addition, text chat is recorded and timestamped, so it can be used to take show notes.</p>
+
+            <p>If you don't like the screen arrangement, several other arrangements are available in settings (<i class="bx bxs-cog"></i>). In particular, power users may want the “studio” view mode, which shows a waveform for all users.</p>
+
+            <p>If you like keyboard hotkeys, a hotkey can be assigned to any button in the user interface by control-clicking the button.</p>
+
+            <p>Close this dialog with the close button at the top-right (<i class="bx bx-x"></i>), the escape key on your keyboard, or by simply clicking outside of the dialog.</p>
+        </dialog>
+
         <!-- Interface sounds -->
         <div style="display: none">
             <audio id="ec3-chime-up-snd">
@@ -772,6 +803,7 @@
             btn("ec3-output-settings-button", "ec3-output-settings-panel");
             btn("ec3-video-settings-button", "ec3-video-settings-panel");
             btn("ec3-user-list-button", "ec3-user-list-panel");
+            btn("ec3-help-button", "ec3-help-panel");
 
             gebi("ec3-menu-button").onclick = function() {
                 const menu = gebi("ec3-main-menu-wrapper");
