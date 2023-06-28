@@ -449,6 +449,7 @@ function loadHostUI() {
         sureHider: gebi("ec3-stop-sure-hider"),
         stopYesB: gebi("ec3-stop-yes-button"),
         stopNoB: gebi("ec3-stop-no-button"),
+        inviteB: gebi("ec3-invite-button2"),
         acceptRemoteVideo: gebi("ec3-accept-guest-video-chk"),
         saveVideoInBrowser: gebi("ec3-video-rec-save-in-browser-chk"),
         downloadVideoLive: gebi("ec3-video-rec-download-chk"),

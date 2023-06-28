@@ -87,6 +87,8 @@ export function createMasterInterface(): void {
     inviteUI.flac.onchange = inviteUI.continuous.onchange = genInvite;
     inviteUI.copyB.onclick = copyInvite;
     genInvite();
+    masterUI.inviteB.onclick = () =>
+        ui.showPanel(inviteUI, inviteUI.copyB);
 
     // User admin
     updateMasterAdmin();

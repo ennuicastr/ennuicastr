@@ -235,6 +235,9 @@ export const ui = {
             stopYesB: HTMLButtonElement,
             stopNoB: HTMLButtonElement,
 
+            // Invite button
+            inviteB: HTMLButtonElement,
+
             // Accept guest video recordings
             acceptRemoteVideo: HTMLInputElement,
 
