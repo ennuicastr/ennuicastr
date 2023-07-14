@@ -24,7 +24,7 @@ DATA=\
     bx
 
 EXTRA=\
-    index.html ennuicastr2.css protocol.js fs/index.html \
+    index.html ennuicastr3.css protocol.js fs/index.html \
     images/no-echo-white.svg \
     libav/libav-$(LIBAV_VERSION)-ennuicastr.js \
     libav/libav-$(LIBAV_VERSION)-ennuicastr.asm.js \
