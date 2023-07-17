@@ -26,6 +26,7 @@ DATA=\
 EXTRA=\
     index.html ennuicastr3.css protocol.js fs/index.html \
     images/no-echo-white.svg \
+    images/normal.svg images/gallery.svg images/studio.svg images/small.svg \
     libav/libav-$(LIBAV_VERSION)-ennuicastr.js \
     libav/libav-$(LIBAV_VERSION)-ennuicastr.asm.js \
     libav/libav-$(LIBAV_VERSION)-ennuicastr.wasm.js \
