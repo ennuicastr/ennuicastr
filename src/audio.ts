@@ -267,6 +267,9 @@ export class Audio {
      * transfer, to determine if anything's gone wrong */
     lastSentTime = 0;
 
+    // Set to fall back to MediaRecorder Opus capture
+    fallbackOpus = false;
+
     constructor(
         /** Index of this audio input */
         public idx: number
@@ -562,7 +565,9 @@ export class Audio {
                 channelCount: channelCount,
                 channel: this.channel,
                 outputChannelLayout: this.encodingChannelLayout
-            }
+            },
+            onWarning: () => this.setFallbackOpus(true),
+            forceFallbackOpus: this.fallbackOpus
 
         }).then(capture => {
             // Accept encoded packets
@@ -708,6 +713,8 @@ export class Audio {
 
     // Set the echo cancellation state of the input audio
     setEchoCancel(to: boolean): Promise<unknown> {
+        this.fallbackOpus = false;
+
         // Update the UI
         ui.ui.panels.inputConfig.echo.checked = to;
 
@@ -720,6 +727,8 @@ export class Audio {
 
     // Set the input device
     setInputDevice(to: string): Promise<unknown> {
+        this.fallbackOpus = false;
+
         // Update the UI
         ui.ui.panels.inputConfig.device.value = to;
         ui.ui.panels.inputConfig.channelHider.style.display = "none";
@@ -733,6 +742,8 @@ export class Audio {
 
     // Set the input channel
     setInputChannel(to: number): Promise<unknown> {
+        this.fallbackOpus = false;
+
         // Update the UI
         ui.ui.panels.inputConfig.channel.value = "" + to;
 
@@ -740,6 +751,13 @@ export class Audio {
         localStorage.setItem(this.channelSettingName, "" + to);
 
         // And make it so
+        return this.getMic(ui.ui.panels.inputConfig.device.value);
+    }
+
+    // Force fallback to Opus
+    setFallbackOpus(to: boolean): Promise<unknown> {
+        console.error("DROPPING");
+        this.fallbackOpus = to;
         return this.getMic(ui.ui.panels.inputConfig.device.value);
     }
 }

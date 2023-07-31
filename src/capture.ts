@@ -79,6 +79,17 @@ export interface CaptureOptions {
      * Whether to produce a MediaStream as the destination.
      */
     outStream?: boolean;
+
+    /**
+     * Function to call if data is dropping.
+     */
+    onWarning?: () => unknown;
+
+    /**
+     * Whether to force a fallback to MediaRecorder (in case the last capture
+     * was dropping).
+     */
+    forceFallbackOpus?: boolean;
 }
 
 export const capturePlaybackShared = rtennui.audioCapturePlaybackShared;
@@ -114,10 +125,13 @@ export async function createCapture(
     // Create RTEnnui's capture
     if (!input.ecCapture)
         input.ecCapture = {};
-    let captureP = input.ecCapture[ac.sampleRate];
+    let target = ac.sampleRate + (options.forceFallbackOpus ? "mropus" : "");
+    let captureP = input.ecCapture[target];
     if (!captureP) {
-        captureP = input.ecCapture[ac.sampleRate] =
-            rtennui.createAudioCapture(ac, input);
+        captureP = input.ecCapture[target] =
+            options.forceFallbackOpus
+                ? rtennui.createAudioCapture(ac, input, {preferredType: "mropus"})
+                : rtennui.createAudioCapture(ac, input);
     }
     const capture = await captureP;
 
@@ -141,6 +155,10 @@ export async function createCapture(
         to.pipeFrom(mc.port2);
         worker.postMessage({c: "out", p: mc.port1}, [mc.port1]);
     }
+
+    // Handle dropping
+    if (options.onWarning && !options.forceFallbackOpus)
+        capture.on("warning", options.onWarning);
 
     // Prepare to terminate
     let dead = false;
