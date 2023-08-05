@@ -594,9 +594,9 @@ function loadVideoConfig() {
             optHider: gebi("ec3-video-record-opt-hider"),
             remote: gebi("ec3-video-record-remote-chk"),
             local: gebi("ec3-video-record-local-chk"),
-            manualBitrate: gebi("ec3-video-record-bitrate-txt"),
+            manualBitrate: gebi("ec3-video-record-bitrate-chk"),
             bitrateHider: gebi("ec3-video-record-bitrate-hider"),
-            bitrate: gebi("ec3-video-record-bitrate-chk")
+            bitrate: gebi("ec3-video-record-bitrate-txt")
         },
 
         streamerModeHider: gebi("ec3-streamer-mode-hider"),
