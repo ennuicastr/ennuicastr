@@ -73,10 +73,8 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
         /* Only supported by Chrome, and its framerate there is dodgy
         ["x-matroska", "avc1", true],
         */
-        ["webm", "vp8", false],
-        /* VP9 is *below* VP8 because Handbrake's support for VP9 is dodgy (as
-         * of 2022), and Handbrake is necessary for most users */
         ["webm", "vp9", false],
+        ["webm", "vp8", false],
         ["mp4", "avc1", true]
     ];
     let format: [string, string, boolean];
