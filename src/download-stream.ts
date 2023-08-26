@@ -99,6 +99,12 @@ export async function load(opts: {
                     while (serviceWorker.state !== "activated") {
                         await new Promise(res => {
                             serviceWorker.addEventListener("statechange", res, {once: true});
+                            if (serviceWorker.state === "installed") {
+                                fetch(scope + Math.random() + Math.random() +
+                                      Math.random() +
+                                      "/download-stream-service-worker-ping")
+                                .then(() => {}).catch(() => {});
+                            }
                         });
                     }
                     clearTimeout(timeout);
