@@ -273,7 +273,7 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
                 if (libavPos !== pos)
                     return; // No out-of-order writes
                 libavPos = pos + chunk.length;
-                muxStream.push(chunk.slice(0));
+                muxStream.push(new Uint8Array(chunk.slice(0).buffer));
             } else {
                 muxStream.push(null);
             }
