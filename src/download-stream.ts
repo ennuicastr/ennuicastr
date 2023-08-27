@@ -20,7 +20,14 @@
  * Support for streaming downloads via service workers.
  */
 
+//extern
+declare let showSaveFilePicker: any;
+
 import * as fileSaver from "file-saver";
+
+import * as wsp from "web-streams-polyfill";
+
+const swVersion = 5;
 
 // The scope for the service worker
 const scope = "/download-stream-service-worker/";
@@ -76,7 +83,7 @@ export async function load(opts: {
 
             if (!swr || !swr.active) {
                 // We need to register and activate it
-                swr = await navigator.serviceWorker.register(prefix + "sw.js?v=5", {scope});
+                swr = await navigator.serviceWorker.register(prefix + "sw.js?v=" + swVersion, {scope});
 
                 if (!swr.installing && !swr.waiting && !swr.active) {
                     // Wait for it to install
@@ -137,7 +144,7 @@ export async function load(opts: {
 
             // Ack it and check its version
             const ack = await swPostMessage({c: "setup"});
-            if (ack.v !== 5) {
+            if (ack.v !== swVersion) {
                 console.log("Service worker out of date, unregistering...");
                 await swr.unregister();
                 console.log("Reloading");
@@ -204,17 +211,46 @@ export async function stream(
 
         if (worked) {
             // Send it via the worker
-            return await streamViaWorker(url, body);
+            return await streamViaWorker(name, url, body);
         }
     }
 
-    return await streamViaBlob(name, body);
+    if (typeof showSaveFilePicker !== "undefined")
+        return await streamViaFileAPI(name, body);
+    else
+        return await streamViaBlob(name, body);
+}
+
+/**
+ * Stream this data via the file picker API.
+ */
+async function streamViaFileAPI(name: string, body: ReadableStream<Uint8Array>) {
+    let file: any = null;
+    try {
+        file = await showSaveFilePicker({suggestedName: name});
+    } catch (ex) {}
+    if (!file)
+        return await streamViaBlob(name, body);
+
+    const wr = await file.createWritable();
+    const rdr = body.getReader();
+
+    while (true) {
+        const {done, value} = await rdr.read();
+        if (done)
+            break;
+        await wr.write(value);
+    }
+
+    await wr.close();
 }
 
 /**
  * Stream this data via the service worker.
  */
-async function streamViaWorker(url: string, body: ReadableStream<Uint8Array>) {
+async function streamViaWorker(
+    name: string, url: string, body: ReadableStream<Uint8Array>
+) {
     const rdr = body.getReader();
 
     stoppers[url] = () => swPostMessage({c: "end", u: url});
@@ -223,18 +259,56 @@ async function streamViaWorker(url: string, body: ReadableStream<Uint8Array>) {
         swPostMessage({c: "keepalive", u: url});
     }, 15000);
 
+    let buf: Uint8Array[] = [];
+
     // eslint-disable-next-line no-constant-condition
     while (true) {
         const d = await rdr.read();
         if (d.done) {
             delete stoppers[url];
+            buf = null;
             await swPostMessage({c: "end", u: url});
             break;
         }
-        await swPostMessage({c: "data", u: url, b: d.value});
+        if (buf) {
+            buf.push(d.value);
+            if (buf.length > 8) {
+                // Probably working
+                buf = null;
+            }
+        }
+        try {
+            await swPostMessage({c: "data", u: url, b: d.value});
+        } catch (ex) {
+            break;
+        }
     }
 
     clearInterval(keepalive);
+
+    // If the buffer is still here, we failed downloading
+    if (buf) {
+        // Make a new ReadableStream that includes the buffer
+        const extStream = new wsp.ReadableStream({
+            async pull(controller) {
+                if (buf.length) {
+                    controller.enqueue(buf.shift());
+                } else {
+                    const {done, value} = await rdr.read();
+                    if (done)
+                        controller.close();
+                    else
+                        controller.enqueue(value);
+                }
+            }
+        });
+
+        // And try using a different technology
+        if (typeof showSaveFilePicker !== "undefined")
+            return await streamViaFileAPI(name, extStream);
+        else
+            return await streamViaBlob(name, extStream);
+    }
 }
 
 /**
