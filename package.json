@@ -12,6 +12,7 @@
     "ennuiboard": "^1.0.0",
     "file-saver": "^2.0.5",
     "jquery": "^3.6.0",
+    "libavjs-webcodecs-bridge": "^0.0.5",
     "libavjs-webcodecs-polyfill": "^0.4.3",
     "localforage": "^1.10.0",
     "minify": "^6.0.1",
