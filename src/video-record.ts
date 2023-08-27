@@ -127,6 +127,9 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
             useVideoEncoder: true, mimeType: "webm", codec: "vp8"
         },
         {
+            useVideoEncoder: false, mimeType: "webm", codec: "vp8"
+        },
+        {
             useVideoEncoder: false, mimeType: "mp4", codec: "avc1",
             requiresRecapture: true
         }
@@ -153,9 +156,7 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
                 if (MediaRecorder.isTypeSupported(mimeType))
                     break;
             }
-        } catch (ex) {
-            console.error(ex);
-        }
+        } catch (ex) {}
     }
     if (fi === formats.length) {
         log.pushStatus("mediaRecorder", "No supported video encoder found!", {
