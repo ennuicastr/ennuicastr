@@ -16,7 +16,7 @@
 
 declare let LibAV: any, NoiseRepellent: any, NoiseRepellentFactory: any, Vosk: any, WebRtcVad: any, __filename: string;
 
-const libavVersion = "3.11.5.1.2";
+const libavVersion = "4.4.6.0";
 const libavPath = "../libav/libav-" + libavVersion + "-ennuicastr.js";
 
 // SAB is unreliable on Safari

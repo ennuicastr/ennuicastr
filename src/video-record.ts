@@ -21,7 +21,8 @@
  */
 
 // extern
-declare let LibAV: any, MediaRecorder: any;
+declare let LibAV: any, MediaRecorder: any, VideoEncoder : any,
+    VideoFrame: any, MediaStreamTrackProcessor : any;
 
 import * as audio from "./audio";
 import * as avloader from "./avloader";
@@ -36,6 +37,7 @@ import * as ui from "./ui";
 import * as util from "./util";
 import * as video from "./video";
 
+import * as lwc from "../node_modules/libavjs-webcodecs-bridge/libavjs-webcodecs-bridge.js";
 import * as wsp from "web-streams-polyfill/ponyfill";
 
 export const supported = (typeof MediaRecorder !== "undefined");
@@ -46,6 +48,13 @@ let recordVideoStop: () => Promise<void> = null;
 // Function to call to verify remote willingness to accept video data
 export let recordVideoRemoteOK: (x: number) => void = null;
 let recordVideoRemoteOKTimeout: null|number = null;
+
+interface VideoRecordingFormat {
+    useVideoEncoder: boolean,
+    mimeType: string,
+    codec: string,
+    requiresRecapture?: boolean
+};
 
 interface RecordVideoOptions {
     local?: boolean;
@@ -100,24 +109,53 @@ let curVideoRecOpts: RecordVideoOptions = null;
 async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
     recordVideoUI(true);
     curVideoRecOpts = opts;
+    const videoSettings = video.userMediaVideo.getVideoTracks()[0].getSettings();
 
     // Which format?
-    const formats: [string, string, boolean][] = [
-        /* Only supported by Chrome, and its framerate there is dodgy
-        ["x-matroska", "avc1", true],
-        */
-        ["webm", "vp9", false],
-        ["webm", "vp8", false],
-        ["mp4", "avc1", true]
+    const formats: VideoRecordingFormat[] = [
+        {
+            useVideoEncoder: true, mimeType: "x-matroska", codec: "avc1.42803e"
+        },
+        {
+            useVideoEncoder: true, mimeType: "webm",
+            codec: "vp09.00.10.08.03.1.1.1.0"
+        },
+        {
+            useVideoEncoder: false, mimeType: "webm", codec: "vp9"
+        },
+        {
+            useVideoEncoder: true, mimeType: "webm", codec: "vp8"
+        },
+        {
+            useVideoEncoder: false, mimeType: "mp4", codec: "avc1",
+            requiresRecapture: true
+        }
     ];
-    let format: [string, string, boolean];
+    let format: VideoRecordingFormat;
     let mimeType: string;
+    let veConfig: any;
     let fi: number;
     for (fi = 0; fi < formats.length; fi++) {
         format = formats[fi];
-        mimeType = "video/" + format[0] + "; codecs=" + format[1];
-        if (MediaRecorder.isTypeSupported(mimeType))
-            break;
+        try {
+            if (format.useVideoEncoder) {
+                veConfig = {
+                    codec: format.codec,
+                    width: videoSettings.width,
+                    height: videoSettings.height
+                };
+                mimeType = `video/${format.mimeType}`;
+                const support = await VideoEncoder.isConfigSupported(veConfig);
+                if (support.supported)
+                    break;
+            } else {
+                mimeType = `video/${format.mimeType}; codecs=${format.codec}`;
+                if (MediaRecorder.isTypeSupported(mimeType))
+                    break;
+            }
+        } catch (ex) {
+            console.error(ex);
+        }
     }
     if (fi === formats.length) {
         log.pushStatus("mediaRecorder", "No supported video encoder found!", {
@@ -125,7 +163,7 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
         });
         return;
     }
-    const outFormat = (format[0] === "webm") ? "webm" : "mkv";
+    const outFormat = (format.mimeType === "webm") ? "webm" : "mkv";
 
     // Choose a name
     let filename = "";
@@ -134,7 +172,6 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
     filename += config.username + "-video." + outFormat;
 
     // We decide the bitrate based on the height
-    const videoSettings = video.userMediaVideo.getVideoTracks()[0].getSettings();
     let bitrate: number;
     if (opts.bitrate)
         bitrate = Math.min(opts.bitrate * 1000000, videoSettings.height * 100000);
@@ -143,7 +180,7 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
     const globalFrameTime = 1/videoSettings.frameRate * 1000;
 
     // Input and output files within libav
-    const inExt = (format[0] === "x-matroska") ? "mkv" : format[0];
+    const inExt = (format.mimeType === "x-matroska") ? "mkv" : format.mimeType;
     const inF = "in." + inExt;
     const outF = "out." + outFormat;
 
@@ -213,8 +250,10 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
     let mrStream: ReadableStream<Blob> = null,
         mstpStream: ReadableStream<any> = null;
     let mrReader: ReadableStreamDefaultReader<Blob> = null,
-        mstpReader: ReadableStreamDefaultReader<any> = null;
-    let packetStream: BufferStream<any[]> = null;
+        mstpReader: ReadableStreamDefaultReader<any> = null,
+        mstpCancel: (a0: {done: boolean, value: any}) => unknown = null;
+    let videoEnc: any = null;
+    let packetStream: BufferStream<any> = null;
     let packetReader: ReadableStreamDefaultReader<any> = null;
     let muxStream: BufferStream<Uint8Array> = null;
     let muxReader: ReadableStreamDefaultReader<Uint8Array> = null;
@@ -235,17 +274,16 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
                 libavPos = pos + chunk.length;
                 muxStream.push(chunk.slice(0));
             } else {
-                console.log("mux stream ending");
                 muxStream.push(null);
             }
         };
     }
 
-    // 1. MediaRecorder
+    // 1. MediaRecorder or MediaStreamTrackProcessor
     {
         /* With MP4, we need a full file to get the format options, so we do a
          * short record before we start the real recording. */
-        if (format[2]) {
+        if (format.requiresRecapture) {
             // Currently received data
             let data: Uint8Array;
 
@@ -307,19 +345,105 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
             await libav.unlink(tmpFile);
         } // Pre-allocate output file
 
-        // Get our MediaRecorder stream
-        ({mr, mrStream} = getMediaRecorderStream(video.userMediaVideo, {
-            mimeType: mimeType,
-            videoBitsPerSecond: bitrate
-        }));
-        mrReader = mrStream.getReader();
+        if (format.useVideoEncoder) {
+            mstp = new MediaStreamTrackProcessor({
+                track: video.userMediaVideo.getVideoTracks()[0]
+            });
+            mstpStream = mstp.readable;
+            mstpReader = mstpStream.getReader();
+
+        } else {
+            // Get our MediaRecorder stream
+            ({mr, mrStream} = getMediaRecorderStream(video.userMediaVideo, {
+                mimeType: mimeType,
+                videoBitsPerSecond: bitrate
+            }));
+            mrReader = mrStream.getReader();
+
+        }
     }
 
     // 2. Packetizing
     packetStream = new BufferStream<any>();
     packetReader = packetStream.getReader();
 
-    {
+    if (format.useVideoEncoder) {
+        // Prepare the output stream
+        [codecpar] = await lwc.configToVideoStream(libav, veConfig);
+        inNum = fixedTimeBase.num;
+        inDen = fixedTimeBase.den;
+        if (codecparRes)
+            codecparRes();
+
+        // Prepare the video encoder
+        videoEnc = new VideoEncoder({
+            output: (chunk, metadata) => {
+                const packet = lwc.encodedVideoChunkToPacket(
+                    chunk,
+                    [codecpar, fixedTimeBase.num, fixedTimeBase.den],
+                    0);
+                if (metadata && metadata.decoderConfig &&
+                    metadata.decoderConfig.description) {
+                    let description: any =
+                        metadata.decoderConfig.description;
+                    if (description.buffer) {
+                        description = description.slice(0);
+                    } else {
+                        description = (new Uint8Array(description)).slice(0);
+                    }
+                    packetStream.push({description});
+                }
+                packetStream.push([packet]);
+            },
+            error: ex => {
+                console.error(ex);
+                packetStream.push(null);
+            }
+        });
+        veConfig.bitrate = bitrate;
+        videoEnc.configure(veConfig);
+
+        // A way of cancelling the transit
+        const mstpCancelPromise = new Promise<{
+            done: boolean, value: any
+        }>(res => mstpCancel = res);
+
+        // Transit our input to the video encoder
+        (async function() {
+            while (true) {
+                const {done, value} = await Promise.race([
+                    mstpReader.read(),
+                    mstpCancelPromise
+                ]);
+                const now = performance.now();
+                if (done)
+                    break;
+                if (!net.remoteBeginTime || !audio.timeOffset) {
+                    // Not yet ready for frames
+                    value.close();
+                    continue;
+                }
+
+                const timestamp = now // The real time when we received this frame
+                    - video.videoLatency // Adjusted for input latency
+                    + audio.timeOffset // Convert to remote time
+                    - net.remoteBeginTime; // Base at recording start time
+
+                // Need to make a new frame to set the timestamp
+                const frame = new VideoFrame(value, {
+                    timestamp: Math.round(timestamp * 1000)
+                });
+                value.close();
+                videoEnc.encode(frame);
+                frame.close();
+            }
+
+            await videoEnc.flush();
+            videoEnc.close();
+            packetStream.push(null);
+        })();
+
+    } else {
         await libav.mkreaderdev(inF);
         const pkt = await libav.av_packet_alloc();
 
@@ -335,7 +459,6 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
                 if (done)
                     break;
             }
-            console.log("ff_reader_dev_send ended");
         })();
 
         // Then read the packets
@@ -367,9 +490,9 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
                     break;
             }
 
-            console.log("packet stream ended");
             packetStream.push(null);
         })();
+
     }
 
     // 3. Timestamping and muxing
@@ -408,6 +531,22 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
             if (done)
                 break;
 
+            if (!value.length && value.description) {
+                // This is codec extradata
+                const oldExtradata =
+                    await libav.AVCodecParameters_extradata(codecpar);
+                if (!oldExtradata) {
+                    const extradata =
+                        await libav.malloc(value.description.length);
+                    await libav.copyin_u8(extradata, value.description);
+                    await libav.AVCodecParameters_extradata_s(
+                        codecpar, extradata);
+                    await libav.AVCodecParameters_extradata_size_s(
+                        codecpar, value.description.length);
+                }
+                continue;
+            }
+
             const endTimeReal = performance.now();
             let packets = value;
 
@@ -425,47 +564,50 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
 
             // Update the timing
             if (net.remoteBeginTime && audio.timeOffset) {
-                // The last packet tells us roughly when we are
-                const lastPacket = packets[packets.length-1];
+                // With VideoEncoder, our timing is already correct
+                if (!format.useVideoEncoder) {
+                    // The last packet tells us roughly when we are
+                    const lastPacket = packets[packets.length-1];
 
-                // The end time as set by the packet
-                let inEndTime = timeFrom(lastPacket.dtshi, lastPacket.dts);
-                if (inEndTime < 0)
-                    inEndTime = timeFrom(lastPacket.ptshi, lastPacket.pts);
+                    // The end time as set by the packet
+                    let inEndTime = timeFrom(lastPacket.dtshi, lastPacket.dts);
+                    if (inEndTime < 0)
+                        inEndTime = timeFrom(lastPacket.ptshi, lastPacket.pts);
 
-                // The end time as seen by "reality"
-                const outEndTime = endTimeReal // The real time when we received this packet
+                    // The end time as seen by "reality"
+                    const outEndTime = endTimeReal // The real time when we received this packet
                     - video.videoLatency // Adjusted for input latency
                     + audio.timeOffset // Convert to remote time
                     - net.remoteBeginTime; // Base at recording start time
 
-                // Use that to adjust the offset
-                if (dtsOffset === null) {
-                    dtsOffset = outEndTime - inEndTime;
-                } else {
-                    const portion = Math.min(globalFrameTime / 2000, 1);
-                    dtsOffset = (outEndTime - inEndTime) * portion +
-                        dtsOffset * (1-portion);
-                }
+                    // Use that to adjust the offset
+                    if (dtsOffset === null) {
+                        dtsOffset = outEndTime - inEndTime;
+                    } else {
+                        const portion = Math.min(globalFrameTime / 2000, 1);
+                        dtsOffset = (outEndTime - inEndTime) * portion +
+                            dtsOffset * (1-portion);
+                    }
 
-                // Then retime the packets based on the offset
-                for (const packet of packets) {
-                    let pdts: any = timeFrom(packet.dtshi, packet.dts);
-                    let ppts: any = timeFrom(packet.ptshi, packet.pts);
-                    if (pdts < 0) pdts = ppts;
-                    ppts -= pdts;
-                    pdts += dtsOffset;
-                    if (pdts < lastDTS)
-                        pdts = lastDTS;
-                    ppts += pdts;
-                    if (ppts < 0) ppts = 0;
-                    pdts = timeTo(pdts);
-                    ppts = timeTo(ppts);
-                    packet.dtshi = pdts.hi;
-                    packet.dts = pdts.lo;
-                    packet.ptshi = ppts.hi;
-                    packet.pts = ppts.lo;
-                    lastDTS = pdts;
+                    // Then retime the packets based on the offset
+                    for (const packet of packets) {
+                        let pdts: any = timeFrom(packet.dtshi, packet.dts);
+                        let ppts: any = timeFrom(packet.ptshi, packet.pts);
+                        if (pdts < 0) pdts = ppts;
+                        ppts -= pdts;
+                        pdts += dtsOffset;
+                        if (pdts < lastDTS)
+                            pdts = lastDTS;
+                        ppts += pdts;
+                        if (ppts < 0) ppts = 0;
+                        pdts = timeTo(pdts);
+                        ppts = timeTo(ppts);
+                        packet.dtshi = pdts.hi;
+                        packet.dts = pdts.lo;
+                        packet.ptshi = ppts.hi;
+                        packet.pts = ppts.lo;
+                        lastDTS = pdts;
+                    }
                 }
 
                 // If we haven't sent the starter packets, do so
@@ -499,7 +641,6 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
         }
 
         // Close the file
-        console.log(`Output file ${out_oc} ending`);
         if (out_oc >= 0) {
             await libav.av_write_trailer(out_oc);
             await libav.ff_free_muxer(out_oc, out_pb);
@@ -552,10 +693,16 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
 
     // Make it possible to stop
     recordVideoStop = async function() {
-        try {
-            mr.stop();
-        } catch (ex) {
-            mrStream.cancel();
+        if (mr) {
+            try {
+                mr.stop();
+            } catch (ex) {
+                mrReader.cancel();
+            }
+        }
+        if (mstp) {
+            mstpReader.cancel();
+            mstpCancel({done: true, value: void 0});
         }
         await recordPromise;
     };
@@ -677,8 +824,9 @@ async function saveVideo(
     // Do them
     const promises: Promise<unknown>[] = [];
     if (dStream) {
-        promises.push(downloadStream.stream(filename, dStream,
-            {"content-type": mimeType}));
+        promises.push(downloadStream.stream(filename, dStream, {
+            "content-type": mimeType
+        }));
     }
     if (lsStream) {
         promises.push(fileStorage.storeFile(filename,

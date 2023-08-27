@@ -1,7 +1,10 @@
 #!/bin/sh
 set -ex
 test -d fragments
-mkdir fragments/ennuicastr
-echo '--enable-filter=anull' > fragments/ennuicastr/ffmpeg-config.txt
-./mkconfig.js ennuicastr '["ogg","webm","opus","ipod","flac","flt","h264","ennuicastr","audio-filters"]'
-rm -r fragments/ennuicastr
+./mkconfig.js ennuicastr '[
+    "format-ogg","format-webm", "format-mp4",
+    "codec-libopus", "codec-flac","codec-pcm_f32le",
+    "decoder-h264",
+    "bsf-vp9_metadata",
+    "audio-filters","swscale"
+]'
