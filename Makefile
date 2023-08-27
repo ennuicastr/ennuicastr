@@ -66,7 +66,7 @@ ennuicastr-test.min.js: ennuicastr-test.js node_modules/.bin/browserify
 sw.js: src/sw.ts node_modules/.bin/browserify
 	./node_modules/.bin/tsc --lib es2015,dom $< --outFile $@
 
-fs/fs.js: src/file-storage-main.ts src/file-storage.ts node_modules/.bin/browserify
+fs/fs.js: src/file-storage-main.ts src/file-storage.ts src/download-stream.ts node_modules/.bin/browserify
 	./src/build.js $< -s EnnuicastrFileStorage > $@
 
 awp/ennuicastr-worker.js: awp/ennuicastr-worker.ts node_modules/.bin/tsc
