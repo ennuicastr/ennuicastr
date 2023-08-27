@@ -145,7 +145,9 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
                 veConfig = {
                     codec: format.codec,
                     width: videoSettings.width,
-                    height: videoSettings.height
+                    height: videoSettings.height,
+                    framerate: Math.round(videoSettings.frameRate),
+                    latencyMode: "realtime"
                 };
                 mimeType = `video/${format.mimeType}`;
                 const support = await VideoEncoder.isConfigSupported(veConfig);
