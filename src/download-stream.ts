@@ -182,10 +182,8 @@ export async function stream(
         const url = scope + Math.random() + Math.random() + Math.random() + "/" + safeName;
 
         // If the service worker has vanished, it won't work
-        let worked = await Promise.race([
-            swPostMessage({c: "stream", u: url, h: headers}).then(() => true),
-            (new Promise(res => setTimeout(res, 5000))).then(() => false)
-        ]);
+        let worked = await (swPostMessage({c: "stream", u: url, h: headers})
+            .then(() => true).catch(() => false));
 
         if (!worked)
             console.log("WARNING: Failed to communicate with service worker!");
@@ -197,10 +195,8 @@ export async function stream(
             document.body.appendChild(iframe);
 
             // Make sure it actually starts downloading
-            worked = await Promise.race([
-                swPostMessage({c: "wait-start", u: url}).then(() => true),
-                (new Promise(res => setTimeout(res, 5000))).then(() => false)
-            ]);
+            worked = await (swPostMessage({c: "wait-start", u: url})
+                .then(() => true).catch(() => false));
 
             if (!worked)
                 console.log("WARNING: Failed to start service worker download!");
