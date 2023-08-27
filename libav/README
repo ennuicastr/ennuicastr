@@ -1,6 +1,7 @@
 Please add the ennuicastr variant of libav.js (
-https://github.com/Yahweasel/libav.js/ ), version 4.4.6.0, here. Use
+https://github.com/Yahweasel/libav.js/ ), version 4.5.6.0, here. Use
 mkconfig.sh in the libav.js/configs directory to make the ennuicastr config.
 
 To update the libav version, update the number here, in Makefile, in
-src/avloader.ts, and in awp/ennuicastr-worker.ts .
+src/avloader.ts, and in awp/ennuicastr-worker.ts . You will also have to update
+the worker version in src/capture.ts .
