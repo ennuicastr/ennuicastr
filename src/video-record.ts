@@ -142,6 +142,8 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
         format = formats[fi];
         try {
             if (format.useVideoEncoder) {
+                if (typeof MediaStreamTrackProcessor === "undefined")
+                    continue;
                 veConfig = {
                     codec: format.codec,
                     width: videoSettings.width,
@@ -180,6 +182,12 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
         bitrate = Math.min(opts.bitrate * 1000000, videoSettings.height * 100000);
     else
         bitrate = videoSettings.height * 10000;
+    if (bitrate < 128000) {
+        if (opts.bitrate)
+            bitrate = opts.bitrate * 1000000;
+        else
+            bitrate = 10000000;
+    }
     const globalFrameTime = 1/videoSettings.frameRate * 1000;
 
     // Input and output files within libav
