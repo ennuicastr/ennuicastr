@@ -114,7 +114,7 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
     // Which format?
     const formats: VideoRecordingFormat[] = [
         {
-            useVideoEncoder: true, mimeType: "x-matroska", codec: "avc1.42803e"
+            useVideoEncoder: true, mimeType: "x-matroska", codec: "avc1.42403e"
         },
         {
             useVideoEncoder: true, mimeType: "webm",
