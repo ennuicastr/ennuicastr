@@ -488,6 +488,12 @@ button.streamer-interface {
     display: block;
 }
 
+.caption span {
+    display: inline-block;
+    background-color: #111;
+    padding: 0.15em 0.25em 0.15em 0.25em;
+}
+
 .ec3-waveform-label {
     transition: opacity 0.2s ease-in-out;
     opacity: 0;
