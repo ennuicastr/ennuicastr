@@ -712,7 +712,7 @@ function adminAction(target: number, action: number, opts?: any) {
 function acceptRemoteVideoChange() {
     const arv = ui.ui.panels.host.acceptRemoteVideo;
     localStorage.setItem("ecmaster-video-record-host", JSON.stringify(arv.checked));
-    comm.comms.data.videoRecSend(
+    comm.comms.videoRec.videoRecSend(
         void 0, prot.videoRec.videoRecHost, ~~arv.checked);
 }
 

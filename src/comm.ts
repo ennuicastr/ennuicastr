@@ -51,9 +51,9 @@ export interface BroadcastComms extends Comms {
 }
 
 /**
- * Data communications.
+ * Video data (video recording) communications.
  */
-export interface DataComms extends Comms {
+export interface VideoRecComms extends Comms {
     /**
      * Get the current video recording host.
      */
@@ -79,5 +79,5 @@ export const comms = {
     video: <Comms> null,
     audio: <Comms> null,
     broadcast: <Comms> null,
-    data: <DataComms> null
+    videoRec: <VideoRecComms> null
 };
