@@ -57,9 +57,9 @@ function addInitialUser(ev: CustomEvent) {
 util.events.addEventListener("net.info." + prot.info.peerContinuing, addInitialUser);
 
 /**
- * CTCP communications.
+ * CTCP-based video recording communications.
  */
-export class CTCP implements comm.DataComms {
+export class CTCPVideoRec implements comm.VideoRecComms {
     // Host which has indicated that it's willing to receive video recordings
     videoRecHost = -1;
 

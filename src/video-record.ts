@@ -199,8 +199,8 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
     if (opts.remote) {
         if (typeof opts.remotePeer !== "number") {
             // Verify first!
-            comm.comms.data.videoRecSend(
-                comm.comms.data.getVideoRecHost(),
+            comm.comms.videoRec.videoRecSend(
+                comm.comms.videoRec.getVideoRecHost(),
                 prot.videoRec.startVideoRecReq, {ext: outFormat});
 
             await new Promise<void>(res => {
@@ -868,12 +868,12 @@ function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
 
 // Write data to an RTC peer
 function recordVideoRemoteWrite(peer: number, idx: number, buf: Uint8Array) {
-    comm.comms.data.videoDataSend(peer, idx, buf);
+    comm.comms.videoRec.videoDataSend(peer, idx, buf);
 }
 
 // Stop sending video data to a peer
 function recordVideoRemoteClose(peer: number) {
-    comm.comms.data.videoRecSend(peer, prot.videoRec.endVideoRec);
+    comm.comms.videoRec.videoRecSend(peer, prot.videoRec.endVideoRec);
 }
 
 // Configure the video recording UI based on the current state

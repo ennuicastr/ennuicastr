@@ -88,8 +88,7 @@ export async function createCompressor(
                 }
             });
         } catch (ex) {
-            net.errorHandler(ex);
-            config.disconnect();
+            net.catastrophicError(ex);
             throw ex;
         }
         worker = cap.worker;
