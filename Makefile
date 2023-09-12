@@ -34,9 +34,7 @@ EXTRA=\
     libav/libav-$(LIBAV_VERSION)-ennuicastr.simd.js \
     libav/libav-$(LIBAV_VERSION)-ennuicastr.simd.wasm \
     libs/vad/vad-m2.js libs/vad/vad-m2.wasm.js libs/vad/vad-m2.wasm.wasm \
-    libs/vosk.js \
-    libs/lib-jitsi-meet.8948.js \
-    libs/lib-jitsi-meet.8948.e2ee-worker.js \
+    libs/vosk.js libs/lib-jitsi-meet.7421.js \
     noise-repellent/noise-repellent-m.js \
     noise-repellent/noise-repellent-m.asm.js \
     noise-repellent/noise-repellent-m.wasm.js \

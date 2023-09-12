@@ -157,7 +157,7 @@ export class Jitsi implements comm.BroadcastComms {
         }).then(() => {
             if (typeof JitsiMeetJS === "undefined")
                 return util.loadLibrary({
-                    file: "libs/lib-jitsi-meet.8948.js",
+                    file: "libs/lib-jitsi-meet.7421.js",
                     name: "live chat"
                 });
 
