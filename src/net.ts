@@ -448,7 +448,10 @@ export function updateAdminPerm(val: any, video?: boolean): void {
 // Generic phone-home error handler
 // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export function errorHandler(error: any): void {
-    const errBuf = util.encodeText(error + "\n\n" + navigator.userAgent);
+    const errBuf = util.encodeText(
+        error + "\n\n" +
+        navigator.userAgent + "\n\n" +
+        (new Error()).stack);
     const out = new DataView(new ArrayBuffer(4 + errBuf.length));
     out.setUint32(0, prot.ids.error, true);
     new Uint8Array(out.buffer).set(errBuf, 4);
@@ -465,5 +468,24 @@ export function promiseFail(): (ex:any)=>void {
         } catch (ex) {}
 
         errorHandler("Promise failure\n\n" + ex + "\n\n" + exStack + "\n\n" + loc);
+    };
+}
+
+// Catastrophic error handler
+export function catastrophicError(error: any): void {
+    errorHandler(error);
+    setTimeout(config.disconnect, 1000);
+}
+
+// Make a catastrophic error handler as a callback
+export function catastrophicErrorFactory(): (ex:any)=>void {
+    const loc = (new Error().stack)+"";
+    return function(ex: any) {
+        let exStack = "(Unknown stack)";
+        try {
+            exStack = ex.stack;
+        } catch(ex) {}
+
+        catastrophicError("Catastrophic error\n\n" + ex + "\n\n" + exStack + "\n\n" + loc);
     };
 }

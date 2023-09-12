@@ -246,7 +246,7 @@ export class RTEnnui implements comm.Comms {
                 return;
 
             // This is catastrophic!
-            config.disconnect();
+            net.catastrophicError(ev);
         });
 
         c.on("peer-joined", ev => {

@@ -277,10 +277,7 @@ export class Audio {
         return navigator.mediaDevices.getUserMedia({audio: true}).catch(() => null).then((userMediaIn) => {
             this.userMedia = userMediaIn; // So that it gets deleted by getMic
             return this.getMic(mkAudioUI());
-        }).catch((err) => {
-            config.disconnect();
-            log.pushStatus("fail", "Cannot get microphone: " + util.escape(err + ""));
-        });
+        }).catch(net.catastrophicErrorFactory());
     }
 
     /* The starting point for enabling encoding. Get our microphone input. Returns
@@ -381,11 +378,7 @@ export class Audio {
             // And move on to the next step
             log.popStatus("getmic");
             return this.userMediaSet();
-        }).catch(err => {
-            config.disconnect();
-            log.pushStatus("fail", "Cannot get microphone: " + util.escape(err + ""));
-            log.popStatus("getmic");
-        });
+        }).catch(net.catastrophicErrorFactory());
     }
 
     /* Called once we have mic access. Returns a promise that resolves once
