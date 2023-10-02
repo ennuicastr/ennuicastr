@@ -59,3 +59,22 @@ MP4 that is streamable is the so-called “ismv” format, which is a Microsoft 
 of the MP4 format that consists essentially of many MP4 fragments concatenated
 together. While it's not technically correct MP4, I'm yet to encounter a program
 that can't decode it correctly, so it would probably be safe to use it.
+
+
+## Details
+
+The FFmpeg documentation on the `ismv` format contains an excellent explanation
+for the problems with MP4, reproduced here:
+
+    The mov/mp4/ismv muxer supports fragmentation. Normally, a MOV/MP4 file has
+    all the metadata about all packets stored in one location (written at the
+    end of the file, it can be moved to the start for better playback by adding
+    faststart to the movflags, or using the qt-faststart tool). A fragmented
+    file consists of a number of fragments, where packets and metadata about
+    these packets are stored together. Writing a fragmented file has the
+    advantage that the file is decodable even if the writing is interrupted
+    (while a normal MOV/MP4 is undecodable if it is not properly finished), and
+    it requires less memory when writing very long files (since writing normal
+    MOV/MP4 files stores info about every single packet in memory until the file
+    is closed). The downside is that it is less compatible with other
+    applications.
