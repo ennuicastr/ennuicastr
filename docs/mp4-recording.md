@@ -60,6 +60,9 @@ of the MP4 format that consists essentially of many MP4 fragments concatenated
 together. While it's not technically correct MP4, I'm yet to encounter a program
 that can't decode it correctly, so it would probably be safe to use it.
 
+¹ Actually, `video-record.ts` doesn't close it at all, since it just destroys
+the entire libav.js instance when it's done.
+
 
 ## Details
 
