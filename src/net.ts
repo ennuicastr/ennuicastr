@@ -96,7 +96,7 @@ class ReconnectableWebSocket {
                     this.connecter(sock).then(res).catch(rej);
                 };
 
-                connectTimeout = setTimeout(rej, 10000);
+                connectTimeout = setTimeout(() => rej(new Error("Connection timed out!")), 10000);
             });
 
         }).then(() => {
