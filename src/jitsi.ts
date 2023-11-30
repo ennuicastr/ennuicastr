@@ -607,7 +607,7 @@ export class Jitsi implements comm.BroadcastComms {
     }
 
     // Send an Ennuicastr broadcast message over Jitsi
-    broadcast(msg: Uint8Array): void {
+    async broadcast(msg: Uint8Array): Promise<void> {
         if (!this.room)
             return;
 

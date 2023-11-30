@@ -31,6 +31,7 @@ import { prot } from "./protocol";
 import * as ui from "./ui";
 import * as util from "./util";
 import * as vad from "./vad";
+import * as video from "./video";
 
 import * as rtennui from "rtennui";
 import * as wcp from "libavjs-webcodecs-polyfill";
@@ -113,7 +114,7 @@ class OutProcAudioPlayback extends rtennui.AudioPlayback {
         this.port = null;
     }
 
-    override play(data: Float32Array[]): void {
+    override play(data: Float32Array[]) {
         if (!this.port) {
             // Init the worker
             const mc = new MessageChannel();
@@ -125,6 +126,18 @@ class OutProcAudioPlayback extends rtennui.AudioPlayback {
             }, [mc.port2]);
         }
         this.port.postMessage(data);
+
+        const now = performance.now();
+        const time = data[0].length / this.ac.sampleRate * 1000;
+        if (this._endTime > now)
+            this._endTime += time;
+        else
+            this._endTime = now + 200 + time;
+        return this._endTime - time - now;
+    }
+
+    override latency() {
+        return 200; // Purely an estimation
     }
 
     override pipeFrom(port: MessagePort): void {
@@ -146,6 +159,8 @@ class OutProcAudioPlayback extends rtennui.AudioPlayback {
             this.worker = null;
         }
     }
+
+    private _endTime = -1;
 
     /**
      * The worker this data is being redirected to.
@@ -267,7 +282,7 @@ export class RTEnnui implements comm.Comms {
             if (!(ev.peer in this.idMap))
                 return;
 
-            this.rteTrackStarted(this.idMap[ev.peer], ev.playback);
+            this.rteAudioTrackStarted(this.idMap[ev.peer], ev.playback);
         });
 
         c.on("track-ended-audio", ev => {
@@ -276,7 +291,25 @@ export class RTEnnui implements comm.Comms {
             if (!(ev.peer in this.idMap))
                 return;
 
-            this.rteTrackEnded(this.idMap[ev.peer]);
+            this.rteAudioTrackEnded(this.idMap[ev.peer]);
+        });
+
+        c.on("track-started-video", ev => {
+            if (c !== this.connection)
+                return;
+            if (!(ev.peer in this.idMap))
+                return;
+
+            this.rteVideoTrackStarted(this.idMap[ev.peer], ev.element);
+        });
+
+        c.on("track-ended-video", ev => {
+            if (c !== this.connection)
+                return;
+            if (!(ev.peer in this.idMap))
+                return;
+
+            this.rteVideoTrackEnded(this.idMap[ev.peer]);
         });
 
         c.on("*", ev => {
@@ -321,6 +354,11 @@ export class RTEnnui implements comm.Comms {
             this.rteAddAudioTrack();
             util.events.addEventListener("usermediartcready", () => this.rteAddAudioTrack());
         }
+
+        if (this.commModes.video) {
+            this.rteAddVideoTrack();
+            util.events.addEventListener("usermediavideoready", () => { this.rteAddVideoTrack(); });
+        }
     }
 
     // Called to add our audio track
@@ -341,8 +379,21 @@ export class RTEnnui implements comm.Comms {
         this.cap.setVADState(vad.vads[0].rtcVadOn ? "yes" : "no");
     }
 
+    // Called to add our video track
+    async rteAddVideoTrack(): Promise<void> {
+        if (!video.userMediaVideo)
+            return;
+
+        const ms = video.userMediaVideo;
+        this.connection.addVideoTrack(ms);
+
+        util.events.addEventListener("usermediavideostopped", () => {
+            this.connection.removeVideoTrack(ms);
+        });
+    }
+
     // Called when a remote track is added
-    rteTrackStarted(id: number, playback: rtennui.AudioPlayback): void {
+    rteAudioTrackStarted(id: number, playback: rtennui.AudioPlayback): void {
         // Make sure they have a video element
         ui.videoAdd(id, null);
 
@@ -360,12 +411,6 @@ export class RTEnnui implements comm.Comms {
                 el.srcObject = msd.stream;
                 if (el.paused)
                     el.play().catch(net.promiseFail());
-
-                /*
-                // Hide the standin if applicable
-                if (type === "video")
-                    ui.ui.video.users[id].standin.style.display = "none";
-                */
 
                 // Create the compressor node
                 outproc.createCompressor(id, audio.ac, msd.stream,
@@ -388,22 +433,45 @@ export class RTEnnui implements comm.Comms {
     }
 
     // Called when a remote track is removed
-    rteTrackEnded(id: number): void {
+    rteAudioTrackEnded(id: number): void {
         // FIXME: If this isn't even their current track, ignore it
 
         // Remove it from the UI
         if (ui.ui.video.users[id]) {
             const el: HTMLMediaElement = ui.ui.video.users[id].audio;
             el.srcObject = null;
-
-            /*
-            // Show the standin if applicable
-            if (type === "video")
-                ui.ui.video.users[id].standin.style.display = "";
-            */
         }
 
         // And destroy the compressor
         outproc.destroyCompressor(id);
     }
+
+    // Called when a remote video track is added
+    rteVideoTrackStarted(id: number, element: HTMLVideoElement): void {
+        // Make sure they have a video element
+        ui.videoAdd(id, null);
+
+        const uv = ui.ui.video.users[id];
+
+        uv.standin.style.display = "none";
+        uv.videoContainer.style.display = "";
+        if (uv.video)
+            uv.videoContainer.removeChild(uv.video);
+        uv.video = element;
+        element.classList.add("ec3-video-video");
+        uv.videoContainer.appendChild(element);
+    }
+
+    // Called when a remote track is removed
+    rteVideoTrackEnded(id: number): void {
+        const uv = ui.ui.video.users[id];
+        if (!uv)
+            return;
+        if (uv.video)
+            uv.videoContainer.removeChild(uv.video);
+        uv.video = null;
+        uv.standin.style.display = "";
+        uv.videoContainer.style.display = "none";
+    }
+
 }

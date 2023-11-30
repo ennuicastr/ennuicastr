@@ -28,8 +28,8 @@ import * as rtennui from "./rtennui";
 
 export async function initComms(): Promise<void> {
     // CTCP communications
-    const c = new ctcp.CTCPVideoRec();
-    comm.comms.videoRec = c;
+    const c = new ctcp.CTCP();
+    comm.comms.ctcp = comm.comms.videoRec = c;
     await c.init({data: true});
 
     // Jitsi communications

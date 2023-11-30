@@ -41,13 +41,23 @@ export interface Comms {
 }
 
 /**
+ * CTCP communications.
+ */
+export interface CTCPComms extends Comms {
+    /**
+     * Send this message.
+     */
+    send(peer: number, msg: Uint8Array): Promise<void>;
+}
+
+/**
  * Broadcast communications.
  */
 export interface BroadcastComms extends Comms {
     /**
      * Broadcast this message.
      */
-    broadcast(msg: Uint8Array);
+    broadcast(msg: Uint8Array): Promise<void>;
 }
 
 /**
@@ -78,6 +88,7 @@ export interface VideoRecComms extends Comms {
 export const comms = {
     video: <Comms> null,
     audio: <Comms> null,
-    broadcast: <Comms> null,
+    ctcp: <CTCPComms> null,
+    broadcast: <BroadcastComms> null,
     videoRec: <VideoRecComms> null
 };

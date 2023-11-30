@@ -57,9 +57,9 @@ function addInitialUser(ev: CustomEvent) {
 util.events.addEventListener("net.info." + prot.info.peerContinuing, addInitialUser);
 
 /**
- * CTCP-based video recording communications.
+ * CTCP-based communications.
  */
-export class CTCPVideoRec implements comm.VideoRecComms {
+export class CTCP implements comm.CTCPComms, comm.VideoRecComms {
     // Host which has indicated that it's willing to receive video recordings
     videoRecHost = -1;
 
@@ -105,7 +105,7 @@ export class CTCPVideoRec implements comm.VideoRecComms {
         }
 
         // Incoming CTCP messages
-        util.events.addEventListener("net.dataSock." + prot.ids.ctcp, (ev: CustomEvent) => this.incomingCTCP(ev));
+        util.netEvent("data", "ctcp", (ev: CustomEvent) => this.incomingCTCP(ev));
 
         // Connections
         util.events.addEventListener("net.info." + prot.info.peerInitial, (ev: CustomEvent) => {
@@ -129,7 +129,7 @@ export class CTCPVideoRec implements comm.VideoRecComms {
         });
 
         // Prepare to receive RTC negotiation messages
-        util.events.addEventListener("net.dataSock." + prot.ids.rtc, (ev: CustomEvent) => {
+        util.netEvent("data", "rtc", (ev: CustomEvent) => {
             // Get out the important part
             const p = prot.parts.rtc;
             const peer = ev.detail.getUint32(p.peer, true);
@@ -148,160 +148,21 @@ export class CTCPVideoRec implements comm.VideoRecComms {
         });
     }
 
-    // Incoming CTCP messages
+    // Incoming CTCP messages from the server
     incomingCTCP(ev: CustomEvent): void {
         // Get out the important part
         const p = prot.parts.ctcp;
         const peer = ev.detail.getUint32(p.peer, true);
         const u8 = new Uint8Array(ev.detail.buffer);
         const msg = new DataView(u8.slice(p.msg).buffer);
-        this.peerMessage(peer, msg);
-    }
-
-    // Incoming RTC or CTCP end-to-end messages
-    peerMessage(peer: number, msg: DataView): void {
         if (msg.byteLength < 4)
             return;
         const cmd = msg.getUint32(0, true);
-
-        // Process the command
-        switch (cmd) {
-            case prot.ids.data:
-                try {
-                    const vr = this.videoRecIncoming[peer];
-                    const idx = msg.getFloat64(4, true);
-                    const buf = new Uint8Array(msg.buffer).subarray(12);
-                    vr.buf.push({idx, buf});
-                    if (vr.buf.length >= 1024) {
-                        // Too much buffered data!
-                        vr.hardStop = true;
-                        delete this.videoRecIncoming[peer];
-                    }
-                    if (vr.notify)
-                        vr.notify();
-                } catch (ex) {}
-                break;
-
-            case prot.ids.videoRec:
-            {
-                // Video recording sub-message
-                const p = prot.parts.videoRec;
-                const pv = prot.videoRec;
-                if (msg.byteLength < p.length) return;
-                const cmd = msg.getUint32(p.cmd, true);
-
-                switch (cmd) {
-                    case pv.videoRecHost:
-                    {
-                        let accept = 0;
-                        try {
-                            accept = msg.getUint32(p.length, true);
-                        } catch (ex) {}
-                        if (accept) {
-                            this.videoRecHost = peer;
-                            videoRecord.onVideoRecHostChange();
-                        } else if (this.videoRecHost === peer) {
-                            this.videoRecHost = -1;
-                            videoRecord.onVideoRecHostChange();
-                        }
-                        break;
-                    }
-
-                    case pv.startVideoRecReq:
-                        if ("master" in config.config &&
-                            ui.ui.panels.host.acceptRemoteVideo.checked) {
-
-                            // Check for options
-                            let opts = {};
-                            if (msg.byteLength > p.length) {
-                                try {
-                                    opts = JSON.parse(util.decodeText(new Uint8Array(msg.buffer).subarray(p.length)));
-                                } catch (ex) {}
-                            }
-
-                            // Make an incoming stream
-                            const vri = this.videoRecIncoming[peer] = {
-                                nextIdx: 0,
-                                buf: <{idx: number, buf: Uint8Array}[]> [],
-                                notify: <()=>void> null,
-                                hardStop: false,
-                                softStop: false
-                            };
-
-                            const stream = <ReadableStream<Uint8Array>> <unknown>
-                                new wsp.ReadableStream({
-                                async pull(controller) {
-                                    // eslint-disable-next-line no-constant-condition
-                                    while (true) {
-                                        if (vri.hardStop) {
-                                            controller.close();
-                                            break;
-                                        }
-
-                                        // Look for the right one
-                                        let found = false;
-                                        for (let i = 0; i < vri.buf.length; i++) {
-                                            const buf = vri.buf[i];
-                                            if (buf.idx === vri.nextIdx) {
-                                                found = true;
-                                                vri.buf.splice(i, 1);
-                                                if (buf.buf) {
-                                                    controller.enqueue(buf.buf);
-                                                    vri.nextIdx += buf.buf.length;
-                                                } else {
-                                                    controller.close();
-                                                }
-                                                break;
-                                            }
-                                        }
-
-                                        if (found)
-                                            break;
-                                        if (!found && vri.softStop) {
-                                            controller.close();
-                                            break;
-                                        }
-
-                                        // Didn't find it, so wait to receive it
-                                        await new Promise<void>(res => vri.notify = res);
-                                        vri.notify = null;
-                                    }
-                                }
-                            });
-
-                            // Now handle it
-                            videoRecord.recordVideoRemoteIncoming(peer, stream, opts);
-                            this.videoRecSend(peer, prot.videoRec.startVideoRecRes, 1);
-
-                        } else {
-                            this.videoRecSend(peer, prot.videoRec.startVideoRecRes, 0);
-
-                        }
-                        break;
-
-                    case pv.startVideoRecRes:
-                        // Only if we actually *wanted* them to accept video!
-                        if (videoRecord.recordVideoRemoteOK && peer === this.videoRecHost)
-                            videoRecord.recordVideoRemoteOK(peer);
-                        break;
-
-                    case pv.endVideoRec:
-                        try {
-                            const vr = this.videoRecIncoming[peer];
-                            vr.softStop = true;
-                            if (vr.notify)
-                                vr.notify();
-                            delete this.videoRecIncoming[peer];
-                        } catch (ex) {}
-                        break;
-                }
-                break;
-            }
-        }
+        util.dispatchEvent("net.ctcpSock." + cmd, {peer, msg});
     }
 
     // Send an Ennuicastr message over CTCP or RTC
-    sendMsg(msg: Uint8Array, peer: number): void {
+    async send(peer: number, msg: Uint8Array): Promise<void> {
         // Get the target ID
         let inc: Peer = null;
         if (!(peer in this.peers))
@@ -358,7 +219,7 @@ export class CTCPVideoRec implements comm.VideoRecComms {
         new Uint8Array(msg.buffer).set(new Uint8Array(payload.buffer), p.length);
 
         // And send it
-        this.sendMsg(new Uint8Array(msg.buffer), peer);
+        this.send(peer, new Uint8Array(msg.buffer));
     }
 
     // Close a given peer's RTC connection
@@ -381,7 +242,7 @@ export class CTCPVideoRec implements comm.VideoRecComms {
             msg.setUint32(0, prot.ids.data, true);
             msg.setFloat64(4, idx + start, true);
             new Uint8Array(msg.buffer).set(part, 12);
-            this.sendMsg(new Uint8Array(msg.buffer), peer);
+            this.send(peer, new Uint8Array(msg.buffer));
         }
     }
 
@@ -414,7 +275,10 @@ export class CTCPVideoRec implements comm.VideoRecComms {
             data.binaryType = "arraybuffer";
             data.onmessage = (ev: MessageEvent) => {
                 const msg = new DataView(ev.data);
-                this.peerMessage(id, msg);
+                if (msg.byteLength < 4)
+                    return;
+                const cmd = msg.getUint32(0, true);
+                util.dispatchEvent("net.ctcpSock." + cmd, {peer: id, msg});
             };
         };
 
@@ -499,3 +363,144 @@ export class CTCPVideoRec implements comm.VideoRecComms {
         onnegotiationneeded();
     }
 }
+
+// Whether using Ennuicastr CTCP or some other CTCP, prepare for events
+util.netEvent("ctcp", "data", (ev: CustomEvent) => {
+    const ctcp = <CTCP> comm.comms.videoRec;
+    if (!ctcp) return;
+    const peer: number = ev.detail.peer;
+    const msg: DataView = ev.detail.msg;
+
+    try {
+        const vr = ctcp.videoRecIncoming[peer];
+        const idx = msg.getFloat64(4, true);
+        const buf = new Uint8Array(msg.buffer).subarray(12);
+        vr.buf.push({idx, buf});
+        if (vr.buf.length >= 1024) {
+            // Too much buffered data!
+            vr.hardStop = true;
+            delete ctcp.videoRecIncoming[peer];
+        }
+        if (vr.notify)
+            vr.notify();
+    } catch (ex) {}
+});
+
+util.netEvent("ctcp", "videoRec", (ev: CustomEvent) => {
+    const ctcp = <CTCP> comm.comms.videoRec;
+    if (!ctcp) return;
+    const peer: number = ev.detail.peer;
+    const msg: DataView = ev.detail.msg;
+
+    // Video recording sub-message
+    const p = prot.parts.videoRec;
+    const pv = prot.videoRec;
+    if (msg.byteLength < p.length) return;
+    const cmd = msg.getUint32(p.cmd, true);
+
+    switch (cmd) {
+        case pv.videoRecHost:
+        {
+            let accept = 0;
+            try {
+                accept = msg.getUint32(p.length, true);
+            } catch (ex) {}
+            if (accept) {
+                ctcp.videoRecHost = peer;
+                videoRecord.onVideoRecHostChange();
+            } else if (ctcp.videoRecHost === peer) {
+                ctcp.videoRecHost = -1;
+                videoRecord.onVideoRecHostChange();
+            }
+            break;
+        }
+
+        case pv.startVideoRecReq:
+            if ("master" in config.config &&
+                ui.ui.panels.host.acceptRemoteVideo.checked) {
+
+                // Check for options
+                let opts = {};
+                if (msg.byteLength > p.length) {
+                    try {
+                        opts = JSON.parse(util.decodeText(new Uint8Array(msg.buffer).subarray(p.length)));
+                    } catch (ex) {}
+                }
+
+                // Make an incoming stream
+                const vri = ctcp.videoRecIncoming[peer] = {
+                    nextIdx: 0,
+                    buf: <{idx: number, buf: Uint8Array}[]> [],
+                    notify: <()=>void> null,
+                    hardStop: false,
+                    softStop: false
+                };
+
+                const stream = <ReadableStream<Uint8Array>> <unknown>
+                    new wsp.ReadableStream({
+                    async pull(controller) {
+                        // eslint-disable-next-line no-constant-condition
+                        while (true) {
+                            if (vri.hardStop) {
+                                controller.close();
+                                break;
+                            }
+
+                            // Look for the right one
+                            let found = false;
+                            for (let i = 0; i < vri.buf.length; i++) {
+                                const buf = vri.buf[i];
+                                if (buf.idx === vri.nextIdx) {
+                                    found = true;
+                                    vri.buf.splice(i, 1);
+                                    if (buf.buf) {
+                                        controller.enqueue(buf.buf);
+                                        vri.nextIdx += buf.buf.length;
+                                    } else {
+                                        controller.close();
+                                    }
+                                    break;
+                                }
+                            }
+
+                            if (found)
+                                break;
+                            if (!found && vri.softStop) {
+                                controller.close();
+                                break;
+                            }
+
+                            // Didn't find it, so wait to receive it
+                            await new Promise<void>(res => vri.notify = res);
+                            vri.notify = null;
+                        }
+                    }
+                });
+
+                // Now handle it
+                videoRecord.recordVideoRemoteIncoming(peer, stream, opts);
+                ctcp.videoRecSend(peer, prot.videoRec.startVideoRecRes, 1);
+
+            } else {
+                ctcp.videoRecSend(peer, prot.videoRec.startVideoRecRes, 0);
+
+            }
+            break;
+
+        case pv.startVideoRecRes:
+            // Only if we actually *wanted* them to accept video!
+            if (videoRecord.recordVideoRemoteOK && peer === ctcp.videoRecHost)
+                videoRecord.recordVideoRemoteOK(peer);
+            break;
+
+        case pv.endVideoRec:
+            try {
+                const vr = ctcp.videoRecIncoming[peer];
+                vr.softStop = true;
+                if (vr.notify)
+                    vr.notify();
+                delete ctcp.videoRecIncoming[peer];
+            } catch (ex) {}
+            break;
+    }
+});

@@ -378,7 +378,8 @@ function loadMainMenu() {
         for (let vi = 0; vi < ui.video.users.length; vi++) {
             const v = ui.video.users[vi];
             if (!v) continue;
-            v.video.play().catch(console.error);
+            if (v.video && v.video.tagName === "VIDEO")
+                (<HTMLVideoElement> v.video).play().catch(console.error);
         }
 
         setTimeout(function() {
@@ -395,7 +396,8 @@ function loadMainMenu() {
         for (let vi = 0; vi < ui.video.users.length; vi++) {
             const v = ui.video.users[vi];
             if (!v) continue;
-            v.video.play().catch(console.error);
+            if (v.video && v.video.tagName === "VIDEO")
+                (<HTMLVideoElement> v.video).play().catch(console.error);
         }
 
         setTimeout(function() {

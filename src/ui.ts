@@ -97,7 +97,8 @@ export const ui = {
         // Video components for each user
         users: {
             box: HTMLElement,
-            video: HTMLVideoElement,
+            videoContainer: HTMLElement,
+            video: HTMLElement,
             audio: HTMLAudioElement,
             standin: HTMLElement,
             name: HTMLElement,
@@ -740,6 +741,7 @@ export function videoAdd(idx: number, name: string): void {
 
     const ctx = ui.video.users[idx] = {
         box: dce("div"),
+        videoContainer: dce("div"),
         video: dce("video"),
         audio: dce("audio"),
         standin: dce("div"),
@@ -756,15 +758,20 @@ export function videoAdd(idx: number, name: string): void {
     box.classList.add("ec3-video");
     box.style.border = "4px solid var(--video-silent)";
 
+    // The container for the video element
+    const videoContainer = ctx.videoContainer;
+    videoContainer.classList.add("ec3-video-container");
+    videoContainer.style.display = "none";
+    box.appendChild(videoContainer);
+
     // The video element itself
     const video = ctx.video;
     video.classList.add("ec3-video-video");
     //video.classList.add("fauto");
-    video.style.display = "none";
     video.height = 0; // Use CSS for style
     video.muted = true; // Audio goes through a different system
     video.autoplay = true;
-    box.appendChild(video);
+    videoContainer.appendChild(video);
 
     // The audio element, just used to make sure audio is actually playing
     const audio = ctx.audio;
@@ -774,7 +781,7 @@ export function videoAdd(idx: number, name: string): void {
     box.appendChild(audio);
 
     // When you click, they become the selected major
-    video.onclick = function() {
+    videoContainer.onclick = function() {
         if (ui.video.selected === idx)
             ui.video.selected = -1;
         else
@@ -787,7 +794,7 @@ export function videoAdd(idx: number, name: string): void {
     standin.classList.add("ec3-video-standin");
     //standin.classList.add("fauto");
     box.appendChild(standin);
-    standin.onclick = video.onclick;
+    standin.onclick = videoContainer.onclick;
 
     styleVideoEl(ctx, name);
 
@@ -874,7 +881,7 @@ export function videoAdd(idx: number, name: string): void {
 }
 
 // Style a video element given a user's name
-function styleVideoEl(ctx: {video: HTMLVideoElement, box: HTMLElement, standin: HTMLElement}, name: string) {
+function styleVideoEl(ctx: {video: HTMLElement, box: HTMLElement, standin: HTMLElement}, name: string) {
     if (!name) return;
     let x = parseInt(btoa(unescape(encodeURIComponent(name.slice(-6)))).replace(/[^A-Za-z0-9]/g, ""), 36);
     const r = x % 4;

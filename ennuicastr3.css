@@ -442,6 +442,12 @@ button.streamer-interface {
     border-radius: 1em;
 }
 
+.ec3-video-container {
+    flex: auto;
+    display: flex;
+    flex-direction: column;
+}
+
 .ec3-video-video, .ec3-video-standin {
     flex: auto;
     border-radius: 1em;

@@ -110,8 +110,18 @@ export function shareVideo(id: string, res: number): Promise<unknown> {
 
         // Our own video UI
         ui.videoAdd(net.selfId, config.username);
-        const v = ui.ui.video.users[net.selfId].video;
-        const s = ui.ui.video.users[net.selfId].standin;
+        const uv = ui.ui.video.users[net.selfId];
+        if (uv.video && uv.video.tagName !== "VIDEO") {
+            uv.videoContainer.removeChild(uv.video);
+            uv.video = null;
+        }
+        if (!uv.video) {
+            uv.video = document.createElement("video");
+            uv.videoContainer.appendChild(uv.video);
+            uv.video.classList.add("ec3-video-video");
+        }
+        const v = <HTMLVideoElement> uv.video;
+        const s = uv.standin;
 
         if (userMediaVideo) {
             // Remember the ID
@@ -128,7 +138,7 @@ export function shareVideo(id: string, res: number): Promise<unknown> {
             // eslint-disable-next-line @typescript-eslint/no-empty-function
             v.play().catch(function(){});
             s.style.display = "none";
-            v.style.display = "";
+            uv.videoContainer.style.display = "";
 
             // And update any admins
             net.updateAdminPerm({videoDevice: userMediaVideoID}, true);
@@ -140,7 +150,7 @@ export function shareVideo(id: string, res: number): Promise<unknown> {
             v.srcObject = audio.inputs[0].userMedia;
             v.srcObject = null;
             s.style.display = "";
-            v.style.display = "none";
+            uv.videoContainer.style.display = "none";
             net.updateAdminPerm({videoDevice: "-none"}, true);
 
         }
