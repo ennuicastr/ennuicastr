@@ -27,7 +27,7 @@ import * as util from "./util";
 import * as rtennui from "rtennui";
 
 // Worker path to use
-const workerVer = "12";
+const workerVer = "13";
 export const workerPath = "awp/ennuicastr-worker.js?v=" + workerVer;
 
 export interface Capture {
