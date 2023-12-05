@@ -859,7 +859,7 @@ body {
     flex: 1;
 }
 
-[data-view-mode="studio"] .ec3-video-video, [data-view-mode="studio"] .ec3-video-standin {
+[data-view-mode="studio"] .ec3-video-container, [data-view-mode="studio"] .ec3-video-standin {
     position: relative;
     width: 120px;
     max-width: 120px;
