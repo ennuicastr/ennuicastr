@@ -59,7 +59,9 @@ util.events.addEventListener("net.info." + prot.info.peerContinuing, addInitialU
 /**
  * CTCP-based communications.
  */
-export class CTCP implements comm.CTCPComms, comm.VideoRecComms {
+export class CTCP implements
+    comm.CTCPComms, comm.BroadcastComms, comm.VideoRecComms
+{
     // Host which has indicated that it's willing to receive video recordings
     videoRecHost = -1;
 
@@ -188,6 +190,19 @@ export class CTCP implements comm.CTCPComms, comm.VideoRecComms {
         cmsg.setUint32(p.peer, peer, true);
         (new Uint8Array(cmsg.buffer)).set(msg, p.msg);
         net.dataSock.send(cmsg.buffer);
+    }
+
+    // Broadcast a message (by simply sending it individually to everyone)
+    async broadcast(msg: Uint8Array) {
+        let ps: Promise<unknown>[] = [];
+
+        // FIXME: This is the only place to get the user IDs
+        for (let i = 0; i < ui.ui.video.users.length; i++) {
+            if (!ui.ui.video.users[i])
+                continue;
+            ps.push(this.send(i, msg));
+        }
+        await Promise.all(ps);
     }
 
     getVideoRecHost(): number {

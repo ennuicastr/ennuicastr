@@ -29,28 +29,30 @@ import * as rtennui from "./rtennui";
 export async function initComms(): Promise<void> {
     // CTCP communications
     const c = new ctcp.CTCP();
-    comm.comms.ctcp = comm.comms.videoRec = c;
-    await c.init({data: true});
+    comm.comms.ctcp = comm.comms.broadcast = comm.comms.videoRec = c;
+    await c.init({broadcast: true, data: true});
 
     // Jitsi communications
     const useJitsi = {
         video: !config.useRTEnnui.video,
         audio: !config.useRTEnnui.audio,
-        broadcast: true,
+        broadcast: false,
         data: false
     };
 
-    const j = new jitsi.Jitsi();
-    comm.comms.broadcast = j;
-    if (useJitsi.video)
-        comm.comms.video = j;
-    if (useJitsi.audio)
-        comm.comms.audio = j;
-    await j.init(useJitsi);
+    if (useJitsi.video || useJitsi.audio) {
+        const j = new jitsi.Jitsi();
+        comm.comms.broadcast = j;
+        if (useJitsi.video)
+            comm.comms.video = j;
+        if (useJitsi.audio)
+            comm.comms.audio = j;
+        await j.init(useJitsi);
+    }
 
     // RTEnnui communications
     const useRTEnnui = config.useRTEnnui;
-    if (useRTEnnui.audio) {
+    if (useRTEnnui.video || useRTEnnui.audio) {
         const e = new rtennui.RTEnnui();
         if (useRTEnnui.video)
             comm.comms.video = e;
