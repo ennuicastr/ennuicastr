@@ -270,11 +270,7 @@ export class RTEnnui implements comm.Comms {
             this.idMap[ev.id] = ev.info.uid;
         });
 
-        c.on("peer-left", ev => {
-            if (c !== this.connection)
-                return;
-            delete this.idMap[ev.id];
-        });
+        // We detect peers leaving via the Ennuicastr protocol
 
         c.on("track-started-audio", ev => {
             if (c !== this.connection)
