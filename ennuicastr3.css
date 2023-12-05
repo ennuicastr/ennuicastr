@@ -612,6 +612,11 @@ body {
     font-size: var(--scale-main-3);
 }
 
+#ec3-chat-wrapper {
+    width: var(--scale-main6);
+    max-width: var(--scale-main6);
+}
+
 #ec3-chat-incoming {
     flex: auto;
     height: var(--scale-main4);
@@ -621,6 +626,7 @@ body {
 }
 
 #ec3-chat-outgoing-txt {
+    box-sizing: border-box;
     width: var(--scale-main6);
 }
 
