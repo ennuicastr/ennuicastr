@@ -269,14 +269,15 @@ export class Jitsi implements comm.BroadcastComms {
         this.jitsiUnsetUserMediaRTC();
 
         // Get a playback from it
+        const ac = audio.inputs[0].userMediaCapture.ac;
         const playback = this.userMediaPlayback =
-            await rtennui.createAudioPlayback(audio.ac);
+            await rtennui.createAudioPlayback(ac);
         let node = playback.unsharedNode() || playback.sharedNode();
         node.disconnect();
         audio.inputs[0].userMediaCapture.pipe(playback);
 
         // Turn it into a MediaStream
-        const msd = audio.ac.createMediaStreamDestination();
+        const msd = ac.createMediaStreamDestination();
         node.connect(msd);
         const rtc = this.userMediaRTC = msd.stream;
 
@@ -441,16 +442,20 @@ export class Jitsi implements comm.BroadcastComms {
         // Make sure they have a video element
         ui.videoAdd(id, null);
 
-        // Set this in the appropriate element
-        const el: HTMLMediaElement = (<any> ui.ui.video.users[id])[type];
-        el.srcObject = stream;
-        if (el.paused)
-            el.play().catch(net.promiseFail());
-
         if (type === "video") {
-            // Hide the standin
-            ui.ui.video.users[id].standin.style.display = "none";
-            ui.ui.video.users[id].video.style.display = "";
+            const uv = ui.ui.video.users[id];
+
+            uv.standin.style.display = "none";
+            uv.videoContainer.style.display = "";
+            if (uv.video)
+                uv.videoContainer.removeChild(uv.video);
+            const el = uv.video = document.createElement("video");
+            el.classList.add("ec3-video-video");
+            uv.videoContainer.appendChild(el);
+
+            el.srcObject = stream;
+            if (el.paused)
+                el.play().catch(net.promiseFail());
 
             // Prepare for it to end (which shouldn't have to be here...)
             const t = stream.getVideoTracks()[0];
@@ -461,12 +466,20 @@ export class Jitsi implements comm.BroadcastComms {
 
         // Create the compressor node
         if (type === "audio") {
+            // Set this in the appropriate element
+            const el = ui.ui.video.users[id].audio;
+            el.srcObject = stream;
+            if (el.paused)
+                el.play().catch(net.promiseFail());
+
+            /* Sample rate issues with output processing. These streams have
+             * *undefined* sample rates, so they simply can't be processed.
             if (outproc.supported) {
                 outproc.createCompressor(
                     id, audio.ac, stream,
                     ui.ui.video.users[id].waveformWrapper
                 );
-            } else {
+            } else */ {
                 const mss = audio.ac.createMediaStreamSource(stream);
                 mss.connect((<any> audio.ac).ecDestination);
             }
