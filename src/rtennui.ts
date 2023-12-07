@@ -129,15 +129,19 @@ class OutProcAudioPlayback extends rtennui.AudioPlayback {
 
         const now = performance.now();
         const time = data[0].length / this.ac.sampleRate * 1000;
+        console.log(this.latency());
         if (this._endTime > now)
             this._endTime += time;
         else
-            this._endTime = now + 200 + time;
+            this._endTime = now + this.latency() + time;
         return this._endTime - time - now;
     }
 
     override latency() {
-        return 200; // Purely an estimation
+        if (this.proc && this.proc.output)
+            return this.proc.output.latency() + 150 /* input processing + output processing */;
+        else
+            return 200; // Purely an estimation
     }
 
     override pipeFrom(port: MessagePort): void {
@@ -172,6 +176,11 @@ class OutProcAudioPlayback extends rtennui.AudioPlayback {
      * message, if needed.
      */
     port: MessagePort;
+
+    /**
+     * The output processor this is being sent to.
+     */
+    proc: outproc.Compressor = null;
 }
 
 export class RTEnnui implements comm.Comms {
@@ -389,7 +398,9 @@ export class RTEnnui implements comm.Comms {
     }
 
     // Called when a remote track is added
-    rteAudioTrackStarted(id: number, playback: rtennui.AudioPlayback): void {
+    async rteAudioTrackStarted(
+        id: number, playback: rtennui.AudioPlayback
+    ): Promise<void> {
         // Make sure they have a video element
         ui.videoAdd(id, null);
 
@@ -422,9 +433,12 @@ export class RTEnnui implements comm.Comms {
             const oppb = <OutProcAudioPlayback> playback;
 
             // Create the compressor node
-            outproc.createCompressor(id, audio.ac, oppb.worker,
-                ui.ui.video.users[id].waveformWrapper);
+            const proc =
+                await outproc.createCompressor(id, audio.ac, oppb.worker,
+                    ui.ui.video.users[id].waveformWrapper);
 
+            if (proc)
+                oppb.proc = proc;
         }
     }
 

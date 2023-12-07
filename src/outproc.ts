@@ -33,7 +33,7 @@ import * as rtennui from "rtennui";
 export const supported = !rtennui.audioCapturePlaybackShared();
 
 // A compressor for a particular user
-interface Compressor {
+export interface Compressor {
     ac: AudioContext & {ecDestination?: MediaStreamAudioDestinationNode};
     capture: capture.Capture,
     worker: Worker,
