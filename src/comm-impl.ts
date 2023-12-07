@@ -33,13 +33,7 @@ export async function initComms(): Promise<void> {
     await c.init({broadcast: true, data: true});
 
     // Jitsi communications
-    const useJitsi = {
-        video: !config.useRTEnnui.video,
-        audio: !config.useRTEnnui.audio,
-        broadcast: false,
-        data: false
-    };
-
+    const useJitsi = config.useJitsi;
     if (useJitsi.video || useJitsi.audio) {
         const j = new jitsi.Jitsi();
         comm.comms.broadcast = j;

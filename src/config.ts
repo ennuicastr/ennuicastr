@@ -32,8 +32,12 @@ export const features = {
     "videorec": 0x4,
     "transcription": 0x8,
     "recordOnly": 0x100,
+    /* FORMER (now default):
     "rtennuiAudio": 0x200,
     "rtennuiVideo": 0x400
+    */
+    "jitsiAudio": 0x800,
+    "jitsiVideo": 0x1000,
 };
 
 // Configuration parameters come out of the URL search query
@@ -61,6 +65,10 @@ export let useFlac = false;
 // Which features to use
 export let useContinuous = false;
 export let useRTC = false;
+export const useJitsi = {
+    audio: false,
+    video: false
+};
 export const useRTEnnui = {
     audio: false,
     video: false
@@ -290,9 +298,10 @@ export async function load(): Promise<boolean> {
     useVideoRec = !!(config.format&features.videorec);
     useTranscription = !!(config.format&features.transcription);
     useRecordOnly = !!(config.format&features.recordOnly);
-    useRTEnnui.audio = !!(config.format&features.rtennuiAudio);
-    useRTEnnui.video = useRTEnnui.audio &&
-        !!(config.format&features.rtennuiVideo);
+    useJitsi.audio = !!(config.format&features.jitsiAudio);
+    useJitsi.video = !!(config.format&features.jitsiAudio);
+    useRTEnnui.audio = !useJitsi.audio;
+    useRTEnnui.video = !useJitsi.video;
     useDebug = !!(params.get("debug"));
 
     // If we're in continuous mode, we don't distinguish the degrees of VAD
