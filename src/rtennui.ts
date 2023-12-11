@@ -129,7 +129,6 @@ class OutProcAudioPlayback extends rtennui.AudioPlayback {
 
         const now = performance.now();
         const time = data[0].length / this.ac.sampleRate * 1000;
-        console.log(this.latency());
         if (this._endTime > now)
             this._endTime += time;
         else
