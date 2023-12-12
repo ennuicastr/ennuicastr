@@ -125,7 +125,8 @@ async function connection(port: MessagePort) {
 
 
     // Simple button for each download
-    for (const file of await fileStorage.getFiles()) {
+    const files = await fileStorage.getFiles();
+    for (const file of files) {
         const div = document.createElement("div");
         const btn = document.createElement("button");
         const del = document.createElement("button");
@@ -150,6 +151,12 @@ async function connection(port: MessagePort) {
         };
         div.appendChild(del);
 
+        document.body.appendChild(div);
+    }
+
+    if (files.length === 0) {
+        const div = document.createElement("div");
+        div.innerText = "No data found";
         document.body.appendChild(div);
     }
 })();
