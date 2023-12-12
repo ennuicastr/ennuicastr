@@ -60,9 +60,6 @@ export const iceServers = [
 // The remote start time, i.e., when recording began
 export let remoteBeginTime: null|number = null;
 
-// If we're flushing our buffers, this will be a timeout to re-check
-let flushTimeout: null|number = null;
-
 // A WebSocket that can automatically reconnect if it's unexpectedly disconnected
 class ReconnectableWebSocket {
     sock: WebSocket;
@@ -308,14 +305,6 @@ function dataSockMsg(ev: MessageEvent) {
                         log.pushStatus("mode", "Recording paused");
                     else if (mode > prot.mode.rec)
                         log.pushStatus("mode", "Finished recording");
-
-                    // Mention flushing buffers if we are
-                    if (mode === prot.mode.buffering) {
-                        flushBuffers();
-                    } else if (flushTimeout) {
-                        clearTimeout(flushTimeout);
-                        flushTimeout = null;
-                    }
                     break;
                 }
 
@@ -364,31 +353,38 @@ export function flacInfo(to: ArrayBuffer): void {
     dataSock.send(to);
 }
 
-// Flush our buffers
-function flushBuffers() {
-    if (flushTimeout) {
-        clearTimeout(flushTimeout);
-        flushTimeout = null;
-    }
+/* Get the amount of data currently buffered. This is overridable because CTCP
+ * may have other connections, and that data should be considered buffered too. */
+export let bufferedAmount: () => number;
+export function setBufferedAmount(to: () => number) { bufferedAmount = to; }
 
-    if (!dataSock) return;
-
-    const ba = bufferedAmount();
-    if (ba)
-        log.pushStatus("buffering", "Sending audio to server (" + util.bytesToRepr(ba) + ")...");
-    else
-        log.popStatus("buffering");
-
-    flushTimeout = setTimeout(function() {
-        flushTimeout = null;
-        flushBuffers();
-    }, 1000);
-}
-
-// If our data socket is connected, the buffered amount
-export function bufferedAmount(): number {
+// By default, the buffered amount is the data sock buffered amount
+bufferedAmount = () => {
     return dataSock ? dataSock.sock.bufferedAmount : 0;
-}
+};
+
+// An arbitrary amount to warn that too much is buffered
+const tooMuchBuffered = 65536;
+
+// Periodically check/warn about buffering
+const bufferingInterval = setInterval(() => {
+    const buffered = bufferedAmount();
+    if (buffered >= tooMuchBuffered) {
+        log.pushStatus("buffering",
+            "Recording is buffered. Please don't close this window until " +
+            `uploading is complete. ${util.bytesToRepr(buffered)} currently ` +
+            "buffered.");
+    } else {
+        log.popStatus("buffering");
+    }
+}, 1000);
+
+// Don't allow disconnections if we have too much buffered data
+window.addEventListener("beforeunload", ev => {
+    if (bufferedAmount() >= tooMuchBuffered)
+        ev.preventDefault();
+});
+
 
 // Send to an admin that we accept or reject admin privileges
 export function setAdminPerm(target: number, deviceInfo: (allowVideo: boolean)=>any, allowAudio: boolean, allowVideo: boolean): Promise<unknown> {

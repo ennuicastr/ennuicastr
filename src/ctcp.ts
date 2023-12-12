@@ -146,6 +146,22 @@ export class CTCPVideoRec implements comm.VideoRecComms {
                 j.signal(msg);
             } catch (ex) {}
         });
+
+        // Include our buffered data
+        const origBufferedAmount = net.bufferedAmount;
+        net.setBufferedAmount(() => {
+            let buffered = origBufferedAmount();
+
+            // Buffered to another client
+            for (const id in this.peers) {
+                const peer = this.peers[id];
+                try {
+                    buffered = Math.max(buffered, peer.data.bufferedAmount);
+                } catch (ex) {}
+            }
+
+            return buffered;
+        });
     }
 
     // Incoming CTCP messages

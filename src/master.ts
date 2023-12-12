@@ -279,9 +279,9 @@ function configureMasterInterface() {
 
     } else {
         if (net.mode === prot.mode.buffering)
-            log.pushStatus("buffering", "Waiting for audio from clients...");
+            log.pushStatus("host-buffering", "Waiting for audio from clients...");
         else
-            log.popStatus("buffering");
+            log.popStatus("host-buffering");
 
     }
 
