@@ -612,13 +612,6 @@ export class Audio {
             return;
         }
 
-        // Warn if we're buffering
-        const ba = net.bufferedAmount();
-        if (ba > 1024*1024)
-            log.pushStatus("buffering", util.bytesToRepr(ba) + " audio data buffered");
-        else
-            log.popStatus("buffering");
-
         if (!vad.vads[this.idx].vadOn) {
             // Drop any sufficiently old packets, or send them marked as silence in continuous mode
             const old = curGranulePos - vad.vadExtension*48;
