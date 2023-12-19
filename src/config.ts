@@ -32,10 +32,10 @@ export const features = {
     "videorec": 0x4,
     "transcription": 0x8,
     "recordOnly": 0x100,
-    /* FORMER (now default):
+    /* Currently, the default without setting AV flags is RTEnnui audio, Jitsi
+     * video */
     "rtennuiAudio": 0x200,
-    "rtennuiVideo": 0x400
-    */
+    "rtennuiVideo": 0x400,
     "jitsiAudio": 0x800,
     "jitsiVideo": 0x1000,
 };
@@ -299,7 +299,7 @@ export async function load(): Promise<boolean> {
     useTranscription = !!(config.format&features.transcription);
     useRecordOnly = !!(config.format&features.recordOnly);
     useJitsi.audio = !!(config.format&features.jitsiAudio);
-    useJitsi.video = !!(config.format&features.jitsiAudio);
+    useJitsi.video = !!!(config.format&features.rtennuiVideo);
     useRTEnnui.audio = !useJitsi.audio;
     useRTEnnui.video = !useJitsi.video;
     useDebug = !!(params.get("debug"));
