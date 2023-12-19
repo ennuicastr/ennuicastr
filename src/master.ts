@@ -353,7 +353,7 @@ function genInvite() {
         (config.useRecordOnly?config.features.recordOnly:0) +
         (config.useVideoRec?config.features.videorec:0) +
         (config.useJitsi.audio?config.features.jitsiAudio:0) +
-        (config.useJitsi.video?config.features.jitsiVideo:0) +
+        (config.useRTEnnui.video?config.features.rtennuiVideo:0) +
         (config.useTranscription?config.features.transcription:0) +
         (ui.ui.panels.invite.flac.checked?prot.flags.dataType.flac:0)
     );
