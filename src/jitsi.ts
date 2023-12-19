@@ -450,6 +450,7 @@ export class Jitsi implements comm.BroadcastComms {
             if (uv.video)
                 uv.videoContainer.removeChild(uv.video);
             const el = uv.video = document.createElement("video");
+            el.height = 0; // Controlled by CSS
             el.classList.add("ec3-video-video");
             uv.videoContainer.appendChild(el);
 

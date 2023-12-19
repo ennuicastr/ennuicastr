@@ -467,6 +467,8 @@ export class RTEnnui implements comm.Comms {
         if (uv.video)
             uv.videoContainer.removeChild(uv.video);
         uv.video = element;
+        if (element.tagName === "VIDEO")
+            element.height = 0; // Controlled by CSS
         element.classList.add("ec3-video-video");
         uv.videoContainer.appendChild(element);
     }
