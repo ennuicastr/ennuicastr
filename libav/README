@@ -1,5 +1,5 @@
 Please add the ennuicastr variant of libav.js (
-https://github.com/Yahweasel/libav.js/ ), version 4.7.6.0.1, here. Use
+https://github.com/Yahweasel/libav.js/ ), version 4.8.6.0.1, here. Use
 mkconfig.sh in the libav.js/configs directory to make the ennuicastr config.
 
 To update the libav version, update the number here, in Makefile, in
