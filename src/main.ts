@@ -23,6 +23,8 @@
 // extern
 declare let Ennuiboard: any, ECDefaultHotkeys: any;
 
+import "ennuiboard";
+
 import * as audio from "./audio";
 import * as avloader from "./avloader";
 import * as commImpl from "./comm-impl";
@@ -45,14 +47,7 @@ async function main() {
         return;
 
     // Then libraries
-    try {
-        await util.loadLibrary({
-            file: "libs/ennuiboard.min.js",
-            name: "hotkey library"
-        });
-    } catch (ex) {}
-    if (typeof Ennuiboard !== "undefined")
-        Ennuiboard.enable("gamepad", {auto: true, manualPoll: true});
+    Ennuiboard.enable("gamepad", {auto: true, manualPoll: true});
     await avloader.loadLibAV();
 
     try {
