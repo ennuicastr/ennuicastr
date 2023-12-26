@@ -21,7 +21,9 @@
  */
 
 // extern
-declare let Ennuiboard: any, NoSleep: any;
+declare let require: any, Ennuiboard: any;
+
+const NoSleep = require("nosleep.js");
 
 import * as audio from "./audio";
 import * as chat from "./chat";
@@ -126,12 +128,6 @@ export function mkUI(): Promise<unknown> {
     // FIXME: Combine this with starting the AC
     if (mobile) {
         return Promise.all([]).then(function() {
-            return util.loadLibrary({
-                file: "libs/NoSleep.min.js",
-                name: "mobile support"
-            });
-
-        }).then(function() {
             noSleep = new NoSleep();
             uiFE.showPanel(ui.panels.join, ui.panels.join.button, true);
             return new Promise((res) => {

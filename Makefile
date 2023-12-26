@@ -16,7 +16,7 @@ TEST=\
     awp/ennuicastr-worker-test.js
 
 LIBS=\
-    libs/NoSleep.min.js libs/jquery.min.js \
+    libs/jquery.min.js \
     libs/ennuiboard.min.js libs/localforage.min.js \
     libs/sha512-es.min.js \
     libs/libspecbleach-$(LIBSPECBLEACH_VERSION).js \
@@ -93,9 +93,6 @@ node_modules/.bin/browserify:
 node_modules/.bin/minify: node_modules/.bin/browserify
 
 node_modules/.bin/tsc: node_modules/.bin/browserify
-
-libs/NoSleep.min.js: node_modules/.bin/browserify
-	cp node_modules/nosleep.js/dist/NoSleep.min.js $@
 
 libs/jquery.min.js: node_modules/.bin/browserify
 	cp node_modules/jquery/dist/jquery.min.js $@
