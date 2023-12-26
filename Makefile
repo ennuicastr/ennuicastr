@@ -74,10 +74,12 @@ fs/fs.js: src/file-storage-main.ts src/file-storage.ts src/download-stream.ts no
 awp/ennuicastr-worker.js: awp/ennuicastr-worker.ts node_modules/.bin/tsc
 	./node_modules/.bin/tsc --lib es2017,webworker $< --outfile $@.tmp
 	cat node_modules/@ennuicastr/webrtcvad.js/webrtcvad.js $@.tmp > $@
+	rm -f $@.tmp
 
 awp/ennuicastr-worker-test.js: awp/ennuicastr-worker.ts node_modules/.bin/tsc
 	./node_modules/.bin/tsc --lib es2017,webworker $< --outfile $@.tmp
 	cat node_modules/@ennuicastr/webrtcvad.js/webrtcvad.js $@.tmp > $@
+	rm -f $@.tmp
 
 protocol.min.js: protocol.js node_modules/.bin/minify
 	./node_modules/.bin/minify --js < $< | cat src/license.js - > $@
