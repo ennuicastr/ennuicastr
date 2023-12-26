@@ -18,7 +18,6 @@ TEST=\
 LIBS=\
     libs/jquery.min.js \
     libs/ennuiboard.min.js libs/localforage.min.js \
-    libs/sha512-es.min.js \
     libs/libspecbleach-$(LIBSPECBLEACH_VERSION).js \
     libs/libspecbleach-$(LIBSPECBLEACH_VERSION).asm.js \
     libs/libspecbleach-$(LIBSPECBLEACH_VERSION).wasm.js \
