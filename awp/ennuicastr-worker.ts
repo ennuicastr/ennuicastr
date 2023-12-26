@@ -421,8 +421,6 @@ function doFilter(msg: any) {
     // Load everything
     Promise.all([]).then(function() {
         // Load the VAD
-        __filename = "../libs/vad/vad-m2.wasm.js";
-        importScripts(__filename);
         return WebRtcVad();
 
     }).then(function(ret: any) {

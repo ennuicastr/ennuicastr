@@ -1,5 +1,0 @@
-There is an existing port of WebRTCVAD to JavaScript, in a "webrtcvad_js" repo.
-It... it is bad. Do not use it. This is a fresh port.
-
-This is copied from the webrtc repo as specified in VERSION, only including the
-VAD and its dependencies, plus a simple Makefile to build it with emscripten.

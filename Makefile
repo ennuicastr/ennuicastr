@@ -33,7 +33,6 @@ EXTRA=\
     libav/libav-$(LIBAV_VERSION)-ennuicastr.wasm.wasm \
     libav/libav-$(LIBAV_VERSION)-ennuicastr.simd.js \
     libav/libav-$(LIBAV_VERSION)-ennuicastr.simd.wasm \
-    libs/vad/vad-m2.js libs/vad/vad-m2.wasm.js libs/vad/vad-m2.wasm.wasm \
     libs/vosk.js libs/lib-jitsi-meet.7421.js \
     noise-repellent/noise-repellent-m.js \
     noise-repellent/noise-repellent-m.asm.js \
@@ -70,10 +69,12 @@ fs/fs.js: src/file-storage-main.ts src/file-storage.ts src/download-stream.ts no
 	./src/build.js $< -s EnnuicastrFileStorage > $@
 
 awp/ennuicastr-worker.js: awp/ennuicastr-worker.ts node_modules/.bin/tsc
-	./node_modules/.bin/tsc --lib es2017,webworker $<
+	./node_modules/.bin/tsc --lib es2017,webworker $< --outfile $@.tmp
+	cat node_modules/@ennuicastr/webrtcvad.js/webrtcvad.js $@.tmp > $@
 
 awp/ennuicastr-worker-test.js: awp/ennuicastr-worker.ts node_modules/.bin/tsc
-	./node_modules/.bin/tsc --lib es2017,webworker $< --outFile $@
+	./node_modules/.bin/tsc --lib es2017,webworker $< --outfile $@.tmp
+	cat node_modules/@ennuicastr/webrtcvad.js/webrtcvad.js $@.tmp > $@
 
 protocol.min.js: protocol.js node_modules/.bin/minify
 	./node_modules/.bin/minify --js < $< | cat src/license.js - > $@
@@ -121,8 +122,8 @@ bx: node_modules/.bin/browserify
 	mv bx.tmp bx
 
 install:
-	mkdir -p $(PREFIX)/images $(PREFIX)/libs/vad $(PREFIX)/awp \
-		$(PREFIX)/libav $(PREFIX)/fs $(PREFIX)/noise-repellent
+	mkdir -p $(PREFIX)/images $(PREFIX)/awp $(PREFIX)/libav $(PREFIX)/fs \
+		$(PREFIX)/noise-repellent
 	for i in $(OUT) $(LIBS) $(EXTRA); do \
 		install -C -m 0622 $$i $(PREFIX)/$$i; \
         done
