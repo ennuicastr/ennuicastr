@@ -1,6 +1,7 @@
 PREFIX=inst
 
 LIBAV_VERSION=4.8.6.0.1
+LIBSPECBLEACH_VERSION=0.1.6
 VOSK_MODEL_VER=en-us-0.15
 
 OUT=\
@@ -17,7 +18,13 @@ TEST=\
 LIBS=\
     libs/NoSleep.min.js libs/jquery.min.js \
     libs/ennuiboard.min.js libs/localforage.min.js \
-    libs/sha512-es.min.js
+    libs/sha512-es.min.js \
+    libs/libspecbleach-$(LIBSPECBLEACH_VERSION).js \
+    libs/libspecbleach-$(LIBSPECBLEACH_VERSION).asm.js \
+    libs/libspecbleach-$(LIBSPECBLEACH_VERSION).wasm.js \
+    libs/libspecbleach-$(LIBSPECBLEACH_VERSION).wasm.wasm \
+    libs/libspecbleach-$(LIBSPECBLEACH_VERSION).simd.js \
+    libs/libspecbleach-$(LIBSPECBLEACH_VERSION).simd.wasm
 
 DATA=\
     libs/vosk-model-small-$(VOSK_MODEL_VER).tar.gz \
@@ -33,11 +40,7 @@ EXTRA=\
     libav/libav-$(LIBAV_VERSION)-ennuicastr.wasm.wasm \
     libav/libav-$(LIBAV_VERSION)-ennuicastr.simd.js \
     libav/libav-$(LIBAV_VERSION)-ennuicastr.simd.wasm \
-    libs/vosk.js libs/lib-jitsi-meet.7421.js \
-    noise-repellent/noise-repellent-m.js \
-    noise-repellent/noise-repellent-m.asm.js \
-    noise-repellent/noise-repellent-m.wasm.js \
-    noise-repellent/noise-repellent-m.wasm.wasm
+    libs/vosk.js libs/lib-jitsi-meet.7421.js
 
 all: $(OUT) $(LIBS) $(DATA)
 
@@ -112,6 +115,19 @@ libs/localforage.min.js: node_modules/.bin/browserify
 libs/sha512-es.min.js: node_modules/.bin/browserify
 	cp node_modules/sha512-es/build/sha512-es.min.js $@
 
+libs/libspecbleach-$(LIBSPECBLEACH_VERSION).js: node_modules/.bin/browserify
+	cp node_modules/@ennuicastr/libspecbleach.js/dist/libspecbleach-$(LIBSPECBLEACH_VERSION).js $@
+libs/libspecbleach-$(LIBSPECBLEACH_VERSION).asm.js: node_modules/.bin/browserify
+	cp node_modules/@ennuicastr/libspecbleach.js/dist/libspecbleach-$(LIBSPECBLEACH_VERSION).asm.js $@
+libs/libspecbleach-$(LIBSPECBLEACH_VERSION).wasm.js: node_modules/.bin/browserify
+	cp node_modules/@ennuicastr/libspecbleach.js/dist/libspecbleach-$(LIBSPECBLEACH_VERSION).wasm.js $@
+libs/libspecbleach-$(LIBSPECBLEACH_VERSION).wasm.wasm: node_modules/.bin/browserify
+	cp node_modules/@ennuicastr/libspecbleach.js/dist/libspecbleach-$(LIBSPECBLEACH_VERSION).wasm.wasm $@
+libs/libspecbleach-$(LIBSPECBLEACH_VERSION).simd.js: node_modules/.bin/browserify
+	cp node_modules/@ennuicastr/libspecbleach.js/dist/libspecbleach-$(LIBSPECBLEACH_VERSION).simd.js $@
+libs/libspecbleach-$(LIBSPECBLEACH_VERSION).simd.wasm: node_modules/.bin/browserify
+	cp node_modules/@ennuicastr/libspecbleach.js/dist/libspecbleach-$(LIBSPECBLEACH_VERSION).simd.wasm $@
+
 Fork-Awesome-$(FKA_VERSION).tar.gz:
 	curl -L https://github.com/ForkAwesome/Fork-Awesome/archive/refs/tags/$(FKA_VERSION).tar.gz -o $@
 
@@ -123,7 +139,7 @@ bx: node_modules/.bin/browserify
 
 install:
 	mkdir -p $(PREFIX)/images $(PREFIX)/awp $(PREFIX)/libav $(PREFIX)/fs \
-		$(PREFIX)/noise-repellent
+		$(PREFIX)/libs
 	for i in $(OUT) $(LIBS) $(EXTRA); do \
 		install -C -m 0622 $$i $(PREFIX)/$$i; \
         done

@@ -14,7 +14,7 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-declare let LibAV: any, NoiseRepellent: any, NoiseRepellentFactory: any, Vosk: any, WebRtcVad: any, __filename: string;
+declare let LibAV: any, LibSpecBleach: any, Vosk: any, WebRtcVad: any, __filename: string;
 
 const libavVersion = "4.8.6.0.1";
 const libavPath = "../libav/libav-" + libavVersion + "-ennuicastr.js";
@@ -400,7 +400,7 @@ function doFilter(msg: any) {
     const vadBufSz = 640 /* 20ms at 32000Hz */;
     let vadBuf: Int16Array = null;
     let bi = 0;
-    let nr: any = null;
+    let nrm: any = null, nr: any = null;
     let timeout: null|number = null, rtcTimeout: null|number = null;
     const step = sampleRate / 32000;
 
@@ -447,19 +447,17 @@ function doFilter(msg: any) {
         vadDataPtr = vad.malloc(vadBufSz * 2);
         vadBuf = new Int16Array(vad.HEAPU8.buffer, vadDataPtr, vadBufSz * 2);
 
-        // And load noise-repellent
-        __filename = "../noise-repellent/noise-repellent-m.wasm.js?v=2";
+        // And load libspecbleach
+        LibSpecBleach = {base: "../libs"};
+        __filename = "../libs/libspecbleach-0.1.6.js";
         importScripts(__filename);
-        NoiseRepellent = {NoiseRepellentFactory: NoiseRepellentFactory};
-        __filename = "../noise-repellent/noise-repellent-m.js?v=2";
+        __filename = "../libs/libspecbleach-0.1.6." + LibSpecBleach.target +
+            ".js";
         importScripts(__filename);
-        return NoiseRepellent.NoiseRepellent(sampleRate);
+        return LibSpecBleach.LibSpecBleach();
 
     }).then(function(ret: any) {
-        nr = ret;
-        nr.set(NoiseRepellent.N_ADAPTIVE, 1);
-        nr.set(NoiseRepellent.AMOUNT, 20);
-        nr.set(NoiseRepellent.WHITENING, 50);
+        nrm = ret;
 
         // Possibly load Vosk
         if (useTranscription) {
@@ -523,9 +521,20 @@ function doFilter(msg: any) {
 
         // Perform noise reduction and output
         let nrbuf = ib;
+        if (nrm && (!nr || nr.input_buffer.length !== ib.length)) {
+            // OO instance is out of date or nonexistent, make a new one
+            if (nr)
+                nr.free();
+            nr = new nrm.SpecBleach({
+                adaptive: true,
+                block_size: ib.length,
+                sample_rate: sampleRate,
+                reduction_amount: 20,
+                whitening_factor: 50
+            });
+        }
         if (nr)
-            nrbuf = nr.run(ib);
-
+            nrbuf = nr.process(ib);
 
         // Transfer data for the VAD
         let vadLvl = rawVadLvl;

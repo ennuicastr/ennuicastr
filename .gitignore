@@ -18,8 +18,8 @@ libs/jquery.min.js
 libs/localforage.min.js
 libs/sha512-es.min.js
 libs/vosk*
+libs/libspecbleach*
 node_modules/
-noise-repellent/noise-repellent-m.*
 package-lock.json
 protocol.min.js
 sw.js
