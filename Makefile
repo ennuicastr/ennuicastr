@@ -1,7 +1,7 @@
 PREFIX=inst
 
 LIBAV_VERSION=4.8.6.0.1
-LIBSPECBLEACH_VERSION=0.1.6
+LIBSPECBLEACH_VERSION=0.1.7-js1
 VOSK_MODEL_VER=en-us-0.15
 
 OUT=\
@@ -113,18 +113,11 @@ libs/localforage.min.js: node_modules/.bin/browserify
 libs/sha512-es.min.js: node_modules/.bin/browserify
 	cp node_modules/sha512-es/build/sha512-es.min.js $@
 
-libs/libspecbleach-$(LIBSPECBLEACH_VERSION).js: node_modules/.bin/browserify
-	cp node_modules/@ennuicastr/libspecbleach.js/dist/libspecbleach-$(LIBSPECBLEACH_VERSION).js $@
-libs/libspecbleach-$(LIBSPECBLEACH_VERSION).asm.js: node_modules/.bin/browserify
-	cp node_modules/@ennuicastr/libspecbleach.js/dist/libspecbleach-$(LIBSPECBLEACH_VERSION).asm.js $@
-libs/libspecbleach-$(LIBSPECBLEACH_VERSION).wasm.js: node_modules/.bin/browserify
-	cp node_modules/@ennuicastr/libspecbleach.js/dist/libspecbleach-$(LIBSPECBLEACH_VERSION).wasm.js $@
-libs/libspecbleach-$(LIBSPECBLEACH_VERSION).wasm.wasm: node_modules/.bin/browserify
-	cp node_modules/@ennuicastr/libspecbleach.js/dist/libspecbleach-$(LIBSPECBLEACH_VERSION).wasm.wasm $@
-libs/libspecbleach-$(LIBSPECBLEACH_VERSION).simd.js: node_modules/.bin/browserify
-	cp node_modules/@ennuicastr/libspecbleach.js/dist/libspecbleach-$(LIBSPECBLEACH_VERSION).simd.js $@
-libs/libspecbleach-$(LIBSPECBLEACH_VERSION).simd.wasm: node_modules/.bin/browserify
-	cp node_modules/@ennuicastr/libspecbleach.js/dist/libspecbleach-$(LIBSPECBLEACH_VERSION).simd.wasm $@
+libs/libspecbleach-%: node_modules/@ennuicastr/libspecbleach.js/dist/libspecbleach-%
+	cp $< $@
+
+node_modules/@ennuicastr/libspecbleach.js/dist/libspecbleach-%: node_modules/.bin/browserify
+	true
 
 Fork-Awesome-$(FKA_VERSION).tar.gz:
 	curl -L https://github.com/ForkAwesome/Fork-Awesome/archive/refs/tags/$(FKA_VERSION).tar.gz -o $@

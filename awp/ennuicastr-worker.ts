@@ -19,6 +19,9 @@ declare let LibAV: any, LibSpecBleach: any, Vosk: any, WebRtcVad: any, __filenam
 const libavVersion = "4.8.6.0.1";
 const libavPath = "../libav/libav-" + libavVersion + "-ennuicastr.js";
 
+const libspecbleachVersion = "0.1.7-js1";
+const libspecbleachPath = "../libs/libspecbleach-" + libspecbleachVersion + ".js";
+
 // SAB is unreliable on Safari
 const canShared = typeof SharedArrayBuffer !== "undefined" &&
     (navigator.userAgent.indexOf("Safari") === -1 ||
@@ -449,10 +452,7 @@ function doFilter(msg: any) {
 
         // And load libspecbleach
         LibSpecBleach = {base: "../libs"};
-        __filename = "../libs/libspecbleach-0.1.6.js";
-        importScripts(__filename);
-        __filename = "../libs/libspecbleach-0.1.6." + LibSpecBleach.target +
-            ".js";
+        __filename = libspecbleachPath;
         importScripts(__filename);
         return LibSpecBleach.LibSpecBleach();
 

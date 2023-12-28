@@ -4,7 +4,7 @@
   "description": "EnnuiCastr is a system for recording multiple users distributed across the world in a well-synchronized way, without significant loss, over the web.",
   "main": "src/main.ts",
   "dependencies": {
-    "@ennuicastr/libspecbleach.js": "=0.1.6",
+    "@ennuicastr/libspecbleach.js": "=0.1.7-js1",
     "@ennuicastr/webrtcvad.js": "^0.1.0",
     "@types/file-saver": "^2.0.3",
     "@types/streamsaver": "^2.0.1",
