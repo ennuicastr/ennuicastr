@@ -19,6 +19,7 @@ libs/localforage.min.js
 libs/sha512-es.min.js
 libs/vosk*
 libs/libspecbleach*
+libs/webrtcaec3*
 node_modules/
 package-lock.json
 protocol.min.js
