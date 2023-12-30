@@ -20,6 +20,7 @@
  * Output processing (in particular, dynamic range compression).
  */
 
+import * as audio from "./audio";
 import * as capture from "./capture";
 import * as config from "./config";
 import * as net from "./net";
@@ -34,7 +35,7 @@ export const supported = !rtennui.audioCapturePlaybackShared();
 
 // A compressor for a particular user
 export interface Compressor {
-    ac: AudioContext & {ecDestination?: MediaStreamAudioDestinationNode};
+    ac: audio.ECAudioContext;
     capture: capture.Capture,
     worker: Worker,
     output: rtennui.AudioPlayback
@@ -66,7 +67,7 @@ export const rtcCompression = {
 // Create a compressor and gain node
 export async function createCompressor(
     idx: number,
-    ac: AudioContext & {ecDestination?: MediaStreamAudioDestinationNode},
+    ac: audio.ECAudioContext,
     input: MediaStream | AudioNode | Worker, wrapper: HTMLElement
 ): Promise<void|Compressor> {
 

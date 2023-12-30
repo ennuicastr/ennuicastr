@@ -47,6 +47,11 @@ export interface Capture {
     worker: Worker,
 
     /**
+     * Backchannels to the worker, if requested.
+     */
+    backChannels: MessagePort[] | null,
+
+    /**
      * Pipe this capture to a playback.
      */
     pipe: (playback: rtennui.AudioPlayback)=>unknown;
@@ -79,6 +84,12 @@ export interface CaptureOptions {
      * Whether to produce a MediaStream as the destination.
      */
     outStream?: boolean;
+
+    /**
+     * How many (if any) backchannels should be provided to the worker, for
+     * e.g. capturing the rendered audio for echo cancellation.
+     */
+    backChannels?: number;
 }
 
 export const capturePlaybackShared = rtennui.audioCapturePlaybackShared;
@@ -86,10 +97,10 @@ export const capturePlaybackShared = rtennui.audioCapturePlaybackShared;
 // A bank of audio contexts for other sample rates
 const sampleRateACs: Record<number, AudioContext> = {};
 
-// Create a capture node
-export async function createCapture(
+// Create an RTEnnui/Weasound capture
+async function rtennuiCapture(
     ac: AudioContext, options: CaptureOptions
-): Promise<Capture> {
+) {
     // Possibly use a different AudioContext
     if (options.matchSampleRate && !capturePlaybackShared()) {
         const ms = <MediaStream> options.input;
@@ -119,7 +130,15 @@ export async function createCapture(
         captureP = input.ecCapture[ac.sampleRate] =
             rtennui.createAudioCapture(ac, input);
     }
-    const capture = await captureP;
+    return {ac, capture: await captureP};
+}
+
+// Create a capture node
+export async function createCapture(
+    ac: AudioContext, options: CaptureOptions
+): Promise<Capture> {
+    // Create an RTEnnui/Weasound capture
+    const {ac: capAC, capture} = await rtennuiCapture(ac, options);
 
     // Create our worker
     const worker = new Worker(workerPath);
@@ -127,12 +146,26 @@ export async function createCapture(
     // Need a channel for them to communicate
     const mc = new MessageChannel();
 
+    // And possibly backchannels as well
+    const bcMC: MessageChannel[] = [];
+    if (options.backChannels) {
+        for (let bci = 0; bci < options.backChannels; bci++)
+            bcMC.push(new MessageChannel());
+    }
+    const bcMP1 = bcMC.length
+        ? bcMC.map(x => x.port1)
+        : null;
+    const bcMP2 = bcMC.length
+        ? bcMC.map(x => x.port2)
+        : null;
+
     // Set up the worker
     const cmd = Object.assign({
-        inSampleRate: ac.sampleRate,
-        port: mc.port2
+        inSampleRate: capAC.sampleRate,
+        port: mc.port2,
+        backChannels: bcMP2
     }, options.workerCommand);
-    worker.postMessage(cmd, [mc.port2]);
+    worker.postMessage(cmd, [mc.port2].concat(bcMP2 || []));
     capture.pipe(mc.port1, true);
 
     // Pipe by making a message channel
@@ -154,9 +187,10 @@ export async function createCapture(
 
     // Done!
     return {
-        ac,
+        ac: capAC,
         rawCapture: capture,
         worker,
+        backChannels: bcMP1,
         pipe,
         disconnect: disconnect
     };

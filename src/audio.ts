@@ -33,9 +33,22 @@ import * as util from "./util";
 import { dce } from "./util";
 import * as vad from "./vad";
 
+// We add our own output to the AudioContext
+export type ECAudioContext = AudioContext & {
+    /**
+     * Destination for all Ennuicastr audio.
+     */
+    ecDestination?: AudioNode;
+
+    /**
+     * Destination as a stream.
+     */
+    ecDestinationStream?: MediaStreamAudioDestinationNode;
+};
+
 /* Audio context. No matter how many audio devices we use, we only have one
  * audio context. */
-export let ac: AudioContext = null;
+export let ac: ECAudioContext = null;
 
 // The Opus or FLAC packets to be handled. Format: [granulePos, data]
 type Packet = [number, DataView];
@@ -397,13 +410,17 @@ export class Audio {
             }
 
             // Make an output for it
-            const msd = (<any> ac).ecDestination =
+            const ecDest = ac.ecDestination =
+                ac.createGain();
+            ecDest.gain.value = 1;
+            const msd = ac.ecDestinationStream =
                 ac.createMediaStreamDestination();
+            ecDest.connect(msd);
 
             // Keep the output from doing anything weird by giving it silence
             const msdSilence = ac.createConstantSource();
             msdSilence.offset.value = 0;
-            msdSilence.connect(msd);
+            msdSilence.connect(ecDest);
             msdSilence.start();
 
             // Start playing it when we're (relatively) sure we can

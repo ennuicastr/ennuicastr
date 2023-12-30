@@ -14,10 +14,14 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-declare let LibAV: any, LibSpecBleach: any, Vosk: any, WebRtcVad: any, __filename: string;
+declare let LibAV: any, LibSpecBleach: any, Vosk: any, WebRtcAec3: any,
+    WebRtcVad: any, __filename: string;
 
 const libavVersion = "4.8.6.0.1";
 const libavPath = "../libav/libav-" + libavVersion + "-ennuicastr.js";
+
+const webRtcAec3Version = "0.2.0";
+const webRtcAec3Path = "../libs/webrtcaec3-" + webRtcAec3Version + ".js";
 
 const libspecbleachVersion = "0.1.7-js1";
 const libspecbleachPath = "../libs/libspecbleach-" + libspecbleachVersion + ".js";
@@ -364,10 +368,13 @@ function doEncoder(msg: any) {
 // Do a live filter
 function doFilter(msg: any) {
     let inHandler: InHandler;
+    let renderHandler: InHandler;
 
     // Get out our info
     const inPort: MessagePort = msg.port;
+    const renderPort: MessagePort = msg.backChannels[0];
     const sampleRate: number = msg.inSampleRate;
+    const renderSampleRate: number = msg.renderSampleRate;
     let useNR: boolean = msg.useNR;
     let sentRecently: boolean = msg.sentRecently;
     let lastVadSensitivity: number = msg.vadSensitivity;
@@ -403,7 +410,11 @@ function doFilter(msg: any) {
     const vadBufSz = 640 /* 20ms at 32000Hz */;
     let vadBuf: Int16Array = null;
     let bi = 0;
-    let nrm: any = null, nr: any = null;
+    let AEC3: any = null, aec3: any = null, aec3Opts: any = null;
+    const aec3AnalyzeOpts = {sampleRateIn: renderSampleRate};
+    let aec3Output: Float32Array;
+    let SpecBleach: any = null, specBleach: any = null;
+    let nroutput: Float32Array;
     let timeout: null|number = null, rtcTimeout: null|number = null;
     const step = sampleRate / 32000;
 
@@ -450,6 +461,15 @@ function doFilter(msg: any) {
         vadDataPtr = vad.malloc(vadBufSz * 2);
         vadBuf = new Int16Array(vad.HEAPU8.buffer, vadDataPtr, vadBufSz * 2);
 
+        // Load echo cancellation
+        WebRtcAec3 = {base: "../libs"};
+        __filename = webRtcAec3Path;
+        importScripts(__filename);
+        return WebRtcAec3.WebRtcAec3();
+
+    }).then(function(ret: any) {
+        AEC3 = ret;
+
         // And load libspecbleach
         LibSpecBleach = {base: "../libs"};
         __filename = libspecbleachPath;
@@ -457,7 +477,7 @@ function doFilter(msg: any) {
         return LibSpecBleach.LibSpecBleach();
 
     }).then(function(ret: any) {
-        nrm = ret;
+        SpecBleach = ret;
 
         // Possibly load Vosk
         if (useTranscription) {
@@ -472,6 +492,7 @@ function doFilter(msg: any) {
 
         // Now we're ready to receive messages
         inHandler = new InHandler(inPort, ondata);
+        renderHandler = new InHandler(renderPort, onRenderData);
 
     }).catch(console.error);
 
@@ -519,22 +540,44 @@ function doFilter(msg: any) {
         }
 
 
-        // Perform noise reduction and output
-        let nrbuf = ib;
-        if (nrm && (!nr || nr.input_buffer.length !== ib.length)) {
-            // OO instance is out of date or nonexistent, make a new one
-            if (nr)
-                nr.free();
-            nr = new nrm.SpecBleach({
+        // Perform echo cancellation
+        let ecbuf = ib;
+        if (AEC3 && !aec3) {
+            aec3 = new AEC3.AEC3(48000, 1, 1);
+            aec3Opts = {
+                sampleRateIn: sampleRate,
+                sampleRateOut: sampleRate
+            };
+        }
+        if (aec3) {
+            const aec3In = [ib];
+            {
+                const sz = aec3.processSize(aec3In, aec3Opts);
+                if (!aec3Output || aec3Output.length !== sz)
+                    aec3Output = new Float32Array(sz);
+            }
+            aec3.process([aec3Output], aec3In, aec3Opts);
+            ecbuf = aec3Output;
+        }
+
+        // Perform noise reduction
+        let nrbuf = ecbuf;
+        if (SpecBleach &&
+            (!specBleach || specBleach.input_buffer.length !== ecbuf.length)) {
+            // NR instance is out of date or nonexistent, make a new one
+            if (specBleach)
+                specBleach.free();
+            specBleach = new SpecBleach.SpecBleach({
                 adaptive: true,
-                block_size: ib.length,
+                block_size: ecbuf.length,
                 sample_rate: sampleRate,
                 reduction_amount: 20,
                 whitening_factor: 50
             });
+            nroutput = new Float32Array(ecbuf.length);
         }
-        if (nr)
-            nrbuf = nr.process(ib);
+        if (specBleach)
+            nrbuf = specBleach.process(ecbuf, nroutput);
 
         // Transfer data for the VAD
         let vadLvl = rawVadLvl;
@@ -696,6 +739,12 @@ function doFilter(msg: any) {
             vosk.outTime = ts / 1000;
             vosk.recognizer.acceptWaveformFloat(ib, sampleRate);
         }
+    }
+
+    // Called when we receive render (output) data, for echo cancellation
+    function onRenderData(ts: number, data: Float32Array[]) {
+        if (aec3)
+            aec3.analyze(data, aec3AnalyzeOpts);
     }
 
     // Handle a vosk result

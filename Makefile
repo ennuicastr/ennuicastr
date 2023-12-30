@@ -2,6 +2,7 @@ PREFIX=inst
 
 LIBAV_VERSION=4.8.6.0.1
 LIBSPECBLEACH_VERSION=0.1.7-js1
+WEBRTCAEC3_VERSION=0.2.0
 VOSK_MODEL_VER=en-us-0.15
 
 OUT=\
@@ -23,7 +24,11 @@ LIBS=\
     libs/libspecbleach-$(LIBSPECBLEACH_VERSION).wasm.js \
     libs/libspecbleach-$(LIBSPECBLEACH_VERSION).wasm.wasm \
     libs/libspecbleach-$(LIBSPECBLEACH_VERSION).simd.js \
-    libs/libspecbleach-$(LIBSPECBLEACH_VERSION).simd.wasm
+    libs/libspecbleach-$(LIBSPECBLEACH_VERSION).simd.wasm \
+    libs/webrtcaec3-$(WEBRTCAEC3_VERSION).js \
+    libs/webrtcaec3-$(WEBRTCAEC3_VERSION).asm.js \
+    libs/webrtcaec3-$(WEBRTCAEC3_VERSION).wasm.js \
+    libs/webrtcaec3-$(WEBRTCAEC3_VERSION).wasm.wasm
 
 DATA=\
     libs/vosk-model-small-$(VOSK_MODEL_VER).tar.gz \
@@ -117,6 +122,12 @@ libs/libspecbleach-%: node_modules/@ennuicastr/libspecbleach.js/dist/libspecblea
 	cp $< $@
 
 node_modules/@ennuicastr/libspecbleach.js/dist/libspecbleach-%: node_modules/.bin/browserify
+	true
+
+libs/webrtcaec3-%: node_modules/@ennuicastr/webrtcaec3.js/dist/webrtcaec3-%
+	cp $< $@
+
+node_modules/@ennuicastr/webrtcaec3.js/dist/webrtcaec3-%: node_modules/.bin/browserify
 	true
 
 Fork-Awesome-$(FKA_VERSION).tar.gz:
