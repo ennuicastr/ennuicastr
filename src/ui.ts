@@ -59,10 +59,6 @@ export const ui = {
     /* The last height we attempted to set */
     lastHeight: -1,
 
-    /* Set by output processing to allow switching between ac.destination and
-     * ac.ecDestination */
-    outprocSetECDestination: <(to: boolean)=>unknown> null,
-
     // Set by output processing to allow setting output volume
     outprocSetPerUserGain: <(target: number, gain: number)=>unknown> null,
 

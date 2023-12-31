@@ -743,28 +743,29 @@ export function mkAudioUI(): string {
     output.device.appendChild(opt);
 
     function outputChange() {
-        const v = output.device.value;
+        let v = output.device.value;
+        if (v === "-default")
+            v = "";
 
         // Set the main audio output
-        if (v === "-default") {
-            ui.outprocSetECDestination(false);
-            return;
-        } else if (ui.audioOutput) {
+        if (ui.audioOutput) {
             try {
                 (<any> ui.audioOutput).setSinkId(v).catch(console.error);
             } catch (ex) {}
-            ui.outprocSetECDestination(true);
         } else {
-            // Just try again
+            // Just try again once ui.audioOutput is available
             setTimeout(outputChange, 100);
             return;
         }
 
         // And all the sounds
-        // FIXME: soundboard sounds
         try {
             (<any> ui.sounds.chimeUp).setSinkId(v).catch(console.error);
             (<any> ui.sounds.chimeDown).setSinkId(v).catch(console.error);
+            for (const url in ui.sounds.soundboard) {
+                const sound = ui.sounds.soundboard[url];
+                (<any> sound.el).setSinkId(v).catch(console.error);
+            }
         } catch (ex) {}
     }
 

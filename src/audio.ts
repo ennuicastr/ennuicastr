@@ -140,6 +140,12 @@ function playStopSound(url: string, status: number, time: number) {
         if (ui.ui.panels.outputConfig) {
             sound.el.volume = (+ui.ui.panels.outputConfig.sfxVolume.value) / 100;
             ui.ui.panels.outputConfig.sfxVolumeHider.style.display = "";
+            try {
+                let v = ui.ui.panels.outputConfig.device.value;
+                if (v === "-default")
+                    v = "";
+                (<any> sound.el).setSinkId(v).catch(console.error);
+            } catch (ex) {}
         }
     }
     const el = sound.el;
@@ -425,14 +431,21 @@ export class Audio {
 
             // Start playing it when we're (relatively) sure we can
             util.events.addEventListener("usermediartcready", () => {
-                if (!ui.ui.audioOutput) {
-                    const a = ui.ui.audioOutput = dce("audio");
+                let a = ui.ui.audioOutput;
+                if (!a) {
+                    a = ui.ui.audioOutput = dce("audio");
                     a.style.display = "none";
                     document.body.appendChild(a);
                 }
 
-                ui.ui.audioOutput.srcObject = msd.stream;
-                ui.ui.audioOutput.play().catch(console.error);
+                a.srcObject = msd.stream;
+                try {
+                    let v = ui.ui.panels.outputConfig.device.value;
+                    if (v === "-default")
+                        v = "";
+                    (<any> a).setSinkId(v).catch(console.error);
+                } catch (ex) {}
+                a.play().catch(console.error);
             });
         }
 
