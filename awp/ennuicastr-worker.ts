@@ -414,6 +414,7 @@ function doFilter(msg: any) {
     const aec3AnalyzeOpts = {sampleRateIn: renderSampleRate};
     let aec3Output: Float32Array;
     let SpecBleach: any = null, specBleach: any = null;
+    let specBleachBufSize: number = 0;
     let nroutput: Float32Array;
     let timeout: null|number = null, rtcTimeout: null|number = null;
     const step = sampleRate / 32000;
@@ -560,24 +561,45 @@ function doFilter(msg: any) {
                 return;
         }
 
+        // Choose an appropriate buffer size for noise reduction
+        if (!specBleachBufSize ||
+            ecbuf.length % specBleachBufSize !== 0) {
+            if (aec3) {
+                specBleachBufSize = ~~(sampleRate / 100);
+                if (ecbuf.length % specBleachBufSize !== 0)
+                    specBleachBufSize = ecbuf.length;
+            } else {
+                specBleachBufSize = ecbuf.length;
+            }
+        }
+
         // Perform noise reduction
         let nrbuf = ecbuf;
         if (SpecBleach &&
-            (!specBleach || specBleach.input_buffer.length !== ecbuf.length)) {
+            (!specBleach ||
+             specBleach.input_buffer.length !== specBleachBufSize)) {
             // NR instance is out of date or nonexistent, make a new one
             if (specBleach)
                 specBleach.free();
             specBleach = new SpecBleach.SpecBleach({
                 adaptive: true,
-                block_size: ecbuf.length,
+                block_size: specBleachBufSize,
                 sample_rate: sampleRate,
                 reduction_amount: 20,
                 whitening_factor: 50
             });
-            nroutput = new Float32Array(ecbuf.length);
         }
-        if (specBleach)
-            nrbuf = specBleach.process(ecbuf, nroutput);
+        if (specBleach) {
+            if (!nroutput || nroutput.length < ecbuf.length)
+                nroutput = new Float32Array(ecbuf.length);
+            for (let i = 0; i < ecbuf.length; i += specBleachBufSize) {
+                specBleach.process(
+                    ecbuf.subarray(i, i + specBleachBufSize),
+                    nroutput.subarray(i, i + specBleachBufSize)
+                );
+            }
+            nrbuf = nroutput.subarray(0, ecbuf.length);
+        }
 
         // Transfer data for the VAD
         let vadLvl = rawVadLvl;
