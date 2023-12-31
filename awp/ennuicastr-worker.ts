@@ -20,7 +20,7 @@ declare let LibAV: any, LibSpecBleach: any, Vosk: any, WebRtcAec3: any,
 const libavVersion = "4.8.6.0.1";
 const libavPath = "../libav/libav-" + libavVersion + "-ennuicastr.js";
 
-const webRtcAec3Version = "0.2.0";
+const webRtcAec3Version = "0.2.1";
 const webRtcAec3Path = "../libs/webrtcaec3-" + webRtcAec3Version + ".js";
 
 const libspecbleachVersion = "0.1.7-js1";
