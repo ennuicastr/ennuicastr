@@ -551,13 +551,13 @@ function doFilter(msg: any) {
         }
         if (aec3) {
             const aec3In = [ib];
-            {
-                const sz = aec3.processSize(aec3In, aec3Opts);
-                if (!aec3Output || aec3Output.length !== sz)
-                    aec3Output = new Float32Array(sz);
-            }
+            const sz = aec3.processSize(aec3In, aec3Opts);
+            if (sz && (!aec3Output || aec3Output.length !== sz))
+                aec3Output = new Float32Array(sz);
             aec3.process([aec3Output], aec3In, aec3Opts);
             ecbuf = aec3Output;
+            if (!sz)
+                return;
         }
 
         // Perform noise reduction
@@ -582,7 +582,7 @@ function doFilter(msg: any) {
         // Transfer data for the VAD
         let vadLvl = rawVadLvl;
         let vadSet = rawVadOn;
-        for (let i = 0; i < ib.length; i += step) {
+        for (let i = 0; i < nrbuf.length; i += step) {
             const v = nrbuf[~~i];
             const a = Math.abs(v);
             curVadVolume += a;
