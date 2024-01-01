@@ -68,6 +68,10 @@ class InProcAudioCapture extends rtennui.AudioCapture {
         return this.rawCapture.getSampleRate();
     }
 
+    override getLatency(): number {
+        return this.rawCapture.getLatency();
+    }
+
     // Overridden on to make sure we know if they want normal data
     override on(ev: string, handler: any) {
         if (ev !== "data")

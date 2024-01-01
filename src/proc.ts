@@ -142,6 +142,8 @@ async function localProcessingWorker(idx: number) {
     const backChannel = await rtennui.createAudioCapture(
         audio.ac, audio.ac.ecDestination
     );
+    audio.ac.ecDestinationDelay.delayTime.value =
+        (backChannel.getLatency() + 5) / 1000;
     backChannel.pipe(cap.backChannels[0], true);
 
     // Accept state updates

@@ -41,6 +41,12 @@ export type ECAudioContext = AudioContext & {
     ecDestination?: AudioNode;
 
     /**
+     * Destination delay before streaming, used to make sure data gets to echo
+     * cancellation before getting to output.
+     */
+    ecDestinationDelay?: DelayNode;
+
+    /**
      * Destination as a stream.
      */
     ecDestinationStream?: MediaStreamAudioDestinationNode;
@@ -416,12 +422,13 @@ export class Audio {
             }
 
             // Make an output for it
-            const ecDest = ac.ecDestination =
-                ac.createGain();
+            const ecDest = ac.ecDestination = ac.createGain();
             ecDest.gain.value = 1;
+            const ecDelay = ac.ecDestinationDelay = ac.createDelay();
+            ecDest.connect(ecDelay);
             const msd = ac.ecDestinationStream =
                 ac.createMediaStreamDestination();
-            ecDest.connect(msd);
+            ecDelay.connect(msd);
 
             // Keep the output from doing anything weird by giving it silence
             const msdSilence = ac.createConstantSource();
