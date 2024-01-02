@@ -1,8 +1,8 @@
 PREFIX=inst
 
 LIBAV_VERSION=4.8.6.0.1
-LIBSPECBLEACH_VERSION=0.1.7-js1
-WEBRTCAEC3_VERSION=0.2.1
+LIBSPECBLEACH_VERSION=0.1.7-js2
+WEBRTCAEC3_VERSION=0.3.0
 VOSK_MODEL_VER=en-us-0.15
 
 OUT=\
@@ -76,7 +76,10 @@ fs/fs.js: src/file-storage-main.ts src/file-storage.ts src/download-stream.ts no
 	./src/build.js $< -s EnnuicastrFileStorage > $@
 
 awp/ennuicastr-worker.js: awp/ennuicastr-worker.ts node_modules/.bin/tsc
-	./node_modules/.bin/tsc --lib es2017,webworker $< --outfile $@.tmp
+	./node_modules/.bin/tsc \
+		--lib es2017,webworker \
+		--module system --moduleResolution node \
+		$< --outfile $@.tmp
 	cat node_modules/@ennuicastr/webrtcvad.js/webrtcvad.js $@.tmp > $@
 	rm -f $@.tmp
 

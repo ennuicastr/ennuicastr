@@ -14,8 +14,16 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-declare let LibAV: any, LibSpecBleach: any, Vosk: any, WebRtcAec3: any,
-    WebRtcVad: any, __filename: string;
+import type LibAVT from "libav.js";
+declare let LibAV: LibAVT.LibAVWrapper;
+
+import type LibSpecBleachT from "@ennuicastr/libspecbleach.js";
+declare let LibSpecBleach: LibSpecBleachT.LibSpecBleachWrapper;
+
+import type WebRtcAec3T from "@ennuicastr/webrtcaec3.js";
+declare let WebRtcAec3: () => Promise<WebRtcAec3T.WebRtcAec3>;
+
+declare let Vosk: any, WebRtcVad: any, __filename: string;
 
 const libavVersion = "4.8.6.0.1";
 const libavPath = "../libav/libav-" + libavVersion + "-ennuicastr.js";
@@ -23,7 +31,7 @@ const libavPath = "../libav/libav-" + libavVersion + "-ennuicastr.js";
 const webRtcAec3Version = "0.2.1";
 const webRtcAec3Path = "../libs/webrtcaec3-" + webRtcAec3Version + ".js";
 
-const libspecbleachVersion = "0.1.7-js1";
+const libspecbleachVersion = "0.1.7-js2";
 const libspecbleachPath = "../libs/libspecbleach-" + libspecbleachVersion + ".js";
 
 // SAB is unreliable on Safari
@@ -263,38 +271,38 @@ function doEncoder(msg: any) {
     let pts = 0;
     let seq = 0;
 
-    let libav: any;
-    const encOptions: any = {
+    let libav: LibAVT.LibAV;
+    const encOptions: LibAVT.AVCodecContextProps = {
         sample_rate: outSampleRate,
         frame_size: outSampleRate * 20 / 1000,
-        channel_layout: outputChannelLayout
+        channel_layout: outputChannelLayout,
+        sample_fmt: libav.AV_SAMPLE_FMT_FLT
     };
 
     let c: number, frame: number, pkt: number;
     let buffersrc_ctx: number, buffersink_ctx: number;
 
     // Load libav
-    LibAV = {nolibavworker: true, base: "../libav"};
+    LibAV = <any> {nolibavworker: true, base: "../libav"};
     __filename = libavPath; // To "trick" wasm loading
     importScripts(__filename);
-    return LibAV.LibAV({noworker: true}).then((la: any) => {
+    return LibAV.LibAV({noworker: true}).then(la => {
         libav = la;
 
         if (format === "flac") {
             encOptions.sample_fmt = libav.AV_SAMPLE_FMT_S32;
         } else {
-            encOptions.sample_fmt = libav.AV_SAMPLE_FMT_FLT;
             encOptions.bit_rate = 128000;
         }
 
         // Create the encoder
         return libav.ff_init_encoder(
-            (format==="flac")?"flac":"libopus", {
+            (format==="flac")?"flac":"libopus", <any> {
                 ctx: encOptions,
                 time_base: [1, outSampleRate]
             });
 
-    }).then((ret: any) => {
+    }).then(ret => {
         c = ret[1];
         frame = ret[2];
         pkt = ret[3];
@@ -304,7 +312,6 @@ function doEncoder(msg: any) {
         return libav.ff_init_filter_graph("anull", {
             sample_rate: inSampleRate,
             sample_fmt: libav.AV_SAMPLE_FMT_FLTP,
-            channels: channelCount,
             channel_layout: channelLayout
         }, {
             sample_rate: encOptions.sample_rate,
@@ -313,7 +320,7 @@ function doEncoder(msg: any) {
             frame_size: encOptions.frame_size
         });
 
-    }).then((ret: any) => {
+    }).then(ret => {
         buffersrc_ctx = ret[1];
         buffersink_ctx = ret[2];
 
@@ -410,10 +417,13 @@ function doFilter(msg: any) {
     const vadBufSz = 640 /* 20ms at 32000Hz */;
     let vadBuf: Int16Array = null;
     let bi = 0;
-    let AEC3: any = null, aec3: any = null, aec3Opts: any = null;
+    let AEC3: WebRtcAec3T.WebRtcAec3 = null,
+        aec3: WebRtcAec3T.AEC3 = null,
+        aec3Opts: WebRtcAec3T.AEC3ProcessOpts = null;
     const aec3AnalyzeOpts = {sampleRateIn: renderSampleRate};
     let aec3Output: Float32Array;
-    let SpecBleach: any = null, specBleach: any = null;
+    let SpecBleach: LibSpecBleachT.LibSpecBleach = null,
+        specBleach: LibSpecBleachT.LibSpecBleachOO = null;
     let specBleachBufSize: number = 0;
     let nroutput: Float32Array;
     let timeout: null|number = null, rtcTimeout: null|number = null;
@@ -463,21 +473,20 @@ function doFilter(msg: any) {
         vadBuf = new Int16Array(vad.HEAPU8.buffer, vadDataPtr, vadBufSz * 2);
 
         // Load echo cancellation
-        WebRtcAec3 = {base: "../libs"};
         __filename = webRtcAec3Path;
         importScripts(__filename);
-        return WebRtcAec3.WebRtcAec3();
+        return WebRtcAec3();
 
-    }).then(function(ret: any) {
+    }).then(function(ret) {
         AEC3 = ret;
 
         // And load libspecbleach
-        LibSpecBleach = {base: "../libs"};
+        LibSpecBleach = <any> {base: "../libs"};
         __filename = libspecbleachPath;
         importScripts(__filename);
         return LibSpecBleach.LibSpecBleach();
 
-    }).then(function(ret: any) {
+    }).then(function(ret) {
         SpecBleach = ret;
 
         // Possibly load Vosk
@@ -828,12 +837,12 @@ function doOutproc(msg: any) {
     const inPort: MessagePort = msg.port;
     const sampleRate: number = msg.inSampleRate;
 
-    let la: any, frame: number, pts = 0;
+    let la: LibAVT.LibAV, frame: number, pts = 0;
     let buffersrc_ctx = 0, buffersink_ctx = 0;
 
     // Load libav in the background
     (async () => {
-        LibAV = {nolibavworker: true, base: "../libav"};
+        LibAV = <any> {nolibavworker: true, base: "../libav"};
         __filename = libavPath; // To "trick" wasm loading
         importScripts(__filename);
 
@@ -844,12 +853,10 @@ function doOutproc(msg: any) {
             await la.ff_init_filter_graph("dynaudnorm=f=10:g=3", {
                 sample_rate: sampleRate,
                 sample_fmt: la.AV_SAMPLE_FMT_FLT,
-                channels: 1,
                 channel_layout: 4
             }, {
                 sample_rate: sampleRate,
                 sample_fmt: la.AV_SAMPLE_FMT_FLT,
-                channels: 1,
                 channel_layout: 4,
                 frame_size: 128
             });
@@ -897,8 +904,8 @@ function doOutproc(msg: any) {
 
         if (doCompress && buffersink_ctx) {
             // Run it through the compressor
-            const inFrames = [{
-                data: ib,
+            const inFrames: LibAVT.Frame[] = [{
+                data: <any> ib,
                 channels: 1,
                 channel_layout: 4,
                 format: la.AV_SAMPLE_FMT_FLT,
@@ -912,7 +919,7 @@ function doOutproc(msg: any) {
 
             ob = [];
             for (let fi = 0; fi < frames.length; fi++) {
-                const frame = [frames[fi].data];
+                const frame = [<any> frames[fi].data];
                 while (frame.length < data.length)
                     frame.push(frame[0]);
                 ob.push(frame);
