@@ -26,9 +26,8 @@ LIBS=\
     libs/libspecbleach-$(LIBSPECBLEACH_VERSION).simd.js \
     libs/libspecbleach-$(LIBSPECBLEACH_VERSION).simd.wasm \
     libs/webrtcaec3-$(WEBRTCAEC3_VERSION).js \
-    libs/webrtcaec3-$(WEBRTCAEC3_VERSION).asm.js \
-    libs/webrtcaec3-$(WEBRTCAEC3_VERSION).wasm.js \
-    libs/webrtcaec3-$(WEBRTCAEC3_VERSION).wasm.wasm
+    libs/webrtcaec3-$(WEBRTCAEC3_VERSION).wasm \
+    libs/webrtcaec3-$(WEBRTCAEC3_VERSION).wasm.js
 
 DATA=\
     libs/vosk-model-small-$(VOSK_MODEL_VER).tar.gz \
