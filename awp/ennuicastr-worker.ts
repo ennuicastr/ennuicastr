@@ -335,27 +335,30 @@ async function doEncoder(msg: any) {
         }];
         pts += data[0].length;
 
-        p = p.then(() => {
+        p = p.then(async () => {
             // Filter
-            return libav.ff_filter_multi(buffersrc_ctx, buffersink_ctx, frame, frames);
+            const filterFrames = await libav.ff_filter_multi(
+                buffersrc_ctx, buffersink_ctx, frame, frames
+            );
+            if (filterFrames.length === 0)
+                return;
 
-        }).then(frames => {
             // Encode
-            if (frames.length === 0)
-                return [];
-            return libav.ff_encode_multi(c, frame, pkt, frames);
-
-        }).then(encPackets => {
+            const encPackets = await libav.ff_encode_multi(
+                c, frame, pkt, filterFrames
+            );
             if (encPackets.length === 0)
                 return;
 
             // They only need the raw data
-            const packets = [];
+            const packets: Uint8Array[] = [];
             for (let pi = 0; pi < encPackets.length; pi++)
                 packets.push(encPackets[pi].data);
 
             // Send the encoded packets to the *host*
-            postMessage({c: "packets", t: Date.now() - ts, ts: ts, s: seq, d: packets});
+            postMessage({
+                c: "packets", t: Date.now() - ts, ts: ts, s: seq, d: packets
+            });
             seq += packets.length;
 
         }).catch(console.error);
@@ -483,19 +486,19 @@ async function doFilter(msg: any) {
     renderHandler = new InHandler(renderPort, onRenderData);
 
     // Load the Vosk model in the background
-    function loadVosk() {
-        Vosk.createModel(voskModelPath).then(ret => {
-            vosk.model = ret;
-            vosk.recognizer = new vosk.model.KaldiRecognizer(sampleRate);
-            vosk.recognizer.setWords(true);
+    async function loadVosk() {
+        const model = await Vosk.createModel(voskModelPath);
 
-            vosk.recognizer.on("partialresult", msg => {
-                voskResult(msg, false);
-            });
-            vosk.recognizer.on("result", msg => {
-                voskResult(msg, true);
-            });
-        }).catch(console.error);
+        vosk.model = model;
+        vosk.recognizer = new vosk.model.KaldiRecognizer(sampleRate);
+        vosk.recognizer.setWords(true);
+
+        vosk.recognizer.on("partialresult", msg => {
+            voskResult(msg, false);
+        });
+        vosk.recognizer.on("result", msg => {
+            voskResult(msg, true);
+        });
     }
 
     // Called when we receive real data
