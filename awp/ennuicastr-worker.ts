@@ -256,7 +256,7 @@ onmessage = function(ev) {
 }
 
 // Encode with libav
-function doEncoder(msg: any) {
+async function doEncoder(msg: any) {
     const inPort: MessagePort = msg.port;
     const inSampleRate: number = msg.inSampleRate || 48000;
     const outSampleRate: number = msg.outSampleRate || 48000;
@@ -272,7 +272,6 @@ function doEncoder(msg: any) {
     let seq = 0;
 
     let libav: LibAVT.LibAV;
-    let encOptions: LibAVT.AVCodecContextProps;
 
     let c: number, frame: number, pkt: number;
     let buffersrc_ctx: number, buffersink_ctx: number;
@@ -281,37 +280,32 @@ function doEncoder(msg: any) {
     LibAV = <any> {nolibavworker: true, base: "../libav"};
     __filename = libavPath; // To "trick" wasm loading
     importScripts(__filename);
-    return LibAV.LibAV({noworker: true}).then(la => {
-        libav = la;
 
-        encOptions = {
-            sample_rate: outSampleRate,
-            frame_size: outSampleRate * 20 / 1000,
-            channel_layout: outputChannelLayout,
-            sample_fmt: libav.AV_SAMPLE_FMT_FLT
-        };
+    libav = await LibAV.LibAV({noworker: true});
 
-        if (format === "flac") {
-            encOptions.sample_fmt = libav.AV_SAMPLE_FMT_S32;
-        } else {
-            encOptions.bit_rate = 128000;
-        }
+    const encOptions: LibAVT.AVCodecContextProps = {
+        sample_rate: outSampleRate,
+        frame_size: outSampleRate * 20 / 1000,
+        channel_layout: outputChannelLayout,
+        sample_fmt: libav.AV_SAMPLE_FMT_FLT
+    };
 
-        // Create the encoder
-        return libav.ff_init_encoder(
-            (format==="flac")?"flac":"libopus", <any> {
-                ctx: encOptions,
-                time_base: [1, outSampleRate]
-            });
+    if (format === "flac") {
+        encOptions.sample_fmt = libav.AV_SAMPLE_FMT_S32;
+    } else {
+        encOptions.bit_rate = 128000;
+    }
 
-    }).then(ret => {
-        c = ret[1];
-        frame = ret[2];
-        pkt = ret[3];
-        encOptions.frame_size = ret[4];
+    // Create the encoder
+    [, c, frame, pkt, encOptions.frame_size] = await libav.ff_init_encoder(
+        (format==="flac")?"flac":"libopus", <any> {
+            ctx: encOptions,
+            time_base: [1, outSampleRate]
+        });
 
-        // Create the filter
-        return libav.ff_init_filter_graph("anull", {
+    // Create the filter
+    [, buffersrc_ctx, buffersink_ctx] =
+        await libav.ff_init_filter_graph("anull", {
             sample_rate: inSampleRate,
             sample_fmt: libav.AV_SAMPLE_FMT_FLTP,
             channel_layout: channelLayout
@@ -322,14 +316,8 @@ function doEncoder(msg: any) {
             frame_size: encOptions.frame_size
         });
 
-    }).then(ret => {
-        buffersrc_ctx = ret[1];
-        buffersink_ctx = ret[2];
-
-        // Now we're prepared for input
-        new InHandler(inPort, ondata);
-
-    }).catch(console.error);
+    // Now we're prepared for input
+    new InHandler(inPort, ondata);
 
     function ondata(ts: number, data: Float32Array[]) {
         // Put it in libav format
