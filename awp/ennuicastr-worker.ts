@@ -28,7 +28,7 @@ declare let Vosk: any, WebRtcVad: any, __filename: string;
 const libavVersion = "4.8.6.0.1";
 const libavPath = "../libav/libav-" + libavVersion + "-ennuicastr.js";
 
-const webRtcAec3Version = "0.2.1";
+const webRtcAec3Version = "0.3.0";
 const webRtcAec3Path = "../libs/webrtcaec3-" + webRtcAec3Version + ".js";
 
 const libspecbleachVersion = "0.1.7-js2";
@@ -272,12 +272,7 @@ function doEncoder(msg: any) {
     let seq = 0;
 
     let libav: LibAVT.LibAV;
-    const encOptions: LibAVT.AVCodecContextProps = {
-        sample_rate: outSampleRate,
-        frame_size: outSampleRate * 20 / 1000,
-        channel_layout: outputChannelLayout,
-        sample_fmt: libav.AV_SAMPLE_FMT_FLT
-    };
+    let encOptions: LibAVT.AVCodecContextProps;
 
     let c: number, frame: number, pkt: number;
     let buffersrc_ctx: number, buffersink_ctx: number;
@@ -288,6 +283,13 @@ function doEncoder(msg: any) {
     importScripts(__filename);
     return LibAV.LibAV({noworker: true}).then(la => {
         libav = la;
+
+        encOptions = {
+            sample_rate: outSampleRate,
+            frame_size: outSampleRate * 20 / 1000,
+            channel_layout: outputChannelLayout,
+            sample_fmt: libav.AV_SAMPLE_FMT_FLT
+        };
 
         if (format === "flac") {
             encOptions.sample_fmt = libav.AV_SAMPLE_FMT_S32;
@@ -373,7 +375,7 @@ function doEncoder(msg: any) {
 }
 
 // Do a live filter
-function doFilter(msg: any) {
+async function doFilter(msg: any) {
     let inHandler: InHandler;
     let renderHandler: InHandler;
 
@@ -443,68 +445,54 @@ function doFilter(msg: any) {
     let curVadVolume = 0, curVadPeak = 0;
     let lastVolume = 0, lastPeak = 0;
 
-    // Load everything
-    Promise.all([]).then(function() {
-        // Load the VAD
-        return WebRtcVad();
+    // Load the VAD
+    vad = await WebRtcVad();
 
-    }).then(function(ret: any) {
-        vad = ret;
-
-        // Create our WebRTC vad
-        function mkVad(lvl) {
-            let vadHandle: number = vad.Create();
-            if (vadHandle === 0) {
-                postMessage({c: "log", i: "failvad", m: "Failed to create VAD."});
-                throw new Error();
-            }
-            if (vad.Init(vadHandle) < 0) {
-                postMessage({c: "log", i: "failvad", m: "Failed to initialize VAD."});
-                throw new Error();
-            }
-            vad.set_mode(vadHandle, lvl);
-            return vadHandle;
+    // Create our WebRTC vad
+    function mkVad(lvl) {
+        let vadHandle: number = vad.Create();
+        if (vadHandle === 0) {
+            postMessage({c: "log", i: "failvad", m: "Failed to create VAD."});
+            throw new Error();
         }
-        vadHandleLo = mkVad(vadSensitivity);
-        lastVadSensitivity = vadSensitivity;
-        vadHandleHi = mkVad(3);
-
-        vadDataPtr = vad.malloc(vadBufSz * 2);
-        vadBuf = new Int16Array(vad.HEAPU8.buffer, vadDataPtr, vadBufSz * 2);
-
-        // Load echo cancellation
-        __filename = webRtcAec3Path;
-        importScripts(__filename);
-        return WebRtcAec3();
-
-    }).then(function(ret) {
-        AEC3 = ret;
-
-        // And load libspecbleach
-        LibSpecBleach = <any> {base: "../libs"};
-        __filename = libspecbleachPath;
-        importScripts(__filename);
-        return LibSpecBleach.LibSpecBleach();
-
-    }).then(function(ret) {
-        SpecBleach = ret;
-
-        // Possibly load Vosk
-        if (useTranscription) {
-            __filename = "../libs/vosk.js?v=3";
-            importScripts(__filename);
+        if (vad.Init(vadHandle) < 0) {
+            postMessage({c: "log", i: "failvad", m: "Failed to initialize VAD."});
+            throw new Error();
         }
+        vad.set_mode(vadHandle, lvl);
+        return vadHandle;
+    }
+    vadHandleLo = mkVad(vadSensitivity);
+    lastVadSensitivity = vadSensitivity;
+    vadHandleHi = mkVad(3);
 
-    }).then(function() {
-        // If we loaded Vosk, it can finish loading in the background
-        if (useTranscription)
-            loadVosk();
+    vadDataPtr = vad.malloc(vadBufSz * 2);
+    vadBuf = new Int16Array(vad.HEAPU8.buffer, vadDataPtr, vadBufSz * 2);
 
-        // Now we're ready to receive messages
-        inHandler = new InHandler(inPort, ondata);
-        renderHandler = new InHandler(renderPort, onRenderData);
+    // Load echo cancellation
+    __filename = webRtcAec3Path;
+    importScripts(__filename);
+    AEC3 = await WebRtcAec3();
 
-    }).catch(console.error);
+    // And load libspecbleach
+    LibSpecBleach = <any> {base: "../libs"};
+    __filename = libspecbleachPath;
+    importScripts(__filename);
+    SpecBleach = await LibSpecBleach.LibSpecBleach();
+
+    // Possibly load Vosk
+    if (useTranscription) {
+        __filename = "../libs/vosk.js?v=3";
+        importScripts(__filename);
+    }
+
+    // If we loaded Vosk, it can finish loading in the background
+    if (useTranscription)
+        loadVosk();
+
+    // Now we're ready to receive messages
+    inHandler = new InHandler(inPort, ondata);
+    renderHandler = new InHandler(renderPort, onRenderData);
 
     // Load the Vosk model in the background
     function loadVosk() {

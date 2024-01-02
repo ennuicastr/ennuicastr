@@ -76,11 +76,13 @@ fs/fs.js: src/file-storage-main.ts src/file-storage.ts src/download-stream.ts no
 
 awp/ennuicastr-worker.js: awp/ennuicastr-worker.ts node_modules/.bin/tsc
 	./node_modules/.bin/tsc \
-		--lib es2017,webworker \
-		--module system --moduleResolution node \
-		$< --outfile $@.tmp
-	cat node_modules/@ennuicastr/webrtcvad.js/webrtcvad.js $@.tmp > $@
-	rm -f $@.tmp
+		--lib es2017,webworker --esModuleInterop true \
+		$<
+	( \
+		cat node_modules/@ennuicastr/webrtcvad.js/webrtcvad.js ; \
+		grep -v __esModule $@ \
+	) > $@.tmp
+	mv $@.tmp $@
 
 awp/ennuicastr-worker-test.js: awp/ennuicastr-worker.ts node_modules/.bin/tsc
 	./node_modules/.bin/tsc --lib es2017,webworker $< --outfile $@.tmp
