@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2021 Yahweasel
+ * Copyright (c) 2018-2024 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -47,6 +47,9 @@
 
             // Caption
             "caption": 0x33,
+
+            // Extended data, e.g. second track
+            "datax": 0x34,
 
             // Monitoring
             "user": 0x40,
@@ -138,6 +141,13 @@
                     "complete": 5,
                     "text": 6
                 }
+            },
+
+            "datax": {
+                "length": 16,
+                "granulePos": 4,
+                "track": 12,
+                "packet": 16
             },
 
             "user": {

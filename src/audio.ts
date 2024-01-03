@@ -56,8 +56,12 @@ export type ECAudioContext = AudioContext & {
  * audio context. */
 export let ac: ECAudioContext = null;
 
-// The Opus or FLAC packets to be handled. Format: [granulePos, data]
-type Packet = [number, DataView];
+// The Opus or FLAC packets to be handled.
+type Packet = {
+    ts: number,
+    trackNo: number,
+    data: DataView
+};
 
 // Our offset is updated every so often by the ping socket
 export let timeOffset: null|number = null;
@@ -125,7 +129,7 @@ function adjustTime(packet: Packet) {
     }
 
     // And adjust the time
-    return Math.round(packet[0] + timeOffset*48);
+    return Math.round(packet.ts + timeOffset*48);
 }
 
 // Play or stop a sound
@@ -262,6 +266,9 @@ export class Audio {
     // The audio device being read
     userMedia: MediaStream = null;
 
+    // The encoder for this device
+    userMediaEncoder: capture.Capture = null;
+
     // The capture of this device, used for RTC
     userMediaCapture: capture.Capture = null;
 
@@ -325,6 +332,7 @@ export class Audio {
         if (this.userMedia) {
             this.userMedia.getTracks().forEach(track => track.stop());
             this.userMedia = null;
+            this.userMediaEncoder = null;
             if (this.userMediaCapture) {
                 // The disconnection of the whole line happens in proc.ts
                 this.userMediaCapture.disconnect();
@@ -584,6 +592,7 @@ export class Audio {
         return capture.createCapture(ac, {
             input: this.userMedia,
             matchSampleRate: true,
+            backChannels: 1, // for echo-cancelled data
             workerCommand: {
                 c: "encoder",
                 outSampleRate: sampleRate,
@@ -591,7 +600,8 @@ export class Audio {
                 channelLayout: channelLayout,
                 channelCount: channelCount,
                 channel: this.channel,
-                outputChannelLayout: this.encodingChannelLayout
+                outputChannelLayout: this.encodingChannelLayout,
+                backChannelTracks: [0x80000000]
             }
 
         }).then(capture => {
@@ -611,17 +621,28 @@ export class Audio {
 
                 // Add them to our own packet buffer
                 for (let pi = 0; pi < p.length; pi++) {
-                    this.packets.push([pktTime, new DataView(p[pi].buffer)]);
+                    this.packets.push({
+                        ts: pktTime,
+                        trackNo: msg.track,
+                        data: new DataView(p[pi].buffer)
+                    });
                     pktTime += 960;
                 }
 
                 // Check for sequence issues
-                if (msg.s > last)
-                    net.errorHandler("Sequence error! " + msg.s + " " + last);
-                last = msg.s + p.length;
+                if (!msg.track) {
+                    if (msg.s > last)
+                        net.errorHandler("Sequence error! " + msg.s + " " + last);
+                    last = msg.s + p.length;
+                }
 
                 this.handlePackets();
             };
+
+            this.userMediaEncoder = capture;
+
+            // Inform others that this is ready
+            util.dispatchEvent("usermediaencoderready" + this.idx, {idx: this.idx});
 
             // Terminate when user media stops
             util.events.addEventListener("usermediastopped" + this.idx, capture.disconnect, {once: true});
@@ -635,7 +656,7 @@ export class Audio {
     private handlePackets() {
         if (!this.packets.length || timeOffset === null) return;
 
-        const curGranulePos = this.packets[this.packets.length-1][0];
+        const curGranulePos = this.packets[this.packets.length-1].ts;
         net.setTransmitting(true);
 
         // We have *something* to handle
@@ -650,22 +671,30 @@ export class Audio {
         }
 
         if (!vad.vads[this.idx].vadOn) {
-            // Drop any sufficiently old packets, or send them marked as silence in continuous mode
+            /* Drop any sufficiently old packets, or send them marked as
+             * silence in continuous mode */
             const old = curGranulePos - vad.vadExtension*48;
-            while (this.packets[0][0] < old) {
+            while (this.packets[0].ts < old) {
                 const packet = this.packets.shift();
+
+                // Ignore non-primary tracks
+                if (packet.trackNo && !config.useContinuous)
+                    continue;
+
                 const granulePos = adjustTime(packet);
                 if (granulePos < 0)
                     continue;
                 if (config.useContinuous || this.sendSilence > 0) {
                     /* Send it in VAD-off mode */
-                    this.sendPacket(granulePos, packet[1], 0);
+                    this.sendPacket(
+                        packet.trackNo, granulePos, packet.data, 0
+                    );
                     this.sendSilence--;
 
                 } else if (this.sentZeroes < 3) {
                     /* Send an empty packet in its stead */
                     if (granulePos < 0) continue;
-                    this.sendPacket(granulePos, this.zeroPacket, 0);
+                    this.sendPacket(0, granulePos, this.zeroPacket, 0);
                     this.sentZeroes++;
                 }
             }
@@ -675,13 +704,13 @@ export class Audio {
 
             // VAD is on, so send packets
             this.packets.forEach((packet) => {
-                const data = packet[1];
+                const data = packet.data;
 
                 const granulePos = adjustTime(packet);
                 if (granulePos < 0)
                     return;
 
-                this.sendPacket(granulePos, data, vadVal);
+                this.sendPacket(packet.trackNo, granulePos, data, vadVal);
             });
 
             this.sentZeroes = 0;
@@ -691,16 +720,23 @@ export class Audio {
     }
 
     // Send an audio packet
-    private sendPacket(granulePos: number, data: {buffer: ArrayBuffer}, vadVal: number) {
-        const p = prot.parts.data;
-        const msg = new DataView(new ArrayBuffer(p.length + (config.useContinuous?1:0) + data.buffer.byteLength));
-        msg.setUint32(0, prot.ids.data, true);
+    private sendPacket(
+        trackNo: number, granulePos: number, data: {buffer: ArrayBuffer},
+        vadVal: number
+    ) {
+        let p = trackNo ? prot.parts.datax : prot.parts.data;
+        const msg = new DataView(new ArrayBuffer(
+            p.length + (config.useContinuous?1:0) + data.buffer.byteLength));
+        msg.setUint32(0, trackNo ? prot.ids.datax : prot.ids.data, true);
+        if (trackNo)
+            msg.setUint32(p.track, trackNo, true);
         msg.setUint32(p.granulePos, granulePos & 0xFFFFFFFF, true);
         msg.setUint16(p.granulePos + 4, (granulePos / 0x100000000) & 0xFFFF, true);
         if (config.useContinuous)
             msg.setUint8(p.packet, vadVal);
         const data8 = new Uint8Array(data.buffer);
-        (new Uint8Array(msg.buffer)).set(data8, p.packet + (config.useContinuous?1:0));
+        (new Uint8Array(msg.buffer)).set(
+            data8, p.packet + (config.useContinuous?1:0));
         net.dataSock.send(msg.buffer);
     }
 

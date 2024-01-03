@@ -256,7 +256,7 @@ onmessage = function(ev) {
 }
 
 // Encode with libav
-async function doEncoder(msg: any) {
+function doEncoder(msg: any) {
     const inPort: MessagePort = msg.port;
     const inSampleRate: number = msg.inSampleRate || 48000;
     const outSampleRate: number = msg.outSampleRate || 48000;
@@ -267,101 +267,114 @@ async function doEncoder(msg: any) {
     let channel: number = (typeof msg.channel === "number") ? msg.channel : -1;
     let outputChannelLayout: number = (typeof msg.outputChannelLayout === "number") ? msg.outputChannelLayout : 4;
 
-    let p: Promise<unknown> = Promise.all([]);
-    let pts = 0;
-    let seq = 0;
+    // Run once for each requested track
+    const tracks: number[] = msg.backChannelTracks || [];
+    encoderTrack(inPort, 0);
+    for (let bci = 0; bci < tracks.length; bci++)
+        encoderTrack(msg.backChannels[bci], tracks[bci]);
 
-    let libav: LibAVT.LibAV;
+    async function encoderTrack(port: MessagePort, trackNo: number) {
+        let p: Promise<unknown> = Promise.all([]);
+        let pts = 0;
+        let seq = 0;
 
-    let c: number, frame: number, pkt: number;
-    let buffersrc_ctx: number, buffersink_ctx: number;
+        let libav: LibAVT.LibAV;
 
-    // Load libav
-    LibAV = <any> {nolibavworker: true, base: "../libav"};
-    __filename = libavPath; // To "trick" wasm loading
-    importScripts(__filename);
+        let c: number, frame: number, pkt: number;
+        let buffersrc_ctx: number, buffersink_ctx: number;
 
-    libav = await LibAV.LibAV({noworker: true});
+        // Load libav
+        LibAV = <any> {nolibavworker: true, base: "../libav"};
+        __filename = libavPath; // To "trick" wasm loading
+        importScripts(__filename);
 
-    const encOptions: LibAVT.AVCodecContextProps = {
-        sample_rate: outSampleRate,
-        frame_size: outSampleRate * 20 / 1000,
-        channel_layout: outputChannelLayout,
-        sample_fmt: libav.AV_SAMPLE_FMT_FLT
-    };
+        libav = await LibAV.LibAV({noworker: true});
 
-    if (format === "flac") {
-        encOptions.sample_fmt = libav.AV_SAMPLE_FMT_S32;
-    } else {
-        encOptions.bit_rate = 128000;
-    }
-
-    // Create the encoder
-    [, c, frame, pkt, encOptions.frame_size] = await libav.ff_init_encoder(
-        (format==="flac")?"flac":"libopus", <any> {
-            ctx: encOptions,
-            time_base: [1, outSampleRate]
-        });
-
-    // Create the filter
-    [, buffersrc_ctx, buffersink_ctx] =
-        await libav.ff_init_filter_graph("anull", {
-            sample_rate: inSampleRate,
-            sample_fmt: libav.AV_SAMPLE_FMT_FLTP,
-            channel_layout: channelLayout
-        }, {
-            sample_rate: encOptions.sample_rate,
-            sample_fmt: encOptions.sample_fmt,
+        const encOptions: LibAVT.AVCodecContextProps = {
+            sample_rate: outSampleRate,
+            frame_size: outSampleRate * 20 / 1000,
             channel_layout: outputChannelLayout,
-            frame_size: encOptions.frame_size
-        });
+            sample_fmt: libav.AV_SAMPLE_FMT_FLT
+        };
 
-    // Now we're prepared for input
-    new InHandler(inPort, ondata);
+        if (format === "flac") {
+            encOptions.sample_fmt = libav.AV_SAMPLE_FMT_S32;
+        } else {
+            encOptions.bit_rate = 128000;
+        }
 
-    function ondata(ts: number, data: Float32Array[]) {
-        // Put it in libav format
-        if (channel >= 0 && data.length > channel)
-            data = [data[channel]];
-        while (data.length < channelCount)
-            data = data.concat(data);
-        const frames = [{
-            data: data,
-            channels: channelCount,
-            channel_layout: channelLayout,
-            format: libav.AV_SAMPLE_FMT_FLTP,
-            pts: pts,
-            sample_rate: inSampleRate
-        }];
-        pts += data[0].length;
-
-        p = p.then(async () => {
-            // Filter
-            const filterFrames = await libav.ff_filter_multi(
-                buffersrc_ctx, buffersink_ctx, frame, frames
-            );
-            if (filterFrames.length === 0)
-                return;
-
-            // Encode
-            const encPackets = await libav.ff_encode_multi(
-                c, frame, pkt, filterFrames
-            );
-            if (encPackets.length === 0)
-                return;
-
-            // They only need the raw data
-            const packets: Uint8Array[] = [];
-            for (let pi = 0; pi < encPackets.length; pi++)
-                packets.push(encPackets[pi].data);
-
-            // Send the encoded packets to the *host*
-            postMessage({
-                c: "packets", t: Date.now() - ts, ts: ts, s: seq, d: packets
+        // Create the encoder
+        [, c, frame, pkt, encOptions.frame_size] = await libav.ff_init_encoder(
+            (format==="flac")?"flac":"libopus", <any> {
+                ctx: encOptions,
+                time_base: [1, outSampleRate]
             });
-            seq += packets.length;
 
-        }).catch(console.error);
+        // Create the filter
+        [, buffersrc_ctx, buffersink_ctx] =
+            await libav.ff_init_filter_graph("anull", {
+                sample_rate: inSampleRate,
+                sample_fmt: libav.AV_SAMPLE_FMT_FLTP,
+                channel_layout: channelLayout
+            }, {
+                sample_rate: encOptions.sample_rate,
+                sample_fmt: encOptions.sample_fmt,
+                channel_layout: outputChannelLayout,
+                frame_size: encOptions.frame_size
+            });
+
+        // Now we're prepared for input
+        new InHandler(port, ondata);
+
+        function ondata(ts: number, data: Float32Array[]) {
+            // Put it in libav format
+            if (channel >= 0 && data.length > channel)
+                data = [data[channel]];
+            while (data.length < channelCount)
+                data = data.concat(data);
+            const frames = [{
+                data: data,
+                channels: channelCount,
+                channel_layout: channelLayout,
+                format: libav.AV_SAMPLE_FMT_FLTP,
+                pts: pts,
+                sample_rate: inSampleRate
+            }];
+            pts += data[0].length;
+
+            p = p.then(async () => {
+                // Filter
+                const filterFrames = await libav.ff_filter_multi(
+                    buffersrc_ctx, buffersink_ctx, frame, frames
+                );
+                if (filterFrames.length === 0)
+                    return;
+
+                // Encode
+                const encPackets = await libav.ff_encode_multi(
+                    c, frame, pkt, filterFrames
+                );
+                if (encPackets.length === 0)
+                    return;
+
+                // They only need the raw data
+                const packets: Uint8Array[] = [];
+                for (let pi = 0; pi < encPackets.length; pi++)
+                    packets.push(encPackets[pi].data);
+
+                // Send the encoded packets to the *host*
+                postMessage({
+                    c: "packets",
+                    t: Date.now() - ts,
+                    ts: ts,
+                    s: seq,
+                    track: trackNo,
+                    d: packets
+                });
+                seq += packets.length;
+
+            }).catch(console.error);
+        }
     }
 }
 
@@ -387,12 +400,18 @@ async function doFilter(msg: any) {
     // Let them update it
     addEventListener("message", ev => {
         const msg = ev.data;
-        if (msg.c !== "state") return;
-        useNR = msg.useNR;
-        sentRecently = msg.sentRecently;
-        vadSensitivity = msg.vadSensitivity;
-        vadNoiseGate = msg.vadNoiseGate;
-        vadNoiseGateLvl = Math.pow(10, vadNoiseGate / 20);
+        if (msg.c === "state") {
+            useNR = msg.useNR;
+            sentRecently = msg.sentRecently;
+            vadSensitivity = msg.vadSensitivity;
+            vadNoiseGate = msg.vadNoiseGate;
+            vadNoiseGateLvl = Math.pow(10, vadNoiseGate / 20);
+
+        } else if (msg.c === "ecdata") {
+            // A port to shuttle echo-cancelled data
+            aec3OutHandler = new OutHandler(msg.port, true);
+
+        }
     });
 
     // State for transfer to the host
@@ -415,6 +434,7 @@ async function doFilter(msg: any) {
         aec3Opts: WebRtcAec3T.AEC3ProcessOpts = null;
     const aec3AnalyzeOpts = {sampleRateIn: renderSampleRate};
     let aec3Output: Float32Array;
+    let aec3OutHandler: OutHandler = null;
     let SpecBleach: LibSpecBleachT.LibSpecBleach = null,
         specBleach: LibSpecBleachT.LibSpecBleachOO = null;
     let specBleachBufSize: number = 0;
@@ -548,6 +568,10 @@ async function doFilter(msg: any) {
             if (!sz)
                 return;
         }
+
+        // Output the echo cancel on its own port
+        if (aec3OutHandler)
+            aec3OutHandler.send([ecbuf]);
 
         // Choose an appropriate buffer size for noise reduction
         if (!specBleachBufSize ||

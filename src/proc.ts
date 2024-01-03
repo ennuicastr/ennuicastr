@@ -138,13 +138,31 @@ async function localProcessingWorker(idx: number) {
     let lastVadSensitivity = vadSensitivity;
     let lastVadNoiseGate = vadNoiseGate;
 
-    // Prepare the backchannel
+    // Prepare the backchannel (rendered output)
     const backChannel = await rtennui.createAudioCapture(
         audio.ac, audio.ac.ecDestination
     );
     audio.ac.ecDestinationDelay.delayTime.value =
         (backChannel.getLatency() + 5) / 1000;
     backChannel.pipe(cap.backChannels[0], true);
+
+    // Prepare the encoding backchannel (encode echo-cancelled data)
+    Promise.all([]).then(async () => {
+        if (!audio.inputs[idx].userMediaEncoder) {
+            // Wait for the encoder to be ready
+            await new Promise(res => {
+                util.events.addEventListener(
+                    "usermediaencoderready" + idx,
+                    res, {once: true});
+            });
+        }
+
+        const port = audio.inputs[idx].userMediaEncoder.backChannels[0];
+        cap.worker.postMessage({
+            c: "ecdata",
+            port
+        }, [port]);
+    }).catch(net.promiseFail());
 
     // Accept state updates
     cap.worker.onmessage = function(ev) {
