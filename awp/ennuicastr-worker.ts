@@ -388,6 +388,7 @@ async function doFilter(msg: any) {
     const renderPort: MessagePort = msg.backChannels[0];
     const sampleRate: number = msg.inSampleRate;
     const renderSampleRate: number = msg.renderSampleRate;
+    let useEC: boolean = msg.useEC;
     let useNR: boolean = msg.useNR;
     let sentRecently: boolean = msg.sentRecently;
     let lastVadSensitivity: number = msg.vadSensitivity;
@@ -401,6 +402,7 @@ async function doFilter(msg: any) {
     addEventListener("message", ev => {
         const msg = ev.data;
         if (msg.c === "state") {
+            useEC = msg.useEC;
             useNR = msg.useNR;
             sentRecently = msg.sentRecently;
             vadSensitivity = msg.vadSensitivity;
@@ -573,20 +575,28 @@ async function doFilter(msg: any) {
         if (aec3OutHandler)
             aec3OutHandler.send([ecbuf]);
 
+        let nrin = ecbuf;
+        if (!useEC && useNR) {
+            /* If we're actually using the noise-reduced output but not using
+             * the echo-cancelled output, we can't use the echo cancellation as
+             * input, or we'd need to noise-reduce in a separate step. */
+            nrin = ib;
+        }
+
         // Choose an appropriate buffer size for noise reduction
         if (!specBleachBufSize ||
-            ecbuf.length % specBleachBufSize !== 0) {
-            if (aec3) {
+            nrin.length % specBleachBufSize !== 0) {
+            if (aec3 && nrin === ecbuf) {
                 specBleachBufSize = ~~(sampleRate / 100);
-                if (ecbuf.length % specBleachBufSize !== 0)
-                    specBleachBufSize = ecbuf.length;
+                if (nrin.length % specBleachBufSize !== 0)
+                    specBleachBufSize = nrin.length;
             } else {
-                specBleachBufSize = ecbuf.length;
+                specBleachBufSize = nrin.length;
             }
         }
 
         // Perform noise reduction
-        let nrbuf = ecbuf;
+        let nrbuf = nrin;
         if (SpecBleach &&
             (!specBleach ||
              specBleach.input_buffer.length !== specBleachBufSize)) {
@@ -602,15 +612,15 @@ async function doFilter(msg: any) {
             });
         }
         if (specBleach) {
-            if (!nroutput || nroutput.length < ecbuf.length)
-                nroutput = new Float32Array(ecbuf.length);
-            for (let i = 0; i < ecbuf.length; i += specBleachBufSize) {
+            if (!nroutput || nroutput.length < nrin.length)
+                nroutput = new Float32Array(nrin.length);
+            for (let i = 0; i < nrin.length; i += specBleachBufSize) {
                 specBleach.process(
-                    ecbuf.subarray(i, i + specBleachBufSize),
+                    nrin.subarray(i, i + specBleachBufSize),
                     nroutput.subarray(i, i + specBleachBufSize)
                 );
             }
-            nrbuf = nroutput.subarray(0, ecbuf.length);
+            nrbuf = nroutput.subarray(0, nrin.length);
         }
 
         // Transfer data for the VAD
@@ -755,6 +765,8 @@ async function doFilter(msg: any) {
             let ob = ib;
             if (useNR)
                 ob = nrbuf;
+            else if (useEC)
+                ob = ecbuf;
             const od = [];
             if (!sentRecently) {
                 ob = ob.slice(0);

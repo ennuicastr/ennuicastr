@@ -691,19 +691,7 @@ export function mkAudioUI(): string {
         input.agc.checked = true;
     }
     uiFE.saveConfigCheckbox(input.echo, "echo-cancellation3", function() {
-        if (input.echo.checked) {
-            log.pushStatus("echo-cancellation", "WARNING: Digital echo cancellation is usually effective in cancelling echo, but will SEVERELY impact the quality of your audio. If possible, find a way to reduce echo physically.", {
-                timeout: 10000
-            });
-
-            /* Normally we wouldn't hide the panel for this, but we need to
-             * make sure this message is visible. */
-            uiFE.showPanel(null);
-        }
-        for (const ainput of audio.inputs) {
-            if (ainput)
-                ainput.setEchoCancel(input.echo.checked);
-        }
+        proc.setUseEC(input.echo.checked);
     });
     uiFE.saveConfigCheckbox(input.agc, "agc3", inputChange);
 
