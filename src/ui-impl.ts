@@ -28,7 +28,6 @@ const NoSleep = require("nosleep.js");
 import * as audio from "./audio";
 import * as chat from "./chat";
 import * as config from "./config";
-import * as downloadStream from "./download-stream";
 import * as log from "./log";
 import * as master from "./master";
 import * as net from "./net";
@@ -42,6 +41,8 @@ import * as util from "./util";
 import { dce, gebi } from "./util";
 import * as video from "./video";
 import * as videoRecord from "./video-record";
+
+import * as downloadStream from "@ennuicastr/dl-stream";
 
 // Certain options are only shown on mobile
 const ua = navigator.userAgent.toLowerCase();

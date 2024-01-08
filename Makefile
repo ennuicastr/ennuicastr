@@ -8,7 +8,7 @@ VOSK_MODEL_VER=en-us-0.15
 OUT=\
     ecloader.js ecloader.min.js \
     ennuicastr.js ennuicastr.min.js \
-    protocol.min.js sw.js fs/fs.js \
+    protocol.min.js fs/fs.js \
     awp/ennuicastr-worker.js \
     hotkeys.min.js
 
@@ -17,6 +17,7 @@ TEST=\
     awp/ennuicastr-worker-test.js
 
 LIBS=\
+    ecdssw.min.js \
     libs/jquery.min.js \
     libs/ennuiboard.min.js libs/localforage.min.js \
     libs/libspecbleach-$(LIBSPECBLEACH_VERSION).js \
@@ -71,7 +72,7 @@ ennuicastr-test.min.js: ennuicastr-test.js node_modules/.bin/browserify
 sw.js: src/sw.ts node_modules/.bin/browserify
 	./node_modules/.bin/tsc --lib es2015,dom $< --outFile $@
 
-fs/fs.js: src/file-storage-main.ts src/file-storage.ts src/download-stream.ts node_modules/.bin/browserify
+fs/fs.js: src/file-storage-main.ts src/file-storage.ts node_modules/.bin/browserify
 	./src/build.js $< -s EnnuicastrFileStorage > $@
 
 awp/ennuicastr-worker.js: awp/ennuicastr-worker.ts node_modules/.bin/tsc
@@ -101,6 +102,9 @@ node_modules/.bin/browserify:
 node_modules/.bin/minify: node_modules/.bin/browserify
 
 node_modules/.bin/tsc: node_modules/.bin/browserify
+
+ecdssw.min.js: node_modules/.bin/browserify
+	cp node_modules/@ennuicastr/dl-stream/dist/ecdssw.min.js $@
 
 libs/jquery.min.js: node_modules/.bin/browserify
 	cp node_modules/jquery/dist/jquery.min.js $@

@@ -20,6 +20,7 @@ libs/sha512-es.min.js
 libs/vosk*
 libs/libspecbleach*
 libs/webrtcaec3*
+ecdssw.min.js
 node_modules/
 package-lock.json
 protocol.min.js

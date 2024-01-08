@@ -29,13 +29,14 @@ import * as audio from "./audio";
 import * as avloader from "./avloader";
 import * as commImpl from "./comm-impl";
 import * as config from "./config";
-import * as downloadStream from "./download-stream";
 import * as log from "./log";
 import * as net from "./net";
 import * as proc from "./proc";
 import { prot } from "./protocol";
 import * as uiImpl from "./ui-impl";
 import * as util from "./util";
+
+import * as downloadStream from "@ennuicastr/dl-stream";
 
 // The main entry point
 async function main() {

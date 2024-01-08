@@ -20,9 +20,9 @@
  * Independent page for showing/downloading files saved in the browser.
  */
 
-import * as downloadStream from "./download-stream";
 import * as fileStorage from "./file-storage";
 
+import * as downloadStream from "@ennuicastr/dl-stream";
 import sha512 from "sha512-es";
 import * as wsp from "web-streams-polyfill/ponyfill";
 

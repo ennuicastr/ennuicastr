@@ -28,7 +28,6 @@ import * as audio from "./audio";
 import * as avloader from "./avloader";
 import * as comm from "./comm";
 import * as config from "./config";
-import * as downloadStream from "./download-stream";
 import * as fileStorage from "./file-storage";
 import * as log from "./log";
 import * as net from "./net";
@@ -37,6 +36,7 @@ import * as ui from "./ui";
 import * as util from "./util";
 import * as video from "./video";
 
+import * as downloadStream from "@ennuicastr/dl-stream";
 import * as lwc from "../node_modules/libavjs-webcodecs-bridge/libavjs-webcodecs-bridge.js";
 import * as wsp from "web-streams-polyfill/ponyfill";
 
