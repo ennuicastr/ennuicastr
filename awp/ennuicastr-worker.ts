@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023 Yahweasel
+ * Copyright (c) 2018-2024 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -566,9 +566,10 @@ async function doFilter(msg: any) {
             if (sz && (!aec3Output || aec3Output.length !== sz))
                 aec3Output = new Float32Array(sz);
             aec3.process([aec3Output], aec3In, aec3Opts);
-            ecbuf = aec3Output;
-            if (!sz)
-                return;
+            if (sz)
+                ecbuf = aec3Output;
+            else
+                ecbuf = new Float32Array(0);
         }
 
         // Output the echo cancel on its own port
@@ -588,7 +589,8 @@ async function doFilter(msg: any) {
             nrin.length % specBleachBufSize !== 0) {
             if (aec3 && nrin === ecbuf) {
                 specBleachBufSize = ~~(sampleRate / 100);
-                if (nrin.length % specBleachBufSize !== 0)
+                if (nrin.length &&
+                    nrin.length % specBleachBufSize !== 0)
                     specBleachBufSize = nrin.length;
             } else {
                 specBleachBufSize = nrin.length;
@@ -767,15 +769,17 @@ async function doFilter(msg: any) {
                 ob = nrbuf;
             else if (useEC)
                 ob = ecbuf;
-            const od = [];
-            if (!sentRecently) {
-                ob = ob.slice(0);
-                ob.fill(0);
+            if (ob.length) {
+                const od = [];
+                if (!sentRecently) {
+                    ob = ob.slice(0);
+                    ob.fill(0);
+                }
+                while (od.length < data.length)
+                    od.push(ob.slice(0));
+                for (const outHandler of outHandlers)
+                    outHandler.send(od);
             }
-            while (od.length < data.length)
-                od.push(ob.slice(0));
-            for (const outHandler of outHandlers)
-                outHandler.send(od);
         }
 
         // Perform transcription
