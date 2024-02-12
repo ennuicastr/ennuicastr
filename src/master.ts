@@ -355,6 +355,7 @@ function genInvite() {
         (config.useJitsi.audio?config.features.jitsiAudio:0) +
         (config.useRTEnnui.video?config.features.rtennuiVideo:0) +
         (config.useTranscription?config.features.transcription:0) +
+        (config.useDualECDefault?0:config.features.nonDualEC) +
         (ui.ui.panels.invite.flac.checked?prot.flags.dataType.flac:0)
     );
     let sb = "?" + config.iconfig.id.toString(36) + "-" + config.iconfig.key.toString(36);

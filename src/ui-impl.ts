@@ -695,6 +695,7 @@ export function mkAudioUI(): string {
     uiFE.saveConfigCheckbox(input.echo, "echo-cancellation3", function() {
         audio.setUseEC(input.echo.checked);
     });
+    input.dualEC.checked = config.useDualECDefault;
     uiFE.saveConfigCheckbox(input.dualEC, `dual-ec-${config.useDualECDefault}-3`, () => {
         audio.setDualEC(input.dualEC.checked);
     });
