@@ -38,6 +38,7 @@ export const features = {
     "rtennuiVideo": 0x400,
     "jitsiAudio": 0x800,
     "jitsiVideo": 0x1000,
+    "nonDualEC": 0x2000
 };
 
 // Configuration parameters come out of the URL search query
@@ -76,6 +77,7 @@ export const useRTEnnui = {
 export let useVideoRec = false;
 export let useTranscription = false;
 export let useRecordOnly = false;
+export let useDualECDefault = true;
 export let useDebug = false;
 
 /**
@@ -298,6 +300,7 @@ export async function load(): Promise<boolean> {
     useVideoRec = !!(config.format&features.videorec);
     useTranscription = !!(config.format&features.transcription);
     useRecordOnly = !!(config.format&features.recordOnly);
+    useDualECDefault = !(config.format&features.nonDualEC);
     useJitsi.audio = !!(config.format&features.jitsiAudio);
     useJitsi.video = !!!(config.format&features.rtennuiVideo);
     useRTEnnui.audio = !useJitsi.audio;

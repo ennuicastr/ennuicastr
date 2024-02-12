@@ -355,6 +355,7 @@ export const ui = {
             noiserHider: HTMLElement,
             noiser: HTMLInputElement,
             echo: HTMLInputElement,
+            dualEC: HTMLInputElement,
             agcHider: HTMLElement,
             agc: HTMLInputElement,
             vadSensitivity: HTMLInputElement,

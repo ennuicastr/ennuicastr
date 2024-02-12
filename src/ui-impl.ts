@@ -537,6 +537,7 @@ function loadInputConfig() {
         noiserHider: gebi("ec3-noise-reduction-hider"),
         noiser: gebi("ec3-noise-reduction-chk"),
         echo: gebi("ec3-echo-cancellation-chk"),
+        dualEC: gebi("ec3-dual-ec-chk"),
         agcHider: gebi("ec3-agc-hider"),
         agc: gebi("ec3-agc-chk"),
         vadSensitivity: gebi("ec3-vad-sensitivity-rng"),
@@ -692,7 +693,10 @@ export function mkAudioUI(): string {
         input.agc.checked = true;
     }
     uiFE.saveConfigCheckbox(input.echo, "echo-cancellation3", function() {
-        proc.setUseEC(input.echo.checked);
+        audio.setUseEC(input.echo.checked);
+    });
+    uiFE.saveConfigCheckbox(input.dualEC, `dual-ec-${config.useDualECDefault}-3`, () => {
+        audio.setDualEC(input.dualEC.checked);
     });
     uiFE.saveConfigCheckbox(input.agc, "agc3", inputChange);
 

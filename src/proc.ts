@@ -42,10 +42,6 @@ let sentRecently = false;
 // A timeout for periodic checks that are done regardless of processing backend
 let periodic: null|number = null;
 
-// En/disable echo cancellation
-export let useEC = false;
-export function setUseEC(to: boolean): void { useEC = to; }
-
 // En/disable noise reduction
 export let useNR = false;
 export function setUseNR(to: boolean): void { useNR = to; }
@@ -126,7 +122,7 @@ async function localProcessingWorker(idx: number) {
         workerCommand: {
             c: "filter",
             renderSampleRate: audio.ac.sampleRate,
-            useEC: useEC,
+            useEC: audio.useEC,
             useNR: useNR,
             sentRecently: sentRecently,
             vadSensitivity: vadSensitivity,
@@ -138,7 +134,7 @@ async function localProcessingWorker(idx: number) {
     });
 
     // State to send back to the worker
-    let lastUseEC = useEC;
+    let lastUseEC = audio.useEC;
     let lastUseNR = useNR;
     let lastSentRecently = sentRecently;
     let lastVadSensitivity = vadSensitivity;
@@ -163,11 +159,13 @@ async function localProcessingWorker(idx: number) {
             });
         }
 
-        const port = audio.inputs[idx].userMediaEncoder.backChannels[0];
-        cap.worker.postMessage({
-            c: "ecdata",
-            port
-        }, [port]);
+        if (audio.useDualEC) {
+            const port = audio.inputs[idx].userMediaEncoder.backChannels[0];
+            cap.worker.postMessage({
+                c: "ecdata",
+                port
+            }, [port]);
+        }
     }).catch(net.promiseFail());
 
     // Accept state updates
@@ -243,20 +241,20 @@ async function localProcessingWorker(idx: number) {
         }
 
         // This is also an opportunity to update them on changed state
-        if (useEC !== lastUseEC || useNR !== lastUseNR ||
+        if (audio.useEC !== lastUseEC || useNR !== lastUseNR ||
             sentRecently !== lastSentRecently ||
             vadSensitivity !== lastVadSensitivity ||
             vadNoiseGate !== lastVadNoiseGate
         ) {
             cap.worker.postMessage({
                 c: "state",
-                useEC,
+                useEC: audio.useEC,
                 useNR,
                 sentRecently,
                 vadSensitivity,
                 vadNoiseGate
             });
-            lastUseEC = useEC;
+            lastUseEC = audio.useEC;
             lastUseNR = useNR;
             lastSentRecently = sentRecently;
             lastVadSensitivity = vadSensitivity;

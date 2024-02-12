@@ -70,6 +70,15 @@ export let timeOffset: null|number = null;
  * *slowly*. This is the target time offset */
 let targetTimeOffset: null|number = null;
 
+// En/disable echo cancellation
+export let useEC = false;
+export function setUseEC(to: boolean): void { useEC = to; }
+
+// En/disable recording both EC and non-EC
+export let useDualEC = true;
+export function setDualEC(to: boolean): void { useDualEC = to; }
+const ecTrack = 0x80000000;
+
 // And this is the amount to adjust it per frame (1%)
 const timeOffsetAdjPerFrame = 0.0002;
 
@@ -601,7 +610,7 @@ export class Audio {
                 channelCount: channelCount,
                 channel: this.channel,
                 outputChannelLayout: this.encodingChannelLayout,
-                backChannelTracks: [0x80000000]
+                backChannelTracks: [ecTrack]
             }
 
         }).then(capture => {
@@ -710,7 +719,19 @@ export class Audio {
                 if (granulePos < 0)
                     return;
 
-                this.sendPacket(packet.trackNo, granulePos, data, vadVal);
+                if (useDualEC) {
+                    // Send all packets, regardless of track
+                    this.sendPacket(packet.trackNo, granulePos, data, vadVal);
+                } else {
+                    // Echo-cancelled packets use a specific track
+                    if ((useEC && (packet.trackNo & ecTrack)) ||
+                        (!useEC && !(packet.trackNo & ecTrack)))
+                    {
+                        /* FIXME: When there are multiple input tracks, we need
+                         * to preserve all non-EC bits of this track no. */
+                        this.sendPacket(0, granulePos, data, vadVal);
+                    }
+                }
             });
 
             this.sentZeroes = 0;
