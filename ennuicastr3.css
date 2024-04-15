@@ -26,6 +26,10 @@
 
     --user-list-silent: #101010;
     --user-list-speaking: #108010;
+    --user-list-conn-unknown: #101010;
+    --user-list-conn-unreliable: #801010;
+    --user-list-conn-semireliable: #804010;
+    --user-list-conn-reliable: #108010;
     --video-silent: #000;
     --video-silent-sel: #333;
     --video-speaking: #050;

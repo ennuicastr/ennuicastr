@@ -460,6 +460,7 @@ export const ui = {
             users: {
                 wrapper: HTMLElement,
                 name: HTMLElement,
+                connectionInfo: HTMLElement,
                 volume: HTMLInputElement,
                 volumeStatus: HTMLElement
             }[]
@@ -647,29 +648,51 @@ export function userListAdd(idx: number, name: string, fromMaster: boolean): voi
     user = userList.users[idx] = {
         wrapper: dce("div"),
         name: dce("div"),
+        connectionInfo: dce("div"),
         volume: dce("input"),
         volumeStatus: dce("div")
     };
+    const nameWrapper = dce("div");
     const volumeWrapper = dce("div");
 
     /* Here's how it all lays out:
      *  <div wrapper bigrflex row>
-     *      <div name half>name</div>
+     *      <div nameWrapper row>
+     *          <div name>
+     *          <div connectionInfo>
+     *      </div>
      *      <div volumeWrapper rflex half>
      *          <input volume flex />
      *          <div status>status</div>
      *      </div>
      *  </div>
      */
-    user.wrapper.classList.add("bigrflex", "row");
     userList.userList.appendChild(user.wrapper);
 
-    user.name.classList.add("half");
-    user.name.style.backgroundColor = "var(--user-list-silent)";
+    nameWrapper.classList.add("rflex");
+    nameWrapper.classList.add("row");
+    user.wrapper.appendChild(nameWrapper);
+
+    Object.assign(user.name.style, {
+        flex: "auto",
+        padding: "0.1em",
+        backgroundColor: "var(--user-list-silent)"
+    });
     user.name.innerText = name;
     user.name.setAttribute("role", "note");
     user.name.setAttribute("aria-label", name + ": Not speaking");
-    user.wrapper.appendChild(user.name);
+    nameWrapper.appendChild(user.name);
+
+    Object.assign(user.connectionInfo.style, {
+        minWidth: "6em",
+        textAlign: "right",
+        padding: "0.1em",
+        backgroundColor: "var(--user-list-conn-unreliable)"
+    });
+    user.connectionInfo.innerHTML = "&nbsp;";
+    user.connectionInfo.setAttribute("role", "note");
+    user.connectionInfo.setAttribute("aria-label", `${name}: No connection`);
+    nameWrapper.appendChild(user.connectionInfo);
 
     volumeWrapper.classList.add("rflex", "half");
     user.wrapper.appendChild(volumeWrapper);
@@ -726,6 +749,8 @@ export function userListAdd(idx: number, name: string, fromMaster: boolean): voi
 util.events.addEventListener("net.info." + prot.info.id, function(ev: CustomEvent) {
     const val: number = ev.detail.val;
     userListAdd(val, config.username, false);
+    const user = ui.panels.userList.users[val];
+    user.connectionInfo.style.backgroundColor = "var(--user-list-conn-reliable)";
 });
 
 
@@ -1270,3 +1295,49 @@ export function caption(
         ctx.caption.removeChild(caption.div);
     }, 3000);
 }
+
+
+// Handle P2P connection events
+function p2pEvent(event: string, ev: CustomEvent) {
+    const msg = ev.detail;
+    const user = ui.panels.userList.users[msg.peer];
+    if (!user)
+        return;
+
+    let setColor = false;
+    let setText = false;
+    let color = "var(--user-list-conn-unreliable)";
+    let text = "&nbsp;"
+
+    switch (event) {
+        case "connected":
+            setColor = true;
+            color = `var(--user-list-conn-${msg.reliability})`;
+            break;
+
+        case "disconnected":
+            setColor = true;
+            setText = true;
+            break;
+
+        case "latency":
+            setText = true;
+            text = `${Math.round(msg.latency)}ms`;
+            break;
+    }
+
+    if (setColor)
+        user.connectionInfo.style.backgroundColor = color;
+    if (setText)
+        user.connectionInfo.innerHTML = text;
+}
+
+util.events.addEventListener(
+    "p2p.connected", (ev: CustomEvent) => p2pEvent("connected", ev)
+);
+util.events.addEventListener(
+    "p2p.disconnected", (ev: CustomEvent) => p2pEvent("disconnected", ev)
+);
+util.events.addEventListener(
+    "p2p.latency", (ev: CustomEvent) => p2pEvent("latency", ev)
+);
