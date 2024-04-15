@@ -194,7 +194,7 @@ export class RTEnnui implements comm.Comms {
     connection: rtennui.Connection = null;
 
     // RTEnnui audio capture for our current audio device
-    cap: rtennui.AudioCapture = null;
+    cap: Record<number, rtennui.AudioCapture> = {};
 
     // Map of RTEnnui IDs to our own peer IDs
     idMap: Record<number, number> = null;
@@ -216,11 +216,12 @@ export class RTEnnui implements comm.Comms {
         }
 
         // The way VAD works with RTEnnui is muting the capture device
-        util.events.addEventListener("vad.rtc", () => {
-            if (!this.cap)
+        util.events.addEventListener("vad.rtc", (info: CustomEvent) => {
+            const idx = info.detail.idx;
+            if (!this.cap[idx])
                 return;
-            if (vad.vads[0].rtcVadOn) {
-                this.cap.setVADState("yes");
+            if (vad.vads[idx].rtcVadOn) {
+                this.cap[idx].setVADState("yes");
                 if (this.vadOffTimer) {
                     clearTimeout(this.vadOffTimer);
                     this.vadOffTimer = null;
@@ -229,7 +230,7 @@ export class RTEnnui implements comm.Comms {
             } else {
                 if (!this.vadOffTimer) {
                     this.vadOffTimer = setTimeout(() => {
-                        this.cap.setVADState("no");
+                        this.cap[idx].setVADState("no");
                         this.vadOffTimer = null;
                     }, 200);
                 }
@@ -359,8 +360,10 @@ export class RTEnnui implements comm.Comms {
 
         // And add our track
         if (this.commModes.audio) {
-            this.rteAddAudioTrack();
-            util.events.addEventListener("usermediartcready", () => this.rteAddAudioTrack());
+            this.rteAddAudioTrack(0);
+            util.events.addEventListener("usermediartcready", (info: CustomEvent) => {
+                this.rteAddAudioTrack(info.detail.idx)
+            });
         }
 
         if (this.commModes.video) {
@@ -370,21 +373,23 @@ export class RTEnnui implements comm.Comms {
     }
 
     // Called to add our audio track
-    async rteAddAudioTrack(): Promise<void> {
-        if (this.cap) {
+    async rteAddAudioTrack(idx: number): Promise<void> {
+        if (this.cap[idx]) {
             // End the old capture
-            this.cap.close();
-            await this.connection.removeAudioTrack(this.cap);
+            const cap = this.cap[idx];
+            cap.close();
+            await this.connection.removeAudioTrack(cap);
         }
 
-        const umc = audio.inputs[0].userMediaCapture;
-        this.cap = new InProcAudioCapture(umc.rawCapture, umc.worker);
-        this.connection.addAudioTrack(this.cap /*, {frameSize: 5000}*/);
+        const umc = audio.inputs[idx].userMediaCapture;
+        const cap = this.cap[idx] =
+            new InProcAudioCapture(umc.rawCapture, umc.worker);
+        this.connection.addAudioTrack(cap /*, {frameSize: 5000}*/);
         /* NOTE: Due to a bug somewhere in RTEnnui or LibAV.js, setting the
          * frame size above doesn't actually work. */
 
         // Set the VAD state
-        this.cap.setVADState(vad.vads[0].rtcVadOn ? "yes" : "no");
+        cap.setVADState(vad.vads[idx].rtcVadOn ? "yes" : "no");
     }
 
     // Called to add our video track

@@ -530,6 +530,7 @@ function loadSoundboard() {
 function loadInputConfig() {
     const input = ui.panels.inputConfig = {
         wrapper: gebi("ec3-input-settings-panel"),
+        track: gebi("ec3-input-multitrack-sel"),
         device: gebi("ec3-input-device-sel"),
         channelHider: gebi("ec3-input-channel-hider"),
         channel: gebi("ec3-input-channel-sel"),
@@ -646,9 +647,35 @@ export function mkAudioUI(): string {
     /********************
      * INPUT CONFIGURATION
      *******************/
+    function trackChange() {
+        if (input.track.value === "new") {
+            // Create a new input track option
+            const idx = audio.inputs.length;
+            const option = document.createElement("option");
+            option.value = "" + idx;
+            option.innerText = "" + (idx + 1);
+            input.track.insertBefore(
+                option,
+                input.track.children[
+                    input.track.children.length - 1
+                ]
+            );
+            input.track.value = "" + idx;
+
+            // And the actual track
+            proc.localProcessing(idx);
+            audio.inputs.push(new audio.Audio(idx));
+            audio.inputs[idx].getMic();
+        }
+
+        // FIXME: Update display to match track
+    }
+    input.track.onchange = trackChange;
+
+
     function inputChange() {
-        // FIXME
-        audio.inputs[0].setInputDevice(input.device.value);
+        const track = +input.track.value;
+        audio.inputs[track].setInputDevice(input.device.value);
     }
 
     navigator.mediaDevices.enumerateDevices().then(function(devices) {
@@ -670,7 +697,8 @@ export function mkAudioUI(): string {
     }).catch(function() {}); // Nothing really to do here
 
     function channelChange() {
-        audio.inputs[0].setInputChannel(+input.channel.value);
+        const track = +input.track.value;
+        audio.inputs[track].setInputChannel(+input.channel.value);
     }
     input.channel.onchange = channelChange;
 

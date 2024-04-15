@@ -632,7 +632,7 @@ export class Audio {
                 for (let pi = 0; pi < p.length; pi++) {
                     this.packets.push({
                         ts: pktTime,
-                        trackNo: msg.track,
+                        trackNo: msg.track | this.idx,
                         data: new DataView(p[pi].buffer)
                     });
                     pktTime += 960;

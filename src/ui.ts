@@ -341,6 +341,9 @@ export const ui = {
         inputConfig: <{
             wrapper: HTMLDialogElement,
 
+            // Multi-track input
+            track: HTMLSelectElement,
+
             // Device selection
             device: HTMLSelectElement,
 
