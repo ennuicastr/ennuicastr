@@ -243,6 +243,8 @@ export class RTEnnui implements comm.Comms {
 
     // Initialize RTEnnui
     async initRTEnnui(): Promise<void> {
+        const self = this;
+
         if (!audio.inputs[0].userMediaCapture) {
             // Wait until we have audio
             util.events.addEventListener("usermediartcready", () => this.initRTEnnui(), {once: true});
@@ -284,41 +286,98 @@ export class RTEnnui implements comm.Comms {
 
         // We detect peers leaving via the Ennuicastr protocol
 
-        c.on("track-started-audio", ev => {
-            if (c !== this.connection)
+        function peerEvent(event: string, ev: any) {
+            if (c !== self.connection)
                 return;
-            if (!(ev.peer in this.idMap))
+            if (!(ev.peer in self.idMap))
                 return;
+            const id = self.idMap[ev.peer];
 
-            this.rteAudioTrackStarted(this.idMap[ev.peer], ev.playback);
-        });
+            switch (event) {
+                case "track-started-audio":
+                    self.rteAudioTrackStarted(id, ev.playback);
+                    break;
 
-        c.on("track-ended-audio", ev => {
-            if (c !== this.connection)
-                return;
-            if (!(ev.peer in this.idMap))
-                return;
+                case "track-ended-audio":
+                    self.rteAudioTrackEnded(id);
+                    break;
 
-            this.rteAudioTrackEnded(this.idMap[ev.peer]);
-        });
+                case "track-started-video":
+                    self.rteVideoTrackStarted(id, ev.element);
+                    break;
 
-        c.on("track-started-video", ev => {
-            if (c !== this.connection)
-                return;
-            if (!(ev.peer in this.idMap))
-                return;
+                case "track-ended-video":
+                    self.rteVideoTrackEnded(id);
+                    break;
 
-            this.rteVideoTrackStarted(this.idMap[ev.peer], ev.element);
-        });
+                case "peer-speaking":
+                    util.dispatchEvent("ui.speech", {
+                        user: id,
+                        status: ev.speaking
+                    });
+                    break;
 
-        c.on("track-ended-video", ev => {
-            if (c !== this.connection)
-                return;
-            if (!(ev.peer in this.idMap))
-                return;
+                case "peer-p2p-connected":
+                    util.dispatchEvent("p2p.connected", {
+                       peer: id,
+                       reliability: ev.reliability
+                    });
+                    break;
 
-            this.rteVideoTrackEnded(this.idMap[ev.peer]);
-        });
+                case "peer-p2p-disconnected":
+                    util.dispatchEvent("p2p.disconnected", {
+                        peer: id
+                    });
+                    break;
+
+                case "peer-p2p-latency":
+                    util.dispatchEvent("p2p.latency", {
+                        peer: id,
+                        latency: ev.total
+                    });
+                    break;
+            }
+        }
+
+        c.on(
+            "track-started-audio",
+            ev => peerEvent("track-started-audio", ev)
+        );
+
+        c.on(
+            "track-ended-audio",
+            ev => peerEvent("track-ended-audio", ev)
+        );
+
+        c.on(
+            "track-started-video",
+            ev => peerEvent("track-started-video", ev)
+        );
+
+        c.on(
+            "track-ended-video",
+            ev => peerEvent("track-ended-video", ev)
+        );
+
+        c.on(
+            "peer-speaking",
+            ev => peerEvent("peer-speaking", ev)
+        );
+
+        c.on(
+            "peer-p2p-connected",
+            ev => peerEvent("peer-p2p-connected", ev)
+        );
+
+        c.on(
+            "peer-p2p-disconnected",
+            ev => peerEvent("peer-p2p-connected", ev)
+        );
+
+        c.on(
+            "peer-p2p-latency",
+            ev => peerEvent("peer-p2p-latency", ev)
+        );
 
         c.on("*", ev => {
             let str: string;
