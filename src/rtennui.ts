@@ -371,7 +371,7 @@ export class RTEnnui implements comm.Comms {
 
         c.on(
             "peer-p2p-disconnected",
-            ev => peerEvent("peer-p2p-connected", ev)
+            ev => peerEvent("peer-p2p-disconnected", ev)
         );
 
         c.on(
