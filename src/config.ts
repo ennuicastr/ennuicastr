@@ -324,7 +324,7 @@ export async function load(): Promise<boolean> {
     }
 
     // Clear anything expired
-    await fileStorage.clearExpired();
+    (await fileStorage.getLocalFileStorage()).clearExpired();
 
     return true;
 }

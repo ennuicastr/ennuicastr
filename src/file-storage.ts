@@ -28,15 +28,6 @@ declare let localforage: LocalForage;
 
 import sha512 from "sha512-es";
 
-// A global promise for behaviors that need to be transactional
-let storePromise: Promise<unknown> = Promise.all([]);
-
-// The LocalForage instance used to store files
-let fileStorage: LocalForage = null;
-
-// Number of concurrent stores
-let storeCt = 0;
-
 /**
  * File metadata, as stored.
  */
@@ -86,200 +77,220 @@ export interface FileInfo {
 }
 
 /**
- * Get our file storage instance.
+ * A file storage driver backed by LocalForage. Create one FileStorage instance
+ * per LocalForage backend used.
  */
-export async function getFileStorage(): Promise<LocalForage> {
-    if (fileStorage)
-        return fileStorage;
-    if (typeof localforage === "undefined")
-        await util.loadLibrary({
-            file: "libs/localforage.min.js",
-            name: "storage library"
+export class FileStorage {
+    // A global promise for behaviors that need to be transactional
+    private _storePromise: Promise<unknown> = Promise.all([]);
+
+    // Number of concurrent stores
+    private _storeCt = 0;
+
+    constructor(
+        /**
+         * The LocalForage instance used to store files
+         */
+        public fileStorage: LocalForage
+    ) {}
+
+    /**
+     * Get an array of all stored files.
+     */
+    async getFiles(): Promise<FileInfo[]> {
+        return await Promise.all(
+            (<FileInfo[]> await this.fileStorage.getItem("files") || [])
+            .map(async x => <FileInfo> await this.fileStorage.getItem(`file-${x}`))
+        );
+    }
+
+    /**
+     * Clear out any files that are expired.
+     */
+    async clearExpired(): Promise<void> {
+        // Get the list of expired files
+        const expiredP = this._storePromise.then(async function() {
+            const now = Date.now();
+            const files: string[] = await this.fileStorage.getItem("files") || [];
+            const expired: string[] = [];
+            for (let i = files.length - 1; i >= 0; i--) {
+                const file = files[i];
+                const info: FileInfo = await this.fileStorage.getItem(`file-${file}`);
+                if (!info || info.edate < now)
+                    expired.push(file);
+            }
+            return expired;
         });
-    fileStorage = localforage.createInstance({name: "ennuicastr-file-storage"});
-    return fileStorage;
-}
+        this._storePromise = expiredP;
+        const expired = await expiredP;
 
-/**
- * Get an array of all stored files.
- */
-export async function getFiles(): Promise<FileInfo[]> {
-    await getFileStorage();
-    return await Promise.all(
-        (<FileInfo[]> await fileStorage.getItem("files") || [])
-        .map(async function(x) { return <FileInfo> await fileStorage.getItem("file-" + x); })
-    );
-}
-
-/**
- * Clear out any files that are expired.
- */
-export async function clearExpired(): Promise<void> {
-    await getFileStorage();
-
-    // Get the list of expired files
-    const expiredP = storePromise.then(async function() {
-        const now = Date.now();
-        const files: string[] = await fileStorage.getItem("files") || [];
-        const expired: string[] = [];
-        for (let i = files.length - 1; i >= 0; i--) {
-            const file = files[i];
-            const info: FileInfo = await fileStorage.getItem("file-" + file);
-            if (!info || info.edate < now)
-                expired.push(file);
-        }
-        return expired;
-    });
-    storePromise = expiredP;
-    const expired = await expiredP;
-
-    // And delete them
-    for (const file of expired)
-        await deleteFile(file);
-}
-
-/**
- * Delete the file with the given ID.
- * @param id  The file's ID.
- */
-export async function deleteFile(id: string): Promise<void> {
-    await getFileStorage();
-
-    const info: FileInfo = await fileStorage.getItem("file-" + id);
-    if (info) {
-        // Remove all the data, +1 in case of short write
-        for (let i = 0; i <= info.len.length; i++)
-            await fileStorage.removeItem("data-" + id + "-" + i);
+        // And delete them
+        for (const file of expired)
+            await this.deleteFile(file);
     }
 
-    // Remove the metadata
-    await fileStorage.removeItem("file-" + id);
-
-    // Remove it from the list
-    storePromise = storePromise.then(async function() {
-        const files: string[] = await fileStorage.getItem("files") || [];
-        const idx = files.indexOf(id);
-        if (idx >= 0)
-            files.splice(idx, 1);
-        await fileStorage.setItem("files", files);
-    });
-    await storePromise;
-}
-
-/**
- * Store a file, given by a stream of Uint8Array chunks.
- * @param name  The file's name.
- * @param key  Key-exchange information.
- * @param stream  The stream of information to store in the file.
- * @param opts  Other options.
- */
-export async function storeFile(
-    name: string, key: number[], stream: ReadableStream<Uint8Array>, opts: {
-        expTime?: number,
-        mimeType?: string,
-        report?: (ct: number, spaceUsed: number, spaceTotal: number) => unknown
-    } = {}
-): Promise<void> {
-    await getFileStorage();
-
-    async function report() {
-        if (opts.report && navigator.storage && navigator.storage.estimate) {
-            const e = await navigator.storage.estimate();
-            opts.report(storeCt, e.usage, e.quota);
+    /**
+     * Delete the file with the given ID.
+     * @param id  The file's ID.
+     */
+    async deleteFile(id: string): Promise<void> {
+        const info: FileInfo = await this.fileStorage.getItem(`file-${id}`);
+        if (info) {
+            // Remove all the data, +1 in case of short write
+            for (let i = 0; i <= info.len.length; i++)
+                await this.fileStorage.removeItem(`data-${id}-${i}`);
         }
+
+        // Remove the metadata
+        await this.fileStorage.removeItem(`file-${id}`);
+
+        // Remove it from the list
+        this._storePromise = this._storePromise.then(async () => {
+            const files: string[] = await this.fileStorage.getItem("files") || [];
+            const idx = files.indexOf(id);
+            if (idx >= 0)
+                files.splice(idx, 1);
+            await this.fileStorage.setItem("files", files);
+        });
+        await this._storePromise;
     }
 
-    storeCt++;
-    report();
-
-    const cdate = Date.now();
-    const edate = cdate + (
-        (typeof opts.expTime === "number") ? opts.expTime : 2678400000
-    );
-
-    // Get the salt
-    const saltP = storePromise.then(async function() {
-        let salt: number = await fileStorage.getItem("salt");
-        if (salt === null) {
-            salt = ~~(Math.random() * 2000000000);
-            await fileStorage.setItem("salt", salt);
-        }
-        return salt;
-    });
-    storePromise = saltP;
-    const salt = await saltP;
-
-    // Hash the key
-    const hashKey = sha512.hash(key.join(":") + ":" + salt);
-
-    // Start setting up the file info
-    const info: FileInfo = {
-        id: "",
-        name,
-        key: hashKey,
-        cdate,
-        edate,
-        len: [],
-        complete: false,
-        mimeType: opts.mimeType || "application/octet-stream"
-    };
-
-    // First, find an ID
-    const idP = storePromise.then(async function() {
-        const files: string[] = await fileStorage.getItem("files") || [];
-        let id: string;
-        do {
-            id = "";
-            while (id.length < 12)
-                id += Math.random().toString(36).slice(2);
-            id = id.slice(0, 12);
-        } while (files.indexOf(id) >= 0);
-        files.push(id);
-        await fileStorage.setItem("files", files);
-        return id;
-    });
-    storePromise = idP;
-    const id = info.id = await idP;
-    await fileStorage.setItem("file-" + id, info);
-
-    // Now, start accepting data
-    const rdr = stream.getReader();
-    const bufSz = 1024*1024;
-    const buf = new Uint8Array(bufSz);
-    let bufUsed = 0;
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-        const rd = await rdr.read();
-        if (rd.done)
-            break;
-        let chunk = rd.value.slice(0);
-
-        // Fill in the buffer
-        while (chunk.length) {
-            const take = Math.min(bufSz - bufUsed, chunk.length);
-            buf.set(chunk.subarray(0, take), bufUsed);
-            bufUsed += take;
-            chunk = chunk.subarray(take);
-
-            if (bufUsed >= bufSz) {
-                // Save this chunk
-                await fileStorage.setItem("data-" + id + "-" + info.len.length, buf);
-                info.len.push(bufSz);
-                await fileStorage.setItem("file-" + id, info);
-                bufUsed = 0;
-                report();
+    /**
+     * Store a file, given by a stream of Uint8Array chunks.
+     * @param name  The file's name.
+     * @param key  Key-exchange information.
+     * @param stream  The stream of information to store in the file.
+     * @param opts  Other options.
+     */
+    async storeFile(
+        name: string, key: number[], stream: ReadableStream<Uint8Array>, opts: {
+            expTime?: number,
+            mimeType?: string,
+            report?: (ct: number, spaceUsed: number, spaceTotal: number) => unknown
+        } = {}
+    ): Promise<void> {
+        const report = async () => {
+            if (opts.report && navigator.storage && navigator.storage.estimate) {
+                const e = await navigator.storage.estimate();
+                opts.report(this._storeCt, e.usage, e.quota);
             }
         }
-    }
 
-    // Save whatever remains
-    if (bufUsed) {
-        await fileStorage.setItem("data-" + id + "-" + info.len.length, buf.slice(0, bufUsed));
-        info.len.push(bufUsed);
-    }
-    info.complete = true;
-    await fileStorage.setItem("file-" + id, info);
+        this._storeCt++;
+        report();
 
-    storeCt--;
-    report();
+        const cdate = Date.now();
+        const edate = cdate + (
+            (typeof opts.expTime === "number") ? opts.expTime : 2678400000
+        );
+
+        // Get the salt
+        const saltP = this._storePromise.then(async () => {
+            let salt: number = await this.fileStorage.getItem("salt");
+            if (salt === null) {
+                salt = ~~(Math.random() * 2000000000);
+                await this.fileStorage.setItem("salt", salt);
+            }
+            return salt;
+        });
+        this._storePromise = saltP;
+        const salt = await saltP;
+
+        // Hash the key
+        const hashKey = sha512.hash(key.join(":") + ":" + salt);
+
+        // Start setting up the file info
+        const info: FileInfo = {
+            id: "",
+            name,
+            key: hashKey,
+            cdate,
+            edate,
+            len: [],
+            complete: false,
+            mimeType: opts.mimeType || "application/octet-stream"
+        };
+
+        // First, find an ID
+        const idP = this._storePromise.then(async () => {
+            const files: string[] = await this.fileStorage.getItem("files") || [];
+            let id: string;
+            do {
+                id = "";
+                while (id.length < 12)
+                    id += Math.random().toString(36).slice(2);
+                id = id.slice(0, 12);
+            } while (files.indexOf(id) >= 0);
+            files.push(id);
+            await this.fileStorage.setItem("files", files);
+            return id;
+        });
+        this._storePromise = idP;
+        const id = info.id = await idP;
+        await this.fileStorage.setItem(`file-${id}`, info);
+
+        // Now, start accepting data
+        const rdr = stream.getReader();
+        const bufSz = 1024*1024;
+        const buf = new Uint8Array(bufSz);
+        let bufUsed = 0;
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            const rd = await rdr.read();
+            if (rd.done)
+                break;
+            let chunk = rd.value.slice(0);
+
+            // Fill in the buffer
+            while (chunk.length) {
+                const take = Math.min(bufSz - bufUsed, chunk.length);
+                buf.set(chunk.subarray(0, take), bufUsed);
+                bufUsed += take;
+                chunk = chunk.subarray(take);
+
+                if (bufUsed >= bufSz) {
+                    // Save this chunk
+                    await this.fileStorage.setItem(`data-${id}-${info.len.length}`, buf);
+                    info.len.push(bufSz);
+                    await this.fileStorage.setItem(`file-${id}`, info);
+                    bufUsed = 0;
+                    report();
+                }
+            }
+        }
+
+        // Save whatever remains
+        if (bufUsed) {
+            await this.fileStorage.setItem(`data-${id}-${info.len.length}`, buf.slice(0, bufUsed));
+            info.len.push(bufUsed);
+        }
+        info.complete = true;
+        await this.fileStorage.setItem(`file-${id}`, info);
+
+        this._storeCt--;
+        report();
+    }
+}
+
+// Local FileStorage instance
+let localFileStoragePromise: Promise<FileStorage> | null = null;
+
+/**
+ * Get a local FileStorage instance.
+ */
+export async function getLocalFileStorage(): Promise<FileStorage> {
+    if (!localFileStoragePromise) {
+        localFileStoragePromise = (async () => {
+            if (typeof localforage === "undefined")
+                await util.loadLibrary({
+                    file: "libs/localforage.min.js",
+                    name: "storage library"
+                });
+            const fileStorage = await localforage.createInstance({
+                name: "ennuicastr-file-storage"
+            });
+            return new FileStorage(fileStorage);
+        })();
+    }
+    return localFileStoragePromise;
 }

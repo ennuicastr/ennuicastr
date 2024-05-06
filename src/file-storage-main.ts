@@ -31,8 +31,8 @@ import * as wsp from "web-streams-polyfill/ponyfill";
  * @param id  ID of the file.
  */
 async function downloadById(id: string) {
-    const store = await fileStorage.getFileStorage();
-    const file: fileStorage.FileInfo = await store.getItem("file-" + id);
+    const store = await fileStorage.getLocalFileStorage();
+    const file: fileStorage.FileInfo = await store.fileStorage.getItem("file-" + id);
     if (!file)
         return;
     const sz = file.len.reduce((x, y) => x + y, 0);
@@ -41,7 +41,7 @@ async function downloadById(id: string) {
     let idx = 0;
     const stream = <ReadableStream<Uint8Array>> <unknown> new wsp.ReadableStream({
         async pull(controller) {
-            const chunk = await store.getItem("data-" + id + "-" + (idx++));
+            const chunk = await store.fileStorage.getItem("data-" + id + "-" + (idx++));
             if (chunk)
                 controller.enqueue(chunk);
             if (idx >= file.len.length)
@@ -60,8 +60,8 @@ async function downloadById(id: string) {
  * Establish a connection with the surrounding page.
  */
 async function connection(port: MessagePort) {
-    const store = await fileStorage.getFileStorage();
-    const globalSalt = await store.getItem("salt") || 0;
+    const store = await fileStorage.getLocalFileStorage();
+    const globalSalt = await store.fileStorage.getItem("salt") || 0;
     const localSalt = ~~(Math.random() * 2000000000);
 
     // Tell the host the salt
@@ -73,7 +73,7 @@ async function connection(port: MessagePort) {
             case "list":
             {
                 const key = ev.data.key;
-                const files = await fileStorage.getFiles();
+                const files = await store.getFiles();
 
                 // Only send the ones with the correct key
                 for (let i = files.length - 1; i >= 0; i--) {
@@ -92,13 +92,13 @@ async function connection(port: MessagePort) {
                 // Download or delete the ID'd file
                 const id = ev.data.id;
                 const key = ev.data.key;
-                const file: fileStorage.FileInfo = await store.getItem("file-" + id);
+                const file: fileStorage.FileInfo = await store.fileStorage.getItem("file-" + id);
                 if (!file)
                     break;
                 if (sha512.hash(file.key + ":" + localSalt) !== key)
                     break;
                 if (ev.data.c === "delete")
-                    fileStorage.deleteFile(id);
+                    store.deleteFile(id);
                 else
                     downloadById(id);
                 break;
@@ -108,6 +108,7 @@ async function connection(port: MessagePort) {
 }
 
 (async function() {
+    const store = await fileStorage.getLocalFileStorage();
     await downloadStream.load({prefix: "../"});
 
     // Create a message port for our host
@@ -125,7 +126,7 @@ async function connection(port: MessagePort) {
 
 
     // Simple button for each download
-    const files = await fileStorage.getFiles();
+    const files = await store.getFiles();
     for (const file of files) {
         const div = document.createElement("div");
         const btn = document.createElement("button");
@@ -146,7 +147,7 @@ async function connection(port: MessagePort) {
             del.innerText = "...";
             del.disabled = true;
             del.classList.add("off");
-            await fileStorage.deleteFile(file.id);
+            await store.deleteFile(file.id);
             div.style.display = "none";
         };
         div.appendChild(del);

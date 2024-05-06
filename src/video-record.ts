@@ -660,28 +660,49 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
     })();
 
     // Now muxStream is ready. Tee it.
-    let localStream: ReadableStream<Uint8Array> = null;
-    let remoteStream: ReadableStream<Uint8Array> = null;
-    let promises: Promise<unknown>[];
-    if (opts.local && opts.remote) {
-        [localStream, remoteStream] = <any[]> muxStream.tee();
-        promises = [doLocal(), doRemote()];
-    } else if (opts.remote) {
-        remoteStream = <any> muxStream;
-        promises = [doRemote()];
-    } else {
-        localStream = <any> muxStream;
-        promises = [doLocal()];
+    let browserStorageStream: ReadableStream<Uint8Array> = null;
+    let promises: Promise<unknown>[] = [];
+    let outputStream: ReadableStream<Uint8Array> | null = muxStream;
+
+    if (("master" in config.config) && ui.ui.panels.host.saveVideoInBrowser.checked) {
+        const [s1, s2] = <[any, any]> outputStream.tee();
+        outputStream = s2;
+        promises.push(doBrowserStorage(s1));
+    }
+
+    if (opts.remote) {
+        const [s1, s2] = <[any, any]> outputStream.tee();
+        outputStream = s2;
+        promises.push(doRemote(s1));
+    }
+
+    if (opts.local || promises.length === 0) {
+        promises.push(doLocal(outputStream));
+        outputStream = null;
+    }
+
+    if (outputStream) {
+        const rdr = outputStream.getReader();
+        (async() => {
+            while (true) {
+                await rdr.read();
+            }
+        })();
+    }
+
+    // Do the browser storage writing
+    async function doBrowserStorage(stream: ReadableStream<Uint8Array>) {
+        await saveVideoBrowser(filename, stream, mimeType);
     }
 
     // Do the local writing
-    async function doLocal() {
-        await saveVideo(filename, localStream, mimeType);
+    async function doLocal(stream: ReadableStream<Uint8Array>) {
+        await saveVideoFile(filename, stream, mimeType);
     }
 
     // Do the remote writing
-    async function doRemote() {
-        const rdr = remoteStream.getReader();
+    async function doRemote(stream: ReadableStream<Uint8Array>) {
+        const rdr = stream.getReader();
         let idx = 0;
         // eslint-disable-next-line no-constant-condition
         while (true) {
@@ -703,7 +724,7 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
     });
 
     // Make it possible to stop
-    recordVideoStop = async function() {
+    recordVideoStop = async () => {
         if (mr) {
             try {
                 mr.stop();
@@ -790,7 +811,7 @@ export function recordVideoRemoteIncoming(
     filename += "video." + ext;
 
     // And save it in the background
-    saveVideo(filename, stream, mimeType);
+    saveVideoFile(filename, stream, mimeType);
 }
 
 // Function to report video storage
@@ -808,44 +829,24 @@ function storageReport(ct: number, used: number, max: number) {
     }
 }
 
-// Save a video download, either as a stream or into local storage, or both
-async function saveVideo(
+// Save a video download into local storage
+async function saveVideoBrowser(
     filename: string, stream: ReadableStream<Uint8Array>, mimeType: string
 ) {
-    let doDownloadStream = true, doLocalStorage = false;
-    let dStream: ReadableStream<Uint8Array> = null, lsStream: ReadableStream<Uint8Array> = null;
-
-    // Should we be doing local storage?
-    if (("master" in config.config) && ui.ui.panels.host.saveVideoInBrowser.checked) {
-        doLocalStorage = true;
-        if (!ui.ui.panels.host.downloadVideoLive.checked)
-            doDownloadStream = false;
-    }
-
-    // Possibly split it
-    if (doDownloadStream) {
-        if (doLocalStorage)
-            [dStream, lsStream] = stream.tee();
-        else
-            dStream = stream;
-    } else {
-        lsStream = stream;
-    }
-
     // Do them
-    const promises: Promise<unknown>[] = [];
-    if (dStream) {
-        promises.push(downloadStream.stream(filename, dStream, {
-            "content-type": mimeType
-        }));
-    }
-    if (lsStream) {
-        promises.push(fileStorage.storeFile(filename,
-            [config.config.id, config.config.key, config.config.master],
-            lsStream, {mimeType, report: storageReport}));
-    }
+    return (await fileStorage.getLocalFileStorage()).storeFile(filename,
+        [config.config.id, config.config.key, config.config.master],
+        stream, {mimeType, report: storageReport});
+}
 
-    await Promise.all(promises);
+// Save a video download, either as a stream or into local storage, or both
+async function saveVideoFile(
+    filename: string, stream: ReadableStream<Uint8Array>, mimeType: string
+) {
+    // Do them
+    await downloadStream.stream(filename, stream, {
+        "content-type": mimeType
+    });
 }
 
 // Convert from a Blob to an ArrayBuffer
