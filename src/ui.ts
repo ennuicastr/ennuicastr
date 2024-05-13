@@ -167,8 +167,8 @@ export const ui = {
 
     // The panels
     panels: {
-        // "Join recording" panel
-        join: <{
+        // Transient activation panel
+        transientActivation: <{
             wrapper: HTMLDialogElement,
             button: HTMLButtonElement
         }> null,
@@ -240,6 +240,9 @@ export const ui = {
 
             // Save video to in-browser storage
             saveVideoInBrowser: HTMLInputElement,
+
+            // Save video to cloud storage
+            saveVideoInCloud: HTMLInputElement,
 
             // Download the video live
             downloadVideoLive: HTMLInputElement,
@@ -466,6 +469,13 @@ export const ui = {
             }[]
         }> null,
 
+        // Cloud storage selection panel
+        cloudStorage: <{
+            wrapper: HTMLDialogElement,
+            googleDrive: HTMLButtonElement,
+            dropbox: HTMLButtonElement
+        }> null,
+
         // Help screen
         help: <{
             wrapper: HTMLDialogElement
@@ -499,8 +509,18 @@ const standinSVG = [
     '<svg viewBox="0 0 544 512" style="position:absolute;left:0;top:0;width:100%;height:100%"><g transform="translate(16,215)"><path transform="matrix(1.1171786,0,0,1,-29.997722,0)" d="m 256.00001,-215.00002 150.47302,48.89165 92.99744,128.000007 0,158.216703 -92.99745,128 -150.47303,48.89164 -150.47302,-48.89165 -92.99744,-128.00001 4e-6,-158.216696 92.997446,-127.999994 z" style="opacity:0.5;fill:#ffffff" /><text style="font-size:298.66519165px;font-family:\'Noto Sans\',sans-serif;text-align:center;text-anchor:middle" y="149.86458" x="256">##</text></g></svg>'
 ];
 
+/**
+ * Show the requested panel by HTML element or name.
+ * @param panelName  Name of panel to show, or HTML element
+ * @param autoFocusName  Name or element to auto-focus on, or undefined to not
+ *                       auto-focus
+ * @param makeModal  Make the panel modal
+ */
 // Show the given panel, or none
-export function showPanel(panelName: Panel|string, autoFocusName?: HTMLElement|string, makeModal?: boolean): void {
+export function showPanel(
+    panelName: Panel|string, autoFocusName?: HTMLElement|string,
+    makeModal?: boolean
+): void {
     let panel: Panel;
     let autoFocus: HTMLElement = null;
     if (typeof autoFocusName === "string")
@@ -568,6 +588,37 @@ export function showPanel(panelName: Panel|string, autoFocusName?: HTMLElement|s
 // Unset the modal panel so it can be hidden
 export function unsetModal(): void {
     modal = null;
+}
+
+/**
+ * Show the transient activation panel with the given button text, and wait for
+ * transient activation.
+ * @param html  Button text (HTML, really) to show
+ * @param opts  Other activation options
+ */
+export function transientActivation(
+    html: string, opts: {
+        makeModal?: boolean,
+        force?: boolean
+    } = {}
+) {
+    if (!opts.force &&
+        (<any> navigator).userActivation &&
+        (<any> navigator).userActivation.isActive) {
+        return;
+    }
+
+    const taPanel = ui.panels.transientActivation;
+    taPanel.button.innerHTML = html;
+    const promise = new Promise<void>(res => {
+        taPanel.button.onclick = () => {
+            unsetModal();
+            showPanel(null);
+            res();
+        };
+    });
+    showPanel(taPanel, taPanel.button, opts.makeModal);
+    return promise;
 }
 
 // Saveable config for a box with a string value

@@ -94,6 +94,7 @@ export function mkUI(): Promise<unknown> {
     loadOutputConfig();
     loadVideoConfig();
     loadUserList();
+    loadCloudStorage();
     loadHelp();
     loadInterfaceSounds();
 
@@ -125,18 +126,12 @@ export function mkUI(): Promise<unknown> {
     // If we're on mobile, now is the time to NoSleep
     // FIXME: Combine this with starting the AC
     if (mobile) {
-        return Promise.all([]).then(function() {
-            noSleep = new NoSleep();
-            uiFE.showPanel(ui.panels.join, ui.panels.join.button, true);
-            return new Promise((res) => {
-                ui.panels.join.button.onclick = res;
-            });
-
-        }).then(function() {
+        return Promise.all([]).then(async () => {
+            await uiFE.transientActivation(
+                '<i class="bx bx-door-open"></i> Join recording',
+                {makeModal: true}
+            );
             noSleep.enable();
-            uiFE.unsetModal();
-            uiFE.showPanel(null);
-
         }).catch(net.promiseFail());
 
     } else {
@@ -229,9 +224,9 @@ function loadMainMenu() {
         videoPopout: gebi("ec3-streamer-popout-all-button")
     };
 
-    ui.panels.join = {
-        wrapper: gebi("ec3-join-recording-panel"),
-        button: gebi("ec3-join-recording-btn")
+    ui.panels.transientActivation = {
+        wrapper: gebi("ec3-transient-activation-panel"),
+        button: gebi("ec3-transient-activation-btn")
     };
 
     const sets = ui.panels.settings = {
@@ -448,6 +443,7 @@ function loadHostUI() {
         inviteB: gebi("ec3-invite-button2"),
         acceptRemoteVideo: gebi("ec3-accept-guest-video-chk"),
         saveVideoInBrowser: gebi("ec3-video-rec-save-in-browser-chk"),
+        saveVideoInCloud: gebi("ec3-video-rec-save-in-cloud-chk"),
         downloadVideoLive: gebi("ec3-video-rec-download-chk"),
         videoStatus: gebi("ec3-video-rec-status"),
         recordingCost: gebi("ec3-recording-cost-txt"),
@@ -616,6 +612,14 @@ function loadUserList() {
         wrapper: gebi("ec3-user-list-panel"),
         userList: gebi("ec3-user-list"),
         users: []
+    };
+}
+
+function loadCloudStorage() {
+    ui.panels.cloudStorage = {
+        wrapper: gebi("ec3-cloud-storage-sel-panel"),
+        googleDrive: gebi("ec3-google-drive-btn"),
+        dropbox: gebi("ec3-dropbox-btn")
     };
 }
 
