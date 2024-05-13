@@ -22,6 +22,7 @@
 
 import * as comm from "./comm";
 import * as config from "./config";
+import * as fileStorage from "./file-storage";
 import * as log from "./log";
 import * as net from "./net";
 import { prot } from "./protocol";
@@ -106,6 +107,39 @@ export function createMasterInterface(): void {
         "master-video-save-in-browser-" + config.useVideoRec);
     ui.saveConfigCheckbox(masterUI.downloadVideoLive,
         "master-video-download-live-" + config.useVideoRec);
+
+    // Possibly cloud save
+    masterUI.saveVideoInCloud.checked = false;
+    ui.saveConfigCheckbox(
+        masterUI.saveVideoInCloud,
+        "master-video-save-in-cloud-" + config.useVideoRec,
+        async ev => {
+            // FIXME: change providers
+            if (!masterUI.saveVideoInCloud.checked)
+                return;
+
+            let provider = localStorage.getItem("master-video-save-in-cloud-provider");
+            if (!provider) {
+                const csPanel = ui.ui.panels.cloudStorage;
+                provider = await new Promise(res => {
+                    csPanel.googleDrive.onclick = () => res("googleDrive");
+                    csPanel.dropbox.onclick = () => res("dropbox");
+                    ui.showPanel(csPanel);
+                });
+                localStorage.setItem("master-video-save-in-cloud-provider", provider);
+            }
+
+            fileStorage.getRemoteFileStorage(
+                () => {
+                    return ui.transientActivation(
+                        '<i class="bx bx-log-in"></i> Log in',
+                        {force: true}
+                    );
+                },
+                <any> provider
+            );
+        }
+    );
 
     // Put everything in the proper state
     configureMasterInterface();

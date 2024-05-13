@@ -123,16 +123,14 @@
         <!-- The layer separator makes it easier to close panels -->
         <div id="ec3-layer-separator"></div>
 
-        <!-- "Join recording" button, as a panel because interaction is required in some configurations -->
-        <dialog id="ec3-join-recording-panel" class="panel" role="dialog" aria-labelledby="ec3-join-recording-panel-label">
-            <div id="ec3-join-recording-panel-label" class="panel-title" role="heading">Join recording</div>
+        <!-- Transient activation panel, for when a user interaction is required to continue -->
+        <dialog id="ec3-transient-activation-panel" class="panel" role="dialog" aria-labelledby="ec3-transient-activation-panel-label">
+            <div id="ec3-transient-activation-panel-label" class="panel-title" role="heading">Join recording</div>
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
 
-            <button id="ec3-join-recording-btn" class="pill-button row">
-                <i class="bx bx-door-open"></i>
-                Join recording
+            <button id="ec3-transient-activation-btn" class="pill-button row">
             </button>
         </dialog>
 
@@ -221,6 +219,12 @@
                 <input type="checkbox" id="ec3-video-rec-save-in-browser-chk" />
                 <label for="ec3-video-rec-save-in-browser-chk">
                     &nbsp;Save video recordings in in-browser storage space
+                </label>
+            </div>
+            <div class="rflex row">
+                <input type="checkbox" id="ec3-video-rec-save-in-cloud-chk" />
+                <label for="ec3-video-rec-save-in-cloud-chk">
+                    &nbsp;Save video recordings in cloud storage
                 </label>
             </div>
             <div class="rflex row">
@@ -578,6 +582,24 @@
             </button>
 
             <div id="ec3-user-list" class="cflex row"></div>
+        </dialog>
+
+        <!-- Selector for cloud storage platforms -->
+        <dialog id="ec3-cloud-storage-sel-panel" class="panel" role="dialog" aria-labelledby="ec3-cloud-storage-sel-panel-label">
+            <div id="ec3-cloud-storage-sel-panel-label" class="panel-title" role="heading">Cloud storage</div>
+            <button class="icon-button close-button" aria-label="Close">
+                <i class="bx bx-x" aria-hidden="true"></i>
+            </button>
+
+            <button id="ec3-google-drive-btn" class="pill-button row">
+                <i class="bx bxl-google"></i>
+                Google Drive
+            </button>
+
+            <button id="ec3-dropbox-btn" class="pill-button row">
+                <i class="bx bxl-dropbox"></i>
+                Dropbox
+            </button>
         </dialog>
 
         <!-- Help -->

@@ -483,18 +483,15 @@ export class Audio {
             this.userMedia = msd.stream;
         }
 
-        return Promise.all([]).then(() => {
+        return Promise.all([]).then(async () => {
             /* If AudioContext started paused, we need to unpause it in an event
              * handler */
             if (ac.state !== "running") {
-                ui.showPanel(ui.ui.panels.join, ui.ui.panels.join.button, true);
-                return new Promise(function(res) {
-                    ui.ui.panels.join.button.onclick = function() {
-                        ui.unsetModal();
-                        ui.showPanel(null);
-                        ac.resume().catch(res).then(res);
-                    };
-                });
+                await ui.transientActivation(
+                    '<i class="bx bx-door-open"></i> Join recording',
+                    {makeModal: true}
+                );
+                await ac.resume();
             }
 
         }).then(() => {
