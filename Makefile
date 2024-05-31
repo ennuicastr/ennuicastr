@@ -12,9 +12,7 @@ OUT=\
     awp/ennuicastr-worker.js \
     hotkeys.min.js
 
-TEST=\
-    ennuicastr-test.js ennuicastr-test.min.js \
-    awp/ennuicastr-worker-test.js
+ENNUICASTR_JS=src/main.js
 
 LIBS=\
     ecdssw.min.js \
@@ -27,12 +25,16 @@ LIBS=\
     libs/libspecbleach-$(LIBSPECBLEACH_VERSION).wasm.wasm \
     libs/libspecbleach-$(LIBSPECBLEACH_VERSION).simd.js \
     libs/libspecbleach-$(LIBSPECBLEACH_VERSION).simd.wasm \
+    libs/vosk-model-small-$(VOSK_MODEL_VER).tar.gz \
     libs/webrtcaec3-$(WEBRTCAEC3_VERSION).js \
     libs/webrtcaec3-$(WEBRTCAEC3_VERSION).wasm \
-    libs/webrtcaec3-$(WEBRTCAEC3_VERSION).wasm.js
+    libs/webrtcaec3-$(WEBRTCAEC3_VERSION).wasm.js \
+    libs/webrtcvad.js \
+    libs/webrtcvad.asm.js \
+    libs/webrtcvad.wasm \
+    libs/webrtcvad.wasm.js
 
 DATA=\
-    libs/vosk-model-small-$(VOSK_MODEL_VER).tar.gz \
     bx
 
 EXTRA=\
@@ -47,102 +49,92 @@ EXTRA=\
     libav/libav-$(LIBAV_VERSION)-ennuicastr.simd.wasm \
     libs/vosk.js libs/lib-jitsi-meet.7421.js
 
-all: $(OUT) $(LIBS) $(DATA)
+all: $(addprefix dist/,$(OUT)) $(addprefix dist/,$(LIBS)) $(DATA)
 
-test: $(TEST) $(LIBS)
-
-ecloader.js: src/loader.ts node_modules/.bin/browserify
+dist/ecloader.js: src/loader.ts node_modules/.bin/tsc
+	mkdir -p dist
 	./node_modules/.bin/tsc --lib es2015,dom $< --outFile $@
 
-ecloader.min.js: ecloader.js node_modules/.bin/browserify
-	./node_modules/.bin/minify --js < $< > $@
+dist/ecloader.min.js: dist/ecloader.js node_modules/.bin/tsc
+	./node_modules/.bin/terser < $< > $@
 
-ennuicastr.js: src/*.ts node_modules/.bin/browserify
-	./src/build.js > $@.tmp
-	mv $@.tmp $@
+dist/ennuicastr.js: src/main.js src/file-storage-main.js awp/ennuicastr-worker.js
+	./node_modules/.bin/rollup -c
 
-ennuicastr.min.js: ennuicastr.js node_modules/.bin/browserify
-	./node_modules/.bin/minify --js < $< | cat src/license.js - > $@
+dist/ennuicastr.min.js dist/fs/fs.js dist/fs/fs.min.js dist/awp/ennuicastr-worker.js dist/awp/ennuicastr-worker.min.js: dist/ennuicastr.js
+	true
 
-ennuicastr-test.js: src/*.ts node_modules/.bin/browserify
-	./src/build.js > $@
+src/main.js: src/*.ts node_modules/.bin/tsc
+	./node_modules/.bin/tsc --lib es2015,dom src/main.ts
 
-ennuicastr-test.min.js: ennuicastr-test.js node_modules/.bin/browserify
-	./node_modules/.bin/minify --js < $< | cat src/license.js - > $@
-
-sw.js: src/sw.ts node_modules/.bin/browserify
-	./node_modules/.bin/tsc --lib es2015,dom $< --outFile $@
-
-fs/fs.js: src/file-storage-main.ts src/file-storage.ts node_modules/.bin/browserify
-	./src/build.js $< -s EnnuicastrFileStorage > $@
+src/file-storage-main.js: src/file-storage-main.ts src/file-storage.ts node_modules/.bin/tsc
+	./node_modules/.bin/tsc --lib es2015,dom src/file-storage-main.ts
 
 awp/ennuicastr-worker.js: awp/ennuicastr-worker.ts node_modules/.bin/tsc
-	./node_modules/.bin/tsc \
-		--lib es2017,webworker --esModuleInterop true \
-		$<
-	( \
-		cat node_modules/@ennuicastr/webrtcvad.js/webrtcvad.js ; \
-		grep -v __esModule $@ \
-	) > $@.tmp
-	mv $@.tmp $@
+	./node_modules/.bin/tsc --lib es2017,webworker $<
 
-awp/ennuicastr-worker-test.js: awp/ennuicastr-worker.ts node_modules/.bin/tsc
-	./node_modules/.bin/tsc --lib es2017,webworker $< --outfile $@.tmp
-	cat node_modules/@ennuicastr/webrtcvad.js/webrtcvad.js $@.tmp > $@
-	rm -f $@.tmp
+dist/protocol.min.js: protocol.js node_modules/.bin/tsc
+	./node_modules/.bin/terser < $< | cat meta/license.js - > $@
 
-protocol.min.js: protocol.js node_modules/.bin/minify
-	./node_modules/.bin/minify --js < $< | cat src/license.js - > $@
+dist/hotkeys.min.js: hotkeys.js node_modules/.bin/tsc
+	./node_modules/.bin/terser < $< | cat meta/license.js - > $@
 
-hotkeys.min.js: hotkeys.js node_modules/.bin/minify
-	./node_modules/.bin/minify --js < $< | cat src/license.js - > $@
-
-node_modules/.bin/browserify:
+node_modules/.bin/tsc:
 	npm install
 
-node_modules/.bin/minify: node_modules/.bin/browserify
-
-node_modules/.bin/tsc: node_modules/.bin/browserify
-
-ecdssw.min.js: node_modules/.bin/browserify
+dist/ecdssw.min.js: node_modules/.bin/tsc
+	mkdir -p dist
 	cp node_modules/@ennuicastr/dl-stream/dist/ecdssw.min.js $@
 
-libs/jquery.min.js: node_modules/.bin/browserify
+dist/libs/jquery.min.js: node_modules/.bin/tsc
+	mkdir -p dist/libs
 	cp node_modules/jquery/dist/jquery.min.js $@
 
-libs/ennuiboard.min.js: node_modules/.bin/browserify
+dist/libs/ennuiboard.min.js: node_modules/.bin/tsc
+	mkdir -p dist/libs
 	cp node_modules/ennuiboard/ennuiboard.min.js $@
 
-libs/vosk-model-small-$(VOSK_MODEL_VER).tar.gz:
-	curl -L http://alphacephei.com/vosk/models/vosk-model-small-$(VOSK_MODEL_VER).zip -o libs/vosk-model-small-$(VOSK_MODEL_VER).zip
-	cd libs/; \
+dist/libs/vosk-model-small-$(VOSK_MODEL_VER).tar.gz:
+	mkdir -p dist/libs
+	curl -L http://alphacephei.com/vosk/models/vosk-model-small-$(VOSK_MODEL_VER).zip \
+		-o dist/libs/vosk-model-small-$(VOSK_MODEL_VER).zip
+	cd dist/libs/; \
 		unzip vosk-model-small-$(VOSK_MODEL_VER).zip; \
 		mv vosk-model-small-$(VOSK_MODEL_VER) model; \
 		tar zcf vosk-model-small-$(VOSK_MODEL_VER).tar.gz model/; \
 		rm -rf model
 
-libs/localforage.min.js: node_modules/.bin/browserify
+dist/libs/localforage.min.js: node_modules/.bin/tsc
+	mkdir -p dist/libs
 	cp node_modules/localforage/dist/localforage.min.js $@
 
-libs/sha512-es.min.js: node_modules/.bin/browserify
+dist/libs/sha512-es.min.js: node_modules/.bin/tsc
+	mkdir -p dist/libs
 	cp node_modules/sha512-es/build/sha512-es.min.js $@
 
-libs/libspecbleach-%: node_modules/@ennuicastr/libspecbleach.js/dist/libspecbleach-%
+dist/libs/libspecbleach-%: node_modules/@ennuicastr/libspecbleach.js/dist/libspecbleach-%
+	mkdir -p dist/libs
 	cp $< $@
 
-node_modules/@ennuicastr/libspecbleach.js/dist/libspecbleach-%: node_modules/.bin/browserify
+node_modules/@ennuicastr/libspecbleach.js/dist/libspecbleach-%: node_modules/.bin/tsc
 	true
 
-libs/webrtcaec3-%: node_modules/@ennuicastr/webrtcaec3.js/dist/webrtcaec3-%
+dist/libs/webrtcaec3-%: node_modules/@ennuicastr/webrtcaec3.js/dist/webrtcaec3-%
+	mkdir -p dist/libs
 	cp $< $@
 
-node_modules/@ennuicastr/webrtcaec3.js/dist/webrtcaec3-%: node_modules/.bin/browserify
+node_modules/@ennuicastr/webrtcaec3.js/dist/webrtcaec3-%: node_modules/.bin/tsc
 	true
 
-Fork-Awesome-$(FKA_VERSION).tar.gz:
-	curl -L https://github.com/ForkAwesome/Fork-Awesome/archive/refs/tags/$(FKA_VERSION).tar.gz -o $@
+dist/libs/webrtcvad%: node_modules/@ennuicastr/webrtcvad.js/webrtcvad%
+	mkdir -p dist/libs
+	cp $< $@
 
-bx: node_modules/.bin/browserify
+node_modules/@ennuicastr/webrtcvad.js/webrtcvad%: node_modules/.bin/tsc
+	true
+
+dist/bx: node_modules/.bin/tsc
+	mkdir -p dist
 	rm -rf bx bx.tmp
 	cp -a node_modules/boxicons bx.tmp
 	rm -rf bx.tmp/src
@@ -151,16 +143,13 @@ bx: node_modules/.bin/browserify
 install:
 	mkdir -p $(PREFIX)/images $(PREFIX)/awp $(PREFIX)/libav $(PREFIX)/fs \
 		$(PREFIX)/libs
-	for i in $(OUT) $(LIBS) $(EXTRA); do \
+	for i in $(OUT) $(LIBS); do \
+		install -C -m 0622 dist/$$i $(PREFIX)/$$i; \
+	done
+	for i in $(EXTRA); do \
 		install -C -m 0622 $$i $(PREFIX)/$$i; \
-        done
-	for i in $(TEST); do \
-		install -C -m 0622 $$i $(PREFIX)/$$i || true; \
         done
 	cp -a bx $(PREFIX)/
 
 clean:
-	rm -f $(OUT) $(TEST) $(LIBS)
-
-distclean: clean
-	rm -f $(DATA)
+	rm -rf dist/

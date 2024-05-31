@@ -21,7 +21,7 @@
  */
 
 // extern
-declare let require: any, Ennuiboard: any;
+declare let require: any;
 
 const NoSleep = require("nosleep.js");
 
@@ -43,6 +43,7 @@ import * as video from "./video";
 import * as videoRecord from "./video-record";
 
 import * as downloadStream from "@ennuicastr/dl-stream";
+import { Ennuiboard } from "ennuiboard";
 
 // Certain options are only shown on mobile
 const ua = navigator.userAgent.toLowerCase();
@@ -675,7 +676,7 @@ export function mkAudioUI(): string {
     input.channel.onchange = channelChange;
 
     // Gamepad PTT configuration
-    if (typeof Ennuiboard !== "undefined" && Ennuiboard.supported.gamepad)
+    if (Ennuiboard.supported.gamepad)
         input.ptt.onclick = ptt.userConfigurePTT;
     else
         input.ptt.style.display = "none";

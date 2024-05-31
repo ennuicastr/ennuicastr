@@ -20,11 +20,6 @@
  * Main entry point.
  */
 
-// extern
-declare let Ennuiboard: any, ECDefaultHotkeys: any;
-
-import "ennuiboard";
-
 import * as audio from "./audio";
 import * as avloader from "./avloader";
 import * as commImpl from "./comm-impl";
@@ -37,6 +32,7 @@ import * as uiImpl from "./ui-impl";
 import * as util from "./util";
 
 import * as downloadStream from "@ennuicastr/dl-stream";
+import { Ennuiboard } from "ennuiboard";
 
 // The main entry point
 async function main() {
@@ -57,7 +53,7 @@ async function main() {
 
         // This can be loaded lazily
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        ECDefaultHotkeys = {"0000c": "ecmenu-chat"};
+        (<any> window).ECDefaultHotkeys = {"0000c": "ecmenu-chat"};
         util.loadLibrary({
             file: "hotkeys.min.js?v=5",
             name: "hotkey library"

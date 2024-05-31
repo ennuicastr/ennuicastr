@@ -109,7 +109,7 @@ export class FileStorage {
      */
     async clearExpired(): Promise<void> {
         // Get the list of expired files
-        const expiredP = this._storePromise.then(async function() {
+        const expiredP = this._storePromise.then(async () => {
             const now = Date.now();
             const files: string[] = await this.fileStorage.getItem("files") || [];
             const expired: string[] = [];

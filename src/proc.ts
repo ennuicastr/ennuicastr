@@ -20,11 +20,6 @@
  * Input audio processing.
  */
 
-// extern
-declare let Ennuiboard: any;
-
-import * as rtennui from "rtennui";
-
 import * as audio from "./audio";
 import * as config from "./config";
 import * as log from "./log";
@@ -35,6 +30,9 @@ import * as ui from "./ui";
 import * as util from "./util";
 import * as vad from "./vad";
 import * as waveform from "./waveform";
+
+import { Ennuiboard } from "ennuiboard";
+import * as rtennui from "rtennui";
 
 // Set if we've sent data recently
 let sentRecently = false;
@@ -83,8 +81,8 @@ export function localProcessing(idx: number): void {
                 else
                     log.pushStatus("notencoding", "Audio encoding is not functioning!");
 
-                if (typeof Ennuiboard !== "undefined" && Ennuiboard.enabled.gamepad)
-                    Ennuiboard.gamepad.poll();
+                if (Ennuiboard.enabled.gamepad)
+                    Ennuiboard.subsystems.gamepad.poll();
             }, 100);
         }
 

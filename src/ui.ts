@@ -748,7 +748,7 @@ export function userListAdd(idx: number, name: string, fromMaster: boolean): voi
 // Cogito ergo sum
 util.events.addEventListener("net.info." + prot.info.id, function(ev: CustomEvent) {
     const val: number = ev.detail.val;
-    userListAdd(val, config.username, false);
+    userListAdd(val, config.username, "master" in config.config);
     const user = ui.panels.userList.users[val];
     user.connectionInfo.style.backgroundColor = "var(--user-list-conn-reliable)";
 });

@@ -14,22 +14,29 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-import type LibAVT from "libav.js";
-declare let LibAV: LibAVT.LibAVWrapper;
+import type * as LibAVT from "libav.js";
 
-import type LibSpecBleachT from "@ennuicastr/libspecbleach.js";
-declare let LibSpecBleach: LibSpecBleachT.LibSpecBleachWrapper;
+import type * as LibSpecBleachT from "@ennuicastr/libspecbleach.js";
 
-import type WebRtcAec3T from "@ennuicastr/webrtcaec3.js";
-declare let WebRtcAec3: () => Promise<WebRtcAec3T.WebRtcAec3>;
+import type * as WebRtcAec3T from "@ennuicastr/webrtcaec3.js";
 
-declare let Vosk: any, WebRtcVad: any, __filename: string;
+declare let window: any;
+const global: any = (() => {
+    if (typeof globalThis !== "undefined")
+        return globalThis;
+    else if (typeof self !== "undefined")
+        return self;
+    else
+        return window;
+})();
 
 const libavVersion = "4.8.6.0.1";
 const libavPath = "../libav/libav-" + libavVersion + "-ennuicastr.js";
 
 const webRtcAec3Version = "0.3.0";
 const webRtcAec3Path = "../libs/webrtcaec3-" + webRtcAec3Version + ".js";
+
+const webRtcVadPath = "../libs/webrtcvad.js";
 
 const libspecbleachVersion = "0.1.7-js2";
 const libspecbleachPath = "../libs/libspecbleach-" + libspecbleachVersion + ".js";
@@ -284,11 +291,11 @@ function doEncoder(msg: any) {
         let buffersrc_ctx: number, buffersink_ctx: number;
 
         // Load libav
-        LibAV = <any> {nolibavworker: true, base: "../libav"};
-        __filename = libavPath; // To "trick" wasm loading
-        importScripts(__filename);
+        global.LibAV = <any> {nolibavworker: true, base: "../libav"};
+        global.__filename = libavPath; // To "trick" wasm loading
+        importScripts(global.__filename);
 
-        libav = await LibAV.LibAV({noworker: true});
+        libav = await global.LibAV.LibAV({noworker: true});
 
         const encOptions: LibAVT.AVCodecContextProps = {
             sample_rate: outSampleRate,
@@ -459,7 +466,9 @@ async function doFilter(msg: any) {
     let lastVolume = 0, lastPeak = 0;
 
     // Load the VAD
-    vad = await WebRtcVad();
+    global.__filename = webRtcVadPath;
+    importScripts(global.__filename);
+    vad = await global.WebRtcVad();
 
     // Create our WebRTC vad
     function mkVad(lvl) {
@@ -483,20 +492,20 @@ async function doFilter(msg: any) {
     vadBuf = new Int16Array(vad.HEAPU8.buffer, vadDataPtr, vadBufSz * 2);
 
     // Load echo cancellation
-    __filename = webRtcAec3Path;
-    importScripts(__filename);
-    AEC3 = await WebRtcAec3();
+    global.__filename = webRtcAec3Path;
+    importScripts(global.__filename);
+    AEC3 = await global.WebRtcAec3();
 
     // And load libspecbleach
-    LibSpecBleach = <any> {base: "../libs"};
-    __filename = libspecbleachPath;
-    importScripts(__filename);
-    SpecBleach = await LibSpecBleach.LibSpecBleach();
+    global.LibSpecBleach = <any> {base: "../libs"};
+    global.__filename = libspecbleachPath;
+    importScripts(global.__filename);
+    SpecBleach = await global.LibSpecBleach.LibSpecBleach();
 
     // Possibly load Vosk
     if (useTranscription) {
-        __filename = "../libs/vosk.js?v=3";
-        importScripts(__filename);
+        global.__filename = "../libs/vosk.js?v=3";
+        importScripts(global.__filename);
     }
 
     // If we loaded Vosk, it can finish loading in the background
@@ -509,7 +518,7 @@ async function doFilter(msg: any) {
 
     // Load the Vosk model in the background
     async function loadVosk() {
-        const model = await Vosk.createModel(voskModelPath);
+        const model = await global.Vosk.createModel(voskModelPath);
 
         vosk.model = model;
         vosk.recognizer = new vosk.model.KaldiRecognizer(sampleRate);
@@ -861,11 +870,11 @@ function doOutproc(msg: any) {
 
     // Load libav in the background
     (async () => {
-        LibAV = <any> {nolibavworker: true, base: "../libav"};
-        __filename = libavPath; // To "trick" wasm loading
-        importScripts(__filename);
+        global.LibAV = <any> {nolibavworker: true, base: "../libav"};
+        global.__filename = libavPath; // To "trick" wasm loading
+        importScripts(global.__filename);
 
-        la = await LibAV.LibAV({noworker: true});
+        la = await global.LibAV.LibAV({noworker: true});
         frame = await la.av_frame_alloc();
 
         const ret =

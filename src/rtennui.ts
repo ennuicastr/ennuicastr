@@ -38,8 +38,7 @@ import * as wcp from "libavjs-webcodecs-polyfill";
 
 // Make our polyfill the global one
 declare let LibAVWebCodecs: typeof wcp;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars, prefer-const
-LibAVWebCodecs = wcp;
+(<any> window).LibAVWebCodecs = wcp;
 
 // Has the RTEnnui library been initialized?
 let inited = false;
