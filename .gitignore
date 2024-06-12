@@ -22,6 +22,5 @@ libs/libspecbleach*
 libs/webrtcaec3*
 ecdssw.min.js
 node_modules/
-package-lock.json
 protocol.min.js
 sw.js
