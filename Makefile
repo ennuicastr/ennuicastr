@@ -58,20 +58,11 @@ dist/ecloader.js: src/loader.ts node_modules/.bin/tsc
 dist/ecloader.min.js: dist/ecloader.js node_modules/.bin/tsc
 	./node_modules/.bin/terser < $< > $@
 
-dist/ennuicastr.js: src/main.js src/file-storage-main.js awp/ennuicastr-worker.js
+dist/ennuicastr.js: src/*.ts awp/*.ts node_modules/.bin/tsc
 	./node_modules/.bin/rollup -c
 
 dist/ennuicastr.min.js dist/fs/fs.js dist/fs/fs.min.js dist/awp/ennuicastr-worker.js dist/awp/ennuicastr-worker.min.js: dist/ennuicastr.js
 	true
-
-src/main.js: src/*.ts node_modules/.bin/tsc
-	./node_modules/.bin/tsc --lib es2015,dom src/main.ts
-
-src/file-storage-main.js: src/file-storage-main.ts src/file-storage.ts node_modules/.bin/tsc
-	./node_modules/.bin/tsc --lib es2015,dom src/file-storage-main.ts
-
-awp/ennuicastr-worker.js: awp/ennuicastr-worker.ts node_modules/.bin/tsc
-	./node_modules/.bin/tsc --lib es2017,webworker $<
 
 dist/protocol.min.js: protocol.js node_modules/.bin/tsc
 	./node_modules/.bin/terser < $< | cat meta/license.js - > $@

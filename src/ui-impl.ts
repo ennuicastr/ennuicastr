@@ -20,11 +20,6 @@
  * Implementation of the user interface.
  */
 
-// extern
-declare let require: any;
-
-const NoSleep = require("nosleep.js");
-
 import * as audio from "./audio";
 import * as chat from "./chat";
 import * as config from "./config";
@@ -44,6 +39,7 @@ import * as videoRecord from "./video-record";
 
 import * as downloadStream from "@ennuicastr/dl-stream";
 import { Ennuiboard } from "ennuiboard";
+import NoSleep from "nosleep.js";
 
 // Certain options are only shown on mobile
 const ua = navigator.userAgent.toLowerCase();

@@ -1,17 +1,31 @@
 import nodeResolve from "@rollup/plugin-node-resolve";
 import commonjs from "@rollup/plugin-commonjs";
 import terser from "@rollup/plugin-terser";
-import babel from "@rollup/plugin-babel";
+import typescript from "@rollup/plugin-typescript";
 
 const plugins = [
     nodeResolve(),
-    commonjs(),
-    babel()
+    commonjs()
 ];
+
+const pluginsTS = [
+    typescript({
+        exclude: ["awp/*"]
+    })
+].concat(plugins);
+
+const pluginsTSWorker = [
+    typescript({
+        exclude: ["src/*"],
+        compilerOptions: {
+            lib: ["es2017", "webworker"]
+        }
+    })
+].concat(plugins);
 
 export default [
     {
-        input: "src/main.js",
+        input: "src/main.ts",
         output: [
             {
                 file: "dist/ennuicastr.js",
@@ -25,10 +39,10 @@ export default [
                 plugins: [terser()]
             }
         ],
-        plugins
+        plugins: pluginsTS
     },
     {
-        input: "src/file-storage-main.js",
+        input: "src/file-storage-main.ts",
         output: [
             {
                 file: "dist/fs/fs.js",
@@ -42,10 +56,10 @@ export default [
                 plugins: [terser()]
             }
         ],
-        plugins
+        plugins: pluginsTS
     },
     {
-        input: "awp/ennuicastr-worker.js",
+        input: "awp/ennuicastr-worker.ts",
         output: [
             {
                 file: "dist/awp/ennuicastr-worker.js",
@@ -59,6 +73,6 @@ export default [
                 plugins: [terser()]
             }
         ],
-        plugins
+        plugins: pluginsTSWorker
     }
 ];
