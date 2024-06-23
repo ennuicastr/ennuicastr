@@ -30,7 +30,7 @@ const global: any = (() => {
         return window;
 })();
 
-const libavVersion = "4.8.6.0.1";
+const libavVersion = "5.4.6.1.1";
 const libavPath = "../libav/libav-" + libavVersion + "-ennuicastr.js";
 
 const webRtcAec3Version = "0.3.0";

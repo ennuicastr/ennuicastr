@@ -1,6 +1,6 @@
 PREFIX=inst
 
-LIBAV_VERSION=4.8.6.0.1
+LIBAV_VERSION=5.4.6.1.1
 LIBSPECBLEACH_VERSION=0.1.7-js2
 WEBRTCAEC3_VERSION=0.3.0
 VOSK_MODEL_VER=en-us-0.15
@@ -45,8 +45,6 @@ EXTRA=\
     libav/libav-$(LIBAV_VERSION)-ennuicastr.asm.js \
     libav/libav-$(LIBAV_VERSION)-ennuicastr.wasm.js \
     libav/libav-$(LIBAV_VERSION)-ennuicastr.wasm.wasm \
-    libav/libav-$(LIBAV_VERSION)-ennuicastr.simd.js \
-    libav/libav-$(LIBAV_VERSION)-ennuicastr.simd.wasm \
     libs/vosk.js libs/lib-jitsi-meet.7421.js
 
 all: $(addprefix dist/,$(OUT)) $(addprefix dist/,$(LIBS)) $(DATA)
