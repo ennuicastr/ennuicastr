@@ -39,7 +39,7 @@ import * as videoRecord from "./video-record";
 
 import * as downloadStream from "@ennuicastr/dl-stream";
 import { Ennuiboard } from "ennuiboard";
-import NoSleep from "nosleep.js";
+import NoSleep from "../node_modules/nosleep.js/dist/NoSleep.min.js";
 
 // Certain options are only shown on mobile
 const ua = navigator.userAgent.toLowerCase();
