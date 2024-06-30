@@ -139,6 +139,10 @@ class OutProcAudioPlayback extends rtennui.AudioPlayback {
         return this._endTime - time - now;
     }
 
+    override playing(): boolean {
+        return (this._endTime > performance.now());
+    }
+
     override latency() {
         if (this.proc && this.proc.output)
             return this.proc.output.latency() + 150 /* input processing + output processing */;
