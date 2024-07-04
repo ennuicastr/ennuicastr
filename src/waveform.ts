@@ -407,6 +407,10 @@ export class Waveform {
             allNew = true;
         }
 
+        // Or if we haven't reset in a while
+        if (this.resetTime-- <= 0)
+            allNew = true;
+
         // And draw it
         const ctx = this.ctx;
         const lctx = this.lblCtx;
@@ -423,9 +427,6 @@ export class Waveform {
                 allNew = true;
             }
         }
-
-        if (this.resetTime-- <= 0)
-            allNew = true;
 
         // If we should be treating everything as new, do so
         if (allNew) {
