@@ -30,7 +30,7 @@ const log10 = Math.log(10);
 const log1036 = log10 * 3.6;
 
 // Global display timer
-let displayInterval: number|null = null;
+let displayLoop: Promise<unknown> | null = null;
 
 // Array of waveforms to display
 let toDisplay: Waveform[] = [];
@@ -92,6 +92,10 @@ export class Waveform {
 
     // How much new data is there?
     newData: number;
+
+    // How many frames since we reset?
+    resetTime: number;
+    static resetTimeMax = 1024;
 
     // Have we sent recently?
     sentRecently: boolean;
@@ -191,46 +195,40 @@ export class Waveform {
         this.rootSum = 0;
         this.rmsPlaceholders = 0;
         this.staleData = this.newData = 0;
+        this.resetTime = Waveform.resetTimeMax;
         this.lastDisplayHeight = 0;
         this.lastGood = false;
         this.lastWaveVADColors = null;
 
-        // If there is no rendering interval, make one
-        if (!displayInterval) {
-            displayInterval = setInterval(function() {
-                let af: number = null;
+        // If there is no rendering loop, make one
+        if (!displayLoop) displayLoop = (async () => {
+            while (true) {
+                // Wait for a frame
+                await new Promise<void>(res => {
+                    let af: number | null = null;
+                    let to: number | null = null;
 
-                function go() {
-                    af = null;
-                    toDisplay.forEach((w) => {
-                        w.display();
+                    af = window.requestAnimationFrame(() => {
+                        clearTimeout(to);
+                        res();
                     });
-                    toDisplay = [];
-                    toDisplaySet = {};
-                }
 
-                /* For smoothness, we want this on an animation frame. We don't
-                 * want to wait for an animation frame if the screen is
-                 * minimized, but we *do* still want to run the display
-                 * function, because it also does data management. So, we use
-                 * requestAnimationFrame if the window is visible, and just
-                 * call display otherwise. */
-                if (document.visibilityState === "visible") {
-                    af = window.requestAnimationFrame(go);
+                    to = setTimeout(() => {
+                        window.cancelAnimationFrame(af);
+                        res();
+                    }, 500);
+                });
 
-                    setTimeout(function() {
-                        if (af !== null) {
-                            window.cancelAnimationFrame(af);
-                            go();
-                        }
-                    }, 100);
+                // Draw
+                for (const w of toDisplay)
+                    w.display();
+                toDisplay = [];
+                toDisplaySet = {};
 
-                } else {
-                    go();
-
-                }
-            }, 50);
-        }
+                // Wait to draw the next frame
+                await new Promise(res => setTimeout(res, 50));
+            }
+        })();
 
         // Seed the data
         this.push(0, 2);
@@ -379,6 +377,8 @@ export class Waveform {
             waveData.unshift(0);
             waveVADs.unshift(0);
         }
+        if (this.newData >= dw)
+            allNew = true;
 
         // Figure out the ceiling of the display
         const maxVal = Math.max(
@@ -407,25 +407,34 @@ export class Waveform {
             allNew = true;
         }
 
-        // If we should be treating everything as new, do so
-        if (allNew) {
-            this.staleData = 0;
-            this.newData = dw;
-        }
-
         // And draw it
         const ctx = this.ctx;
         const lctx = this.lblCtx;
         let i, p;
 
         // Make room for new data
-        try {
-            if (this.rotate)
-                ctx.drawImage(this.canvas, 0, -sw * this.newData);
-            else
-                ctx.drawImage(this.canvas, -sw * this.newData, 0);
-        } catch (ex) {}
-        this.newData += this.staleData;
+        if (!allNew) {
+            try {
+                const cut = sw * this.newData;
+                const ow = w - cut, oh = h*2;
+                let id = ctx.getImageData(cut, 0, ow, oh);
+                ctx.putImageData(id, 0, 0);
+            } catch (ex) {
+                allNew = true;
+            }
+        }
+
+        if (this.resetTime-- <= 0)
+            allNew = true;
+
+        // If we should be treating everything as new, do so
+        if (allNew) {
+            this.staleData = 0;
+            this.newData = dw;
+            this.resetTime = Waveform.resetTimeMax;
+            ctx.reset();
+            lctx.reset();
+        }
 
         // Get the x location where new data starts
         const ndx = w - sw * this.newData;
