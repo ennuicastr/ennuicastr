@@ -132,6 +132,7 @@ export function createMasterInterface(): void {
             fileStorage.getRemoteFileStorage(
                 () => {
                     return ui.transientActivation(
+                        "Log in",
                         '<i class="bx bx-log-in"></i> Log in',
                         {force: true}
                     );

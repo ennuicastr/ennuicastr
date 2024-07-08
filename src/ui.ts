@@ -170,6 +170,7 @@ export const ui = {
         // Transient activation panel
         transientActivation: <{
             wrapper: HTMLDialogElement,
+            label: HTMLElement,
             button: HTMLButtonElement
         }> null,
 
@@ -593,11 +594,14 @@ export function unsetModal(): void {
 /**
  * Show the transient activation panel with the given button text, and wait for
  * transient activation.
- * @param html  Button text (HTML, really) to show
+ * @param lblHTML  Label text (HTML) to show
+ * @param btnHTML  Button text (HTML) to show
  * @param opts  Other activation options
  */
 export function transientActivation(
-    html: string, opts: {
+    lblHTML: string,
+    btnHTML: string,
+    opts: {
         makeModal?: boolean,
         force?: boolean
     } = {}
@@ -609,7 +613,8 @@ export function transientActivation(
     }
 
     const taPanel = ui.panels.transientActivation;
-    taPanel.button.innerHTML = html;
+    taPanel.label.innerHTML = lblHTML;
+    taPanel.button.innerHTML = lblHTML;
     const promise = new Promise<void>(res => {
         taPanel.button.onclick = () => {
             unsetModal();

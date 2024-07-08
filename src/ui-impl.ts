@@ -128,6 +128,7 @@ export function mkUI(): Promise<unknown> {
     if (mobile) {
         return Promise.all([]).then(async () => {
             await uiFE.transientActivation(
+                "Join recording",
                 '<i class="bx bx-door-open"></i> Join recording',
                 {makeModal: true}
             );
@@ -226,6 +227,7 @@ function loadMainMenu() {
 
     ui.panels.transientActivation = {
         wrapper: gebi("ec3-transient-activation-panel"),
+        label: gebi("ec3-transient-activation-panel-label"),
         button: gebi("ec3-transient-activation-btn")
     };
 

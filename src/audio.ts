@@ -488,6 +488,7 @@ export class Audio {
              * handler */
             if (ac.state !== "running") {
                 await ui.transientActivation(
+                    "Join recording",
                     '<i class="bx bx-door-open"></i> Join recording',
                     {makeModal: true}
                 );
