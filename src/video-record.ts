@@ -670,6 +670,12 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
         promises.push(doBrowserStorage(s1));
     }
 
+    if (("master" in config.config) && ui.ui.panels.host.saveVideoInCloud.checked) {
+        const [s1, s2] = <[any, any]> outputStream.tee();
+        outputStream = s2;
+        promises.push(doCloudStorage(s1));
+    }
+
     if (opts.remote) {
         const [s1, s2] = <[any, any]> outputStream.tee();
         outputStream = s2;
@@ -693,6 +699,11 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
     // Do the browser storage writing
     async function doBrowserStorage(stream: ReadableStream<Uint8Array>) {
         await saveVideoBrowser(filename, stream, mimeType);
+    }
+
+    // Do the cloud storage writing
+    async function doCloudStorage(stream: ReadableStream<Uint8Array>) {
+        await saveVideoCloud(filename, stream, mimeType);
     }
 
     // Do the local writing
@@ -815,6 +826,7 @@ export function recordVideoRemoteIncoming(
 }
 
 // Function to report video storage
+// FIXME: Reports both browser and cloud
 let lastStorageCt = -1;
 function storageReport(ct: number, used: number, max: number) {
     const s = (ct === 1) ? "" : "s";
@@ -833,17 +845,25 @@ function storageReport(ct: number, used: number, max: number) {
 async function saveVideoBrowser(
     filename: string, stream: ReadableStream<Uint8Array>, mimeType: string
 ) {
-    // Do them
     return (await fileStorage.getLocalFileStorage()).storeFile(filename,
         [config.config.id, config.config.key, config.config.master],
         stream, {mimeType, report: storageReport});
 }
 
-// Save a video download, either as a stream or into local storage, or both
+// Save a video download into cloud storage
+async function saveVideoCloud(
+    filename: string, stream: ReadableStream<Uint8Array>, mimeType: string
+) {
+    // FIXME: Should be using getRemoteFileStorage
+    return (await fileStorage.remoteFileStoragePromise).storeFile(filename,
+        [config.config.id, config.config.key, config.config.master],
+        stream, {mimeType, report: storageReport});
+}
+
+// Save a video as a download
 async function saveVideoFile(
     filename: string, stream: ReadableStream<Uint8Array>, mimeType: string
 ) {
-    // Do them
     await downloadStream.stream(filename, stream, {
         "content-type": mimeType
     });

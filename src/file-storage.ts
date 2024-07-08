@@ -297,7 +297,7 @@ export async function getLocalFileStorage(): Promise<FileStorage> {
 }
 
 // Remote FileStorage instance
-let remoteFileStoragePromise: Promise<FileStorage> | null = null;
+export let remoteFileStoragePromise: Promise<FileStorage> | null = null;
 
 /**
  * Get a remote FileStorage.
