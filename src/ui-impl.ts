@@ -51,7 +51,7 @@ const mobile = (ua.indexOf("android") >= 0) ||
 let noSleep: any = null;
 
 // Make the UI
-export function mkUI(): Promise<unknown> {
+export function mkUI(): void {
     // Load in the UI
     document.body.style.margin =
         document.body.style.padding = "0";
@@ -124,19 +124,11 @@ export function mkUI(): Promise<unknown> {
     });
 
     // If we're on mobile, now is the time to NoSleep
-    // FIXME: Combine this with starting the AC
     if (mobile) {
-        return Promise.all([]).then(async () => {
-            await uiFE.transientActivation(
-                "Join recording",
-                '<i class="bx bx-door-open"></i> Join recording',
-                {makeModal: true}
-            );
+        noSleep = new NoSleep();
+        uiFE.onTransientActivation(async () => {
             noSleep.enable();
-        }).catch(net.promiseFail());
-
-    } else {
-        return Promise.all([]);
+        });
 
     }
 }

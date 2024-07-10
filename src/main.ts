@@ -28,6 +28,7 @@ import * as log from "./log";
 import * as net from "./net";
 import * as proc from "./proc";
 import { prot } from "./protocol";
+import * as ui from "./ui";
 import * as uiImpl from "./ui-impl";
 import * as util from "./util";
 
@@ -49,7 +50,7 @@ async function main() {
 
     try {
         // Build the UI
-        await uiImpl.mkUI();
+        uiImpl.mkUI();
 
         // This can be loaded lazily
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -69,6 +70,18 @@ async function main() {
         proc.localProcessing(0);
         if (config.useRTC)
             commImpl.initComms();
+
+        const acPromise = audio.initAudioContext();
+
+        if (ui.needTransientActivation()) {
+            await ui.transientActivation(
+                "Join recording",
+                '<i class="bx bx-door-open"></i> Join recording',
+                {makeModal: true}
+            );
+        }
+
+        await acPromise;
 
         // Get audio permissions, continuing on to making the audio UI
         await audio.inputs[0].getAudioPerms(uiImpl.mkAudioUI);

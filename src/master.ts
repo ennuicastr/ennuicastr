@@ -135,7 +135,7 @@ export function createMasterInterface(): void {
                         "Log in",
                         '<i class="bx bx-log-in"></i> Log in',
                         {force: true}
-                    );
+                    ).then(()=>{});
                 },
                 <any> provider
             );

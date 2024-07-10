@@ -591,6 +591,45 @@ export function unsetModal(): void {
     modal = null;
 }
 
+// Callbacks to call upon transient activation
+let transientActivationCallbacks: (()=>void)[] = [];
+let transientActivationPromises: Promise<unknown>[] = [];
+
+/**
+ * Perform an action upon transient activation.
+ * @param act  Action to perform upon transient activation
+ */
+export function onTransientActivation(act: ()=>Promise<unknown>) {
+    const p = (new Promise<void>(res => {
+        transientActivationCallbacks.push(res);
+    })).then(act);
+    transientActivationPromises.push(p);
+    return p;
+}
+
+/**
+ * If transient activation is needed (the user must judge this themselves),
+ * wait for transient activation. Otherwise, just perform this action eagerly.
+ * @param transientActivationNeeded  True if transient activation is needed
+ * @param act  Action to perform upon transient activation (or eagerly)
+ */
+export function maybeOnTransientActivation(
+    transientActivationNeeded: boolean,
+    act: ()=>Promise<unknown>
+) {
+    if (transientActivationNeeded)
+        return onTransientActivation(act);
+    else
+        return act();
+}
+
+/**
+ * Do we need transient activation?
+ */
+export function needTransientActivation() {
+    return transientActivationCallbacks.length !== 0;
+}
+
 /**
  * Show the transient activation panel with the given button text, and wait for
  * transient activation.
@@ -614,16 +653,28 @@ export function transientActivation(
 
     const taPanel = ui.panels.transientActivation;
     taPanel.label.innerHTML = lblHTML;
-    taPanel.button.innerHTML = lblHTML;
-    const promise = new Promise<void>(res => {
+    taPanel.button.innerHTML = btnHTML;
+
+    let cbs = transientActivationCallbacks;
+    transientActivationCallbacks = [];
+    let promises = transientActivationPromises;
+    transientActivationPromises = [];
+
+    promises.push(new Promise<void>(res => {
         taPanel.button.onclick = () => {
             unsetModal();
             showPanel(null);
+
+            console.log(`${cbs.length} callbacks`);
+            for (const cb of cbs)
+                cb();
+
             res();
         };
-    });
+    }));
     showPanel(taPanel, taPanel.button, opts.makeModal);
-    return promise;
+
+    return Promise.all(promises);
 }
 
 // Saveable config for a box with a string value

@@ -267,6 +267,95 @@ function tickRecordingTimer() {
     timer.innerText = (h?(h+":"):"") + m + ":" + s;
 }
 
+/**
+ * Initialize the AudioContext. Must be done once when first loading. Returns a
+ * promise that may require transient activation.
+ */
+export function initAudioContext() {
+    // Create our AudioContext if needed
+    if (!ac) {
+        try {
+            ac = new AudioContext({latencyHint: "playback"});
+        } catch (ex) {
+            // Try Apple's, and if not that, nothing left to try, so crash
+            ac = new webkitAudioContext();
+        }
+
+        // Make an output for it
+        const ecDest = ac.ecDestination = ac.createGain();
+        ecDest.gain.value = 1;
+        const ecDelay = ac.ecDestinationDelay = ac.createDelay();
+        ecDest.connect(ecDelay);
+        const msd = ac.ecDestinationStream =
+            ac.createMediaStreamDestination();
+        ecDelay.connect(msd);
+
+        // Keep the output from doing anything weird by giving it silence
+        const msdSilence = ac.createConstantSource();
+        msdSilence.offset.value = 0;
+        msdSilence.connect(ecDest);
+        msdSilence.start();
+
+        // Start playing it when we're (relatively) sure we can
+        util.events.addEventListener("usermediartcready", () => {
+            let a = ui.ui.audioOutput;
+            if (!a) {
+                a = ui.ui.audioOutput = dce("audio");
+                a.style.display = "none";
+                document.body.appendChild(a);
+            }
+
+            a.srcObject = msd.stream;
+            try {
+                let v = ui.ui.panels.outputConfig.device.value;
+                if (v === "-default")
+                    v = "";
+                (<any> a).setSinkId(v).catch(console.error);
+            } catch (ex) {}
+            a.play().catch(console.error);
+        });
+    }
+
+    /* If AudioContext started paused, we need to unpause it with transient
+     * activation */
+    const needTransientActivation = (ac.state !== "running");
+    return ui.maybeOnTransientActivation(needTransientActivation, async () => {
+        if (needTransientActivation)
+            await ac.resume();
+
+        if (ac.state !== "running")
+            log.pushStatus("audiocontext", "Cannot capture audio! State: " + util.escape(ac.state));
+
+        // At this point, we want to start catching errors
+        window.addEventListener("error", function(error) {
+            try {
+                let msg = "";
+                if (error.error)
+                    msg = error.error + "\n\n" + error.error.stack;
+                else
+                    msg = error.message + "\n\n" + error.filename + ":" + error.lineno;
+                net.errorHandler(msg);
+            } catch (ex) {}
+        });
+
+        window.addEventListener("unhandledrejection", function(error) {
+            error = error.reason;
+            if (error instanceof Error) {
+                net.errorHandler(error + "\n\n" + error.stack);
+            } else {
+                let msg;
+                try {
+                    msg = JSON.stringify(error);
+                } catch (ex) {
+                    msg = error+"";
+                }
+                msg += "\n\n" + new Error().stack;
+                net.errorHandler(msg);
+            }
+        });
+    });
+}
+
 
 /**
  * Audio capture and recording.
@@ -423,55 +512,11 @@ export class Audio {
         }).catch(net.catastrophicErrorFactory());
     }
 
-    /* Called once we have mic access. Returns a promise that resolves once
-     * encoding is active. */
+    /* Called once we have mic access. Returns a promise which *may* depend on
+     * transient activation. */
     private userMediaSet(): Promise<unknown> {
         if (!net.connected)
             return;
-
-        // Create our AudioContext if needed
-        if (!ac) {
-            try {
-                ac = new AudioContext({latencyHint: "playback"});
-            } catch (ex) {
-                // Try Apple's, and if not that, nothing left to try, so crash
-                ac = new webkitAudioContext();
-            }
-
-            // Make an output for it
-            const ecDest = ac.ecDestination = ac.createGain();
-            ecDest.gain.value = 1;
-            const ecDelay = ac.ecDestinationDelay = ac.createDelay();
-            ecDest.connect(ecDelay);
-            const msd = ac.ecDestinationStream =
-                ac.createMediaStreamDestination();
-            ecDelay.connect(msd);
-
-            // Keep the output from doing anything weird by giving it silence
-            const msdSilence = ac.createConstantSource();
-            msdSilence.offset.value = 0;
-            msdSilence.connect(ecDest);
-            msdSilence.start();
-
-            // Start playing it when we're (relatively) sure we can
-            util.events.addEventListener("usermediartcready", () => {
-                let a = ui.ui.audioOutput;
-                if (!a) {
-                    a = ui.ui.audioOutput = dce("audio");
-                    a.style.display = "none";
-                    document.body.appendChild(a);
-                }
-
-                a.srcObject = msd.stream;
-                try {
-                    let v = ui.ui.panels.outputConfig.device.value;
-                    if (v === "-default")
-                        v = "";
-                    (<any> a).setSinkId(v).catch(console.error);
-                } catch (ex) {}
-                a.play().catch(console.error);
-            });
-        }
 
         // If we don't *actually* have a userMedia, fake one
         let noUserMedia = false;
@@ -481,70 +526,24 @@ export class Audio {
             const msd = ac.createMediaStreamDestination();
             cs.connect(msd);
             this.userMedia = msd.stream;
+
+            // Warn them
+            log.pushStatus("usermedia", "Failed to capture audio!", {
+                timeout: 10000
+            });
         }
 
-        return Promise.all([]).then(async () => {
-            /* If AudioContext started paused, we need to unpause it in an event
-             * handler */
-            if (ac.state !== "running") {
-                await ui.transientActivation(
-                    "Join recording",
-                    '<i class="bx bx-door-open"></i> Join recording',
-                    {makeModal: true}
-                );
-                await ac.resume();
-            }
+        // Now UserMedia and AudioContext are ready
+        util.dispatchEvent("audio.mute");
 
-        }).then(() => {
-            if (ac.state !== "running")
-                log.pushStatus("audiocontext", "Cannot capture audio! State: " + util.escape(ac.state));
+        log.pushStatus("initenc", "Initializing encoder...", {
+            timein: 1000
+        });
 
-            // At this point, we want to start catching errors
-            window.addEventListener("error", function(error) {
-                try {
-                    let msg = "";
-                    if (error.error)
-                        msg = error.error + "\n\n" + error.error.stack;
-                    else
-                        msg = error.message + "\n\n" + error.filename + ":" + error.lineno;
-                    net.errorHandler(msg);
-                } catch (ex) {}
-            });
+        util.dispatchEvent("usermediaready", {idx: this.idx});
+        util.dispatchEvent("usermediaready" + this.idx, {idx: this.idx});
 
-            window.addEventListener("unhandledrejection", function(error) {
-                error = error.reason;
-                if (error instanceof Error) {
-                    net.errorHandler(error + "\n\n" + error.stack);
-                } else {
-                    let msg;
-                    try {
-                        msg = JSON.stringify(error);
-                    } catch (ex) {
-                        msg = error+"";
-                    }
-                    msg += "\n\n" + new Error().stack;
-                    net.errorHandler(msg);
-                }
-            });
-
-            if (noUserMedia) {
-                // Warn them
-                log.pushStatus("usermedia", "Failed to capture audio!", {
-                    timeout: 10000
-                });
-            }
-
-            // Now UserMedia and AudioContext are ready
-            util.dispatchEvent("audio.mute");
-
-            log.pushStatus("initenc", "Initializing encoder...", {
-                timein: 1000
-            });
-
-            util.dispatchEvent("usermediaready", {idx: this.idx});
-            util.dispatchEvent("usermediaready" + this.idx, {idx: this.idx});
-
-        }).catch(net.promiseFail()).then(() => this.encoderLoaded());
+        return this.encoderLoaded();
     }
 
     /* Called once the specialized encoder is loaded, if it's needed. Returns a
