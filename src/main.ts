@@ -25,6 +25,7 @@ import * as avloader from "./avloader";
 import * as commImpl from "./comm-impl";
 import * as config from "./config";
 import * as log from "./log";
+import * as master from "./master";
 import * as net from "./net";
 import * as proc from "./proc";
 import { prot } from "./protocol";
@@ -72,6 +73,9 @@ async function main() {
             commImpl.initComms();
 
         const acPromise = audio.initAudioContext();
+
+        if ("master" in config.config)
+            await master.initCloudStorage();
 
         if (ui.needTransientActivation()) {
             await ui.transientActivation(

@@ -114,31 +114,7 @@ export function createMasterInterface(): void {
         masterUI.saveVideoInCloud,
         "master-video-save-in-cloud-" + config.useVideoRec,
         async ev => {
-            // FIXME: change providers
-            if (!masterUI.saveVideoInCloud.checked)
-                return;
-
-            let provider = localStorage.getItem("master-video-save-in-cloud-provider");
-            if (!provider) {
-                const csPanel = ui.ui.panels.cloudStorage;
-                provider = await new Promise(res => {
-                    csPanel.googleDrive.onclick = () => res("googleDrive");
-                    csPanel.dropbox.onclick = () => res("dropbox");
-                    ui.showPanel(csPanel);
-                });
-                localStorage.setItem("master-video-save-in-cloud-provider", provider);
-            }
-
-            fileStorage.getRemoteFileStorage(
-                () => {
-                    return ui.transientActivation(
-                        "Log in",
-                        '<i class="bx bx-log-in"></i> Log in',
-                        {force: true}
-                    ).then(()=>{});
-                },
-                <any> provider
-            );
+            return initCloudStorage({ignoreCookieProvider: true});
         }
     );
 
@@ -825,4 +801,57 @@ function updateAdmin(target: number, props: any) {
         }
 
     }
+}
+
+
+/**
+ * Initialize cloud storage based on the current state of the UI and cookies.
+ * Returns a promise that is fulfilled when transient activation is needed (if
+ * it is to be needed).
+ * @param opts  Options to, e.g., ignore settings in the cookies
+ */
+export async function initCloudStorage(opts: {
+    /**
+     * Ignore the saved provider and request it again.
+     */
+    ignoreCookieProvider?: boolean
+} = {}) {
+    const masterUI = ui.ui.panels.host;
+
+    if (!masterUI.saveVideoInCloud.checked)
+        return;
+
+    let provider = localStorage.getItem("master-video-save-in-cloud-provider");
+    if (!provider || opts.ignoreCookieProvider) {
+        const csPanel = ui.ui.panels.cloudStorage;
+        provider = await new Promise(res => {
+            csPanel.googleDrive.onclick = () => res("googleDrive");
+            csPanel.dropbox.onclick = () => res("dropbox");
+            ui.showPanel(csPanel);
+        });
+        localStorage.setItem("master-video-save-in-cloud-provider", provider);
+    }
+
+    return new Promise<void>(async res => {
+        try {
+            await fileStorage.getRemoteFileStorage(
+                async () => {
+                    const p = ui.onTransientActivation(async () => {});
+                    res();
+                    await p;
+                },
+                <any> provider
+            );
+            res();
+        } catch (ex) {
+            log.pushStatus(
+                "file-storage",
+                "Failed to log in to cloud storage. Files will not be stored in the cloud!",
+                {
+                    timeout: 10000
+                }
+            );
+            res();
+        }
+    });
 }
