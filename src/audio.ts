@@ -23,11 +23,11 @@
 // extern
 declare let MediaRecorder: any, webkitAudioContext: any;
 
+import * as capture from "./capture";
 import * as config from "./config";
 import * as log from "./log";
 import * as net from "./net";
 import { prot } from "./protocol";
-import * as capture from "./capture";
 import * as ui from "./ui";
 import * as util from "./util";
 import { dce } from "./util";
