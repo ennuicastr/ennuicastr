@@ -473,8 +473,10 @@ export const ui = {
         // Cloud storage selection panel
         cloudStorage: <{
             wrapper: HTMLDialogElement,
+            onhide?: ()=>void,
             googleDrive: HTMLButtonElement,
-            dropbox: HTMLButtonElement
+            dropbox: HTMLButtonElement,
+            cancel: HTMLButtonElement
         }> null,
 
         // Help screen
@@ -512,33 +514,27 @@ const standinSVG = [
 
 /**
  * Show the requested panel by HTML element or name.
- * @param panelName  Name of panel to show, or HTML element
- * @param autoFocusName  Name or element to auto-focus on, or undefined to not
- *                       auto-focus
+ * @param panel  Panel to show
+ * @param autoFocus  Element to auto-focus on, or null for none
+ * @param opts  Panel options
  * @param makeModal  Make the panel modal
  */
 // Show the given panel, or none
 export function showPanel(
-    panelName: Panel|string, autoFocusName?: HTMLElement|string,
-    makeModal?: boolean
+    panel: Panel | null,
+    autoFocus: HTMLElement | null = null,
+    opts: {
+        /** Make the panel modal */
+        modal?: boolean
+    } = {}
 ): void {
-    let panel: Panel;
-    let autoFocus: HTMLElement = null;
-    if (typeof autoFocusName === "string")
-        autoFocus = (<any> ui.panels)[<string> panelName][autoFocusName];
-    else if (typeof autoFocus !== "undefined")
-        autoFocus = autoFocusName;
-    if (typeof panelName === "string")
-        panel = (<any> ui.panels)[panelName];
-    else
-        panel = panelName;
     if (panel === null && autoFocus === null)
         autoFocus = ui.mainMenu.settings;
 
     // Keep modal panels
     if (modal && panel !== modal)
         return;
-    modal = makeModal ? panel : null;
+    modal = opts.modal ? panel : null;
 
     // Hide all existing panels
     for (const o in ui.panels) {
@@ -558,7 +554,7 @@ export function showPanel(
         panel.wrapper.style.display = "block";
 
         if (panel.wrapper.showModal) {
-            if (makeModal)
+            if (opts.modal)
                 panel.wrapper.showModal();
             else
                 panel.wrapper.show();
@@ -672,7 +668,7 @@ export function transientActivation(
             res();
         };
     }));
-    showPanel(taPanel, taPanel.button, opts.makeModal);
+    showPanel(taPanel, taPanel.button, {modal: opts.makeModal});
 
     return Promise.all(promises);
 }

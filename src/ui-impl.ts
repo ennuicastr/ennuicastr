@@ -294,7 +294,7 @@ function loadMainMenu() {
 
     function btn(b: HTMLButtonElement, p: string, a: string) {
         b.onclick = function() {
-            uiFE.showPanel(p, a);
+            uiFE.showPanel(ui.panels[p], ui.panels[p][a]);
         };
     }
 
@@ -613,7 +613,8 @@ function loadCloudStorage() {
     ui.panels.cloudStorage = {
         wrapper: gebi("ec3-cloud-storage-sel-panel"),
         googleDrive: gebi("ec3-google-drive-btn"),
-        dropbox: gebi("ec3-dropbox-btn")
+        dropbox: gebi("ec3-dropbox-btn"),
+        cancel: gebi("ec3-cloud-storage-cancel-btn")
     };
 }
 

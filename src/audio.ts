@@ -882,9 +882,10 @@ util.netEvent("data", "admin", function(ev) {
         // Request for admin access
         const reqNick = util.decodeText(msg.buffer.slice(p.argument));
         const target = msg.getUint32(p.target, true);
-        ui.ui.panels.userAdminReq.user = target;
-        ui.ui.panels.userAdminReq.name.innerText = reqNick;
-        ui.showPanel("userAdminReq", "audio");
+        const panel = ui.ui.panels.userAdminReq;
+        panel.user = target;
+        panel.name.innerText = reqNick;
+        ui.showPanel(panel, panel.audio);
 
     } else {
         // All other actions require permission

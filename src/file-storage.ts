@@ -309,68 +309,61 @@ export async function getRemoteFileStorage(
     requestLogin: () => Promise<void>,
     provider: "googleDrive" | "dropbox"
 ): Promise<FileStorage> {
-    async function checkRequestLogin() {
-        /* FIXME: Super-activation :(
-        if ((<any> navigator).userActivation &&
-            (<any> navigator).userActivation.isActive) {
-            return;
+    return remoteFileStoragePromise = (async () => {
+        await getLocalFileStorage();
+
+        const keyStorage = await localforage.createInstance({
+            name: "ennuicastr-file-storage-keys"
+        });
+        const cache = await localforage.createInstance({
+            name: `ennuicastr-file-storage-cache-${provider}`
+        });
+
+        switch (provider) {
+            case "googleDrive":
+                await localforage.defineDriver(nonlocalForage.googleDriveLocalForage);
+                break;
+
+            case "dropbox":
+                await localforage.defineDriver(nonlocalForage.dropboxLocalForage);
+                break;
+
+            default:
+                throw new Error(`Unsupported provider ${provider}`);
         }
-        */
-        return requestLogin();
-    }
-
-    if (!remoteFileStoragePromise) {
-        remoteFileStoragePromise = (async () => {
-            await getLocalFileStorage();
-
-            const keyStorage = await localforage.createInstance({
-                name: "ennuicastr-file-storage-keys"
-            });
-            const cache = await localforage.createInstance({
-                name: `ennuicastr-file-storage-cache-${provider}`
-            });
-
-            switch (provider) {
-                case "googleDrive":
-                    await localforage.defineDriver(nonlocalForage.googleDriveLocalForage);
-                    break;
-
-                case "dropbox":
-                    await localforage.defineDriver(nonlocalForage.dropboxLocalForage);
-                    break;
-
-                default:
-                    throw new Error(`Unsupported provider ${provider}`);
+        const remote = await localforage.createInstance(<any> {
+            driver: provider,
+            localforage: keyStorage,
+            name: "ennuicastr-file-storage",
+            dropbox: {
+                // FIXME
+                clientId: "h67o4kr64okp145",
+                requestLogin
+            },
+            googleDrive: {
+                // FIXME
+                apiKey: "AIzaSyCl43revQB_EFFM6Zrt-cy3-nYtc1V0xo0",
+                clientId: "569079606114-mlnui97cocknf32q6jrchh9pdka04v10.apps.googleusercontent.com",
+                requestLogin
             }
-            const remote = await localforage.createInstance(<any> {
-                driver: provider,
-                localforage: keyStorage,
-                name: "ennuicastr-file-storage",
-                dropbox: {
-                    // FIXME
-                    clientId: "h67o4kr64okp145",
-                    requestLogin: checkRequestLogin
-                },
-                googleDrive: {
-                    // FIXME
-                    apiKey: "AIzaSyCl43revQB_EFFM6Zrt-cy3-nYtc1V0xo0",
-                    clientId: "569079606114-mlnui97cocknf32q6jrchh9pdka04v10.apps.googleusercontent.com",
-                    requestLogin: checkRequestLogin
-                }
-            });
-            await remote.ready();
+        });
+        await remote.ready();
 
-            await localforage.defineDriver(nonlocalForage.cacheForage);
-            const fileStorage = await localforage.createInstance(<any> {
-                driver: "cacheForage",
-                cacheForage: {
-                    local: cache,
-                    nonlocal: remote
-                }
-            });
-            return new FileStorage(fileStorage);
-        })();
-    }
+        await localforage.defineDriver(nonlocalForage.cacheForage);
+        const fileStorage = await localforage.createInstance(<any> {
+            driver: "cacheForage",
+            cacheForage: {
+                local: cache,
+                nonlocal: remote
+            }
+        });
+        return new FileStorage(fileStorage);
+    })();
+}
 
-    return remoteFileStoragePromise;
+/**
+ * Clear (disable) remote storage.
+ */
+export function clearRemoteFileStorage() {
+    remoteFileStoragePromise = null;
 }

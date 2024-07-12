@@ -114,7 +114,14 @@ export function createMasterInterface(): void {
         masterUI.saveVideoInCloud,
         "master-video-save-in-cloud-" + config.useVideoRec,
         async ev => {
-            return initCloudStorage({ignoreCookieProvider: true});
+            await initCloudStorage({ignoreCookieProvider: true});
+            if (ui.needTransientActivation()) {
+                ui.transientActivation(
+                    "Log in",
+                    '<i class="bx bx-log-in"></i> Log in',
+                    {makeModal: true, force: true}
+                );
+            }
         }
     );
 
@@ -609,7 +616,7 @@ export function userAdmin(target: number): void {
             adminAction(target, prot.flags.admin.actions.request);
         };
     }
-    ui.showPanel(userAdminUser, null);
+    ui.showPanel(userAdminUser);
 }
 
 ui.ui.masterUserAdmin = userAdmin;
@@ -818,8 +825,10 @@ export async function initCloudStorage(opts: {
 } = {}) {
     const masterUI = ui.ui.panels.host;
 
-    if (!masterUI.saveVideoInCloud.checked)
+    if (!masterUI.saveVideoInCloud.checked) {
+        fileStorage.clearRemoteFileStorage();
         return;
+    }
 
     let provider = localStorage.getItem("master-video-save-in-cloud-provider");
     if (!provider || opts.ignoreCookieProvider) {
@@ -827,8 +836,18 @@ export async function initCloudStorage(opts: {
         provider = await new Promise(res => {
             csPanel.googleDrive.onclick = () => res("googleDrive");
             csPanel.dropbox.onclick = () => res("dropbox");
+            csPanel.cancel.onclick = () => res("cancel");
+            csPanel.onhide = () => res("cancel");
             ui.showPanel(csPanel);
         });
+        ui.showPanel(null);
+        if (provider === "cancel") {
+            localStorage.removeItem("master-video-save-in-cloud-provider");
+            masterUI.saveVideoInCloud.checked = false;
+            localStorage.setItem("master-video-save-in-cloud-" + config.useVideoRec, "0");
+            fileStorage.clearRemoteFileStorage();
+            return;
+        }
         localStorage.setItem("master-video-save-in-cloud-provider", provider);
     }
 
@@ -844,6 +863,7 @@ export async function initCloudStorage(opts: {
             );
             res();
         } catch (ex) {
+            console.error(ex);
             log.pushStatus(
                 "file-storage",
                 "Failed to log in to cloud storage. Files will not be stored in the cloud!",
