@@ -299,16 +299,26 @@ export async function getLocalFileStorage(): Promise<FileStorage> {
 // Remote FileStorage instance
 export let remoteFileStoragePromise: Promise<FileStorage> | null = null;
 
+// Remote FileStorage driver promises
+let remoteFileStorageDrivers: Record<string, Promise<unknown>> = {};
+
 /**
  * Get a remote FileStorage.
- * @param requestLogin  Function to call to show a login button for transient
- *                      activation.
+ * @param transientActivation  Function to call when (if) transient activation
+ *                             is needed to wait for transient activation.
  * @param provider  Service provider to use as a backend.
  */
 export async function getRemoteFileStorage(
-    requestLogin: () => Promise<void>,
-    provider: "googleDrive" | "dropbox"
+    transientActivation: () => Promise<void>,
+    provider: "googleDrive" | "dropbox",
+    forcePrompt: boolean
 ): Promise<FileStorage> {
+    async function loadDriver(name: string, driver: any) {
+        if (!remoteFileStorageDrivers[name])
+            remoteFileStorageDrivers[name] = localforage.defineDriver(driver);
+        await remoteFileStorageDrivers[name];
+    }
+
     return remoteFileStoragePromise = (async () => {
         await getLocalFileStorage();
 
@@ -321,11 +331,11 @@ export async function getRemoteFileStorage(
 
         switch (provider) {
             case "googleDrive":
-                await localforage.defineDriver(nonlocalForage.googleDriveLocalForage);
+                await loadDriver("googleDrive", nonlocalForage.googleDriveLocalForage);
                 break;
 
             case "dropbox":
-                await localforage.defineDriver(nonlocalForage.dropboxLocalForage);
+                await loadDriver("dropbox", nonlocalForage.dropboxLocalForage);
                 break;
 
             default:
@@ -334,22 +344,25 @@ export async function getRemoteFileStorage(
         const remote = await localforage.createInstance(<any> {
             driver: provider,
             localforage: keyStorage,
+            nonlocalforage: {
+                directory: "ennuicastrStorage",
+                transientActivation,
+                forcePrompt
+            },
             name: "ennuicastr-file-storage",
             dropbox: {
                 // FIXME
-                clientId: "h67o4kr64okp145",
-                requestLogin
+                clientId: "h67o4kr64okp145"
             },
             googleDrive: {
                 // FIXME
                 apiKey: "AIzaSyCl43revQB_EFFM6Zrt-cy3-nYtc1V0xo0",
-                clientId: "569079606114-mlnui97cocknf32q6jrchh9pdka04v10.apps.googleusercontent.com",
-                requestLogin
+                clientId: "569079606114-mlnui97cocknf32q6jrchh9pdka04v10.apps.googleusercontent.com"
             }
         });
         await remote.ready();
 
-        await localforage.defineDriver(nonlocalForage.cacheForage);
+        await loadDriver("cache", nonlocalForage.cacheForage);
         const fileStorage = await localforage.createInstance(<any> {
             driver: "cacheForage",
             cacheForage: {

@@ -859,7 +859,8 @@ export async function initCloudStorage(opts: {
                     res();
                     await p;
                 },
-                <any> provider
+                <any> provider,
+                !!opts.ignoreCookieProvider
             );
             res();
         } catch (ex) {
