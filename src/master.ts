@@ -827,6 +827,7 @@ export async function initCloudStorage(opts: {
 
     if (!masterUI.saveVideoInCloud.checked) {
         fileStorage.clearRemoteFileStorage();
+        localStorage.removeItem("master-video-save-in-cloud-provider");
         return;
     }
 

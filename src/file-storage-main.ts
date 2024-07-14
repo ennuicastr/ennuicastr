@@ -30,8 +30,7 @@ import * as wsp from "web-streams-polyfill/ponyfill";
  * Download this file.
  * @param id  ID of the file.
  */
-async function downloadById(id: string) {
-    const store = await fileStorage.getLocalFileStorage();
+async function downloadById(store: fileStorage.FileStorage, id: string) {
     const file: fileStorage.FileInfo = await store.fileStorage.getItem("file-" + id);
     if (!file)
         return;
@@ -59,16 +58,21 @@ async function downloadById(id: string) {
 /**
  * Establish a connection with the surrounding page.
  */
-async function connection(port: MessagePort) {
-    const store = await fileStorage.getLocalFileStorage();
+async function connection(
+    ctx: string, store: fileStorage.FileStorage,
+    port: MessagePort
+) {
     const globalSalt = await store.fileStorage.getItem("salt") || 0;
     const localSalt = ~~(Math.random() * 2000000000);
 
     // Tell the host the salt
-    port.postMessage({c: "salt", global: globalSalt, local: localSalt});
+    port.postMessage({c: "salt", ctx, global: globalSalt, local: localSalt});
 
     // And wait for messages
-    port.onmessage = async function(ev) {
+    port.addEventListener("message", async ev => {
+        if (!ev.data || ev.data.ctx !== ctx)
+            return;
+
         switch (ev.data.c) {
             case "list":
             {
@@ -100,30 +104,20 @@ async function connection(port: MessagePort) {
                 if (ev.data.c === "delete")
                     store.deleteFile(id);
                 else
-                    downloadById(id);
+                    downloadById(store, id);
                 break;
             }
         }
-    };
+    });
 }
 
-(async function() {
-    const store = await fileStorage.getLocalFileStorage();
-    await downloadStream.load({prefix: "../"});
-
-    // Create a message port for our host
-    if (window.parent) {
-        const mc = new MessageChannel();
-        const mp = mc.port1;
-        mp.onmessage = function(ev) {
-            if (typeof ev.data === "object" && ev.data !== null &&
-                ev.data.c === "ennuicastr-file-storage")
-                connection(mp);
-        };
-        window.parent.postMessage(
-            {c: "ennuicastr-file-storage", port: mc.port2}, "*", [mc.port2]);
-    }
-
+async function localUI(header: string, ctx: string, store: fileStorage.FileStorage) {
+    const ui = document.createElement("div");
+    ui.style.margin = "0.5em";
+    document.body.appendChild(ui);
+    const h1 = document.createElement("h1");
+    h1.innerText = header;
+    ui.appendChild(h1);
 
     // Simple button for each download
     const files = await store.getFiles();
@@ -133,12 +127,14 @@ async function connection(port: MessagePort) {
         const del = document.createElement("button");
 
         btn.innerText = file.name;
+        btn.classList.add("pill-button");
         btn.onclick = function() {
-            downloadById(file.id);
+            downloadById(store, file.id);
         };
         div.appendChild(btn);
 
         del.innerText = "Delete";
+        del.classList.add("pill-button");
         del.onclick = async function() {
             del.innerText = "Confirm";
             await new Promise(res => del.onclick = res);
@@ -152,12 +148,96 @@ async function connection(port: MessagePort) {
         };
         div.appendChild(del);
 
-        document.body.appendChild(div);
+        ui.appendChild(div);
     }
 
     if (files.length === 0) {
         const div = document.createElement("div");
         div.innerText = "No data found";
-        document.body.appendChild(div);
+        ui.appendChild(div);
     }
+}
+
+(async function() {
+    const store = await fileStorage.getLocalFileStorage();
+    await downloadStream.load({prefix: "../"});
+
+    // Maybe look for remote storage
+    let remoteStore: Promise<fileStorage.FileStorage> | null = null;
+    let remoteStoreBtn = {w: 0, h: 0};
+    let provider = localStorage.getItem("master-video-save-in-cloud-provider");
+    if (provider) {
+        await new Promise<void>(res => {
+            remoteStore = fileStorage.getRemoteFileStorage(
+                () => {
+                    const btn = document.createElement("button");
+                    btn.innerHTML = '<i class="bx bx-log-in"></i> Log in';
+                    btn.classList.add("pill-button");
+                    Object.assign(btn.style, {
+                        position: "fixed",
+                        left: "0px",
+                        top: "0px"
+                    });
+                    document.body.appendChild(btn);
+                    remoteStoreBtn = {
+                        w: btn.offsetWidth,
+                        h: btn.offsetHeight
+                    };
+                    res();
+                    return new Promise<void>(res => {
+                        btn.onclick = () => {
+                            document.body.removeChild(btn);
+                            res();
+                        };
+                    });
+                },
+                <any> provider,
+                false
+            );
+            remoteStore.then(() => res());
+        });
+    }
+
+    // Create a message port for our host
+    if (window.parent) {
+        const mc = new MessageChannel();
+        const mp = mc.port1;
+        mp.onmessage = ev => {
+            if (ev.data && ev.data.c === "ennuicastr-file-storage") {
+                connection("local", store, mp);
+                if (remoteStore)
+                    remoteStore.then(x => connection("remote", x, mp));
+            }
+        };
+        if (remoteStore) {
+            (async () => {
+                window.parent.postMessage(
+                    {c: "ennuicastr-file-storage-remote", btn: remoteStoreBtn}, "*");
+                let success = true;
+                try {
+                    await remoteStore;
+                } catch (ex) {
+                    success = false;
+                }
+                window.parent.postMessage(
+                    {c: "ennuicastr-file-storage-remote-login", success}, "*");
+            })();
+        }
+        window.parent.postMessage(
+            {c: "ennuicastr-file-storage", port: mc.port2}, "*", [mc.port2]);
+    }
+
+    if (remoteStore) {
+        try {
+            await remoteStore;
+        } catch (ex) {
+            remoteStore = null;
+        }
+    }
+
+    // Local UI(s)
+    localUI("Local", "local", store);
+
+    if (remoteStore)
+        localUI("Cloud", "remote", await remoteStore);
 })();
