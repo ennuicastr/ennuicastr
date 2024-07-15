@@ -86,7 +86,7 @@ async function connection(
                         files.splice(i, 1);
                 }
 
-                port.postMessage({c: "list", files});
+                port.postMessage({c: "list", ctx, files});
                 break;
             }
 
@@ -164,12 +164,12 @@ async function localUI(header: string, ctx: string, store: fileStorage.FileStora
 
     // Maybe look for remote storage
     let remoteStore: Promise<fileStorage.FileStorage> | null = null;
-    let remoteStoreBtn = {w: 0, h: 0};
+    let remoteStoreBtn = {w: 256, h: 64};
     let provider = localStorage.getItem("master-video-save-in-cloud-provider");
     if (provider) {
         await new Promise<void>(res => {
             remoteStore = fileStorage.getRemoteFileStorage(
-                () => {
+                async () => {
                     const btn = document.createElement("button");
                     btn.innerHTML = '<i class="bx bx-log-in"></i> Log in';
                     btn.classList.add("pill-button");
@@ -180,9 +180,10 @@ async function localUI(header: string, ctx: string, store: fileStorage.FileStora
                     });
                     document.body.appendChild(btn);
                     remoteStoreBtn = {
-                        w: btn.offsetWidth,
+                        w: btn.offsetWidth + 32 /* for the icon */,
                         h: btn.offsetHeight
                     };
+                    btn.style.right = "0px";
                     res();
                     return new Promise<void>(res => {
                         btn.onclick = () => {
