@@ -244,6 +244,7 @@ export const ui = {
 
             // Save video to cloud storage
             saveVideoInCloud: HTMLInputElement,
+            saveVideoInCloudLbl: HTMLLabelElement,
 
             // Download the video live
             downloadVideoLive: HTMLInputElement,

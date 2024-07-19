@@ -168,8 +168,9 @@ async function localUI(header: string, ctx: string, store: fileStorage.FileStora
     let provider = localStorage.getItem("master-video-save-in-cloud-provider");
     if (provider) {
         await new Promise<void>(res => {
-            remoteStore = fileStorage.getRemoteFileStorage(
-                async () => {
+            remoteStore = fileStorage.getRemoteFileStorage({
+                provider: <any> provider,
+                transientActivation: async () => {
                     const btn = document.createElement("button");
                     btn.innerHTML = '<i class="bx bx-log-in"></i> Log in';
                     btn.classList.add("pill-button");
@@ -191,10 +192,8 @@ async function localUI(header: string, ctx: string, store: fileStorage.FileStora
                             res();
                         };
                     });
-                },
-                <any> provider,
-                false
-            );
+                }
+            });
             remoteStore.then(() => res());
         });
     }

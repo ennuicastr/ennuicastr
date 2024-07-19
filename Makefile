@@ -32,7 +32,8 @@ LIBS=\
     libs/webrtcvad.js \
     libs/webrtcvad.asm.js \
     libs/webrtcvad.wasm \
-    libs/webrtcvad.wasm.js
+    libs/webrtcvad.wasm.js \
+    oauth2-login.html
 
 DATA=\
     bx
@@ -128,6 +129,10 @@ dist/bx: node_modules/.bin/tsc
 	cp -a node_modules/boxicons bx.tmp
 	rm -rf bx.tmp/src
 	mv bx.tmp bx
+
+dist/oauth2-login.html: node_modules/.bin/tsc
+	mkdir -p dist
+	cp node_modules/nonlocal-forage/oauth2-login.html $@
 
 install:
 	mkdir -p $(PREFIX)/images $(PREFIX)/awp $(PREFIX)/libav $(PREFIX)/fs \

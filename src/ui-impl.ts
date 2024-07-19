@@ -438,6 +438,7 @@ function loadHostUI() {
         acceptRemoteVideo: gebi("ec3-accept-guest-video-chk"),
         saveVideoInBrowser: gebi("ec3-video-rec-save-in-browser-chk"),
         saveVideoInCloud: gebi("ec3-video-rec-save-in-cloud-chk"),
+        saveVideoInCloudLbl: gebi("ec3-video-rec-save-in-cloud-lbl"),
         downloadVideoLive: gebi("ec3-video-rec-download-chk"),
         videoStatus: gebi("ec3-video-rec-status"),
         recordingCost: gebi("ec3-recording-cost-txt"),

@@ -825,6 +825,9 @@ export async function initCloudStorage(opts: {
 } = {}) {
     const masterUI = ui.ui.panels.host;
 
+    // We change the label based on the actual usage
+    masterUI.saveVideoInCloudLbl.innerHTML = "&nbsp;Save video recordings in cloud storage";
+
     if (!masterUI.saveVideoInCloud.checked) {
         fileStorage.clearRemoteFileStorage();
         localStorage.removeItem("master-video-save-in-cloud-provider");
@@ -852,20 +855,51 @@ export async function initCloudStorage(opts: {
         localStorage.setItem("master-video-save-in-cloud-provider", provider);
     }
 
+    let longName = provider;
+    switch (provider) {
+        case "googleDrive": longName = "Google Drive"; break;
+        case "dropbox": longName = "Dropbox"; break;
+    }
+
     return new Promise<void>(async res => {
         try {
-            await fileStorage.getRemoteFileStorage(
-                async () => {
+            await fileStorage.getRemoteFileStorage({
+                provider: <any> provider,
+                transientActivation: async () => {
                     const p = ui.onTransientActivation(async () => {});
                     res();
                     await p;
                 },
-                <any> provider,
-                !!opts.ignoreCookieProvider
-            );
+                lateTransientActivation: async () => {
+                    await ui.transientActivation(
+                        "Cloud login",
+                        '<i class="bx bx-log-in"></i> Log in to continue using cloud storage',
+                        {
+                            makeModal: true,
+                            force: true
+                        }
+                    );
+                },
+                cancellable: async () => {
+                    await ui.transientActivation(
+                        "Cancel cloud login",
+                        '<i class="bx bx-log-out"></i> Cancel cloud login',
+                        {
+                            makeModal: true,
+                            force: true
+                        }
+                    );
+                },
+                hideCancellable: () => {
+                    ui.unsetModal();
+                    ui.showPanel(null);
+                },
+                forcePrompt: !!opts.ignoreCookieProvider
+            });
+            masterUI.saveVideoInCloudLbl.innerHTML =
+                `&nbsp;Save video recordings in ${longName}`;
             res();
         } catch (ex) {
-            console.error(ex);
             log.pushStatus(
                 "file-storage",
                 "Failed to log in to cloud storage. Files will not be stored in the cloud!",
@@ -873,6 +907,8 @@ export async function initCloudStorage(opts: {
                     timeout: 10000
                 }
             );
+            masterUI.saveVideoInCloud.checked = false;
+            localStorage.setItem(`master-video-save-in-cloud-${config.useVideoRec}`, "0");
             res();
         }
     });

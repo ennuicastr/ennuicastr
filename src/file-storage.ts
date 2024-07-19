@@ -29,6 +29,9 @@ declare let localforage: LocalForage;
 import * as nonlocalForage from "nonlocal-forage";
 import sha512 from "sha512-es";
 
+import dropboxKeys from "../api/dropbox.json";
+import googleDriveKeys from "../api/google-drive.json";
+
 /**
  * File metadata, as stored.
  */
@@ -304,15 +307,53 @@ let remoteFileStorageDrivers: Record<string, Promise<unknown>> = {};
 
 /**
  * Get a remote FileStorage.
- * @param transientActivation  Function to call when (if) transient activation
- *                             is needed to wait for transient activation.
- * @param provider  Service provider to use as a backend.
+ * @param opts  FileStorage options.
  */
-export async function getRemoteFileStorage(
-    transientActivation: () => Promise<void>,
+export async function getRemoteFileStorage(opts: {
+    /**
+     * Cloud provider.
+     */
     provider: "googleDrive" | "dropbox",
-    forcePrompt: boolean
-): Promise<FileStorage> {
+
+    /**
+     * Function to call for transient activation.
+     */
+    transientActivation: () => Promise<void>,
+
+    /**
+     * Optional function to call if transient activation is needed later.
+     */
+    lateTransientActivation?: () => Promise<void>,
+
+    /**
+     * Function to call for cancellability.
+     */
+    cancellable?: () => Promise<void>,
+
+    /**
+     * Hide cancellable.
+     */
+    hideCancellable?: () => void,
+
+    /**
+     * Optional function for late cancellation.
+     */
+    lateCancel?: () => Promise<void>,
+
+    /**
+     * Optional function to open an iframe instead of a window.
+     */
+    openIframe?: (url: string) => Promise<{
+        iframe: HTMLIFrameElement,
+        setOnclose: (onclose: (()=>void)|null)=>void,
+        close: ()=>void
+    }>,
+
+    /**
+     * Force a user consent prompt.
+     */
+    forcePrompt?: boolean
+}): Promise<FileStorage> {
     async function loadDriver(name: string, driver: any) {
         if (!remoteFileStorageDrivers[name])
             remoteFileStorageDrivers[name] = localforage.defineDriver(driver);
@@ -326,10 +367,10 @@ export async function getRemoteFileStorage(
             name: "ennuicastr-file-storage-keys"
         });
         const cache = await localforage.createInstance({
-            name: `ennuicastr-file-storage-cache-${provider}`
+            name: `ennuicastr-file-storage-cache-${opts.provider}`
         });
 
-        switch (provider) {
+        switch (opts.provider) {
             case "googleDrive":
                 await loadDriver("googleDrive", nonlocalForage.googleDriveLocalForage);
                 break;
@@ -339,26 +380,23 @@ export async function getRemoteFileStorage(
                 break;
 
             default:
-                throw new Error(`Unsupported provider ${provider}`);
+                throw new Error(`Unsupported provider ${opts.provider}`);
         }
         const remote = await localforage.createInstance(<any> {
-            driver: provider,
+            driver: opts.provider,
             localforage: keyStorage,
             nonlocalforage: {
-                directory: "ennuicastrStorage",
-                transientActivation,
-                forcePrompt
+                directory: "ennuicastr-file-storage",
+                transientActivation: opts.transientActivation,
+                lateTransientActivation: opts.lateTransientActivation || opts.transientActivation,
+                cancellable: opts.cancellable,
+                hideCancellable: opts.hideCancellable,
+                openIframe: opts.openIframe,
+                forcePrompt: !!opts.forcePrompt
             },
             name: "ennuicastr-file-storage",
-            dropbox: {
-                // FIXME
-                clientId: "h67o4kr64okp145"
-            },
-            googleDrive: {
-                // FIXME
-                apiKey: "AIzaSyCl43revQB_EFFM6Zrt-cy3-nYtc1V0xo0",
-                clientId: "569079606114-mlnui97cocknf32q6jrchh9pdka04v10.apps.googleusercontent.com"
-            }
+            dropbox: dropboxKeys,
+            googleDrive: googleDriveKeys
         });
         await remote.ready();
 
