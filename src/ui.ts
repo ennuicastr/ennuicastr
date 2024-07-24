@@ -174,6 +174,17 @@ export const ui = {
             button: HTMLButtonElement
         }> null,
 
+        // WebDAV login panel
+        webdav: <{
+            wrapper: HTMLDialogElement,
+            onhide?: ()=>void,
+            form: HTMLFormElement,
+            username: HTMLInputElement,
+            password: HTMLInputElement,
+            url: HTMLInputElement,
+            login: HTMLButtonElement
+        }> null,
+
         // Settings menu
         settings: <{
             wrapper: HTMLDialogElement,
@@ -477,6 +488,7 @@ export const ui = {
             onhide?: ()=>void,
             googleDrive: HTMLButtonElement,
             dropbox: HTMLButtonElement,
+            webdav: HTMLButtonElement,
             cancel: HTMLButtonElement
         }> null,
 

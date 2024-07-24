@@ -167,9 +167,18 @@ async function localUI(header: string, ctx: string, store: fileStorage.FileStora
     let remoteStoreBtn = {w: 256, h: 64};
     let provider = localStorage.getItem("master-video-save-in-cloud-provider");
     if (provider) {
+        let webDAVInfo: any = void 0;
+        if (provider === "webDAV") {
+            webDAVInfo = {
+                username: localStorage.getItem("webdav-username"),
+                password: localStorage.getItem("webdav-password"),
+                server: localStorage.getItem("webdav-server")
+            };
+        }
         await new Promise<void>(res => {
             remoteStore = fileStorage.getRemoteFileStorage({
                 provider: <any> provider,
+                webDAVInfo,
                 transientActivation: async () => {
                     const btn = document.createElement("button");
                     btn.innerHTML = '<i class="bx bx-log-in"></i> Log in';

@@ -313,7 +313,12 @@ export async function getRemoteFileStorage(opts: {
     /**
      * Cloud provider.
      */
-    provider: "googleDrive" | "dropbox",
+    provider: "googleDrive" | "dropbox" | "webDAV",
+
+    /**
+     * WebDAV login info.
+     */
+    webDAVInfo?: {username: string, password: string, server: string},
 
     /**
      * Function to call for transient activation.
@@ -379,6 +384,10 @@ export async function getRemoteFileStorage(opts: {
                 await loadDriver("dropbox", nonlocalForage.dropboxLocalForage);
                 break;
 
+            case "webDAV":
+                await loadDriver("webDAV", nonlocalForage.webDAVLocalForage);
+                break;
+
             default:
                 throw new Error(`Unsupported provider ${opts.provider}`);
         }
@@ -396,7 +405,8 @@ export async function getRemoteFileStorage(opts: {
             },
             name: "ennuicastr-file-storage",
             dropbox: dropboxKeys,
-            googleDrive: googleDriveKeys
+            googleDrive: googleDriveKeys,
+            webDAV: opts.webDAVInfo
         });
         await remote.ready();
 

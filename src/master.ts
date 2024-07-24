@@ -825,6 +825,10 @@ export async function initCloudStorage(opts: {
 } = {}) {
     const masterUI = ui.ui.panels.host;
 
+    let webDAVInfo: {
+        username: string, password: string, server: string
+    } | null = null;
+
     // We change the label based on the actual usage
     masterUI.saveVideoInCloudLbl.innerHTML = "&nbsp;Save video recordings in cloud storage";
 
@@ -840,11 +844,47 @@ export async function initCloudStorage(opts: {
         provider = await new Promise(res => {
             csPanel.googleDrive.onclick = () => res("googleDrive");
             csPanel.dropbox.onclick = () => res("dropbox");
+            csPanel.webdav.onclick = () => res("webDAV");
             csPanel.cancel.onclick = () => res("cancel");
             csPanel.onhide = () => res("cancel");
             ui.showPanel(csPanel);
         });
         ui.showPanel(null);
+
+        // For WebDAV, we still need to get a username and password
+        if (provider === "webDAV") {
+            const wdp = ui.ui.panels.webdav;
+            wdp.username.value =
+                wdp.password.value =
+                wdp.url.value = "";
+            await new Promise<void>(res => {
+                wdp.form.onsubmit = wdp.login.onclick = (ev: Event) => {
+                    if (wdp.username.value && wdp.password.value &&
+                        wdp.url.value) {
+                        webDAVInfo = {
+                            username: wdp.username.value,
+                            password: wdp.password.value,
+                            server: wdp.url.value
+                        };
+                        res();
+                    }
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                };
+                wdp.onhide = res;
+                ui.showPanel(wdp, wdp.username);
+            });
+            ui.showPanel(null);
+
+            if (webDAVInfo) {
+                localStorage.setItem("webdav-username", webDAVInfo.username);
+                localStorage.setItem("webdav-password", webDAVInfo.password);
+                localStorage.setItem("webdav-server", webDAVInfo.server);
+            } else {
+                provider = "cancel";
+            }
+        }
+
         if (provider === "cancel") {
             localStorage.removeItem("master-video-save-in-cloud-provider");
             masterUI.saveVideoInCloud.checked = false;
@@ -855,16 +895,27 @@ export async function initCloudStorage(opts: {
         localStorage.setItem("master-video-save-in-cloud-provider", provider);
     }
 
+    // Handle WebDAV info
+    if (provider === "webDAV" && !webDAVInfo) {
+        webDAVInfo = {
+            username: localStorage.getItem("webdav-username"),
+            password: localStorage.getItem("webdav-password"),
+            server: localStorage.getItem("webdav-server")
+        };
+    }
+
     let longName = provider;
     switch (provider) {
         case "googleDrive": longName = "Google Drive"; break;
         case "dropbox": longName = "Dropbox"; break;
+        case "webDAV": longName = "ownCloud"; break;
     }
 
     return new Promise<void>(async res => {
         try {
             await fileStorage.getRemoteFileStorage({
                 provider: <any> provider,
+                webDAVInfo: webDAVInfo || void 0,
                 transientActivation: async () => {
                     const p = ui.onTransientActivation(async () => {});
                     res();

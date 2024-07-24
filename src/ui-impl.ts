@@ -223,6 +223,15 @@ function loadMainMenu() {
         button: gebi("ec3-transient-activation-btn")
     };
 
+    ui.panels.webdav = {
+        wrapper: gebi("ec3-webdav-panel"),
+        form: gebi("ec3-webdav-form"),
+        username: gebi("ec3-webdav-username"),
+        password: gebi("ec3-webdav-password"),
+        url: gebi("ec3-webdav-url"),
+        login: gebi("ec3-webdav-login-btn")
+    };
+
     const sets = ui.panels.settings = {
         wrapper: gebi("ec3-settings-panel"),
         viewModes: {
@@ -615,6 +624,7 @@ function loadCloudStorage() {
         wrapper: gebi("ec3-cloud-storage-sel-panel"),
         googleDrive: gebi("ec3-google-drive-btn"),
         dropbox: gebi("ec3-dropbox-btn"),
+        webdav: gebi("ec3-cloud-webdav-btn"),
         cancel: gebi("ec3-cloud-storage-cancel-btn")
     };
 }

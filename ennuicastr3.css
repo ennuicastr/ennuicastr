@@ -167,7 +167,7 @@ input[type=range]::-moz-range-thumb {
   cursor: pointer;
 }
 
-input[type="text"], select {
+input[type="text"], input[type="password"], select {
     background-color: var(--bg);
     color: var(--fg-dimmish);
     border: 1px solid var(--fg-dimmish);
@@ -175,7 +175,7 @@ input[type="text"], select {
     padding: var(--scale-main-4) var(--scale-main-4) var(--scale-main-4) var(--scale-main-4);
 }
 
-input[type="text"]:hover, select:hover {
+input[type="text"]:hover, input[type="password"], select:hover {
     color: var(--fg);
 }
 

@@ -134,6 +134,32 @@
             </button>
         </dialog>
 
+        <!-- WebDAV login panel -->
+        <dialog id="ec3-webdav-panel" class="panel" role="dialog" aria-labelledby="ec3-webdav-panel-label">
+            <div id="ec3-webdav-panel-label" class="panel-title" role="heading">ownCloud login</div>
+
+            <p>In ownCloud's security settings, create a <em>app password</em> (or <em>device password</em>) for Ennuicastr. Copy the information given here:</p>
+
+            <form id="ec3-webdav-form">
+                <div class="rflex row">
+                    <label for="ec3-webdav-username" class="left-label">Username:&nbsp;</label>
+                    <input type="text" id="ec3-webdav-username" style="flex: auto; min-width: 6em;" />
+                </div>
+                <div class="rflex row">
+                    <label for="ec3-webdav-password" class="left-label">App password:&nbsp;</label>
+                    <input type="password" id="ec3-webdav-password" style="flex: auto; min-width: 6em;" />
+                </div>
+                <div class="rflex row">
+                    <label for="ec3-webdav-url" class="left-label">WebDAV URL:&nbsp;</label>
+                    <input type="text" id="ec3-webdav-url" style="flex: auto; min-width: 6em;" />
+                </div>
+                <button id="ec3-webdav-login-btn" class="pill-button row">
+                    <i class="bx bx-cloud"></i> Log in
+                </button>
+            </form>
+        </dialog>
+
+
         <!-- Invite panel -->
         <dialog id="ec3-invite-panel" class="panel" role="dialog" aria-labelledby="ec3-invite-panel-label">
             <div id="ec3-invite-panel-label" class="panel-title" role="heading">Invite</div>
@@ -592,17 +618,22 @@
             </button>
 
             <button id="ec3-google-drive-btn" class="pill-button row">
-                <i class="bx bxl-google"></i>
+                <i class="bx bxl-google"></i>&nbsp;
                 Google Drive
             </button>
 
             <button id="ec3-dropbox-btn" class="pill-button row">
-                <i class="bx bxl-dropbox"></i>
+                <i class="bx bxl-dropbox"></i>&nbsp;
                 Dropbox
             </button>
 
+            <button id="ec3-cloud-webdav-btn" class="pill-button row">
+                <i class="bx bx-cloud"></i>&nbsp;
+                ownCloud/Nextcloud
+            </button>
+
             <button id="ec3-cloud-storage-cancel-btn" class="pill-button row">
-                <i class="bx bx-x"></i>
+                <i class="bx bx-x"></i>&nbsp;
                 Cancel
             </button>
         </dialog>
