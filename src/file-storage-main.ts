@@ -26,14 +26,24 @@ import * as downloadStream from "@ennuicastr/dl-stream";
 import sha512 from "sha512-es";
 import * as wsp from "web-streams-polyfill/ponyfill";
 
+interface FileStream {
+    name: string;
+    len: number;
+    mimeType: string;
+    stream: ReadableStream<Uint8Array>;
+}
+
 /**
- * Download this file.
+ * Stream this file.
+ * @param store  The file storage backend storing this file.
  * @param id  ID of the file.
  */
-async function downloadById(store: fileStorage.FileStorage, id: string) {
+async function streamById(
+    store: fileStorage.FileStorage, id: string
+): Promise<FileStream | null> {
     const file: fileStorage.FileInfo = await store.fileStorage.getItem("file-" + id);
     if (!file)
-        return;
+        return null;
     const sz = file.len.reduce((x, y) => x + y, 0);
 
     // Create a stream for it
@@ -48,10 +58,28 @@ async function downloadById(store: fileStorage.FileStorage, id: string) {
         }
     });
 
+    return {
+        name: file.name,
+        len: sz,
+        mimeType: file.mimeType,
+        stream
+    };
+}
+
+
+/**
+ * Download this file.
+ * @param id  ID of the file.
+ */
+async function downloadById(store: fileStorage.FileStorage, id: string) {
+    const file = await streamById(store, id);
+    if (!file)
+        return;
+
     // And download it
-    await downloadStream.stream(file.name, stream, {
+    await downloadStream.stream(file.name, file.stream, {
         "content-type": file.mimeType,
-        "content-length": sz + ""
+        "content-length": file.len + ""
     });
 }
 

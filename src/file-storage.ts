@@ -47,6 +47,11 @@ export interface FileInfo {
     name: string;
 
     /**
+     * Track number this file belongs to.
+     */
+    track: number;
+
+    /**
      * Key-exchange information. For authentication, we ask different-origin
      * hosts for a hash of the key with a random salt, and then only tell them
      * about files for which their hash is correct. The key itself is hashed
@@ -167,7 +172,8 @@ export class FileStorage {
      * @param opts  Other options.
      */
     async storeFile(
-        name: string, key: number[], stream: ReadableStream<Uint8Array>, opts: {
+        name: string, track: number, key: number[],
+        stream: ReadableStream<Uint8Array>, opts: {
             expTime?: number,
             mimeType?: string,
             report?: (ct: number, spaceUsed: number, spaceTotal: number) => unknown
@@ -207,6 +213,7 @@ export class FileStorage {
         const info: FileInfo = {
             id: "",
             name,
+            track,
             key: hashKey,
             cdate,
             edate,

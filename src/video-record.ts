@@ -659,74 +659,12 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
         muxStream.push(null);
     })();
 
-    // Now muxStream is ready. Tee it.
-    let browserStorageStream: ReadableStream<Uint8Array> = null;
-    let promises: Promise<unknown>[] = [];
-    let outputStream: ReadableStream<Uint8Array> | null = muxStream;
-
-    if (("master" in config.config) && ui.ui.panels.host.saveVideoInBrowser.checked) {
-        const [s1, s2] = <[any, any]> outputStream.tee();
-        outputStream = s2;
-        promises.push(doBrowserStorage(s1));
-    }
-
-    if (("master" in config.config) && ui.ui.panels.host.saveVideoInCloud.checked) {
-        const [s1, s2] = <[any, any]> outputStream.tee();
-        outputStream = s2;
-        promises.push(doCloudStorage(s1));
-    }
-
-    if (opts.remote) {
-        const [s1, s2] = <[any, any]> outputStream.tee();
-        outputStream = s2;
-        promises.push(doRemote(s1));
-    }
-
-    if (opts.local || promises.length === 0) {
-        promises.push(doLocal(outputStream));
-        outputStream = null;
-    }
-
-    if (outputStream) {
-        const rdr = outputStream.getReader();
-        (async() => {
-            while (true) {
-                await rdr.read();
-            }
-        })();
-    }
-
-    // Do the browser storage writing
-    async function doBrowserStorage(stream: ReadableStream<Uint8Array>) {
-        await saveVideoBrowser(filename, stream, mimeType);
-    }
-
-    // Do the cloud storage writing
-    async function doCloudStorage(stream: ReadableStream<Uint8Array>) {
-        await saveVideoCloud(filename, stream, mimeType);
-    }
-
-    // Do the local writing
-    async function doLocal(stream: ReadableStream<Uint8Array>) {
-        await saveVideoFile(filename, stream, mimeType);
-    }
-
-    // Do the remote writing
-    async function doRemote(stream: ReadableStream<Uint8Array>) {
-        const rdr = stream.getReader();
-        let idx = 0;
-        // eslint-disable-next-line no-constant-condition
-        while (true) {
-            const chunk = await rdr.read();
-            if (chunk.done) {
-                recordVideoRemoteClose(opts.remotePeer);
-                break;
-            } else {
-                recordVideoRemoteWrite(opts.remotePeer, idx, chunk.value);
-                idx += chunk.value.length;
-            }
-        }
-    }
+    // Save the muxStream
+    const promises = saveVideoData(filename, net.selfId, mimeType, muxStream, {
+        local: opts.local,
+        remote: opts.remote,
+        remotePeer: opts.remotePeer
+    });
 
     // When it's done, it's done
     Promise.all(promises).then(() => {
@@ -822,7 +760,10 @@ export function recordVideoRemoteIncoming(
     filename += "video." + ext;
 
     // And save it in the background
-    saveVideoFile(filename, stream, mimeType);
+    // FIXME: Do something with these promises
+    saveVideoData(filename, peer, mimeType, stream, {
+        local: true
+    });
 }
 
 // Function to report video storage
@@ -841,23 +782,113 @@ function storageReport(ct: number, used: number, max: number) {
     }
 }
 
+// Save a video download into each supported storage location
+function saveVideoData(
+    filename: string,
+    track: number,
+    mimeType: string,
+    stream: ReadableStream<Uint8Array>,
+    opts: RecordVideoOptions
+) {
+    let promises: Promise<unknown>[] = [];
+    let outputStream: ReadableStream<Uint8Array> | null = stream;
+
+    if (("master" in config.config) && ui.ui.panels.host.saveVideoInBrowser.checked) {
+        const [s1, s2] = <[any, any]> outputStream.tee();
+        outputStream = s2;
+        promises.push(doBrowserStorage(s1));
+    }
+
+    if (("master" in config.config) && ui.ui.panels.host.saveVideoInCloud.checked) {
+        const [s1, s2] = <[any, any]> outputStream.tee();
+        outputStream = s2;
+        promises.push(doCloudStorage(s1));
+    }
+
+    if (opts.remote) {
+        const [s1, s2] = <[any, any]> outputStream.tee();
+        outputStream = s2;
+        promises.push(doRemote(s1));
+    }
+
+    if (opts.local || promises.length === 0) {
+        promises.push(doLocal(outputStream));
+        outputStream = null;
+    }
+
+    if (outputStream) {
+        const rdr = outputStream.getReader();
+        (async() => {
+            while (true) {
+                const rd = await rdr.read();
+                if (rd.done)
+                    break;
+            }
+        })();
+    }
+
+    // Do the browser storage writing
+    async function doBrowserStorage(stream: ReadableStream<Uint8Array>) {
+        await saveVideoBrowser(filename, track, stream, mimeType);
+    }
+
+    // Do the cloud storage writing
+    async function doCloudStorage(stream: ReadableStream<Uint8Array>) {
+        await saveVideoCloud(filename, track, stream, mimeType);
+    }
+
+    // Do the local writing
+    async function doLocal(stream: ReadableStream<Uint8Array>) {
+        await saveVideoFile(filename, stream, mimeType);
+    }
+
+    // Do the remote writing
+    async function doRemote(stream: ReadableStream<Uint8Array>) {
+        const rdr = stream.getReader();
+        let idx = 0;
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            const chunk = await rdr.read();
+            if (chunk.done) {
+                recordVideoRemoteClose(opts.remotePeer);
+                break;
+            } else {
+                recordVideoRemoteWrite(opts.remotePeer, idx, chunk.value);
+                idx += chunk.value.length;
+            }
+        }
+    }
+
+    return promises;
+}
+
 // Save a video download into local storage
 async function saveVideoBrowser(
-    filename: string, stream: ReadableStream<Uint8Array>, mimeType: string
+    filename: string, track: number, stream: ReadableStream<Uint8Array>,
+    mimeType: string
 ) {
-    return (await fileStorage.getLocalFileStorage()).storeFile(filename,
+    return (await fileStorage.getLocalFileStorage()).storeFile(
+        filename,
+        track,
         [config.config.id, config.config.key, config.config.master],
-        stream, {mimeType, report: storageReport});
+        stream,
+        {mimeType, report: storageReport}
+    );
 }
 
 // Save a video download into cloud storage
 async function saveVideoCloud(
-    filename: string, stream: ReadableStream<Uint8Array>, mimeType: string
+    filename: string, track: number, stream: ReadableStream<Uint8Array>,
+    mimeType: string
 ) {
     // FIXME: Should be using getRemoteFileStorage
-    return (await fileStorage.remoteFileStoragePromise).storeFile(filename,
+    return (await fileStorage.remoteFileStoragePromise).storeFile(
+        filename,
+        track,
         [config.config.id, config.config.key, config.config.master],
-        stream, {mimeType, report: storageReport});
+        stream,
+        {mimeType, report: storageReport}
+    );
 }
 
 // Save a video as a download
