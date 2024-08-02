@@ -842,14 +842,18 @@ export function recordVideoRemoteIncoming(
 
 // Function to report video storage
 // FIXME: Reports both browser and cloud
-let lastStorageCt = -1;
+let lastStorageMsg = "";
 function storageReport(ct: number, used: number, max: number) {
     const s = (ct === 1) ? "" : "s";
-    const msg = `Saving ${ct} video stream${s}`;
-    ui.ui.panels.host.videoStatus.innerHTML = msg + ". Storage used: " + Math.round(used/max*100) + "%";
-    if (ct !== lastStorageCt) {
-        lastStorageCt = ct;
-        if (ct)
+    let usedGB = Math.round(used / 1073741824);
+    let maxGB = Math.round(max / 1073741824);
+    let msg = `Saving ${ct} video stream${s}. Storage used: ` +
+        `${Math.round(used/max*100)}% (${usedGB}/${maxGB}GB).`;
+    if (ct === 0)
+        msg = "";
+    if (msg !== lastStorageMsg) {
+        lastStorageMsg = msg;
+        if (msg)
             log.pushStatus("videoStorage", util.escape(msg));
         else
             log.popStatus("videoStorage");
@@ -866,6 +870,7 @@ function saveVideoData(
 ) {
     let promises: Promise<unknown>[] = [];
     let outputStream: ReadableStream<Uint8Array> | null = stream;
+    let cloud = false;
 
     if (("master" in config.config) && ui.ui.panels.host.saveVideoInBrowser.checked) {
         const [s1, s2] = <[any, any]> outputStream.tee();
@@ -877,6 +882,7 @@ function saveVideoData(
         const [s1, s2] = <[any, any]> outputStream.tee();
         outputStream = s2;
         promises.push(doCloudStorage(s1));
+        cloud = true;
     }
 
     if (opts.remote) {
@@ -903,7 +909,7 @@ function saveVideoData(
 
     // Do the browser storage writing
     async function doBrowserStorage(stream: ReadableStream<Uint8Array>) {
-        await saveVideoBrowser(filename, track, stream, mimeType);
+        await saveVideoBrowser(filename, track, stream, mimeType, !cloud);
     }
 
     // Do the cloud storage writing
@@ -939,14 +945,14 @@ function saveVideoData(
 // Save a video download into local storage
 async function saveVideoBrowser(
     filename: string, track: number, stream: ReadableStream<Uint8Array>,
-    mimeType: string
+    mimeType: string, doReport: boolean
 ) {
     return (await fileStorage.getLocalFileStorage()).storeFile(
         filename,
         track,
         [config.config.id, config.config.key, config.config.master],
         stream,
-        {mimeType, report: storageReport}
+        {mimeType, report: doReport ? storageReport : void 0}
     );
 }
 

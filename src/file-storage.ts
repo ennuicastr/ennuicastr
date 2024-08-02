@@ -100,7 +100,12 @@ export class FileStorage {
         /**
          * The LocalForage instance used to store files
          */
-        public fileStorage: LocalForage
+        public fileStorage: LocalForage,
+
+        /**
+         * The LocalForage instance used for space estimation
+         */
+        public spaceEstimateStorage: LocalForage | null
     ) {}
 
     /**
@@ -180,9 +185,20 @@ export class FileStorage {
         } = {}
     ): Promise<void> {
         const report = async () => {
-            if (opts.report && navigator.storage && navigator.storage.estimate) {
-                const e = await navigator.storage.estimate();
-                opts.report(this._storeCt, e.usage, e.quota);
+            if (opts.report) {
+                const ses: any = this.spaceEstimateStorage;
+                let se: StorageEstimate;
+                if (ses && ses.storageEstimate) {
+                    se = await ses.storageEstimate();
+                } else if (navigator.storage && navigator.storage.estimate) {
+                    se = await navigator.storage.estimate();
+                } else {
+                    se = {
+                        quota: 1/0,
+                        usage: 0
+                    };
+                }
+                opts.report(this._storeCt, se.usage, se.quota);
             }
         }
 
@@ -300,7 +316,7 @@ export async function getLocalFileStorage(): Promise<FileStorage> {
             const fileStorage = await localforage.createInstance({
                 name: "ennuicastr-file-storage"
             });
-            return new FileStorage(fileStorage);
+            return new FileStorage(fileStorage, null);
         })();
     }
     return localFileStoragePromise;
@@ -425,7 +441,7 @@ export async function getRemoteFileStorage(opts: {
                 nonlocal: remote
             }
         });
-        return new FileStorage(fileStorage);
+        return new FileStorage(fileStorage, remote);
     })();
 }
 
