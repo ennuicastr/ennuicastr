@@ -913,7 +913,7 @@ export async function initCloudStorage(opts: {
 
     return new Promise<void>(async res => {
         try {
-            await fileStorage.getRemoteFileStorage({
+            const rfs = await fileStorage.getRemoteFileStorage({
                 provider: <any> provider,
                 webDAVInfo: webDAVInfo || void 0,
                 transientActivation: async () => {
@@ -950,6 +950,7 @@ export async function initCloudStorage(opts: {
             masterUI.saveVideoInCloudLbl.innerHTML =
                 `&nbsp;Save video recordings in ${longName}`;
             res();
+            rfs.clearExpired();
         } catch (ex) {
             log.pushStatus(
                 "file-storage",
