@@ -250,7 +250,7 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
      * MediaRecorder or MediaStreamTrackProcessor
      * ->
      * libav demuxing (MediaRecorder only)
-     * packetizing (MediaStreamTrackProcessor only)
+     * encoding and packetizing (MediaStreamTrackProcessor only)
      * ->
      * timestamping
      * muxing
@@ -264,6 +264,8 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
         mstpReader: ReadableStreamDefaultReader<any> = null,
         mstpCancel: (a0: {done: boolean, value: any}) => unknown = null;
     let videoEnc: any = null;
+    let blankCodecPar: number = -1;
+    let blankPackets: any[] | null = null;
     let packetStream: BufferStream<any> = null;
     let packetReader: ReadableStreamDefaultReader<any> = null;
     let muxStream: BufferStream<Uint8Array> = null;
@@ -381,10 +383,67 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
     if (format.useVideoEncoder) {
         // Prepare the output stream
         [codecpar] = await lwc.configToVideoStream(libav, veConfig);
+        [blankCodecPar] = await lwc.configToVideoStream(libav, veConfig);
         inNum = fixedTimeBase.num;
         inDen = fixedTimeBase.den;
         if (codecparRes)
             codecparRes();
+
+        // Encode blank frames
+        {
+            let blankDesc: Uint8Array | null = null;
+            const blankEnc = new VideoEncoder({
+                output: async (chunk, metadata) => {
+                    blankPackets = blankPackets || [];
+                    const packet = lwc.encodedVideoChunkToPacket(
+                        chunk,
+                        [blankCodecPar, fixedTimeBase.num, fixedTimeBase.den],
+                        1);
+                    blankPackets.push(packet);
+                    if (
+                        !blankDesc &&
+                        metadata && metadata.decoderConfig &&
+                        metadata.decoderConfig.description
+                    ) {
+                        const desc = metadata.decoderConfig.description;
+                        if (desc.buffer)
+                            blankDesc = desc.slice(0);
+                        else
+                            blankDesc = (new Uint8Array(desc)).slice(0);
+                    }
+                },
+                error: () => {}
+            });
+            await blankEnc.configure(veConfig);
+            const blankData =
+                new Uint8Array(4 * veConfig.width * veConfig.height);
+            const blank1 = new VideoFrame(blankData, {
+                format: "RGBX",
+                codedWidth: veConfig.width,
+                codedHeight: veConfig.height,
+                timestamp: 0
+            });
+            const blank2 = new VideoFrame(blankData, {
+                format: "RGBX",
+                codedWidth: veConfig.width,
+                codedHeight: veConfig.height,
+                timestamp: 100000
+            });
+            blankEnc.encode(blank1);
+            blankEnc.encode(blank2);
+            try {
+                await blankEnc.flush();
+                blankEnc.close();
+            } catch (ex) {}
+            if (blankPackets && blankDesc) {
+                const ed = await libav.malloc(blankDesc.length);
+                await libav.copyin_u8(ed, blankDesc);
+                await libav.AVCodecParameters_extradata_s(
+                    blankCodecPar, ed);
+                await libav.AVCodecParameters_extradata_size_s(
+                    blankCodecPar, blankDesc.length);
+            }
+        }
 
         // Prepare the video encoder
         videoEnc = new VideoEncoder({
@@ -563,14 +622,29 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
 
             if (out_oc < 0) {
                 // Good opportunity to make our output
+                const streams = [[codecpar, fixedTimeBase.num, fixedTimeBase.den]];
+                if (blankPackets) {
+                    streams.push(
+                        [blankCodecPar, fixedTimeBase.num, fixedTimeBase.den]
+                    );
+                } else if (blankCodecPar >= 0) {
+                    libav.avcodec_parameters_free_js(blankCodecPar);
+                }
                 [out_oc, , out_pb] =
                     await libav.ff_init_muxer({
                         filename: outF, open: true, device: true, codecpars: true
                     },
-                    [[codecpar, fixedTimeBase.num, fixedTimeBase.den]]);
+                    streams);
 
                 // Write out the header
                 await libav.avformat_write_header(out_oc, 0);
+
+                // Write out any blank packets
+                if (blankPackets) {
+                    await libav.ff_write_multi(
+                        out_oc, pkt, blankPackets, false
+                    );
+                }
             }
 
             // Update the timing
@@ -635,7 +709,7 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
                 }
 
                 // Write these out
-                await libav.ff_write_multi(out_oc, pkt, packets);
+                await libav.ff_write_multi(out_oc, pkt, packets, false);
 
             } else {
                 /* No starting time yet, so just collect packets, making
