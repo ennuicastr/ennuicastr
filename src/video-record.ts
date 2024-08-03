@@ -741,7 +741,13 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
     });
 
     // When it's done, it's done
-    Promise.all(promises).then(() => {
+    Promise.all(promises).catch(ex => {
+        log.pushStatus(
+            "videoRecError",
+            `ERROR DURING VIDEO RECORDING: ${ex}`,
+            {timeout: 10000}
+        );
+    }).then(() => {
         libav.terminate();
         curVideoRecOpts = null;
     });
@@ -834,14 +840,18 @@ export function recordVideoRemoteIncoming(
     filename += "video." + ext;
 
     // And save it in the background
-    // FIXME: Do something with these promises
-    saveVideoData(filename, peer, mimeType, stream, {
+    Promise.all(saveVideoData(filename, peer, mimeType, stream, {
         local: true
+    })).catch(ex => {
+        log.pushStatus(
+            "videoRecError",
+            `ERROR WHILE RECEIVING VIDEO RECORDING: ${ex}`,
+            {timeout: 10000}
+        );
     });
 }
 
 // Function to report video storage
-// FIXME: Reports both browser and cloud
 let lastStorageMsg = "";
 function storageReport(ct: number, used: number, max: number) {
     const s = (ct === 1) ? "" : "s";
@@ -852,12 +862,29 @@ function storageReport(ct: number, used: number, max: number) {
     if (ct === 0)
         msg = "";
     if (msg !== lastStorageMsg) {
-        lastStorageMsg = msg;
+        if (lastStorageMsg && !msg)
+            window.removeEventListener("beforeunload", beforeUnloadHandler);
+        else if (!lastStorageMsg && msg)
+            window.addEventListener("beforeunload", beforeUnloadHandler);
+
         if (msg)
             log.pushStatus("videoStorage", util.escape(msg));
         else
             log.popStatus("videoStorage");
+
+        lastStorageMsg = msg;
     }
+}
+
+// Don't quit while we're saving recording data
+function beforeUnloadHandler(ev: BeforeUnloadEvent) {
+    ev.preventDefault();
+    const msg = "Please do not close this window while video streaming is in progress.";
+    log.pushStatus(
+        "videoStorage-beforeunload", msg,
+        {timeout: 8000}
+    );
+    return msg;
 }
 
 // Save a video download into each supported storage location
@@ -1034,7 +1061,7 @@ async function maybeRecord() {
         await recordVideoStop();
 
     if (supported && video.userMediaVideo && recording.record.checked &&
-        net.mode < prot.mode.finished) {
+        net.mode >= prot.mode.rec && net.mode < prot.mode.finished) {
         // We should be recording
         const opts: RecordVideoOptions = {
             remote: !("master" in config.config) && recording.remote.checked && config.useRTC,
@@ -1140,5 +1167,9 @@ util.events.addEventListener("net.info." + prot.info.mode, () => {
     if (net.mode >= prot.mode.finished) {
         // "Reconsider" here to make sure we stop when the recording stops
         maybeRecord();
+    } else if (net.mode >= prot.mode.rec) {
+        // Start recording if we're not already
+        if (!curVideoRecOpts)
+            maybeRecord();
     }
 });
