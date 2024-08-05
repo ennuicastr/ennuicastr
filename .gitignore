@@ -1,3 +1,4 @@
+api/*.json
 awp/*.js
 bx/
 dist/
