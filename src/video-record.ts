@@ -231,9 +231,6 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
         }
     }
 
-    if (!opts.remote && !opts.local)
-        opts.local = true;
-
     // Get a libav
     await avloader.loadLibAV();
     const libav = await LibAV.LibAV();
@@ -841,7 +838,7 @@ export function recordVideoRemoteIncoming(
 
     // And save it in the background
     Promise.all(saveVideoData(filename, peer, mimeType, stream, {
-        local: true
+        local: ("master" in config.config) && ui.ui.panels.host.downloadVideoLive.checked
     })).catch(ex => {
         log.pushStatus(
             "videoRecError",
@@ -925,7 +922,17 @@ function saveVideoData(
         promises.push(doLocal(s1));
     }
 
-    promises.push(doBrowserStorage(outputStream));
+    if (!fsdh) {
+        promises.push(doBrowserStorage(outputStream));
+    } else {
+        (async () => {
+            const rdr = outputStream.getReader();
+            while (true) {
+                const value = await rdr.read();
+                if (value.done) break;
+            }
+        })();
+    }
 
     // Do the browser storage writing
     async function doBrowserStorage(stream: ReadableStream<Uint8Array>) {
@@ -1078,7 +1085,7 @@ async function maybeRecord() {
         // We should be recording
         const opts: RecordVideoOptions = {
             remote: !("master" in config.config) && recording.remote.checked && config.useRTC,
-            local: ("master" in config.config) || recording.local.checked || !config.useRTC
+            local: recording.local.checked
         };
         if (recording.manualBitrate.checked) {
             const br = +recording.bitrate.value;
