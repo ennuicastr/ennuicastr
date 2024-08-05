@@ -897,19 +897,20 @@ function saveVideoData(
 ) {
     let promises: Promise<unknown>[] = [];
     let outputStream: ReadableStream<Uint8Array> | null = stream;
-    let cloud = false;
-
-    if (("master" in config.config) && ui.ui.panels.host.saveVideoInBrowser.checked) {
-        const [s1, s2] = <[any, any]> outputStream.tee();
-        outputStream = s2;
-        promises.push(doBrowserStorage(s1));
-    }
+    let cloud = false, fsdh = false;
 
     if (("master" in config.config) && ui.ui.panels.host.saveVideoInCloud.checked) {
         const [s1, s2] = <[any, any]> outputStream.tee();
         outputStream = s2;
         promises.push(doCloudStorage(s1));
         cloud = true;
+    }
+
+    if (("master" in config.config) && ui.ui.panels.host.saveVideoInFSDH.checked) {
+        const [s1, s2] = <[any, any]> outputStream.tee();
+        outputStream = s2;
+        promises.push(doFSDHStorage(s1));
+        fsdh = true;
     }
 
     if (opts.remote) {
@@ -919,29 +920,26 @@ function saveVideoData(
     }
 
     if (opts.local || promises.length === 0) {
-        promises.push(doLocal(outputStream));
-        outputStream = null;
+        const [s1, s2] = <[any, any]> outputStream.tee();
+        outputStream = s2;
+        promises.push(doLocal(s1));
     }
 
-    if (outputStream) {
-        const rdr = outputStream.getReader();
-        (async() => {
-            while (true) {
-                const rd = await rdr.read();
-                if (rd.done)
-                    break;
-            }
-        })();
-    }
+    promises.push(doBrowserStorage(outputStream));
 
     // Do the browser storage writing
     async function doBrowserStorage(stream: ReadableStream<Uint8Array>) {
-        await saveVideoBrowser(filename, track, stream, mimeType, !cloud);
+        await saveVideoBrowser(filename, track, stream, mimeType, !cloud && !fsdh);
     }
 
     // Do the cloud storage writing
     async function doCloudStorage(stream: ReadableStream<Uint8Array>) {
         await saveVideoCloud(filename, track, stream, mimeType);
+    }
+
+    // Do the FSDH storage writing
+    async function doFSDHStorage(stream: ReadableStream<Uint8Array>) {
+        await saveVideoFSDH(filename, track, stream, mimeType, !cloud);
     }
 
     // Do the local writing
@@ -995,6 +993,21 @@ async function saveVideoCloud(
         [config.config.id, config.config.key, config.config.master],
         stream,
         {mimeType, report: storageReport}
+    );
+}
+
+// Save a video download into cloud storage
+async function saveVideoFSDH(
+    filename: string, track: number, stream: ReadableStream<Uint8Array>,
+    mimeType: string, doReport: boolean
+) {
+    // FIXME: Should be using getFSDHFileStorage
+    return (await fileStorage.fsdhFileStoragePromise).storeFile(
+        filename,
+        track,
+        [config.config.id, config.config.key, config.config.master],
+        stream,
+        {mimeType, report: doReport ? storageReport : void 0}
     );
 }
 

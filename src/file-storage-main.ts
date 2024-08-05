@@ -20,11 +20,15 @@
  * Independent page for showing/downloading files saved in the browser.
  */
 
+import * as barrierPromise from "./barrier-promise";
 import * as fileStorage from "./file-storage";
 
 import * as downloadStream from "@ennuicastr/dl-stream";
+import type * as localforageT from "localforage";
 import sha512 from "sha512-es";
 import * as wsp from "web-streams-polyfill/ponyfill";
+
+declare let localforage: typeof localforageT;
 
 interface FileStream {
     name: string;
@@ -190,9 +194,13 @@ async function localUI(header: string, ctx: string, store: fileStorage.FileStora
     const store = await fileStorage.getLocalFileStorage();
     await downloadStream.load({prefix: "../"});
 
-    // Maybe look for remote storage
-    let remoteStore: Promise<fileStorage.FileStorage> | null = null;
-    let remoteStoreBtn = {w: 256, h: 64};
+    const transientReqs: barrierPromise.BarrierPromise[] = [];
+    let needTransient = false;
+    const transientConts: barrierPromise.BarrierPromise[] = [];
+    const completions: barrierPromise.BarrierPromise[] = [];
+
+    // Maybe look for cloud storage
+    let remoteStore: fileStorage.FileStorage | null = null;
     let provider = localStorage.getItem("master-video-save-in-cloud-provider");
     if (provider) {
         let webDAVInfo: any = void 0;
@@ -203,37 +211,99 @@ async function localUI(header: string, ctx: string, store: fileStorage.FileStora
                 server: localStorage.getItem("webdav-server")
             };
         }
-        await new Promise<void>(res => {
-            remoteStore = fileStorage.getRemoteFileStorage({
-                provider: <any> provider,
-                webDAVInfo,
-                transientActivation: async () => {
-                    const btn = document.createElement("button");
-                    btn.innerHTML = '<i class="bx bx-log-in"></i> Log in';
-                    btn.classList.add("pill-button");
-                    Object.assign(btn.style, {
-                        position: "fixed",
-                        left: "0px",
-                        top: "0px"
-                    });
-                    document.body.appendChild(btn);
-                    remoteStoreBtn = {
-                        w: btn.offsetWidth + 32 /* for the icon */,
-                        h: btn.offsetHeight
-                    };
-                    btn.style.right = "0px";
-                    res();
-                    return new Promise<void>(res => {
-                        btn.onclick = () => {
-                            document.body.removeChild(btn);
-                            res();
-                        };
-                    });
-                }
-            });
-            remoteStore.then(() => res());
-        });
+
+        const cloudTR = new barrierPromise.BarrierPromise();
+        transientReqs.push(cloudTR);
+        const cloudTC = new barrierPromise.BarrierPromise();
+        transientConts.push(cloudTC);
+        const cloudComplete = new barrierPromise.BarrierPromise();
+        completions.push(cloudComplete);
+        
+        (async function() {
+            try {
+                remoteStore = await fileStorage.getRemoteFileStorage({
+                    provider: <any> provider,
+                    webDAVInfo,
+                    transientActivation: async () => {
+                        needTransient = true;
+                        cloudTR.res();
+                        await cloudTC.promise;
+                    }
+                });
+            } finally {
+                cloudTR.res();
+                cloudComplete.res();
+            }
+        })();
     }
+
+    // Maybe look for FSDH storage
+    let dir: FileSystemDirectoryHandle | null = null;
+    try {
+        const dirStorage = await localforage.createInstance({
+            driver: localforage.INDEXEDDB,
+            name: "ennuicastr-fsdh-memory"
+        });
+        dir = await dirStorage.getItem("fsdh-dir");
+    } catch (ex) {}
+    let fsdhStore: fileStorage.FileStorage | null = null;
+    if (dir) {
+        const fsdhTR = new barrierPromise.BarrierPromise();
+        transientReqs.push(fsdhTR);
+        const fsdhTC = new barrierPromise.BarrierPromise();
+        transientConts.push(fsdhTC);
+        const fsdhComplete = new barrierPromise.BarrierPromise();
+        completions.push(fsdhComplete);
+        
+        (async function() {
+            try {
+                if (await (<any> dir).queryPermission({mode: "readwrite"}) !== "granted") {
+                    needTransient = true;
+                    fsdhTR.res();
+                    await fsdhTR.promise;
+                    if (await (<any> dir).requestPermission({mode: "readwrite"}) !== "granted")
+                        return;
+                } else {
+                    fsdhTR.res();
+                }
+                fsdhStore = await fileStorage.getFSDHFileStorage(dir);
+            } finally {
+                fsdhTR.res();
+                fsdhComplete.res();
+            }
+        })();
+    }
+
+    // Perform any needed transient activation
+    for (const p of transientReqs)
+        await p.promise;
+    if (needTransient) {
+        const btn = document.createElement("button");
+        btn.innerHTML = '<i class="bx bx-log-in"></i> Log in';
+        btn.classList.add("pill-button");
+        Object.assign(btn.style, {
+            position: "fixed",
+            left: "0px",
+            top: "0px"
+        });
+        const logInBtn = {
+            w: btn.offsetWidth + 32 /* for the icon */,
+            h: btn.offsetHeight
+        };
+        btn.style.right = "0px";
+        btn.onclick = () => {
+            document.body.removeChild(btn);
+            for (const p of transientConts)
+                p.res();
+        };
+        document.body.appendChild(btn);
+        window.parent.postMessage(
+            {c: "ennuicastr-file-storage-transient-activation", btn: logInBtn}, "*");
+    }
+
+    // Wait for everything to complete
+    for (const p of completions)
+        await p.promise;
 
     // Create a message port for our host
     if (window.parent) {
@@ -243,38 +313,30 @@ async function localUI(header: string, ctx: string, store: fileStorage.FileStora
             if (ev.data && ev.data.c === "ennuicastr-file-storage") {
                 connection("local", store, mp);
                 if (remoteStore)
-                    remoteStore.then(x => connection("remote", x, mp));
+                    connection("remote", remoteStore, mp);
+                if (fsdhStore)
+                    connection("fsdh", fsdhStore, mp);
             }
         };
-        if (remoteStore) {
-            (async () => {
-                window.parent.postMessage(
-                    {c: "ennuicastr-file-storage-remote", btn: remoteStoreBtn}, "*");
-                let success = true;
-                try {
-                    await remoteStore;
-                } catch (ex) {
-                    success = false;
-                }
-                window.parent.postMessage(
-                    {c: "ennuicastr-file-storage-remote-login", success}, "*");
-            })();
-        }
         window.parent.postMessage(
-            {c: "ennuicastr-file-storage", port: mc.port2}, "*", [mc.port2]);
-    }
-
-    if (remoteStore) {
-        try {
-            await remoteStore;
-        } catch (ex) {
-            remoteStore = null;
-        }
+            {
+                c: "ennuicastr-file-storage",
+                port: mc.port2,
+                backends: {
+                    local: true,
+                    remote: !!remoteStore,
+                    fsdh: !!fsdhStore
+                }
+            }, "*", [mc.port2]
+        );
     }
 
     // Local UI(s)
-    localUI("Local", "local", store);
-
     if (remoteStore)
-        localUI("Cloud", "remote", await remoteStore);
+        localUI("Cloud", "remote", remoteStore);
+
+    if (fsdhStore)
+        localUI("Local directory", "fsdh", fsdhStore);
+
+    localUI("Backup", "local", store);
 })();

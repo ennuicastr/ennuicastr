@@ -325,6 +325,9 @@ export async function getLocalFileStorage(): Promise<FileStorage> {
 // Remote FileStorage instance
 export let remoteFileStoragePromise: Promise<FileStorage> | null = null;
 
+// FSDH FileStorage instance
+export let fsdhFileStoragePromise: Promise<FileStorage> | null = null;
+
 // Remote FileStorage driver promises
 let remoteFileStorageDrivers: Record<string, Promise<unknown>> = {};
 
@@ -451,3 +454,47 @@ export async function getRemoteFileStorage(opts: {
 export function clearRemoteFileStorage() {
     remoteFileStoragePromise = null;
 }
+
+
+/**
+ * Get a FileSystemDirectoryHandle FileStorage.
+ * @param dir  Directory handle
+ */
+export async function getFSDHFileStorage(
+    dir: FileSystemDirectoryHandle
+): Promise<FileStorage> {
+    async function loadDriver(name: string, driver: any) {
+        if (!remoteFileStorageDrivers[name])
+            remoteFileStorageDrivers[name] = localforage.defineDriver(driver);
+        await remoteFileStorageDrivers[name];
+    }
+
+    return fsdhFileStoragePromise = (async () => {
+        await getLocalFileStorage();
+
+        await loadDriver(
+            "FileSystemDirectoryHandle", nonlocalForage.fsdhLocalForage
+        );
+
+        const ret = await localforage.createInstance(<any> {
+            driver: "FileSystemDirectoryHandle",
+            directoryHandle: dir,
+            nonlocalforage: {
+                directory: "ennuicastr-file-storage",
+                noName: true,
+                noStore: true
+            }
+        });
+        await ret.ready();
+
+        return new FileStorage(ret, null);
+    })();
+}
+
+/**
+ * Clear (disable) FSDH storage.
+ */
+export function clearFSDHFileStorage() {
+    fsdhFileStoragePromise = null;
+}
+

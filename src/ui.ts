@@ -250,12 +250,13 @@ export const ui = {
             // Accept guest video recordings
             acceptRemoteVideo: HTMLInputElement,
 
-            // Save video to in-browser storage
-            saveVideoInBrowser: HTMLInputElement,
-
             // Save video to cloud storage
             saveVideoInCloud: HTMLInputElement,
             saveVideoInCloudLbl: HTMLLabelElement,
+
+            // Save video to FileSystemDirectoryHandle
+            saveVideoInFSDHHider: HTMLElement,
+            saveVideoInFSDH: HTMLInputElement,
 
             // Download the video live
             downloadVideoLive: HTMLInputElement,

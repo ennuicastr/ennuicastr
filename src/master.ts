@@ -20,6 +20,7 @@
  * Support for master (host) users.
  */
 
+import * as barrierPromise from "./barrier-promise";
 import * as comm from "./comm";
 import * as config from "./config";
 import * as fileStorage from "./file-storage";
@@ -29,6 +30,11 @@ import { prot } from "./protocol";
 import * as ui from "./ui";
 import * as util from "./util";
 import { dce } from "./util";
+
+import * as nlf from "nonlocal-forage";
+import type * as localforageT from "localforage";
+
+declare let localforage: typeof localforageT;
 
 // Credit information
 const credits = {
@@ -97,14 +103,11 @@ export function createMasterInterface(): void {
 
     // Accept remote recordings
     masterUI.acceptRemoteVideo.checked =
-        masterUI.saveVideoInBrowser.checked =
         masterUI.downloadVideoLive.checked =
         config.useVideoRec;
     ui.saveConfigCheckbox(masterUI.acceptRemoteVideo,
         "master-video-record-host-" + config.useVideoRec,
         acceptRemoteVideoChange);
-    ui.saveConfigCheckbox(masterUI.saveVideoInBrowser,
-        "master-video-save-in-browser-" + config.useVideoRec);
     ui.saveConfigCheckbox(masterUI.downloadVideoLive,
         "master-video-download-live-" + config.useVideoRec);
 
@@ -124,6 +127,27 @@ export function createMasterInterface(): void {
             }
         }
     );
+
+    // Possibly FSDH save
+    masterUI.saveVideoInFSDH.checked = false;
+    if (!("showDirectoryPicker" in window) || !nlf.fsdhLocalForage._support) {
+        masterUI.saveVideoInFSDHHider.style.display = "none";
+    } else {
+        ui.saveConfigCheckbox(
+            masterUI.saveVideoInFSDH,
+            "master-video-save-in-fsdh-" + config.useVideoRec,
+            async ev => {
+                await initFSDHStorage({ignoreCookieDir: true});
+                if (ui.needTransientActivation()) {
+                    ui.transientActivation(
+                        "Choose directory",
+                        '<i class="bx bx-folder-open"></i> Choose directory',
+                        {makeModal: true, force: true}
+                    );
+                }
+            }
+        );
+    }
 
     // Put everything in the proper state
     configureMasterInterface();
@@ -817,108 +841,124 @@ function updateAdmin(target: number, props: any) {
  * it is to be needed).
  * @param opts  Options to, e.g., ignore settings in the cookies
  */
-export async function initCloudStorage(opts: {
+export function initCloudStorage(opts: {
     /**
      * Ignore the saved provider and request it again.
      */
     ignoreCookieProvider?: boolean
-} = {}) {
+} = {}): {
+    transientActivation: barrierPromise.BarrierPromise,
+    completion: barrierPromise.BarrierPromise
+} {
+    const ret = {
+        transientActivation: new barrierPromise.BarrierPromise(),
+        completion: new barrierPromise.BarrierPromise
+    };
     const masterUI = ui.ui.panels.host;
 
-    let webDAVInfo: {
-        username: string, password: string, server: string
-    } | null = null;
+    // Perform the actual loading in the background
+    go();
+    return ret;
 
-    // We change the label based on the actual usage
-    masterUI.saveVideoInCloudLbl.innerHTML = "&nbsp;Save video recordings in cloud storage";
+    async function go() {
+        let webDAVInfo: {
+            username: string, password: string, server: string
+        } | null = null;
 
-    if (!masterUI.saveVideoInCloud.checked) {
-        fileStorage.clearRemoteFileStorage();
-        localStorage.removeItem("master-video-save-in-cloud-provider");
-        return;
-    }
+        // We change the label based on the actual usage
+        masterUI.saveVideoInCloudLbl.innerHTML = "&nbsp;Save video recordings in cloud storage";
 
-    let provider = localStorage.getItem("master-video-save-in-cloud-provider");
-    if (!provider || opts.ignoreCookieProvider) {
-        const csPanel = ui.ui.panels.cloudStorage;
-        provider = await new Promise(res => {
-            csPanel.googleDrive.onclick = () => res("googleDrive");
-            csPanel.dropbox.onclick = () => res("dropbox");
-            csPanel.webdav.onclick = () => res("webDAV");
-            csPanel.cancel.onclick = () => res("cancel");
-            csPanel.onhide = () => res("cancel");
-            ui.showPanel(csPanel);
-        });
-        ui.showPanel(null);
+        if (!masterUI.saveVideoInCloud.checked) {
+            fileStorage.clearRemoteFileStorage();
+            localStorage.removeItem("master-video-save-in-cloud-provider");
+            ret.transientActivation.res();
+            ret.completion.res();
+            return;
+        }
 
-        // For WebDAV, we still need to get a username and password
-        if (provider === "webDAV") {
-            const wdp = ui.ui.panels.webdav;
-            wdp.username.value =
-                wdp.password.value =
-                wdp.url.value = "";
-            await new Promise<void>(res => {
-                wdp.form.onsubmit = wdp.login.onclick = (ev: Event) => {
-                    if (wdp.username.value && wdp.password.value &&
-                        wdp.url.value) {
-                        webDAVInfo = {
-                            username: wdp.username.value,
-                            password: wdp.password.value,
-                            server: wdp.url.value
-                        };
-                        res();
-                    }
-                    ev.preventDefault();
-                    ev.stopPropagation();
-                };
-                wdp.onhide = res;
-                ui.showPanel(wdp, wdp.username);
+        let provider = localStorage.getItem("master-video-save-in-cloud-provider");
+        if (!provider || opts.ignoreCookieProvider) {
+            const csPanel = ui.ui.panels.cloudStorage;
+            provider = await new Promise(res => {
+                csPanel.googleDrive.onclick = () => res("googleDrive");
+                csPanel.dropbox.onclick = () => res("dropbox");
+                csPanel.webdav.onclick = () => res("webDAV");
+                csPanel.cancel.onclick = () => res("cancel");
+                csPanel.onhide = () => res("cancel");
+                ui.showPanel(csPanel);
             });
             ui.showPanel(null);
 
-            if (webDAVInfo) {
-                localStorage.setItem("webdav-username", webDAVInfo.username);
-                localStorage.setItem("webdav-password", webDAVInfo.password);
-                localStorage.setItem("webdav-server", webDAVInfo.server);
-            } else {
-                provider = "cancel";
+            // For WebDAV, we still need to get a username and password
+            if (provider === "webDAV") {
+                const wdp = ui.ui.panels.webdav;
+                wdp.username.value =
+                    wdp.password.value =
+                    wdp.url.value = "";
+                await new Promise<void>(res => {
+                    wdp.form.onsubmit = wdp.login.onclick = (ev: Event) => {
+                        if (wdp.username.value && wdp.password.value &&
+                            wdp.url.value) {
+                            webDAVInfo = {
+                                username: wdp.username.value,
+                                password: wdp.password.value,
+                                server: wdp.url.value
+                            };
+                            res();
+                        }
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                    };
+                    wdp.onhide = res;
+                    ui.showPanel(wdp, wdp.username);
+                });
+                ui.showPanel(null);
+
+                if (webDAVInfo) {
+                    localStorage.setItem("webdav-username", webDAVInfo.username);
+                    localStorage.setItem("webdav-password", webDAVInfo.password);
+                    localStorage.setItem("webdav-server", webDAVInfo.server);
+                } else {
+                    provider = "cancel";
+                }
             }
+
+            if (provider === "cancel") {
+                localStorage.removeItem("master-video-save-in-cloud-provider");
+                masterUI.saveVideoInCloud.checked = false;
+                localStorage.setItem("master-video-save-in-cloud-" + config.useVideoRec, "0");
+                fileStorage.clearRemoteFileStorage();
+                ret.transientActivation.res();
+                ret.completion.res();
+                return;
+            }
+            localStorage.setItem("master-video-save-in-cloud-provider", provider);
         }
 
-        if (provider === "cancel") {
-            localStorage.removeItem("master-video-save-in-cloud-provider");
-            masterUI.saveVideoInCloud.checked = false;
-            localStorage.setItem("master-video-save-in-cloud-" + config.useVideoRec, "0");
-            fileStorage.clearRemoteFileStorage();
-            return;
+        // Handle WebDAV info
+        if (provider === "webDAV" && !webDAVInfo) {
+            webDAVInfo = {
+                username: localStorage.getItem("webdav-username"),
+                password: localStorage.getItem("webdav-password"),
+                server: localStorage.getItem("webdav-server")
+            };
         }
-        localStorage.setItem("master-video-save-in-cloud-provider", provider);
-    }
 
-    // Handle WebDAV info
-    if (provider === "webDAV" && !webDAVInfo) {
-        webDAVInfo = {
-            username: localStorage.getItem("webdav-username"),
-            password: localStorage.getItem("webdav-password"),
-            server: localStorage.getItem("webdav-server")
-        };
-    }
+        let longName = provider;
+        switch (provider) {
+            case "googleDrive": longName = "Google Drive"; break;
+            case "dropbox": longName = "Dropbox"; break;
+            case "webDAV": longName = "ownCloud"; break;
+        }
 
-    let longName = provider;
-    switch (provider) {
-        case "googleDrive": longName = "Google Drive"; break;
-        case "dropbox": longName = "Dropbox"; break;
-        case "webDAV": longName = "ownCloud"; break;
-    }
-
-    return new Promise<void>(async res => {
         try {
             const rfs = await fileStorage.getRemoteFileStorage({
                 provider: <any> provider,
                 webDAVInfo: webDAVInfo || void 0,
                 transientActivation: async () => {
                     const p = ui.onTransientActivation(async () => {});
-                    res();
+                    ui.onTransientActivation(() => ret.completion.promise);
+                    ret.transientActivation.res();
                     await p;
                 },
                 lateTransientActivation: async () => {
@@ -949,8 +989,10 @@ export async function initCloudStorage(opts: {
             });
             masterUI.saveVideoInCloudLbl.innerHTML =
                 `&nbsp;Save video recordings in ${longName}`;
-            res();
+            ret.transientActivation.res();
+            ret.completion.res();
             rfs.clearExpired();
+
         } catch (ex) {
             log.pushStatus(
                 "file-storage",
@@ -961,7 +1003,157 @@ export async function initCloudStorage(opts: {
             );
             masterUI.saveVideoInCloud.checked = false;
             localStorage.setItem(`master-video-save-in-cloud-${config.useVideoRec}`, "0");
-            res();
+            ret.transientActivation.res();
+            ret.completion.res();
+
         }
-    });
+    }
+}
+
+/**
+ * Initialize FSDH (local directory) storage based on the current state of the
+ * UI and cookies. Returns a promise that is fulfilled when transient
+ * activation is needed (if it is to be needed).
+ * @param opts  Options to, e.g., ignore settings in the cookies
+ */
+export function initFSDHStorage(opts: {
+    /**
+     * Ignore the saved directory and request it again.
+     */
+    ignoreCookieDir?: boolean
+} = {}): {
+    transientActivation: barrierPromise.BarrierPromise,
+    completion: barrierPromise.BarrierPromise
+} {
+    const ret = {
+        transientActivation: new barrierPromise.BarrierPromise(),
+        completion: new barrierPromise.BarrierPromise()
+    };
+
+    go();
+    return ret;
+
+    async function go() {
+        const masterUI = ui.ui.panels.host;
+
+        // Load localforage
+        await fileStorage.getLocalFileStorage();
+
+        // Get somewhere to store the directory
+        let dirStorage: typeof localforageT | null = null;
+        try {
+            dirStorage = await localforage.createInstance({
+                driver: localforage.INDEXEDDB,
+                name: "ennuicastr-fsdh-memory"
+            });
+            await dirStorage.ready();
+            if (dirStorage.driver() !== localforage.INDEXEDDB)
+                dirStorage = null;
+        } catch (ex) {}
+
+        // Unload if asked for
+        if (!masterUI.saveVideoInFSDH.checked) {
+            fileStorage.clearFSDHFileStorage();
+            if (dirStorage)
+                await dirStorage.removeItem("fsdh-dir");
+            ret.transientActivation.res();
+            ret.completion.res();
+            return;
+        }
+
+        let dir: FileSystemDirectoryHandle | null = null;
+
+        if (dirStorage)
+            dir = await dirStorage.getItem("fsdh-dir");
+
+        // Check if we have permission
+        if (dir) {
+            try {
+                if (await (<any> dir).queryPermission({mode: "readwrite"}) !== "granted") {
+                    {
+                        const p = ui.onTransientActivation(async () => {});
+                        ui.onTransientActivation(() => ret.completion.promise);
+                        ret.transientActivation.res();
+                        await p;
+                    }
+                    if (await (<any> dir).requestPermission({mode: "readwrite"}) !== "granted")
+                        throw new Error();
+                }
+            } catch (ex) {
+                masterUI.saveVideoInFSDH.checked = false;
+                log.pushStatus(
+                    "fsdh",
+                    "Failed to open local directory for storage!",
+                    {timeout: 10000}
+                );
+                ret.transientActivation.res();
+                ret.completion.res();
+                return;
+            }
+        }
+
+        // Open a new directory
+        if (!dir || opts.ignoreCookieDir) {
+            // Start with generic transient activation
+            {
+                const p = ui.onTransientActivation(async () => {});
+                ui.onTransientActivation(() => ret.completion.promise);
+                ret.transientActivation.res();
+                await p;
+            }
+            while (!dir) {
+                // Request it
+                try {
+                    dir = await (<any> window).showDirectoryPicker({
+                        mode: "readwrite",
+                        startIn: "documents"
+                    });
+                } catch (ex) {
+                    // Request refused
+                    masterUI.saveVideoInFSDH.checked = false;
+                    log.pushStatus(
+                        "fsdh",
+                        "Failed to open local directory for storage!",
+                        {timeout: 3000}
+                    );
+                    ret.completion.res();
+                    return;
+                }
+
+                // Check that it's fresh and/or valid
+                let fresh = true;
+                let valid = false;
+                const it: AsyncIterator<string> = (<any> dir).keys();
+                while (true) {
+                    const file = await it.next();
+                    if (file.done) break;
+                    fresh = false;
+                    if (file.value === ".enncuicastr-storage")
+                        valid = true;
+                }
+                if (fresh) {
+                    // Put a marker so we know in the future that it's valid
+                    await dir.getFileHandle(".enncuicastr-storage", {create: true});
+                } else if (!valid) {
+                    // Retry
+                    dir = null;
+                    await ui.transientActivation(
+                        "Choose directory",
+                        '<i class="bx bx-folder-open"></i> Choose a new directory',
+                        {makeModal: true, force: true}
+                    );
+                }
+            }
+
+            if (dirStorage)
+                await dirStorage.setItem("fsdh-dir", dir);
+
+        }
+
+        // Initialize it
+        const dfs = await fileStorage.getFSDHFileStorage(dir);
+        ret.transientActivation.res();
+        ret.completion.res();
+        dfs.clearExpired();
+    }
 }

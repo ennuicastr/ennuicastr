@@ -74,8 +74,10 @@ async function main() {
 
         const acPromise = audio.initAudioContext();
 
-        if ("master" in config.config)
+        if ("master" in config.config) {
             await master.initCloudStorage();
+            await master.initFSDHStorage();
+        }
 
         if (ui.needTransientActivation()) {
             await ui.transientActivation(
