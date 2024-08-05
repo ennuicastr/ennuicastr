@@ -608,8 +608,8 @@ export async function getRemoteFileStorage(opts: {
         });
 
         const lkf = new lockableForage.LockableForage(remote);
-        // To avoid clock skew, choose a long remote timeout for locks
-        lkf.setTimeoutTime(10000);
+        // To avoid clock skew, choose long timeouts
+        lkf.setTimes(1000);
 
         return new FileStorage(fileStorage, lkf, remote, null);
     })();
