@@ -30,53 +30,13 @@ import * as wsp from "web-streams-polyfill/ponyfill";
 
 declare let localforage: typeof localforageT;
 
-interface FileStream {
-    name: string;
-    len: number;
-    mimeType: string;
-    stream: ReadableStream<Uint8Array>;
-}
-
-/**
- * Stream this file.
- * @param store  The file storage backend storing this file.
- * @param id  ID of the file.
- */
-async function streamById(
-    store: fileStorage.FileStorage, id: string
-): Promise<FileStream | null> {
-    const file: fileStorage.FileInfo = await store.fileStorage.getItem("file-" + id);
-    if (!file)
-        return null;
-    const sz = file.len.reduce((x, y) => x + y, 0);
-
-    // Create a stream for it
-    let idx = 0;
-    const stream = <ReadableStream<Uint8Array>> <unknown> new wsp.ReadableStream({
-        async pull(controller) {
-            const chunk = await store.fileStorage.getItem("data-" + id + "-" + (idx++));
-            if (chunk)
-                controller.enqueue(chunk);
-            if (idx >= file.len.length)
-                controller.close();
-        }
-    });
-
-    return {
-        name: file.name,
-        len: sz,
-        mimeType: file.mimeType,
-        stream
-    };
-}
-
 
 /**
  * Download this file.
  * @param id  ID of the file.
  */
 async function downloadById(store: fileStorage.FileStorage, id: string) {
-    const file = await streamById(store, id);
+    const file = await store.streamFile(id);
     if (!file)
         return;
 

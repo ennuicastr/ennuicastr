@@ -84,6 +84,36 @@ export interface FileInfo {
      * MIME type.
      */
     mimeType: string;
+
+    /**
+     * Reified filename, if this has been written to an actual file.
+     */
+    realFilename?: string;
+}
+
+/**
+ * A file being streamed from storage.
+ */
+export interface FileStream {
+    /**
+     * Suggested filename.
+     */
+    name: string;
+
+    /**
+     * Total length of the file in bytes.
+     */
+    len: number;
+
+    /**
+     * MIME type of the file.
+     */
+    mimeType: string;
+
+    /**
+     * Stream of data itself.
+     */
+    stream: ReadableStream<Uint8Array>;
 }
 
 /**
@@ -111,7 +141,12 @@ export class FileStorage {
         /**
          * The LocalForage instance used for space estimation.
          */
-        public spaceEstimateStorage: LocalForage | null
+        public spaceEstimateStorage: LocalForage | null,
+
+        /**
+         * The FileSystemDirectoryHandle to reify files to.
+         */
+        public dirHandle: FileSystemDirectoryHandle | null
     ) {}
 
     /**
@@ -156,6 +191,13 @@ export class FileStorage {
     async deleteFile(id: string): Promise<void> {
         const info: FileInfo = await this.fileStorage.getItem(`file-${id}`);
         if (info) {
+            if (info.realFilename && this.dirHandle) {
+                // Remove the reified file
+                try {
+                    await this.dirHandle.removeEntry(info.realFilename);
+                } catch (ex) {}
+            }
+
             // Remove all the data, +1 in case of short write
             for (let i = 0; i <= info.len.length; i++)
                 await this.fileStorage.removeItem(`data-${id}-${i}`);
@@ -306,8 +348,112 @@ export class FileStorage {
         info.complete = true;
         await this.fileStorage.setItem(`file-${id}`, info);
 
+        // Possibly reify
+        if (this.dirHandle) {
+            try {
+                // Look for a name based on the actual, desired name
+                let nameParts: string[] = <string[]> /^(.*)(\.)([^\.]*)$/.exec(info.name);
+                if (!nameParts)
+                    nameParts = ["", info.name, "", ""];
+                let suffix = "";
+                let ct = 0;
+                while (true) {
+                    const name =
+                        nameParts[1] +
+                        suffix +
+                        nameParts[2] +
+                        nameParts[3];
+                    const success = await this.lockingStorage.lock(`reify-${name}`, async () => {
+                        const fh = await this.dirHandle.getFileHandle(
+                            name,
+                            {create: true}
+                        );
+                        const file = await fh.getFile();
+                        if (file.size)
+                            return false;
+
+                        const str = await this.streamFile(id);
+                        if (!str)
+                            throw new Error("Failed to stream");
+
+                        const rdr = str.stream.getReader();
+                        const wr = await fh.createWritable();
+                        while (true) {
+                            const chunk = await rdr.read();
+                            if (chunk.done) break;
+                            await wr.write(chunk.value);
+                        }
+                        await wr.close();
+
+                        return true;
+                    });
+                    if (success)
+                        break;
+                    ct++;
+                    suffix = ` (${ct})`;
+                }
+
+                // Successfully reified the file
+                info.realFilename =
+                    nameParts[1] +
+                    suffix +
+                    nameParts[2] +
+                    nameParts[3];
+                await this.fileStorage.setItem(`file-${id}`, info);
+
+                // Get rid of the originals
+                for (let i = 0; i < info.len.length; i++)
+                    await this.fileStorage.removeItem(`data-${id}-${i}`);
+            } catch (ex) {
+                console.error("Failed to reify file:", ex);
+            }
+        }
+
         this._storeCt--;
         report();
+    }
+
+    /**
+     * Stream this file.
+     * @param store  The file storage backend storing this file.
+     * @param id  ID of the file.
+     */
+    async streamFile(id: string): Promise<FileStream | null> {
+        const file: FileInfo = await this.fileStorage.getItem(`file-${id}`);
+        if (!file)
+            return null;
+        const sz = file.len.reduce((x, y) => x + y, 0);
+
+        let stream: ReadableStream<Uint8Array>;
+
+        if (file.realFilename && this.dirHandle) {
+            // Get it directly from the reified file
+            const fh = await this.dirHandle.getFileHandle(file.realFilename);
+            const fb = await fh.getFile();
+            stream = fb.stream();
+
+        } else {
+            // Create a stream from the chunks
+            let idx = 0;
+            const fs = this.fileStorage;
+            stream = new ReadableStream<Uint8Array>({
+                async pull(controller) {
+                    const chunk: Uint8Array = await fs.getItem(`data-${id}-` + (idx++));
+                    if (chunk)
+                        controller.enqueue(chunk);
+                    if (idx >= file.len.length)
+                        controller.close();
+                }
+            });
+
+        }
+
+        return {
+            name: file.name,
+            len: sz,
+            mimeType: file.mimeType,
+            stream
+        };
     }
 }
 
@@ -331,7 +477,7 @@ export async function getLocalFileStorage(): Promise<FileStorage> {
             return new FileStorage(
                 fileStorage,
                 new lockableForage.LockableForage(fileStorage),
-                null
+                null, null
             );
         })();
     }
@@ -465,7 +611,7 @@ export async function getRemoteFileStorage(opts: {
         // To avoid clock skew, choose a long remote timeout for locks
         lkf.setTimeoutTime(10000);
 
-        return new FileStorage(fileStorage, lkf, remote);
+        return new FileStorage(fileStorage, lkf, remote, null);
     })();
 }
 
@@ -511,7 +657,8 @@ export async function getFSDHFileStorage(
         return new FileStorage(
             ret,
             new lockableForage.LockableForage(ret),
-            null
+            null,
+            dir
         );
     })();
 }
