@@ -26,6 +26,7 @@ import type * as localforageT from "localforage";
 type LocalForage = typeof localforageT;
 declare let localforage: LocalForage;
 
+import * as lockableForage from "lockable-forage";
 import * as nonlocalForage from "nonlocal-forage";
 import sha512 from "sha512-es";
 
@@ -98,12 +99,17 @@ export class FileStorage {
 
     constructor(
         /**
-         * The LocalForage instance used to store files
+         * The LocalForage instance used to store files.
          */
         public fileStorage: LocalForage,
 
         /**
-         * The LocalForage instance used for space estimation
+         * The LockableForage for locking.
+         */
+        public lockingStorage: lockableForage.LockableForage,
+
+        /**
+         * The LocalForage instance used for space estimation.
          */
         public spaceEstimateStorage: LocalForage | null
     ) {}
@@ -112,8 +118,8 @@ export class FileStorage {
      * Get an array of all stored files.
      */
     async getFiles(): Promise<FileInfo[]> {
-        return await Promise.all(
-            (<FileInfo[]> await this.fileStorage.getItem("files") || [])
+        return Promise.all(
+            (<FileInfo[]> await this.lockingStorage.localforage.getItem("files") || [])
             .map(async x => <FileInfo> await this.fileStorage.getItem(`file-${x}`))
         );
     }
@@ -125,11 +131,11 @@ export class FileStorage {
         // Get the list of expired files
         const expiredP = this._storePromise.then(async () => {
             const now = Date.now();
-            const files: string[] = await this.fileStorage.getItem("files") || [];
+            const files: string[] = await this.lockingStorage.localforage.getItem("files") || [];
             const expired: string[] = [];
             for (let i = files.length - 1; i >= 0; i--) {
                 const file = files[i];
-                const info: FileInfo = await this.fileStorage.getItem(`file-${file}`);
+                const info: FileInfo = await this.lockingStorage.localforage.getItem(`file-${file}`);
                 if (!info || info.edate < now)
                     expired.push(file);
             }
@@ -160,11 +166,13 @@ export class FileStorage {
 
         // Remove it from the list
         this._storePromise = this._storePromise.then(async () => {
-            const files: string[] = await this.fileStorage.getItem("files") || [];
-            const idx = files.indexOf(id);
-            if (idx >= 0)
-                files.splice(idx, 1);
-            await this.fileStorage.setItem("files", files);
+            await this.lockingStorage.lock("files", async () => {
+                const files: string[] = await this.lockingStorage.localforage.getItem("files") || [];
+                const idx = files.indexOf(id);
+                if (idx >= 0)
+                    files.splice(idx, 1);
+                await this.lockingStorage.localforage.setItem("files", files);
+            });
         });
         await this._storePromise;
     }
@@ -211,13 +219,15 @@ export class FileStorage {
         );
 
         // Get the salt
-        const saltP = this._storePromise.then(async () => {
-            let salt: number = await this.fileStorage.getItem("salt");
-            if (salt === null) {
-                salt = ~~(Math.random() * 2000000000);
-                await this.fileStorage.setItem("salt", salt);
-            }
-            return salt;
+        const saltP = this._storePromise.then(() => {
+            return this.lockingStorage.lock("salt", async () => {
+                let salt: number = await this.lockingStorage.localforage.getItem("salt");
+                if (salt === null) {
+                    salt = ~~(Math.random() * 2000000000);
+                    await this.lockingStorage.localforage.setItem("salt", salt);
+                }
+                return salt;
+            });
         });
         this._storePromise = saltP;
         const salt = await saltP;
@@ -239,18 +249,20 @@ export class FileStorage {
         };
 
         // First, find an ID
-        const idP = this._storePromise.then(async () => {
-            const files: string[] = await this.fileStorage.getItem("files") || [];
-            let id: string;
-            do {
-                id = "";
-                while (id.length < 12)
-                    id += Math.random().toString(36).slice(2);
-                id = id.slice(0, 12);
-            } while (files.indexOf(id) >= 0);
-            files.push(id);
-            await this.fileStorage.setItem("files", files);
-            return id;
+        const idP = this._storePromise.then(() => {
+            return this.lockingStorage.lock("files", async () => {
+                const files: string[] = await this.lockingStorage.localforage.getItem("files") || [];
+                let id: string;
+                do {
+                    id = "";
+                    while (id.length < 12)
+                        id += Math.random().toString(36).slice(2);
+                    id = id.slice(0, 12);
+                } while (files.indexOf(id) >= 0);
+                files.push(id);
+                await this.lockingStorage.localforage.setItem("files", files);
+                return id;
+            });
         });
         this._storePromise = idP;
         const id = info.id = await idP;
@@ -316,7 +328,11 @@ export async function getLocalFileStorage(): Promise<FileStorage> {
             const fileStorage = await localforage.createInstance({
                 name: "ennuicastr-file-storage"
             });
-            return new FileStorage(fileStorage, null);
+            return new FileStorage(
+                fileStorage,
+                new lockableForage.LockableForage(fileStorage),
+                null
+            );
         })();
     }
     return localFileStoragePromise;
@@ -444,7 +460,12 @@ export async function getRemoteFileStorage(opts: {
                 nonlocal: remote
             }
         });
-        return new FileStorage(fileStorage, remote);
+
+        const lkf = new lockableForage.LockableForage(remote);
+        // To avoid clock skew, choose a long remote timeout for locks
+        lkf.setTimeoutTime(10000);
+
+        return new FileStorage(fileStorage, lkf, remote);
     })();
 }
 
@@ -487,7 +508,11 @@ export async function getFSDHFileStorage(
         });
         await ret.ready();
 
-        return new FileStorage(ret, null);
+        return new FileStorage(
+            ret,
+            new lockableForage.LockableForage(ret),
+            null
+        );
     })();
 }
 
