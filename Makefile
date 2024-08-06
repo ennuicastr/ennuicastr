@@ -71,7 +71,6 @@ dist/hotkeys.min.js: hotkeys.js node_modules/.bin/tsc
 
 node_modules/.bin/tsc:
 	npm install
-	cd node_modules/nonlocal-forage && npm install
 
 dist/ecdssw.min.js: node_modules/.bin/tsc
 	mkdir -p dist
