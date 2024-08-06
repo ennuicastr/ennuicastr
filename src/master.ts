@@ -1101,6 +1101,7 @@ export function initFSDHStorage(opts: {
                     } catch (ex) {
                         // Request refused
                         masterUI.saveVideoInFSDH.checked = false;
+                        localStorage.setItem("master-video-save-in-fsdh-" + config.useVideoRec, "0");
                         log.pushStatus(
                             "fsdh",
                             "Failed to open local directory for storage!",
@@ -1142,6 +1143,7 @@ export function initFSDHStorage(opts: {
         } catch (ex) {
             console.error(ex);
             masterUI.saveVideoInFSDH.checked = false;
+            localStorage.setItem("master-video-save-in-fsdh-" + config.useVideoRec, "0");
             fileStorage.clearFSDHFileStorage();
             log.pushStatus(
                 "fsdh",
