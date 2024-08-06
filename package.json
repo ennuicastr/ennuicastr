@@ -18,6 +18,7 @@
     "libavjs-webcodecs-bridge": "^0.0.5",
     "libavjs-webcodecs-polyfill": "^0.5.1",
     "localforage": "^1.10.0",
+    "nonlocal-forage": "^0.1.2",
     "nosleep.js": "^0.12.0",
     "rtennui": "^0.7.9",
     "sha512-es": "^1.8.2",
@@ -36,8 +37,6 @@
     "@typescript-eslint/eslint-plugin": "^4.30.0",
     "@typescript-eslint/parser": "^4.30.0",
     "eslint": "^7.32.0",
-    "lockable-forage": "^0.1.2",
-    "nonlocal-forage": "^0.1.1",
     "rollup": "^4.17.2",
     "tslib": "^2.6.3"
   },
