@@ -153,10 +153,16 @@ export class FileStorage {
      * Get an array of all stored files.
      */
     async getFiles(): Promise<FileInfo[]> {
-        return Promise.all(
-            (<FileInfo[]> await this.lockingStorage.localforage.getItem("files") || [])
-            .map(async x => <FileInfo> await this.fileStorage.getItem(`file-${x}`))
-        );
+        const files: FileInfo[] = [];
+        const ids: string[] =
+            await this.lockingStorage.localforage.getItem("files") || [];
+        for (const id of ids) {
+            const file: FileInfo =
+                await this.fileStorage.getItem(`file-${id}`);
+            if (file)
+                files.push(file);
+        }
+        return files;
     }
 
     /**

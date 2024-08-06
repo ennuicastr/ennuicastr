@@ -1085,7 +1085,18 @@ async function maybeRecord() {
         // We should be recording
         const opts: RecordVideoOptions = {
             remote: !("master" in config.config) && recording.remote.checked && config.useRTC,
-            local: recording.local.checked
+            local: (
+                (
+                    // We asked to record locally
+                    recording.local.checked
+                ) || (
+                    /* We're the host, we asked to send *to* the host, and we
+                     * record incoming recordings from guests */
+                    ("master" in config.config) &&
+                    recording.remote.checked &&
+                    ui.ui.panels.host.downloadVideoLive.checked
+                )
+            )
         };
         if (recording.manualBitrate.checked) {
             const br = +recording.bitrate.value;
