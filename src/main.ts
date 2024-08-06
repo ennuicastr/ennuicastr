@@ -65,10 +65,15 @@ async function main() {
         await config.resolve();
 
         const acPromise = audio.initAudioContext();
+        let waitPromises: Promise<unknown>[] = [];
 
         if ("master" in config.config) {
-            await master.initCloudStorage().transientActivation.promise;
-            await master.initFSDHStorage().transientActivation.promise;
+            const c = master.initCloudStorage();
+            waitPromises.push(c.completion.promise);
+            const f = master.initFSDHStorage();
+            waitPromises.push(f.completion.promise);
+            await c.transientActivation.promise;
+            await f.transientActivation.promise;
         }
 
         if (ui.needTransientActivation()) {
@@ -80,6 +85,9 @@ async function main() {
         }
 
         await acPromise;
+        try {
+            await Promise.all(waitPromises);
+        } catch (ex) {}
 
         // Now connect
         await net.connect();
