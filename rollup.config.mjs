@@ -5,7 +5,9 @@ import json from "@rollup/plugin-json";
 import terser from "@rollup/plugin-terser";
 
 const plugins = [
-    nodeResolve(),
+    nodeResolve({
+        browser: true
+    }),
     commonjs(),
     json()
 ];
