@@ -117,7 +117,7 @@ export function createMasterInterface(): void {
         masterUI.saveVideoInCloud,
         "master-video-save-in-cloud-" + config.useVideoRec,
         async ev => {
-            await initCloudStorage({ignoreCookieProvider: true});
+            await initCloudStorage({ignoreCookieProvider: true}).transientActivation.promise;
             if (ui.needTransientActivation()) {
                 ui.transientActivation(
                     "Log in",
@@ -137,12 +137,12 @@ export function createMasterInterface(): void {
             masterUI.saveVideoInFSDH,
             "master-video-save-in-fsdh-" + config.useVideoRec,
             async ev => {
-                await initFSDHStorage({ignoreCookieDir: true});
+                await initFSDHStorage({ignoreCookieDir: true}).transientActivation.promise;
                 if (ui.needTransientActivation()) {
                     ui.transientActivation(
                         "Choose directory",
                         '<i class="bx bx-folder-open"></i> Choose directory',
-                        {makeModal: true, force: true}
+                        {force: true}
                     );
                 }
             }
@@ -1063,12 +1063,13 @@ export function initFSDHStorage(opts: {
 
         let dir: FileSystemDirectoryHandle | null = null;
 
-        if (dirStorage)
+        if (dirStorage && !opts.ignoreCookieDir)
             dir = await dirStorage.getItem("fsdh-dir");
 
-        // Check if we have permission
-        if (dir) {
-            try {
+        try {
+
+            // Check if we have permission
+            if (dir) {
                 if (await (<any> dir).queryPermission({mode: "readwrite"}) !== "granted") {
                     {
                         const p = ui.onTransientActivation(async () => {});
@@ -1079,75 +1080,77 @@ export function initFSDHStorage(opts: {
                     if (await (<any> dir).requestPermission({mode: "readwrite"}) !== "granted")
                         throw new Error();
                 }
-            } catch (ex) {
-                masterUI.saveVideoInFSDH.checked = false;
-                log.pushStatus(
-                    "fsdh",
-                    "Failed to open local directory for storage!",
-                    {timeout: 10000}
-                );
-                ret.transientActivation.res();
-                ret.completion.res();
-                return;
-            }
-        }
-
-        // Open a new directory
-        if (!dir || opts.ignoreCookieDir) {
-            // Start with generic transient activation
-            {
-                const p = ui.onTransientActivation(async () => {});
-                ui.onTransientActivation(() => ret.completion.promise);
-                ret.transientActivation.res();
-                await p;
-            }
-            while (!dir) {
-                // Request it
-                try {
-                    dir = await (<any> window).showDirectoryPicker({
-                        mode: "readwrite",
-                        startIn: "documents"
-                    });
-                } catch (ex) {
-                    // Request refused
-                    masterUI.saveVideoInFSDH.checked = false;
-                    log.pushStatus(
-                        "fsdh",
-                        "Failed to open local directory for storage!",
-                        {timeout: 3000}
-                    );
-                    ret.completion.res();
-                    return;
-                }
-
-                // Check that it's fresh and/or valid
-                let fresh = true;
-                let valid = false;
-                const it: AsyncIterator<string> = (<any> dir).keys();
-                while (true) {
-                    const file = await it.next();
-                    if (file.done) break;
-                    fresh = false;
-                    if (file.value === ".enncuicastr-storage")
-                        valid = true;
-                }
-                if (fresh) {
-                    // Put a marker so we know in the future that it's valid
-                    await dir.getFileHandle(".enncuicastr-storage", {create: true});
-                } else if (!valid) {
-                    // Retry
-                    dir = null;
-                    await ui.transientActivation(
-                        "Choose directory",
-                        '<i class="bx bx-folder-open"></i> Choose a new directory',
-                        {makeModal: true, force: true}
-                    );
-                }
             }
 
-            if (dirStorage)
-                await dirStorage.setItem("fsdh-dir", dir);
+            // Open a new directory
+            if (!dir || opts.ignoreCookieDir) {
+                // Start with generic transient activation
+                {
+                    const p = ui.onTransientActivation(async () => {});
+                    ui.onTransientActivation(() => ret.completion.promise);
+                    ret.transientActivation.res();
+                    await p;
+                }
+                while (!dir) {
+                    // Request it
+                    try {
+                        dir = await (<any> window).showDirectoryPicker({
+                            mode: "readwrite",
+                            startIn: "documents"
+                        });
+                    } catch (ex) {
+                        // Request refused
+                        masterUI.saveVideoInFSDH.checked = false;
+                        log.pushStatus(
+                            "fsdh",
+                            "Failed to open local directory for storage!",
+                            {timeout: 3000}
+                        );
+                        ret.completion.res();
+                        return;
+                    }
 
+                    // Check that it's fresh and/or valid
+                    let fresh = true;
+                    let valid = false;
+                    const it: AsyncIterator<string> = (<any> dir).keys();
+                    while (true) {
+                        const file = await it.next();
+                        if (file.done) break;
+                        fresh = false;
+                        if (file.value === ".enncuicastr-storage")
+                            valid = true;
+                    }
+                    if (fresh) {
+                        // Put a marker so we know in the future that it's valid
+                        await dir.getFileHandle(".enncuicastr-storage", {create: true});
+                    } else if (!valid) {
+                        // Retry
+                        dir = null;
+                        await ui.transientActivation(
+                            "Choose directory",
+                            '<i class="bx bx-folder-open"></i> Choose a new directory',
+                            {makeModal: true, force: true}
+                        );
+                    }
+                }
+
+                if (dirStorage)
+                    await dirStorage.setItem("fsdh-dir", dir);
+            }
+
+        } catch (ex) {
+            console.error(ex);
+            masterUI.saveVideoInFSDH.checked = false;
+            fileStorage.clearFSDHFileStorage();
+            log.pushStatus(
+                "fsdh",
+                "Failed to open local directory for storage!",
+                {timeout: 10000}
+            );
+            ret.transientActivation.res();
+            ret.completion.res();
+            return;
         }
 
         // Initialize it

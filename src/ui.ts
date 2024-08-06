@@ -20,6 +20,7 @@
  * API for the user interface.
  */
 
+import * as barrierPromise from "./barrier-promise";
 import * as config from "./config";
 import * as net from "./net";
 import { prot } from "./protocol";
@@ -170,6 +171,7 @@ export const ui = {
         // Transient activation panel
         transientActivation: <{
             wrapper: HTMLDialogElement,
+            onhide?: ()=>void,
             label: HTMLElement,
             button: HTMLButtonElement
         }> null,
@@ -602,19 +604,16 @@ export function unsetModal(): void {
 }
 
 // Callbacks to call upon transient activation
-let transientActivationCallbacks: (()=>void)[] = [];
-let transientActivationPromises: Promise<unknown>[] = [];
+let transientActivationCbs: barrierPromise.BarrierPromise[] = [];
 
 /**
  * Perform an action upon transient activation.
  * @param act  Action to perform upon transient activation
  */
 export function onTransientActivation(act: ()=>Promise<unknown>) {
-    const p = (new Promise<void>(res => {
-        transientActivationCallbacks.push(res);
-    })).then(act);
-    transientActivationPromises.push(p);
-    return p;
+    const b = new barrierPromise.BarrierPromise();
+    transientActivationCbs.push(b);
+    return b.promise.then(act);
 }
 
 /**
@@ -637,7 +636,7 @@ export function maybeOnTransientActivation(
  * Do we need transient activation?
  */
 export function needTransientActivation() {
-    return transientActivationCallbacks.length !== 0;
+    return transientActivationCbs.length !== 0;
 }
 
 /**
@@ -665,26 +664,26 @@ export function transientActivation(
     taPanel.label.innerHTML = lblHTML;
     taPanel.button.innerHTML = btnHTML;
 
-    let cbs = transientActivationCallbacks;
-    transientActivationCallbacks = [];
-    let promises = transientActivationPromises;
-    transientActivationPromises = [];
+    const cbs = transientActivationCbs;
+    transientActivationCbs = [];
 
-    promises.push(new Promise<void>(res => {
-        taPanel.button.onclick = () => {
-            unsetModal();
-            showPanel(null);
+    const b = new barrierPromise.BarrierPromise();
+    cbs.push(b);
+    taPanel.button.onclick = () => {
+        taPanel.onhide = null;
+        unsetModal();
+        showPanel(null);
 
-            console.log(`${cbs.length} callbacks`);
-            for (const cb of cbs)
-                cb();
-
-            res();
-        };
-    }));
+        for (const cb of cbs)
+            cb.res();
+    };
+    taPanel.onhide = () => {
+        for (const cb of cbs)
+            cb.rej("closed");
+    };
     showPanel(taPanel, taPanel.button, {modal: opts.makeModal});
 
-    return Promise.all(promises);
+    return Promise.all(cbs.map(x => x.promise));
 }
 
 // Saveable config for a box with a string value

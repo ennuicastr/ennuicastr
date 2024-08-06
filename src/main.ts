@@ -64,19 +64,11 @@ async function main() {
         // Resolve the configuration for lobbies
         await config.resolve();
 
-        // Now connect
-        await net.connect();
-
-        // This will start up on its own in the background
-        proc.localProcessing(0);
-        if (config.useRTC)
-            commImpl.initComms();
-
         const acPromise = audio.initAudioContext();
 
         if ("master" in config.config) {
-            await master.initCloudStorage();
-            await master.initFSDHStorage();
+            await master.initCloudStorage().transientActivation.promise;
+            await master.initFSDHStorage().transientActivation.promise;
         }
 
         if (ui.needTransientActivation()) {
@@ -88,6 +80,14 @@ async function main() {
         }
 
         await acPromise;
+
+        // Now connect
+        await net.connect();
+
+        // This will start up on its own in the background
+        proc.localProcessing(0);
+        if (config.useRTC)
+            commImpl.initComms();
 
         // Get audio permissions, continuing on to making the audio UI
         await audio.inputs[0].getAudioPerms(uiImpl.mkAudioUI);
