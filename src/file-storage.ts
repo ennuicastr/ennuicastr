@@ -26,7 +26,6 @@ import type * as localforageT from "localforage";
 type LocalForage = typeof localforageT;
 declare let localforage: LocalForage;
 
-import * as lockableForage from "lockable-forage";
 import * as nonlocalForage from "nonlocal-forage";
 import sha512 from "sha512-es";
 
@@ -136,7 +135,7 @@ export class FileStorage {
         /**
          * The LockableForage for locking.
          */
-        public lockingStorage: lockableForage.LockableForage,
+        public lockingStorage: nonlocalForage.LockableForage,
 
         /**
          * The LocalForage instance used for space estimation.
@@ -237,12 +236,16 @@ export class FileStorage {
         stream: ReadableStream<Uint8Array>, opts: {
             expTime?: number,
             mimeType?: string,
-            report?: (ct: number, spaceUsed: number, spaceTotal: number) => unknown
+            report?: (
+                ct: number, spaceUsed: number, spaceTotal: number,
+                cached: number
+            ) => unknown
         } = {}
     ): Promise<void> {
         const report = async () => {
             if (opts.report) {
                 const ses: any = this.spaceEstimateStorage;
+
                 let se: StorageEstimate;
                 if (ses && ses.storageEstimate) {
                     se = await ses.storageEstimate();
@@ -253,8 +256,13 @@ export class FileStorage {
                         quota: 1/0,
                         usage: 0
                     };
-                }
-                opts.report(this._storeCt, se.usage, se.quota);
+                } 
+
+                let cachedSize = 0;
+                if ((<any> this.fileStorage).cachedSize)
+                    cachedSize = (<any> this.fileStorage).cachedSize();
+
+                opts.report(this._storeCt, se.usage, se.quota, cachedSize);
             }
         }
 
@@ -353,6 +361,17 @@ export class FileStorage {
         }
         info.complete = true;
         await this.fileStorage.setItem(`file-${id}`, info);
+
+        // Wait for it to clear the cache
+        report();
+        if ((<any> this.fileStorage).nonlocalPromise) {
+            const reportInterval = setInterval(report, 2000);
+            try {
+                await (<any> this.fileStorage).nonlocalPromise();
+            } finally {
+                clearInterval(reportInterval);
+            }
+        }
 
         // Possibly reify
         if (this.dirHandle) {
@@ -482,7 +501,7 @@ export async function getLocalFileStorage(): Promise<FileStorage> {
             });
             return new FileStorage(
                 fileStorage,
-                new lockableForage.LockableForage(fileStorage),
+                new nonlocalForage.LockableForage(fileStorage),
                 null, null
             );
         })();
@@ -613,7 +632,7 @@ export async function getRemoteFileStorage(opts: {
             }
         });
 
-        const lkf = new lockableForage.LockableForage(remote);
+        const lkf = new nonlocalForage.LockableForage(remote);
         // To avoid clock skew, choose long timeouts
         lkf.setTimes(1000);
 
@@ -662,7 +681,7 @@ export async function getFSDHFileStorage(
 
         return new FileStorage(
             ret,
-            new lockableForage.LockableForage(ret),
+            new nonlocalForage.LockableForage(ret),
             null,
             dir
         );

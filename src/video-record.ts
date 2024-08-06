@@ -850,12 +850,15 @@ export function recordVideoRemoteIncoming(
 
 // Function to report video storage
 let lastStorageMsg = "";
-function storageReport(ct: number, used: number, max: number) {
+function storageReport(ct: number, used: number, max: number, cached: number) {
     const s = (ct === 1) ? "" : "s";
     let usedGB = Math.round(used / 1073741824);
     let maxGB = Math.round(max / 1073741824);
+    let cachedMB = Math.round(cached / 1048576);
     let msg = `Saving ${ct} video stream${s}. Storage used: ` +
         `${Math.round(used/max*100)}% (${usedGB}/${maxGB}GB).`;
+    if (cached)
+        msg += ` ${cachedMB}MB to upload.`;
     if (ct === 0)
         msg = "";
     if (msg !== lastStorageMsg) {
