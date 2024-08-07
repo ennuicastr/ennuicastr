@@ -37,9 +37,14 @@ import googleDriveKeys from "../api/google-drive.json";
  */
 export interface FileInfo {
     /**
-     * A unique ID.
+     * A unique ID (per backend).
      */
     id: string;
+
+    /**
+     * A hopefully unique ID (per file).
+     */
+    fileId: string;
 
     /**
      * File name.
@@ -226,13 +231,14 @@ export class FileStorage {
 
     /**
      * Store a file, given by a stream of Uint8Array chunks.
+     * @param fileId  An ID for the file shared among backends.
      * @param name  The file's name.
      * @param key  Key-exchange information.
      * @param stream  The stream of information to store in the file.
      * @param opts  Other options.
      */
     async storeFile(
-        name: string, track: number, key: number[],
+        fileId: string, name: string, track: number, key: number[],
         stream: ReadableStream<Uint8Array>, opts: {
             expTime?: number,
             mimeType?: string,
@@ -294,6 +300,7 @@ export class FileStorage {
         // Start setting up the file info
         const info: FileInfo = {
             id: "",
+            fileId,
             name,
             track,
             key: hashKey,

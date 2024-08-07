@@ -83,6 +83,7 @@ async function connection(
             }
 
             case "download":
+            case "stream":
             case "delete":
             {
                 // Download or delete the ID'd file
@@ -93,10 +94,27 @@ async function connection(
                     break;
                 if (sha512.hash(file.key + ":" + localSalt) !== key)
                     break;
-                if (ev.data.c === "delete")
-                    store.deleteFile(id);
-                else
-                    downloadById(store, id);
+                switch (ev.data.c) {
+                    case "download":
+                        downloadById(store, id);
+                        break;
+
+                    case "stream":
+                    {
+                        const mp: MessagePort = ev.data.port;
+                        const stream = await store.streamFile(id);
+                        mp.postMessage({
+                            c: "stream",
+                            id,
+                            stream
+                        }, [stream.stream]);
+                        break;
+                    }
+
+                    case "delete":
+                        store.deleteFile(id);
+                        break;
+                }
                 break;
             }
         }

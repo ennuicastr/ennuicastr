@@ -895,6 +895,9 @@ function saveVideoData(
     stream: ReadableStream<Uint8Array>,
     opts: RecordVideoOptions
 ) {
+    // The actual ID doesn't matter, it just has to be shared among backends
+    const id = Math.random().toString() + Math.random() + Math.random();
+
     let promises: Promise<unknown>[] = [];
     let outputStream: ReadableStream<Uint8Array> | null = stream;
     let cloud = false, fsdh = false;
@@ -939,17 +942,17 @@ function saveVideoData(
 
     // Do the browser storage writing
     async function doBrowserStorage(stream: ReadableStream<Uint8Array>) {
-        await saveVideoBrowser(filename, track, stream, mimeType, !cloud && !fsdh);
+        await saveVideoBrowser(id, filename, track, stream, mimeType, !cloud && !fsdh);
     }
 
     // Do the cloud storage writing
     async function doCloudStorage(stream: ReadableStream<Uint8Array>) {
-        await saveVideoCloud(filename, track, stream, mimeType);
+        await saveVideoCloud(id, filename, track, stream, mimeType);
     }
 
     // Do the FSDH storage writing
     async function doFSDHStorage(stream: ReadableStream<Uint8Array>) {
-        await saveVideoFSDH(filename, track, stream, mimeType, !cloud);
+        await saveVideoFSDH(id, filename, track, stream, mimeType, !cloud);
     }
 
     // Do the local writing
@@ -979,10 +982,12 @@ function saveVideoData(
 
 // Save a video download into local storage
 async function saveVideoBrowser(
-    filename: string, track: number, stream: ReadableStream<Uint8Array>,
+    id: string, filename: string, track: number,
+    stream: ReadableStream<Uint8Array>,
     mimeType: string, doReport: boolean
 ) {
     return (await fileStorage.getLocalFileStorage()).storeFile(
+        id,
         filename,
         track,
         [config.config.id, config.config.key, config.config.master],
@@ -993,11 +998,13 @@ async function saveVideoBrowser(
 
 // Save a video download into cloud storage
 async function saveVideoCloud(
-    filename: string, track: number, stream: ReadableStream<Uint8Array>,
+    id: string, filename: string, track: number,
+    stream: ReadableStream<Uint8Array>,
     mimeType: string
 ) {
     // FIXME: Should be using getRemoteFileStorage
     return (await fileStorage.remoteFileStoragePromise).storeFile(
+        id,
         filename,
         track,
         [config.config.id, config.config.key, config.config.master],
@@ -1008,11 +1015,13 @@ async function saveVideoCloud(
 
 // Save a video download into cloud storage
 async function saveVideoFSDH(
-    filename: string, track: number, stream: ReadableStream<Uint8Array>,
+    id: string, filename: string, track: number,
+    stream: ReadableStream<Uint8Array>,
     mimeType: string, doReport: boolean
 ) {
     // FIXME: Should be using getFSDHFileStorage
     return (await fileStorage.fsdhFileStoragePromise).storeFile(
+        id,
         filename,
         track,
         [config.config.id, config.config.key, config.config.master],
