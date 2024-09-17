@@ -52,7 +52,8 @@ let recordVideoRemoteOKTimeout: null|number = null;
 interface VideoRecordingFormat {
     useVideoEncoder: boolean,
     mimeType: string,
-    codec: string,
+    outMimeType?: string,
+    codec?: string,
     requiresRecapture?: boolean
 };
 
@@ -114,23 +115,26 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
     // Which format?
     const formats: VideoRecordingFormat[] = [
         {
-            useVideoEncoder: true, mimeType: "x-matroska", codec: "avc1.42403e"
+            useVideoEncoder: true, mimeType: "x-matroska; codecs=avc1",
+            codec: "avc1.42403e"
         },
         {
-            useVideoEncoder: true, mimeType: "webm",
+            useVideoEncoder: true, mimeType: "webm; codecs=vp9",
             codec: "vp09.00.10.08.03.1.1.1.0"
         },
         {
-            useVideoEncoder: false, mimeType: "webm", codec: "vp9"
+            useVideoEncoder: false, mimeType: "webm; codecs=vp9"
         },
         {
-            useVideoEncoder: true, mimeType: "webm", codec: "vp8"
+            useVideoEncoder: true, mimeType: "webm; codecs=vp8",
+            codec: "vp8"
         },
         {
-            useVideoEncoder: false, mimeType: "webm", codec: "vp8"
+            useVideoEncoder: false, mimeType: "webm; codecs=vp8"
         },
         {
-            useVideoEncoder: false, mimeType: "mp4", codec: "avc1",
+            useVideoEncoder: false, mimeType: "mp4; codecs=avc1",
+            outMimeType: "x-matroska; codecs=avc1",
             requiresRecapture: true
         }
     ];
@@ -141,6 +145,7 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
     for (fi = 0; fi < formats.length; fi++) {
         format = formats[fi];
         try {
+            mimeType = `video/${format.mimeType}`;
             if (format.useVideoEncoder) {
                 if (typeof MediaStreamTrackProcessor === "undefined")
                     continue;
@@ -151,12 +156,10 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
                     framerate: Math.round(videoSettings.frameRate),
                     latencyMode: "realtime"
                 };
-                mimeType = `video/${format.mimeType}`;
                 const support = await VideoEncoder.isConfigSupported(veConfig);
                 if (support.supported)
                     break;
             } else {
-                mimeType = `video/${format.mimeType}; codecs=${format.codec}`;
                 if (MediaRecorder.isTypeSupported(mimeType))
                     break;
             }
@@ -168,7 +171,10 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
         });
         return;
     }
-    const outFormat = (format.mimeType === "webm") ? "webm" : "mkv";
+    const outMimeType = format.outMimeType || format.mimeType;
+    let outFormat = format.outMimeType.replace(/;.*/, "");
+    if (outFormat === "x-matroska")
+        outFormat = "mkv";
 
     // Choose a name
     let filename = "";
@@ -191,7 +197,9 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
     const globalFrameTime = 1/videoSettings.frameRate * 1000;
 
     // Input and output files within libav
-    const inExt = (format.mimeType === "x-matroska") ? "mkv" : format.mimeType;
+    let inExt = format.mimeType.replace(/;.*/, "");
+    if (inExt === "x-matroska")
+        inExt = "mkv";
     const inF = "in." + inExt;
     const outF = "out." + outFormat;
 
@@ -731,11 +739,13 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
     })();
 
     // Save the muxStream
-    const promises = saveVideoData(filename, net.selfId, mimeType, muxStream, {
-        local: opts.local,
-        remote: opts.remote,
-        remotePeer: opts.remotePeer
-    });
+    const promises = saveVideoData(
+        filename, net.selfId, outMimeType, muxStream, {
+            local: opts.local,
+            remote: opts.remote,
+            remotePeer: opts.remotePeer
+        }
+    );
 
     // When it's done, it's done
     Promise.all(promises).catch(ex => {
