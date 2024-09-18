@@ -440,23 +440,24 @@ export class Audio {
 
             // Make an output for it
             let msd: MediaStreamAudioDestinationNode | null = null;
+            const ecDest = ac.ecDestination = ac.createGain();
+            ecDest.gain.value = 1;
+            const ecDelay = ac.ecDestinationDelay = ac.createDelay();
+            ecDest.connect(ecDelay);
             if ((<any> ac).setSinkId) {
-                ac.ecDestination = ac.destination;
+                ecDelay.connect(ac.destination);
             } else {
-                const ecDest = ac.ecDestination = ac.createGain();
-                ecDest.gain.value = 1;
-                const ecDelay = ac.ecDestinationDelay = ac.createDelay();
-                ecDest.connect(ecDelay);
                 msd = ac.ecDestinationStream =
                     ac.createMediaStreamDestination();
                 ecDelay.connect(msd);
-
-                // Keep the output from doing anything weird by giving it silence
-                const msdSilence = ac.createConstantSource();
-                msdSilence.offset.value = 0;
-                msdSilence.connect(ecDest);
-                msdSilence.start();
             }
+
+            // Keep the output from doing anything weird by giving it silence
+            const msdSilence = ac.createConstantSource();
+            msdSilence.offset.value = 0;
+            msdSilence.connect(ecDest);
+            msdSilence.start();
+
 
             // Start playing it when we're (relatively) sure we can
             util.events.addEventListener("usermediartcready", () => {
