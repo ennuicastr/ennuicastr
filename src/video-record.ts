@@ -172,7 +172,7 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
         return;
     }
     const outMimeType = format.outMimeType || format.mimeType;
-    let outFormat = format.outMimeType.replace(/;.*/, "");
+    let outFormat = outMimeType.replace(/;.*/, "");
     if (outFormat === "x-matroska")
         outFormat = "mkv";
 
