@@ -529,10 +529,6 @@ export class Audio {
         if (!net.connected)
             return;
 
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/master
         // If we don't *actually* have a userMedia, fake one
         let noUserMedia = false;
         if (!this.userMedia) {
