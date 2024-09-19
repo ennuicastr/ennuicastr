@@ -760,6 +760,16 @@ export function mkAudioUI(): string {
             return;
         }
 
+        // Set the AudioContext audio output
+        if (audio.ac) {
+            try {
+                (<any> audio.ac).setSinkId(v).catch(console.error);
+            } catch (ex) {}
+        } else {
+            setTimeout(outputChange, 100);
+            return;
+        }
+
         // And all the sounds
         try {
             (<any> ui.sounds.chimeUp).setSinkId(v).catch(console.error);

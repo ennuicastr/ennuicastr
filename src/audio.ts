@@ -282,19 +282,25 @@ export function initAudioContext() {
         }
 
         // Make an output for it
+        let msd: MediaStreamAudioDestinationNode | null = null;
         const ecDest = ac.ecDestination = ac.createGain();
         ecDest.gain.value = 1;
         const ecDelay = ac.ecDestinationDelay = ac.createDelay();
         ecDest.connect(ecDelay);
-        const msd = ac.ecDestinationStream =
-            ac.createMediaStreamDestination();
-        ecDelay.connect(msd);
+        if ((<any> ac).setSinkId) {
+            ecDelay.connect(ac.destination);
+        } else {
+            msd = ac.ecDestinationStream =
+                ac.createMediaStreamDestination();
+            ecDelay.connect(msd);
+        }
 
         // Keep the output from doing anything weird by giving it silence
         const msdSilence = ac.createConstantSource();
         msdSilence.offset.value = 0;
         msdSilence.connect(ecDest);
         msdSilence.start();
+
 
         // Start playing it when we're (relatively) sure we can
         util.events.addEventListener("usermediartcready", () => {
@@ -305,14 +311,19 @@ export function initAudioContext() {
                 document.body.appendChild(a);
             }
 
-            a.srcObject = msd.stream;
+            if (msd)
+                a.srcObject = msd.stream;
             try {
                 let v = ui.ui.panels.outputConfig.device.value;
                 if (v === "-default")
                     v = "";
-                (<any> a).setSinkId(v).catch(console.error);
+                if (msd)
+                    (<any> a).setSinkId(v).catch(console.error);
+                else
+                    (<any> ac).setSinkId(v).catch(console.error);
             } catch (ex) {}
-            a.play().catch(console.error);
+            if (msd)
+                a.play().catch(console.error);
         });
     }
 
@@ -518,6 +529,10 @@ export class Audio {
         if (!net.connected)
             return;
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/master
         // If we don't *actually* have a userMedia, fake one
         let noUserMedia = false;
         if (!this.userMedia) {
