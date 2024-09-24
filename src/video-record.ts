@@ -422,20 +422,19 @@ async function recordVideo(opts: RecordVideoOptions): Promise<unknown> {
             await blankEnc.configure(veConfig);
             const blankData =
                 new Uint8Array(4 * veConfig.width * veConfig.height);
-            const blank1 = new VideoFrame(blankData, {
+            const blankFrame = new VideoFrame(blankData, {
                 format: "RGBX",
                 codedWidth: veConfig.width,
                 codedHeight: veConfig.height,
                 timestamp: 0
             });
-            const blank2 = new VideoFrame(blankData, {
-                format: "RGBX",
-                codedWidth: veConfig.width,
-                codedHeight: veConfig.height,
-                timestamp: 100000
-            });
-            blankEnc.encode(blank1);
-            blankEnc.encode(blank2);
+            for (let frameNum = 0; frameNum < 120; frameNum++) {
+                const blankC = new VideoFrame(blankFrame, {
+                    timestamp: frameNum * 1000000000 / 60
+                });
+                blankEnc.encode(blankC);
+            }
+            blankFrame.close();
             try {
                 await blankEnc.flush();
                 blankEnc.close();
