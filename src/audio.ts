@@ -306,6 +306,8 @@ export class Audio {
 
     /* We keep track of the last time we successfully encoded data for
      * transfer, to determine if anything's gone wrong */
+    lastSentTimeNoEC = 0;
+    lastSentTimeYesEC = 0;
     lastSentTime = 0;
 
     constructor(
@@ -679,8 +681,30 @@ export class Audio {
         const curGranulePos = this.packets[this.packets.length-1].ts;
         net.setTransmitting(true);
 
-        // We have *something* to handle
-        this.lastSentTime = performance.now();
+        // We have something to handle, so this is our last sent time.
+        if (useDualEC) {
+            // The last sent time is based on either
+            let hadNoEC = false;
+            let hadYesEC = false;
+            for (const packet of this.packets) {
+                if (packet.trackNo & ecTrack)
+                    hadYesEC = true;
+                else
+                    hadNoEC = true;
+                if (hadYesEC && hadNoEC)
+                    break;
+            }
+            const now = performance.now();
+            if (hadNoEC)
+                this.lastSentTimeNoEC = now;
+            if (hadYesEC)
+                this.lastSentTimeYesEC = now;
+            this.lastSentTime = Math.min(
+                this.lastSentTimeNoEC, this.lastSentTimeYesEC
+            );
+        } else {
+            this.lastSentTime = performance.now();
+        }
         log.popStatus("startenc");
 
         // Don't actually *send* anything if we're not recording
