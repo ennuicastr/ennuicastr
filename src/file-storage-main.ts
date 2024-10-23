@@ -264,10 +264,6 @@ async function localUI(header: string, ctx: string, store: fileStorage.FileStora
             left: "0px",
             top: "0px"
         });
-        const logInBtn = {
-            w: btn.offsetWidth + 32 /* for the icon */,
-            h: btn.offsetHeight
-        };
         btn.style.right = "0px";
         btn.onclick = () => {
             document.body.removeChild(btn);
@@ -275,6 +271,10 @@ async function localUI(header: string, ctx: string, store: fileStorage.FileStora
                 p.res();
         };
         document.body.appendChild(btn);
+        const logInBtn = {
+            w: btn.offsetWidth + 32 /* for the icon */,
+            h: btn.offsetHeight
+        };
         window.parent.postMessage(
             {c: "ennuicastr-file-storage-transient-activation", btn: logInBtn}, "*");
     }
