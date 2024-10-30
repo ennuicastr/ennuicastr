@@ -623,9 +623,11 @@ function loadUserList() {
 function loadCloudStorage() {
     ui.panels.cloudStorage = {
         wrapper: gebi("ec3-cloud-storage-sel-panel"),
+        desc: gebi("ec3-cloud-storage-desc"),
         googleDrive: gebi("ec3-google-drive-btn"),
         dropbox: gebi("ec3-dropbox-btn"),
         webdav: gebi("ec3-cloud-webdav-btn"),
+        fsdh: gebi("ec3-cloud-storage-fsdh-btn"),
         cancel: gebi("ec3-cloud-storage-cancel-btn")
     };
 }

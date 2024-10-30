@@ -149,6 +149,14 @@ export function createMasterInterface(): void {
         );
     }
 
+    // If we're accepting guest recording, we have to save it *somewhere*
+    if (masterUI.acceptRemoteVideo.checked &&
+        !masterUI.saveVideoInCloud.checked &&
+        !masterUI.saveVideoInFSDH.checked &&
+        !masterUI.downloadVideoLive.checked) {
+        masterUI.saveVideoInCloud.checked = true;
+    }
+
     // Put everything in the proper state
     configureMasterInterface();
 
@@ -845,7 +853,17 @@ export function initCloudStorage(opts: {
     /**
      * Ignore the saved provider and request it again.
      */
-    ignoreCookieProvider?: boolean
+    ignoreCookieProvider?: boolean,
+
+    /**
+     * Show description (for initial dialog).
+     */
+    showDesc?: boolean,
+
+    /**
+     * Show the local directory option.
+     */
+    showFSDH?: boolean
 } = {}): {
     transientActivation: barrierPromise.BarrierPromise,
     completion: barrierPromise.BarrierPromise
@@ -879,15 +897,25 @@ export function initCloudStorage(opts: {
         let provider = localStorage.getItem("master-video-save-in-cloud-provider");
         if (!provider || opts.ignoreCookieProvider) {
             const csPanel = ui.ui.panels.cloudStorage;
+            csPanel.desc.style.display = opts.showDesc ? "" : "none";
             provider = await new Promise(res => {
                 csPanel.googleDrive.onclick = () => res("googleDrive");
                 csPanel.dropbox.onclick = () => res("dropbox");
                 csPanel.webdav.onclick = () => res("webDAV");
+                csPanel.fsdh.style.display = opts.showFSDH ? "" : "none";
+                csPanel.fsdh.onclick = () => res("fsdh");
                 csPanel.cancel.onclick = () => res("cancel");
                 csPanel.onhide = () => res("cancel");
                 ui.showPanel(csPanel);
             });
             ui.showPanel(null);
+
+            // FSDH isn't handled here
+            if (provider === "fsdh") {
+                provider = "cancel";
+                masterUI.saveVideoInFSDH.checked = true;
+                localStorage.setItem("master-video-save-in-fsdh-" + config.useVideoRec, "1");
+            }
 
             // For WebDAV, we still need to get a username and password
             if (provider === "webDAV") {
@@ -1088,6 +1116,7 @@ export function initFSDHStorage(opts: {
                 {
                     const p = ui.onTransientActivation(async () => {});
                     ui.onTransientActivation(() => ret.completion.promise);
+                    ui.forceTransientActivation();
                     ret.transientActivation.res();
                     await p;
                 }

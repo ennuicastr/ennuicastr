@@ -489,9 +489,11 @@ export const ui = {
         cloudStorage: <{
             wrapper: HTMLDialogElement,
             onhide?: ()=>void,
+            desc: HTMLElement,
             googleDrive: HTMLButtonElement,
             dropbox: HTMLButtonElement,
             webdav: HTMLButtonElement,
+            fsdh: HTMLButtonElement,
             cancel: HTMLButtonElement
         }> null,
 
@@ -606,6 +608,9 @@ export function unsetModal(): void {
 // Callbacks to call upon transient activation
 let transientActivationCbs: barrierPromise.BarrierPromise[] = [];
 
+// Set to force the next transient activation
+let transientActivationForce = false;
+
 /**
  * Perform an action upon transient activation.
  * @param act  Action to perform upon transient activation
@@ -614,6 +619,13 @@ export function onTransientActivation(act: ()=>Promise<unknown>) {
     const b = new barrierPromise.BarrierPromise();
     transientActivationCbs.push(b);
     return b.promise.then(act);
+}
+
+/**
+ * Force the next transient activation.
+ */
+export function forceTransientActivation() {
+    transientActivationForce = true;
 }
 
 /**
@@ -655,10 +667,13 @@ export function transientActivation(
     } = {}
 ) {
     if (!opts.force &&
+        !transientActivationForce &&
         (<any> navigator).userActivation &&
         (<any> navigator).userActivation.isActive) {
         return;
     }
+
+    transientActivationForce = false;
 
     const taPanel = ui.panels.transientActivation;
     taPanel.label.innerHTML = lblHTML;

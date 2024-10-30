@@ -613,6 +613,10 @@
         <!-- Selector for cloud storage platforms -->
         <dialog id="ec3-cloud-storage-sel-panel" class="panel" role="dialog" aria-labelledby="ec3-cloud-storage-sel-panel-label">
             <div id="ec3-cloud-storage-sel-panel-label" class="panel-title" role="heading">Cloud storage</div>
+            <section id="ec3-cloud-storage-desc" class="row" style="display: none;">
+                Video recordings are saved on a cloud storage provider of your choosing.
+            </section>
+
             <button class="icon-button close-button" aria-label="Close">
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
@@ -630,6 +634,11 @@
             <button id="ec3-cloud-webdav-btn" class="pill-button row">
                 <i class="bx bx-cloud"></i>&nbsp;
                 ownCloud/Nextcloud
+            </button>
+
+            <button id="ec3-cloud-storage-fsdh-btn" class="pill-button row" style="display: none;">
+                <i class="bx bx-folder-open"></i>&nbsp;
+                Local directory
             </button>
 
             <button id="ec3-cloud-storage-cancel-btn" class="pill-button row">

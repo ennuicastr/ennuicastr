@@ -68,11 +68,19 @@ async function main() {
         let waitPromises: Promise<unknown>[] = [];
 
         if ("master" in config.config) {
-            const c = master.initCloudStorage();
+            let reqFSDH = false;
+            const c = master.initCloudStorage({
+                showDesc: true,
+                showFSDH: (
+                    !ui.ui.panels.host.saveVideoInFSDH.checked &&
+                    !!(<any> window).showDirectoryPicker
+                )
+            });
             waitPromises.push(c.completion.promise);
+            await c.transientActivation.promise;
+
             const f = master.initFSDHStorage();
             waitPromises.push(f.completion.promise);
-            await c.transientActivation.promise;
             await f.transientActivation.promise;
         }
 
