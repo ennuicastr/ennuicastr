@@ -238,7 +238,7 @@ async function localUI(header: string, ctx: string, store: fileStorage.FileStora
                 if (await (<any> dir).queryPermission({mode: "readwrite"}) !== "granted") {
                     needTransient = true;
                     fsdhTR.res();
-                    await fsdhTR.promise;
+                    await fsdhTC.promise;
                     if (await (<any> dir).requestPermission({mode: "readwrite"}) !== "granted")
                         return;
                 } else {
