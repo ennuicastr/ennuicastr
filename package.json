@@ -18,7 +18,7 @@
     "libavjs-webcodecs-bridge": "^0.0.5",
     "libavjs-webcodecs-polyfill": "^0.5.1",
     "localforage": "^1.10.0",
-    "nonlocal-forage": "^0.1.3",
+    "nonlocal-forage": "^0.2.0",
     "nosleep.js": "^0.12.0",
     "rtennui": "^0.7.11",
     "sha512-es": "^1.8.2",
