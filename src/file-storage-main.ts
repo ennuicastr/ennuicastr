@@ -22,6 +22,7 @@
 
 import * as barrierPromise from "./barrier-promise";
 import * as fileStorage from "./file-storage";
+import * as fsdhPerm from "./fsdh-perm";
 
 import * as downloadStream from "@ennuicastr/dl-stream";
 import type * as localforageT from "localforage";
@@ -169,6 +170,27 @@ async function localUI(header: string, ctx: string, store: fileStorage.FileStora
 }
 
 (async function() {
+    const url = new URL(document.location.href);
+    if (url.searchParams.has("fsdhRequest")) {
+        await fsdhPerm.fsdhReqWindow(
+            url,
+            () => {
+                const btn = document.createElement("button");
+                btn.innerHTML = '<i class="bx bx-folder-open"></i> Open directory';
+                btn.classList.add("pill-button");
+                btn.style.width = "100%";
+                document.body.appendChild(btn);
+                return new Promise(res => {
+                    btn.onclick = () => {
+                        document.body.removeChild(btn);
+                        res();
+                    };
+                });
+            }
+        );
+        return;
+    }
+
     const store = await fileStorage.getLocalFileStorage();
     await downloadStream.load({prefix: "../"});
 
@@ -232,24 +254,23 @@ async function localUI(header: string, ctx: string, store: fileStorage.FileStora
         transientConts.push(fsdhTC);
         const fsdhComplete = new barrierPromise.BarrierPromise();
         completions.push(fsdhComplete);
-        
-        (async function() {
-            try {
-                if (await (<any> dir).queryPermission({mode: "readwrite"}) !== "granted") {
-                    needTransient = true;
-                    fsdhTR.res();
-                    await fsdhTC.promise;
-                    if (await (<any> dir).requestPermission({mode: "readwrite"}) !== "granted")
-                        return;
-                } else {
-                    fsdhTR.res();
-                }
-                fsdhStore = await fileStorage.getFSDHFileStorage(dir);
-            } finally {
+
+        const fsdhPermPromise = fsdhPerm.getFSDHPermission(
+            dir,
+            async () => {
+                needTransient = true;
                 fsdhTR.res();
-                fsdhComplete.res();
+                await fsdhTC.promise;
             }
-        })();
+        ).then(async perm => {
+            if (perm)
+                fsdhStore = await fileStorage.getFSDHFileStorage(dir);
+            fsdhTR.res();
+            fsdhComplete.res();
+
+        });
+
+        const fsdhNeedTransient = await Promise.race([fsdhPermPromise, fsdhTR]);
     }
 
     // Perform any needed transient activation
