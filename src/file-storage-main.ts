@@ -172,9 +172,16 @@ async function localUI(header: string, ctx: string, store: fileStorage.FileStora
 (async function() {
     const url = new URL(document.location.href);
     if (url.searchParams.has("fsdhRequest")) {
+        const docURL = new URL(document.location.href);
+        docURL.search = "";
+        window.history.pushState({}, document.title, docURL.toString());
         await fsdhPerm.fsdhReqWindow(
             url,
             () => {
+                const div = document.createElement("div");
+                div.style.padding = "0.25em";
+                div.innerText = "Ennuicastr needs permission to access your local storage directory.";
+                document.body.appendChild(div);
                 const btn = document.createElement("button");
                 btn.innerHTML = '<i class="bx bx-folder-open"></i> Open directory';
                 btn.classList.add("pill-button");
@@ -182,6 +189,7 @@ async function localUI(header: string, ctx: string, store: fileStorage.FileStora
                 document.body.appendChild(btn);
                 return new Promise(res => {
                     btn.onclick = () => {
+                        document.body.removeChild(div);
                         document.body.removeChild(btn);
                         res();
                     };
