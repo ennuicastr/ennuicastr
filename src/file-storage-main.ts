@@ -189,8 +189,8 @@ async function localUI(header: string, ctx: string, store: fileStorage.FileStora
                 document.body.appendChild(btn);
                 return new Promise(res => {
                     btn.onclick = () => {
-                        document.body.removeChild(div);
                         document.body.removeChild(btn);
+                        div.innerText = "Please keep this window open until you're finished downloading.";
                         res();
                     };
                 });

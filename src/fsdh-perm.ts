@@ -49,7 +49,7 @@ export async function getFSDHPermission(
         return await fsdh.requestPermission(mode) === "granted";
     } catch (ex) {}
 
-    // (3) Make the request via an iframe
+    // (3) Make the request via a window
     const url = new URL(document.location.href);
     url.searchParams.set("fsdhRequest", "1");
     const key = "" +
@@ -89,7 +89,17 @@ export async function getFSDHPermission(
     await dirStorage.removeItem(`fsdh.fsdh.${key}`);
     localStorage.removeItem(`fsdh.result.${key}`);
     localStorage.removeItem(`fsdh.ping.${key}`);
-    localStorage.setItem(`fsdh.done.${key}`, "1");
+    localStorage.setItem(`fsdh.done.${key}`, "" + performance.now());
+
+    // Keep the window open until the host window closes
+    const keepaliveInterval = setInterval(() => {
+        localStorage.setItem(`fsdh.keepalive.${key}`, "" + performance.now());
+    }, 5000);
+
+    addEventListener("beforeunload", () => {
+        localStorage.setItem(`fsdh.close.${key}`, "" + performance.now());
+        clearInterval(keepaliveInterval);
+    });
 
     return ret;
 }
@@ -117,11 +127,10 @@ export async function fsdhReqWindow(
 
     // Wait until the host has received it
     await new Promise<void>(res => {
-        async function onStore(ev: StorageEvent) {
+        function onStore(ev: StorageEvent) {
             if (ev.key === `fsdh.done.${key}`) {
                 localStorage.removeItem(`fsdh.done.${key}`);
                 localStorage.removeItem(`fsdh.ping.${key}`);
-                window.close();
                 clearInterval(interval);
                 removeEventListener("storage", onStore);
                 res();
@@ -130,5 +139,44 @@ export async function fsdhReqWindow(
 
         addEventListener("storage", onStore);
         localStorage.setItem(`fsdh.result.${key}`, result);
+    });
+
+    // Then keep alive until the host doesn't need us anymore
+    await new Promise<void>(res => {
+        const pingTimeout = 10000;
+
+        let lastPing = performance.now();
+        let interval = setInterval(() => {
+            if (performance.now() > lastPing + pingTimeout)
+                close();
+        }, 250);
+
+        function onStore(ev: StorageEvent) {
+            if (ev.key === `fsdh.keepalive.${key}`) {
+                lastPing = performance.now();
+
+            } else if (ev.key === `fsdh.close.${key}`) {
+                close();
+
+            }
+        }
+
+        function onBeforeUnload(ev: BeforeUnloadEvent) {
+            ev.preventDefault();
+            return true;
+        }
+
+        function close() {
+            localStorage.removeItem(`fsdh.keepalive.${key}`);
+            localStorage.removeItem(`fsdh.close.${key}`);
+            clearInterval(interval);
+            removeEventListener("beforeunload", onBeforeUnload);
+            removeEventListener("storage", onStore);
+            window.close();
+            res();
+        }
+
+        addEventListener("beforeunload", onBeforeUnload);
+        addEventListener("storage", onStore);
     });
 }
