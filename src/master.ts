@@ -870,7 +870,7 @@ export function initCloudStorage(opts: {
 } {
     const ret = {
         transientActivation: new barrierPromise.BarrierPromise(),
-        completion: new barrierPromise.BarrierPromise
+        completion: new barrierPromise.BarrierPromise()
     };
     const masterUI = ui.ui.panels.host;
 
@@ -985,7 +985,7 @@ export function initCloudStorage(opts: {
                 webDAVInfo: webDAVInfo || void 0,
                 transientActivation: async () => {
                     const p = ui.onTransientActivation(async () => {});
-                    ui.onTransientActivation(() => ret.completion.promise);
+                    ui.forceTransientActivation();
                     ret.transientActivation.res();
                     await p;
                 },
@@ -1029,6 +1029,7 @@ export function initCloudStorage(opts: {
                     timeout: 10000
                 }
             );
+            localStorage.removeItem("master-video-save-in-cloud-provider");
             masterUI.saveVideoInCloud.checked = false;
             localStorage.setItem(`master-video-save-in-cloud-${config.useVideoRec}`, "0");
             ret.transientActivation.res();
