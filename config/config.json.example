@@ -1,0 +1,4 @@
+{
+    "//invite": "This should be the base of the URL to use for invite links, if it's different than the URL the client itself actually sees, e.g. if you have short URL for invite links.",
+    "invite": ""
+}
