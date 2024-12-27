@@ -3,5 +3,5 @@
     "clientId": "",
 
     "//codeServer": "This is the path to a server for exchanging login codes. If you're using ennuicastr-server, leave this as is. If not, *remove* it or set it to null (or provide an equivalent code server).",
-    "codeServer": "/api/google-code-server.jss"
+    "codeServer": "/r/api/google-code-server.jss"
 }
