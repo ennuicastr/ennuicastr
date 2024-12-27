@@ -29,8 +29,8 @@ declare let localforage: LocalForage;
 import * as nonlocalForage from "nonlocal-forage";
 import sha512 from "sha512-es";
 
-import dropboxKeys from "../api/dropbox.json";
-import googleDriveKeys from "../api/google-drive.json";
+import dropboxKeys from "../config/dropbox.json";
+import googleDriveKeys from "../config/google-drive.json";
 
 /**
  * File metadata, as stored.
