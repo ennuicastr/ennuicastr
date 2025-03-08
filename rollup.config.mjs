@@ -14,18 +14,24 @@ const plugins = [
 
 const pluginsTS = [
     typescript({
-        exclude: ["awp/*"]
+        exclude: ["awp/*", "src/workers/*"]
     })
 ].concat(plugins);
 
 const pluginsTSWorker = [
     typescript({
-        exclude: ["src/*"],
+        exclude: ["src/*", "src/workers/*"],
         compilerOptions: {
             lib: ["es2017", "webworker"]
         }
     })
 ].concat(plugins);
+
+const pluginTerser = terser({
+    format: {
+        semicolons: false
+    }
+});
 
 export default [
     {
@@ -40,7 +46,7 @@ export default [
                 file: "dist/ennuicastr.min.js",
                 format: "umd",
                 name: "Ennuicastr",
-                plugins: [terser()]
+                plugins: [pluginTerser]
             }
         ],
         plugins: pluginsTS
@@ -57,7 +63,7 @@ export default [
                 file: "dist/fs/fs.min.js",
                 format: "umd",
                 name: "EnnuicastrFileStorage",
-                plugins: [terser()]
+                plugins: [pluginTerser]
             }
         ],
         plugins: pluginsTS
@@ -74,7 +80,7 @@ export default [
                 file: "dist/awp/ennuicastr-worker.min.js",
                 format: "iife",
                 name: "EW",
-                plugins: [terser()]
+                plugins: [pluginTerser]
             }
         ],
         plugins: pluginsTSWorker

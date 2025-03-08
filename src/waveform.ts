@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024 Yahweasel
+ * Copyright (c) 2018-2025 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,97 +20,170 @@
  * The “waveform” display.
  */
 
+import * as rpcReceiver from "@ennuicastr/mprpc/receiver";
+import * as rpcTarget from "@ennuicastr/mprpc/target";
+
+import * as ifWaveform from "./iface/waveform";
+import * as waveformWorkerJs from "./waveform-worker-js";
+
 import * as audio from "./audio";
 import * as config from "./config";
 import * as net from "./net";
 import * as ui from "./ui";
+import * as util from "./util";
 
-// Constants used by updateWave
-const log10 = Math.log(10);
-const log1036 = log10 * 3.6;
-
-// Global display timer
-let displayLoop: Promise<unknown> | null = null;
-
-// Array of waveforms to display
-let toDisplay: Waveform[] = [];
-
-// Set of waveforms to display
-let toDisplaySet: Record<number, boolean> = {};
+// All current waveforms
+const allWaveforms: Record<number, Waveform> = {};
 
 // Increasing index of waveforms allocated
 let waveformId = 0;
 
-// Width of the peak meter
-const peakWidth = 6;
-
 // Whether to persist the peak labels
 let persistPeak = false;
 
-// Our waveform display class
+// Waveform worker
+class WaveformWorker
+    extends rpcTarget.RPCWorker
+    implements rpcTarget.Async<ifWaveform.WaveformWorker>,
+        rpcReceiver.RPCReceiver<ifWaveform.WaveformWorkerRev>
+{
+    constructor() {
+        super(waveformWorkerJs.js);
+        const mc = new MessageChannel();
+        rpcReceiver.rpcReceiver(this, mc.port1);
+        this.reverse(mc.port2);
+
+        this.setWaveVADColors(
+            config.useContinuous
+                ? config.waveVADColorSets.sc
+                : config.waveVADColorSets.sv
+        );
+
+        this.setUIColors(ui.ui.colors);
+
+        this._resizeObserver = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                const target = <HTMLElement> entry.target;
+                const id: number = (<any> target)._ecId;
+                if (typeof id !== "number") continue;
+                this.setCanvasSize(
+                    id, target.offsetWidth, target.offsetHeight
+                );
+            }
+        });
+
+        util.events.addEventListener("audio.audioOffset", this.updateGood.bind(this));
+        util.events.addEventListener("net.connected", this.updateGood.bind(this));
+        util.events.addEventListener("net.transmitting", this.updateGood.bind(this));
+        this.updateGood();
+    }
+
+    newWaveform(
+        id: number, lbl: string, sampleRate: number, width: number,
+        height: number, canvas: OffscreenCanvas, lblCanvas: OffscreenCanvas
+    ): Promise<void> {
+        return this.rpc("newWaveform", [
+            id, lbl, sampleRate, width, height, canvas, lblCanvas
+        ], [canvas, lblCanvas]);
+    }
+
+    registerNewWaveform(
+        waveform: Waveform, canvas: HTMLCanvasElement,
+        id: number, lbl: string, sampleRate: number, width: number,
+        height: number, osCanvas: OffscreenCanvas, lblCanvas: OffscreenCanvas
+    ): Promise<void> {
+        allWaveforms[id] = waveform;
+        const ret = this.newWaveform(
+            id, lbl, sampleRate, width, height, osCanvas, lblCanvas
+        );
+        this._resizeObserver.observe(canvas);
+        return ret;
+    }
+
+    termWaveform(id: number): Promise<void> {
+        return this.rpc("termWaveform", [id]);
+    }
+
+    freeWaveform(wrapper: HTMLElement, id: number): Promise<void> {
+        delete allWaveforms[id];
+        this._resizeObserver.unobserve(wrapper);
+        return this.termWaveform(id);
+    }
+
+    async reverse(mp: MessagePort): Promise<void> {
+        this.rpcv("reverse", [mp], [mp]);
+    }
+
+    push(id: number, val: number, vad: number): Promise<void> {
+        return this.rpc("push", [id, val, vad]);
+    }
+
+    updateWaveRetroactive(id: number, vadExtension: number): Promise<void> {
+        return this.rpc("updateWaveRetroactive", [id, vadExtension]);
+    }
+
+    updateWave(id: number, value: number, sentRecently: boolean): Promise<void> {
+        return this.rpc("updateWave", [id, value, sentRecently]);
+    }
+
+    setCanvasSize(id: number, width: number, height: number): Promise<void> {
+        return this.rpc("setCanvasSize", [id, width, height]);
+    }
+
+    setWaveVADColors(to: string[]): Promise<void> {
+        return this.rpc("setWaveVADColors", [to]);
+    }
+
+    setUIColors(to: Record<string, string>): Promise<void> {
+        return this.rpc("setUIColors", [to]);
+    }
+
+    setGood(to: boolean): Promise<void> {
+        return this.rpc("setGood", [to]);
+    }
+
+    private _lastGood = false;
+    updateGood() {
+        const good = audio.timeOffset && net.connected && net.transmitting;
+        if (good !== this._lastGood) {
+            this._lastGood = good;
+            this.setGood(good);
+        }
+    }
+
+    waveformStats(id: number, text: string): void {
+        const wv = allWaveforms[id];
+        if (!wv) return;
+        wv.wrapper.setAttribute("aria-label", text);
+        text = text.replace(/ decibels/g, "dB");
+        wv.statsBox.innerText = text;
+    }
+
+    private _resizeObserver: ResizeObserver;
+}
+
+// There's only one waveform worker
+let theWaveformWorker: WaveformWorker | null = null;
+function getWaveformWorker() {
+    if (!theWaveformWorker)
+        theWaveformWorker = new WaveformWorker();
+    return theWaveformWorker!;
+}
+
+const waveformFinalizer = new FinalizationRegistry<[HTMLElement, number]>(
+    x => getWaveformWorker().freeWaveform(x[0], x[1])
+);
+
+// Waveform disiplay, wrapper for the waveform worker
 export class Waveform {
     lbl: string;
     id: number;
     wrapper: HTMLElement;
     canvas: HTMLCanvasElement;
-    ctx: CanvasRenderingContext2D;
     lblCanvas: HTMLCanvasElement;
-    lblCtx: CanvasRenderingContext2D;
     statsBox: HTMLElement;
     css: HTMLStyleElement;
     watcher: HTMLImageElement;
-
-    // Should we be rotating?
-    rotate: boolean;
-
-    // Sample rate of data
-    sampleRate: number;
-
-    // Wave data
-    waveData: number[];
-
-    // VAD data
-    waveVADs: number[];
-
-    // Peak data
-    peakData: number[];
-
-    // RMS data (i.e., square roots of each value)
-    rmsData: number[];
-
-    // Running peak
-    curPeak: number;
-
-    // Running sum of roots
-    rootSum: number;
-
-    // Number of placeholders (VAD-off zero values) in the RMS data
-    rmsPlaceholders: number;
-
-    // How much of the old data actually needs to be redrawn?
-    staleData: number;
-
-    // How much new data is there?
-    newData: number;
-
-    // How many frames since we reset?
-    resetTime: number;
-    static resetTimeMax = 1024;
-
-    // Have we sent recently?
-    sentRecently: boolean;
-
-    // What was the display height the last time around?
-    lastDisplayHeight: number;
-
-    // Was the status good the last time around?
-    lastGood: boolean;
-
-    // What wave VAD color set did we use last time?
-    lastWaveVADColors: string[];
-
-    // What was our peak last time?
-    lastPeak: number;
 
     // Build a waveform display
     constructor(
@@ -119,9 +192,9 @@ export class Waveform {
     ) {
         this.lbl = lbl;
         this.id = waveformId++;
-        this.sampleRate = sampleRate;
 
         this.wrapper = wrapper;
+        (<any> wrapper)._ecId = this.id;
         Object.assign(wrapper.style, {
             position: "relative",
             overflow: "hidden"
@@ -137,7 +210,7 @@ export class Waveform {
         wrapper.setAttribute("role", "img");
         wrapper.innerHTML = "";
         wrapper.appendChild(canvas);
-        this.ctx = canvas.getContext("2d", {alpha: false});
+        const canvasOffscreen = canvas.transferControlToOffscreen();
 
         // Wrapper for the label and stats canvases
         const lblStatsWrapper = document.createElement("div");
@@ -163,13 +236,13 @@ export class Waveform {
             persistPeak = !persistPeak;
             document.body.setAttribute("data-persist-peak-labels", persistPeak ? "yes" : "no");
         };
-        this.lblCtx = lblCanvas.getContext("2d");
+        const lblCanvasOffscreen = lblCanvas.transferControlToOffscreen();
 
         // And the stats box
         const statsBox = this.statsBox = document.createElement("span");
         Object.assign(statsBox.style, {
             position: "absolute",
-            right: (peakWidth + 40) + "px",
+            right: (ifWaveform.peakWidth + 40) + "px",
             top: "2px",
             fontSize: "0.8em"
         });
@@ -185,354 +258,36 @@ export class Waveform {
         if (watcher)
             wrapper.appendChild(watcher);
 
-        // Other internal data
-        this.rotate = false;
-        this.waveData = [];
-        this.waveVADs = [];
-        this.peakData = [];
-        this.rmsData = [];
-        this.curPeak = 0;
-        this.rootSum = 0;
-        this.rmsPlaceholders = 0;
-        this.staleData = this.newData = 0;
-        this.resetTime = Waveform.resetTimeMax;
-        this.lastDisplayHeight = 0;
-        this.lastGood = false;
-        this.lastWaveVADColors = null;
+        // Pass it to the worker
+        getWaveformWorker().registerNewWaveform(
+            this, canvas,
+            this.id, this.lbl, sampleRate,
+            wrapper.offsetWidth, wrapper.offsetHeight,
+            canvasOffscreen, lblCanvasOffscreen
+        ).catch(net.catastrophicErrorFactory());
 
-        // If there is no rendering loop, make one
-        if (!displayLoop) displayLoop = (async () => {
-            while (true) {
-                // Wait for a frame
-                await new Promise<void>(res => {
-                    let af: number | null = null;
-                    let to: number | null = null;
-
-                    af = window.requestAnimationFrame(() => {
-                        clearTimeout(to);
-                        res();
-                    });
-
-                    to = setTimeout(() => {
-                        window.cancelAnimationFrame(af);
-                        res();
-                    }, 500);
-                });
-
-                // Draw
-                for (const w of toDisplay)
-                    w.display();
-                toDisplay = [];
-                toDisplaySet = {};
-
-                // Wait to draw the next frame
-                await new Promise(res => setTimeout(res, 50));
-            }
-        })();
-
-        // Seed the data
-        this.push(0, 2);
+        waveformFinalizer.register(this, [wrapper, this.id]);
     }
 
     // Push data
     push(val: number, vad: number): void {
-        // Bump up surrounding ones to make the wave look nicer
-        if (this.waveData.length > 0) {
-            let last = this.waveData.pop();
-            if (last < val) {
-                last = (last+val)/2;
-                if (this.newData === 0)
-                    this.staleData++;
-            } else {
-                val = (last+val)/2;
-            }
-            this.waveData.push(last);
-        }
-
-        this.newData++;
-        this.waveData.push(val);
-        this.waveVADs.push(vad);
-
-        // And push to peak data too
-        this.peakData.push(val);
-        if (val > this.curPeak)
-            this.curPeak = val;
-        const root = Math.sqrt(val);
-        if (vad >= 2) {
-            this.rmsData.push(root);
-            this.rootSum += root;
-        } else {
-            this.rmsData.push(null);
-            this.rmsPlaceholders++;
-        }
-
-        // Shift over obsolete data
-        const max = 30 * this.sampleRate;
-        let recalculate = false;
-        while (this.peakData.length > max) {
-            if (this.peakData[0] === this.curPeak)
-                recalculate = true;
-            this.peakData.shift();
-            const root = this.rmsData.shift();
-            if (root !== null)
-                this.rootSum -= root;
-            else
-                this.rmsPlaceholders--;
-        }
-        if (recalculate)
-            this.curPeak = Math.max.apply(Math, this.peakData);
-
-        // And report
-        const peakDb = Math.round(20 * Math.log(this.curPeak) / log10);
-        const rmsDb = Math.round(20 * Math.log(Math.pow(this.rootSum / (this.rmsData.length - this.rmsPlaceholders), 2)) / log10);
-        let stats = "30 second peak " + peakDb + " decibels, RMS " + rmsDb + " decibels";
-        this.wrapper.setAttribute("aria-label", stats);
-        stats = stats.replace(/ decibels/g, "dB");
-        this.statsBox.innerText = stats;
+        getWaveformWorker().push(this.id, val, vad)
+            .catch(net.catastrophicErrorFactory());
     }
 
     // Update the wave display when we retroactively promote VAD data
     updateWaveRetroactive(vadExtension: number): void {
-        const timeout = Math.ceil(audio.ac.sampleRate*vadExtension/1024000);
-        let i = Math.max(this.waveVADs.length - timeout, 0);
-        const s = this.waveVADs.length - i;
-        if (s > this.staleData)
-            this.staleData = s;
-        for (; i < this.waveVADs.length; i++)
-            this.waveVADs[i] = (this.waveVADs[i] === 1) ? 2 : this.waveVADs[i];
+        getWaveformWorker().updateWaveRetroactive(this.id, vadExtension)
+            .catch(net.catastrophicErrorFactory());
     }
 
     // Queue the wave to be displayed
     updateWave(value: number, sentRecently: boolean): void {
-        this.sentRecently = sentRecently;
-        if (toDisplaySet[this.id])
-            return;
-        toDisplay.push(this);
-        toDisplaySet[this.id] = true;
+        getWaveformWorker().updateWave(this.id, value, sentRecently)
+            .catch(net.catastrophicErrorFactory());
     }
+}
 
-    // Display this wave
-    display(): void {
-        const sentRecently = this.sentRecently;
-        const wc = this.canvas;
-        const lwc = this.lblCanvas;
-
-        // Start from the element size
-        let w = this.wrapper.offsetWidth;
-        let h = this.wrapper.offsetHeight;
-
-        // Rotate if our view is vertical
-        if (w/h < 4/3) {
-            if (!this.rotate) {
-                if (this.watcher) this.watcher.style.visibility = "hidden";
-                this.rotate = true;
-            }
-        } else {
-            if (this.rotate) {
-                if (this.watcher) this.watcher.style.visibility = "";
-                this.rotate = false;
-            }
-        }
-
-        // Set if we need to refresh all data
-        let allNew = false;
-
-        // Make sure the canvases are correct
-        if (+wc.width !== w) {
-            wc.width = w;
-            lwc.width = w;
-            allNew = true;
-        }
-        if (+wc.height !== h) {
-            wc.height = h;
-            lwc.height = h;
-            allNew = true;
-        }
-
-        if (this.rotate) {
-            const tmp = w;
-            w = h;
-            h = tmp;
-        }
-
-        // peakWidth pixels at the right for peak meter
-        if (w > peakWidth * 2)
-            w -= peakWidth;
-
-        // Half the wave height is a more useful value
-        h = Math.floor(h/2);
-
-        // Figure out the width of each sample
-        const sw = Math.max(Math.floor(w/468), 1);
-        const dw = Math.ceil(w/sw);
-
-        // Make sure we have an appropriate amount of data
-        const waveData = this.waveData;
-        const waveVADs = this.waveVADs;
-        while (waveData.length > dw) {
-            waveData.shift();
-            waveVADs.shift();
-        }
-        while (waveData.length < dw) {
-            waveData.unshift(0);
-            waveVADs.unshift(0);
-        }
-        if (this.newData >= dw)
-            allNew = true;
-
-        // Figure out the ceiling of the display
-        const maxVal = Math.max(
-            Math.min(
-                Math.max.apply(Math, waveData) * 1.1,
-                1
-            ),
-            0.015 // So the too-quiet bar will always show
-        );
-        const dh = Math.log(maxVal + 1) / log10;
-        if (this.lastDisplayHeight !== dh) {
-            this.lastDisplayHeight = dh;
-            allNew = true;
-        }
-
-        // Figure out whether it should be colored at all
-        const good = net.connected && net.transmitting && audio.timeOffset && sentRecently;
-        if (this.lastGood !== good) {
-            this.lastGood = good;
-            allNew = true;
-        }
-
-        // And redraw if the colors have changed
-        if (this.lastWaveVADColors !== config.waveVADColors) {
-            this.lastWaveVADColors = config.waveVADColors;
-            allNew = true;
-        }
-
-        // Or if we haven't reset in a while
-        if (this.resetTime-- <= 0)
-            allNew = true;
-
-        // And draw it
-        const ctx = this.ctx;
-        const lctx = this.lblCtx;
-        let i, p;
-
-        // Make room for new data
-        if (!allNew) {
-            try {
-                const cut = sw * this.newData;
-                const ow = w - cut, oh = h*2;
-                let id = ctx.getImageData(cut, 0, ow, oh);
-                ctx.putImageData(id, 0, 0);
-            } catch (ex) {
-                allNew = true;
-            }
-        }
-
-        // If we should be treating everything as new, do so
-        if (allNew) {
-            this.staleData = 0;
-            this.newData = dw;
-            this.resetTime = Waveform.resetTimeMax;
-            ctx.reset();
-            lctx.reset();
-        }
-
-        // Get the x location where new data starts
-        const ndx = w - sw * this.newData;
-
-        // Transform the canvas if we're rotating
-        ctx.save();
-        lctx.save();
-        if (this.rotate) {
-            ctx.rotate(Math.PI/2);
-            ctx.translate(0, -2*h);
-            lctx.rotate(Math.PI/2);
-            lctx.translate(0, -2*h);
-        }
-
-        // A function for drawing our level warning bars
-        function levelBar(at: number, color: string) {
-            at = Math.log(at + 1) / log10;
-            if (dh <= at) return;
-            const y = at / dh * h;
-            ctx.fillStyle = color;
-            ctx.fillRect(ndx, h-y-1, w-ndx, 1);
-            ctx.fillRect(ndx, h+y, w-ndx, 1);
-        }
-
-        // Background color
-        ctx.fillStyle = ui.ui.colors["bg"];
-        ctx.fillRect(ndx, 0, w-ndx, h*2);
-
-        // Level bar at 1% (-40dB) for "too soft"
-        levelBar(0.01, ui.ui.colors["wave-too-soft"]);
-
-        // Each column
-        for (i = dw - this.newData, p = w - sw * this.newData; i < dw; i++, p += sw) {
-            const d = Math.log(waveData[i] + 1) / log10 / dh * h;
-            ctx.fillStyle = good ? config.waveVADColors[waveVADs[i]] : "#000";
-            ctx.fillRect(p, h-d, sw, 2*d);
-        }
-
-        // Level bar at 50% (about -6dB) for "too loud"
-        levelBar(0.5, ui.ui.colors["wave-too-loud"]);
-
-        // Possibly draw the peak labels
-        function drawLabel(db: number, t: number) {
-            const txt = db + "dB";
-            const m = lctx.measureText(txt);
-            const l = w - m.width - peakWidth - 2;
-            t = ~~(t + m.actualBoundingBoxAscent/2);
-            lctx.fillStyle = "#fff";
-            lctx.fillText(txt, l, t);
-        }
-        if (allNew) {
-            lctx.clearRect(0, 0, w, h*2);
-            drawLabel(-12, h/3);
-            drawLabel(-24, 2*h/3);
-            drawLabel(-36, h);
-        }
-
-        // Peak meter at the right
-        let peak = 2 * Math.log(waveData[waveData.length-1]) / log1036 + 1;
-        if (peak < this.lastPeak)
-            peak = (this.lastPeak * 3 + peak) / 4;
-        this.lastPeak = peak;
-        for (let pi = 0; pi < 3; pi++) {
-            const c = pi + 1;
-            const pl = (2-pi)/3, pu = (3-pi)/3;
-            if (peak <= pu) {
-                ctx.fillStyle = ui.ui.colors["nopeak-" + c];
-                ctx.fillRect(w, ~~(h*pi/3), peakWidth, ~~(h*2*(3-pi)/3));
-            }
-            if (peak >= pl) {
-                ctx.fillStyle = ui.ui.colors["peak-" + c];
-                if (peak >= pu)
-                    ctx.fillRect(w, ~~(h-(pu*h)), peakWidth, ~~(h*2*pu));
-                else
-                    ctx.fillRect(w, ~~(h-(peak*h)), peakWidth, ~~(h*2*peak));
-            }
-        }
-
-        ctx.restore();
-        lctx.restore();
-        this.staleData = this.newData = 0;
-
-        // Set the CSS
-        const peakDb = 20 * Math.log(waveData[waveData.length-1]) / log10;
-        const cssPeak = (peakDb < -100) ? 0 : peakDb + 100;
-        let css = "";
-        for (const part of [
-            `input[type=range].ec3-peak-horizontal-${this.lbl}::-webkit-slider-runnable-track`,
-            `input[type=range].ec3-peak-horizontal-${this.lbl}:focus::-webkit-slider-runnable-track`,
-            `input[type=range].ec3-peak-horizontal-${this.lbl}::-moz-range-track`
-        ]) {
-            css += `${part} { ` +
-                `background: linear-gradient(90deg, ` +
-                    `var(--peak-3) 0 ${cssPeak}%, ` +
-                    `var(--bg-button) ${cssPeak}% 100%); ` +
-                `} `;
-        }
-        this.css.innerHTML = css;
-    }
+export function setWaveVADColors(to: string): void {
+    getWaveformWorker().setWaveVADColors(config.waveVADColorSets[to]);
 }

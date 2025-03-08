@@ -24,6 +24,7 @@ import * as config from "./config";
 import * as log from "./log";
 import { prot } from "./protocol";
 import * as util from "./util";
+import * as waveform from "./waveform"; // FIXME
 
 /* We have multiple connections to the server:
  * One for pings,
@@ -36,7 +37,10 @@ export let masterSock: ReconnectableWebSocket = null;
 // Global connection state
 export let connected = false;
 export let transmitting = false;
-export function setTransmitting(to: boolean): void { transmitting = to; }
+export function setTransmitting(to: boolean): void {
+    transmitting = to;
+    util.dispatchEvent("net.transmitting", to);
+}
 
 // Our own ID
 export let selfId = 0;
@@ -167,6 +171,7 @@ export function connect(): Promise<unknown> {
 
     return Promise.all([]).then(() => {
         connected = true;
+        util.dispatchEvent("net.connected", true);
         log.pushStatus("conn", "Connecting...", {
             timein: 1000
         });
@@ -295,7 +300,7 @@ function dataSockMsg(ev: MessageEvent) {
                     // Make it visible in the waveform
                     const wvms = ((val === prot.mode.rec) ? "r" : "s") +
                                  (config.useContinuous ? "c" : "v");
-                    config.setWaveVADColors(wvms);
+                    waveform.setWaveVADColors(wvms);
 
                     // Update the status
                     log.popStatus("mode");
@@ -444,10 +449,11 @@ export function updateAdminPerm(val: any, video?: boolean): void {
 // Generic phone-home error handler
 // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export function errorHandler(error: any): void {
-    const errBuf = util.encodeText(
-        error + "\n\n" +
+    const errTxt = error + "\n\n" +
         navigator.userAgent + "\n\n" +
-        (new Error()).stack);
+        (new Error()).stack;
+    console.error(errTxt);
+    const errBuf = util.encodeText(errTxt);
     const out = new DataView(new ArrayBuffer(4 + errBuf.length));
     out.setUint32(0, prot.ids.error, true);
     new Uint8Array(out.buffer).set(errBuf, 4);

@@ -118,7 +118,10 @@ util.netEvent("ping", "pong", function(ev) {
         const latency = pongs.reduce((a,b) => a+b)/10;
         const remoteTime = msg.getFloat64(p.serverTime, true) + latency;
         targetTimeOffset = remoteTime - recvd;
-        if (timeOffset === null) timeOffset = targetTimeOffset;
+        if (timeOffset === null) {
+            timeOffset = targetTimeOffset;
+            util.dispatchEvent("audio.timeOffset");
+        }
     }
 });
 

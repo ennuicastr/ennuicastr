@@ -305,9 +305,6 @@ export async function load(): Promise<boolean> {
     useRTEnnui.video = !useJitsi.video;
     useDebug = !!(params.get("debug"));
 
-    // If we're in continuous mode, we don't distinguish the degrees of VAD
-    if (useContinuous) waveVADColors = waveVADColorSets.sc;
-
     // If we're a host and recording video, we need persistent storage
     if ("master" in config && useVideoRec) {
         let persistent = false;
@@ -395,13 +392,10 @@ export function resolve(): Promise<unknown> {
  *   c means continuous mode
  * Each set is four colors: error, no, maybe, yes
  */
-const waveVADColorSets = {
+export const waveVADColorSets = {
     "sv": ["#000", "#333", "#666", "#999"],
     "sc": ["#000", "#666", "#666", "#999"],
     "rv": ["#000", "#031", "#061", "#094"],
     "rc": ["#000", "#061", "#061", "#094"],
 };
 
-// And the current colors
-export let waveVADColors = waveVADColorSets.sv;
-export function setWaveVADColors(to: string): void { waveVADColors = (<any> waveVADColorSets)[to]; }
