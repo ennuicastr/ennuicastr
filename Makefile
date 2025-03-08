@@ -57,11 +57,17 @@ dist/ecloader.js: src/loader.ts node_modules/.bin/tsc
 dist/ecloader.min.js: dist/ecloader.js node_modules/.bin/tsc
 	./node_modules/.bin/terser < $< > $@
 
-dist/ennuicastr.js: src/*.ts awp/*.ts node_modules/.bin/tsc
+dist/ennuicastr.js: src/*.ts src/iface/*.ts awp/*.ts node_modules/.bin/tsc
 	./node_modules/.bin/rollup -c
 
 dist/ennuicastr.min.js dist/fs/fs.js dist/fs/fs.min.js dist/awp/ennuicastr-worker.js dist/awp/ennuicastr-worker.min.js: dist/ennuicastr.js
 	true
+
+src/%-js.ts: dist/%.js
+	./tools/js-in-js.js $< > $@
+
+dist/waveform-worker.js: src/workers/*.ts src/iface/*.ts
+	./node_modules/.bin/rollup -c rollup.workers-config.mjs
 
 dist/protocol.min.js: protocol.js node_modules/.bin/tsc
 	./node_modules/.bin/terser < $< | cat meta/license.js - > $@
