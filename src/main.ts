@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024 Yahweasel
+ * Copyright (c) 2018-2025 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -24,10 +24,10 @@ import * as audio from "./audio";
 import * as avloader from "./avloader";
 import * as commImpl from "./comm-impl";
 import * as config from "./config";
+import * as inproc from "./inproc";
 import * as log from "./log";
 import * as master from "./master";
 import * as net from "./net";
-import * as proc from "./proc";
 import { prot } from "./protocol";
 import * as ui from "./ui";
 import * as uiImpl from "./ui-impl";
@@ -101,7 +101,7 @@ async function main() {
         await net.connect();
 
         // This will start up on its own in the background
-        proc.localProcessing(0);
+        inproc.localProcessing(0);
         if (config.useRTC)
             commImpl.initComms();
 

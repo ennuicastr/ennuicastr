@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024 Yahweasel
+ * Copyright (c) 2018-2025 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -38,6 +38,10 @@ export const features = {
     "jitsiVideo": 0x1000,
     "nonDualEC": 0x2000
 };
+
+// Dirname of the URL for finding workers
+export const urlDirname = new URL(window.location.href);
+urlDirname.pathname = urlDirname.pathname.replace(/\/[^\/]*$/, "");
 
 // Configuration parameters come out of the URL search query
 export const url = new URL(<any> window.location);

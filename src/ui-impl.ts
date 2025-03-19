@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024 Yahweasel
+ * Copyright (c) 2018-2025 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -23,11 +23,11 @@
 import * as audio from "./audio";
 import * as chat from "./chat";
 import * as config from "./config";
+import * as inproc from "./inproc";
 import * as log from "./log";
 import * as master from "./master";
 import * as net from "./net";
 import * as outproc from "./outproc";
-import * as proc from "./proc";
 import * as ptt from "./ptt";
 import * as uiFE from "./ui";
 import { ui } from "./ui";
@@ -691,7 +691,7 @@ export function mkAudioUI(): string {
         input.ptt.style.display = "none";
 
     function noiserChange() {
-        proc.setUseNR(input.noiser.checked);
+        inproc.setUseNR(input.noiser.checked);
     }
 
     uiFE.saveConfigCheckbox(input.noiser, "noise-reduction3", noiserChange);
@@ -712,7 +712,7 @@ export function mkAudioUI(): string {
     uiFE.saveConfigCheckbox(input.agc, "agc3", inputChange);
 
     function vadSensitivityChange() {
-        proc.setVadSensitivity(4 - (+input.vadSensitivity.value));
+        inproc.setVadSensitivity(4 - (+input.vadSensitivity.value));
     }
     function vadSensitivityInput() {
         input.vadSensitivityStatus.innerHTML =
@@ -724,7 +724,7 @@ export function mkAudioUI(): string {
     vadSensitivityChange();
 
     function vadNoiseGateChange() {
-        proc.setVadNoiseGate(+input.vadNoiseGate.value);
+        inproc.setVadNoiseGate(+input.vadNoiseGate.value);
     }
     function vadNoiseGateInput() {
         input.vadNoiseGateStatus.innerHTML =

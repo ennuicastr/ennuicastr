@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024 Yahweasel
+ * Copyright (c) 2020-2025 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -23,11 +23,15 @@
 import * as audio from "./audio";
 import * as capture from "./capture";
 import * as config from "./config";
+import * as ifOutproc from "./iface/outproc";
 import * as net from "./net";
+import * as outprocWorker from "./outproc-worker-js";
 import * as ui from "./ui";
 import * as util from "./util";
 import * as waveform from "./waveform";
 
+import * as rpcReceiver from "@ennuicastr/mprpc/receiver";
+import * as rpcTarget from "@ennuicastr/mprpc/target";
 import * as rtennui from "rtennui";
 
 // Can we do compression?
@@ -36,9 +40,71 @@ export const supported = !rtennui.audioCapturePlaybackShared();
 // A compressor for a particular user
 export interface Compressor {
     ac: audio.ECAudioContext;
-    capture: capture.Capture,
-    worker: Worker,
-    output: rtennui.AudioPlayback
+    capture?: capture.Capture;
+    worker: OutProcWorker;
+    output: rtennui.AudioPlayback;
+}
+
+/**
+ * The worker for output processing.
+ */
+export class OutProcWorker
+    extends rpcTarget.RPCWorker
+    implements
+        rpcTarget.Async<ifOutproc.OutputProcessor>,
+        rpcReceiver.RPCReceiver<ifOutproc.OutputProcessorRev>
+{
+    constructor(optsBasic: ifOutproc.OutProcOptsBasic & {
+        inputPort?: MessagePort
+    }) {
+        super(outprocWorker.js);
+
+        const opts = <ifOutproc.OutProcOpts> optsBasic;
+        if (optsBasic.inputPort) {
+            opts.input = optsBasic.inputPort;
+            this.inputPort = optsBasic.inputPort;
+        } else {
+            const inputMC = new MessageChannel();
+            opts.input = inputMC.port1;
+            this.inputPort = inputMC.port2;
+        }
+        const outputMC = new MessageChannel();
+        opts.output = outputMC.port1;
+        this.outputPort = outputMC.port2;
+        const reverseMC = new MessageChannel();
+        opts.reverse = reverseMC.port1;
+        rpcReceiver.rpcReceiver(this, reverseMC.port2);
+
+        this.init(opts);
+    }
+
+    init(opts: ifOutproc.OutProcOpts): Promise<void> {
+        return this.rpc(
+            "init", [opts],
+            [opts.input, opts.output, opts.reverse]
+        );
+    }
+
+    setMax(to: boolean): Promise<void> {
+        return this.rpc("setMax", [to]);
+    }
+
+    setCompress(to: boolean): Promise<void> {
+        return this.rpc("setCompress", [to]);
+    }
+
+    setGain(to: number): Promise<void> {
+        return this.rpc("setGain", [to]);
+    }
+
+    max(v: number): void {
+        if (this.onmax)
+            this.onmax(v);
+    }
+
+    onmax?: (v: number)=>void;
+    inputPort: MessagePort;
+    outputPort: MessagePort;
 }
 
 export const rtcCompression = {
@@ -61,77 +127,52 @@ export const rtcCompression = {
     compressors: <Compressor[]> []
 };
 
-// Create a compressor and gain node
+// Create an output processor
 export async function createCompressor(
     idx: number,
     ac: audio.ECAudioContext,
-    input: MediaStream | AudioNode | Worker, wrapper: HTMLElement
+    input: MediaStream | AudioNode | MessagePort, wrapper: HTMLElement
 ): Promise<void|Compressor> {
 
     // Destroy any previous compressor
     if (rtcCompression.compressors[idx])
         destroyCompressor(idx);
 
-    let cap: capture.Capture = null;
-    let worker: Worker = null;
-
-    // Make our capture if we weren't just handed a worker
-    if (!(<Worker> input).terminate) {
-        try {
-            // Create it
-            cap = await capture.createCapture(ac, {
-                input: <MediaStream | AudioNode> input,
-                workerCommand: {
-                    c: "outproc"
-                }
-            });
-        } catch (ex) {
-            net.catastrophicError(ex);
-            throw ex;
-        }
-        worker = cap.worker;
-
+    // Make the capture
+    let cap: capture.Capture | undefined;
+    let inputPort: MessagePort | undefined;
+    if ((<MessagePort> input).postMessage) {
+        inputPort = <MessagePort> input;
     } else {
-        worker = <Worker> input;
-
+        cap = await capture.createCapture(ac, {
+            input: <MediaStream | AudioNode> input
+        });
     }
 
-    // Prepare to enable features
-    worker.addEventListener("message", ev => {
-        const msg = ev.data;
-        if (msg.c === "outproc-ready") {
-            if (rtcCompression.waveviewing)
-                worker.postMessage({c: "max", a: true});
-            if (rtcCompression.compressing)
-                worker.postMessage({c: "dynaudnorm", a: true});
-            let gain = rtcCompression.gain;
-            if (idx in rtcCompression.perUserGain)
-                gain *= rtcCompression.perUserGain[idx];
-            if (gain !== 1)
-                worker.postMessage({c: "gain", g: gain});
-        }
+    // Make the worker
+    let gain = rtcCompression.gain;
+    if (idx in rtcCompression.perUserGain)
+        gain *= rtcCompression.perUserGain[idx];
+    const worker = new OutProcWorker({
+        baseURL: config.urlDirname.toString(),
+        sampleRate: ac.sampleRate,
+        max: rtcCompression.waveviewing,
+        compress: rtcCompression.compressing,
+        gain,
+        inputPort
     });
 
     // Set up the waveview
     const wf =
         new waveform.Waveform("" + idx, ac.sampleRate / 1024, wrapper, null);
-    worker.addEventListener("message", ev => {
-        const msg = ev.data;
-        if (msg.c !== "max") return;
-        const max = msg.m;
-        wf.push(max, (max < 0.0001) ? 1 : 3);
-        wf.updateWave(max, true);
-    });
+    worker.onmax = v => {
+        wf.push(v, (v < 0.0001) ? 1 : 3);
+        wf.updateWave(v, true);
+    };
 
     // Create the player
     const player = await rtennui.createAudioPlayback(ac);
-
-    const mc = new MessageChannel();
-    player.pipeFrom(mc.port2);
-    worker.postMessage({
-        c: "out",
-        p: mc.port1
-    }, [mc.port1]);
+    player.pipeFrom(worker.outputPort);
 
     // Hook up the player
     let node = player.unsharedNode();
@@ -147,6 +188,10 @@ export async function createCompressor(
         }
 
     }
+
+    // Hook up the capture
+    if (cap)
+        cap.capture.pipe(worker.inputPort);
 
     // Make the compressor instance
     const com: Compressor = {
@@ -172,7 +217,7 @@ export function destroyCompressor(idx: number): void {
         return;
     rtcCompression.compressors[idx] = null;
     if (com.capture)
-        com.capture.disconnect();
+        com.capture.capture.close();
 }
 
 // En/disable waveviewing
@@ -182,7 +227,7 @@ export function setWaveviewing(to: boolean): void {
     rtcCompression.waveviewing = to;
     for (const c of rtcCompression.compressors) {
         if (c)
-            c.worker.postMessage({c: "max", a: to});
+            c.worker.setMax(to);
     }
 }
 
@@ -193,7 +238,7 @@ export function setCompressing(to: boolean): void {
     rtcCompression.compressing = to;
     for (const c of rtcCompression.compressors) {
         if (c)
-            c.worker.postMessage({c: "dynaudnorm", a: to});
+            c.worker.setCompress(to);
     }
 }
 
@@ -208,7 +253,7 @@ export function setGlobalGain(to: number): void {
         let gain = to;
         if (idx in rtcCompression.perUserGain)
             gain *= rtcCompression.perUserGain[idx];
-        com.worker.postMessage({c: "gain", g: gain});
+        com.worker.setGain(gain);
     }
 }
 
@@ -220,7 +265,7 @@ function setPerUserGain(idx: number, to: number) {
     if (!com) return;
 
     const gain = rtcCompression.gain * to;
-    com.worker.postMessage({c: "gain", g: gain});
+    com.worker.setGain(gain);
 }
 
 ui.ui.outprocSetPerUserGain = setPerUserGain;

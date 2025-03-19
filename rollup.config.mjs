@@ -49,6 +49,7 @@ export default [
                 plugins: [pluginTerser]
             }
         ],
+        context: "window",
         plugins: pluginsTS
     },
     {
@@ -66,6 +67,7 @@ export default [
                 plugins: [pluginTerser]
             }
         ],
+        context: "window",
         plugins: pluginsTS
     },
     {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024 Yahweasel
+ * Copyright (c) 2018-2025 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -274,7 +274,11 @@ export class Jitsi implements comm.BroadcastComms {
             await rtennui.createAudioPlayback(ac);
         let node = playback.unsharedNode() || playback.sharedNode();
         node.disconnect();
-        audio.inputs[0].userMediaCapture.pipe(playback);
+        {
+            const mc = new MessageChannel();
+            audio.inputs[0].userMediaCapture.capture.pipe(mc.port1);
+            playback.pipeFrom(mc.port2);
+        }
 
         // Turn it into a MediaStream
         const msd = ac.createMediaStreamDestination();

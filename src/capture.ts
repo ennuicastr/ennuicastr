@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024 Yahweasel
+ * Copyright (c) 2020-2025 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -34,40 +34,15 @@ export interface Capture {
     /**
      * The audio context used for this capture.
      */
-    ac: AudioContext,
+    ac: AudioContext;
 
     /**
      * RTEnnui's underlying capture.
      */
-    rawCapture: rtennui.AudioCapture,
-
-    /**
-     * The worker this capture is communicating with.
-     */
-    worker: Worker,
-
-    /**
-     * Backchannels to the worker, if requested.
-     */
-    backChannels: MessagePort[] | null,
-
-    /**
-     * Pipe this capture to a playback.
-     */
-    pipe: (playback: rtennui.AudioPlayback)=>unknown;
-
-    /**
-     * Function to disconnect and close this capture.
-     */
-    disconnect: ()=>unknown
+    capture: rtennui.AudioCapture;
 }
 
 export interface CaptureOptions {
-    /**
-     * Command to send to the worker for this capture.
-     */
-    workerCommand: any;
-
     /**
      * Input, as either a MediaStream or an AudioNode.
      */
@@ -79,17 +54,6 @@ export interface CaptureOptions {
      * be false or unset if input is an AudioNode.
      */
     matchSampleRate?: boolean;
-
-    /**
-     * Whether to produce a MediaStream as the destination.
-     */
-    outStream?: boolean;
-
-    /**
-     * How many (if any) backchannels should be provided to the worker, for
-     * e.g. capturing the rendered audio for echo cancellation.
-     */
-    backChannels?: number;
 }
 
 export const capturePlaybackShared = rtennui.audioCapturePlaybackShared;
@@ -98,9 +62,9 @@ export const capturePlaybackShared = rtennui.audioCapturePlaybackShared;
 const sampleRateACs: Record<number, AudioContext> = {};
 
 // Create an RTEnnui/Weasound capture
-async function rtennuiCapture(
+export async function createCapture(
     ac: AudioContext, options: CaptureOptions
-) {
+): Promise<Capture> {
     // Possibly use a different AudioContext
     if (options.matchSampleRate && !capturePlaybackShared()) {
         const ms = <MediaStream> options.input;
@@ -131,67 +95,4 @@ async function rtennuiCapture(
             rtennui.createAudioCapture(ac, input);
     }
     return {ac, capture: await captureP};
-}
-
-// Create a capture node
-export async function createCapture(
-    ac: AudioContext, options: CaptureOptions
-): Promise<Capture> {
-    // Create an RTEnnui/Weasound capture
-    const {ac: capAC, capture} = await rtennuiCapture(ac, options);
-
-    // Create our worker
-    const worker = new Worker(workerPath);
-
-    // Need a channel for them to communicate
-    const mc = new MessageChannel();
-
-    // And possibly backchannels as well
-    const bcMC: MessageChannel[] = [];
-    if (options.backChannels) {
-        for (let bci = 0; bci < options.backChannels; bci++)
-            bcMC.push(new MessageChannel());
-    }
-    const bcMP1 = bcMC.length
-        ? bcMC.map(x => x.port1)
-        : null;
-    const bcMP2 = bcMC.length
-        ? bcMC.map(x => x.port2)
-        : null;
-
-    // Set up the worker
-    const cmd = Object.assign({
-        inSampleRate: capAC.sampleRate,
-        port: mc.port2,
-        backChannels: bcMP2
-    }, options.workerCommand);
-    worker.postMessage(cmd, [mc.port2].concat(bcMP2 || []));
-    capture.pipe(mc.port1, true);
-
-    // Pipe by making a message channel
-    function pipe(to: rtennui.AudioPlayback) {
-        const mc = new MessageChannel();
-        to.pipeFrom(mc.port2);
-        worker.postMessage({c: "out", p: mc.port1}, [mc.port1]);
-    }
-
-    // Prepare to terminate
-    let dead = false;
-    function disconnect() {
-        if (dead)
-            return;
-        dead = true;
-        capture.close();
-        worker.terminate();
-    }
-
-    // Done!
-    return {
-        ac: capAC,
-        rawCapture: capture,
-        worker,
-        backChannels: bcMP1,
-        pipe,
-        disconnect: disconnect
-    };
 }

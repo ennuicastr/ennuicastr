@@ -4,6 +4,12 @@ import commonjs from "@rollup/plugin-commonjs";
 import terser from "@rollup/plugin-terser";
 
 const plugins = [
+    typescript({
+        exclude: ["src/*.ts"],
+        compilerOptions: {
+            lib: ["es2021", "webworker"]
+        }
+    }),
     nodeResolve({
         browser: true
     }),
@@ -11,21 +17,21 @@ const plugins = [
     terser({format:{semicolons:false}})
 ];
 
-export default [
-    {
-        input: "src/workers/waveform-worker.ts",
+function worker(name) {
+    return {
+        input: `src/workers/${name}-worker.ts`,
         output: {
-            file: "dist/waveform-worker.js",
+            file: `dist/${name}-worker.js`,
             format: "iife",
-            name: "EnnuicastrWaveformWorker"
+            name: `Ennuicastr${name}Worker`
         },
-        plugins: [
-            typescript({
-                exclude: ["src/*.ts"],
-                compilerOptions: {
-                    lib: ["es2021", "webworker"]
-                }
-            })
-        ].concat(plugins)
-    }
+        plugins
+    };
+}
+
+export default [
+    worker("encoder"),
+    worker("inproc"),
+    worker("outproc"),
+    worker("waveform")
 ];

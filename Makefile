@@ -66,7 +66,7 @@ dist/ennuicastr.min.js dist/fs/fs.js dist/fs/fs.min.js dist/awp/ennuicastr-worke
 src/%-js.ts: dist/%.js
 	./tools/js-in-js.js $< > $@
 
-dist/waveform-worker.js: src/workers/*.ts src/iface/*.ts
+dist/encoder-worker.js dist/inproc-worker.js dist/outproc-worker.js dist/waveform-worker.js: src/workers/*.ts src/iface/*.ts
 	./node_modules/.bin/rollup -c rollup.workers-config.mjs
 
 dist/protocol.min.js: protocol.js node_modules/.bin/tsc

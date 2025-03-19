@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024 Yahweasel
+ * Copyright (c) 2018-2025 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -23,8 +23,13 @@
 // extern
 declare let MediaRecorder: any, webkitAudioContext: any;
 
+import * as rpcReceiver from "@ennuicastr/mprpc/receiver";
+import * as rpcTarget from "@ennuicastr/mprpc/target";
+
 import * as capture from "./capture";
 import * as config from "./config";
+import * as encWorker from "./encoder-worker-js";
+import * as ifEnc from "./iface/encoder";
 import * as log from "./log";
 import * as net from "./net";
 import { prot } from "./protocol";
@@ -372,6 +377,46 @@ export function initAudioContext() {
 
 
 /**
+ * Encoder worker.
+ */
+class EncoderWorker
+    extends rpcTarget.RPCWorker
+    implements
+        rpcTarget.Async<ifEnc.Encoder>,
+        rpcReceiver.RPCReceiver<ifEnc.EncoderRev>
+{
+    constructor() {
+        super(encWorker.js);
+
+        const mc = new MessageChannel();
+        rpcReceiver.rpcReceiver(this, mc.port2);
+        this.reversePort = mc.port1;
+    }
+
+    init(opts: ifEnc.EncoderOpts): Promise<void> {
+        return this.rpc("init", [opts], [opts.reverse]);
+    }
+
+    encode(port: MessagePort, trackNo: number): Promise<void> {
+        return this.rpc("encode", [port, trackNo], [port]);
+    }
+
+    packets(
+        ts: number, trackNo: number, seq: number,
+        packets: Uint8Array[]
+    ): void {
+        this.onpackets!(ts, trackNo, seq, packets);
+    }
+
+    onpackets?: (
+        ts: number, trackNo: number, seq: number,
+        packets: Uint8Array[]
+    ) => unknown;
+
+    reversePort: MessagePort;
+}
+
+/**
  * Audio capture and recording.
  */
 export class Audio {
@@ -379,7 +424,7 @@ export class Audio {
     userMedia: MediaStream = null;
 
     // The encoder for this device
-    userMediaEncoder: capture.Capture = null;
+    userMediaEncoder: EncoderWorker = null;
 
     // The capture of this device, used for RTC
     userMediaCapture: capture.Capture = null;
@@ -449,7 +494,7 @@ export class Audio {
             this.userMediaEncoder = null;
             if (this.userMediaCapture) {
                 // The disconnection of the whole line happens in proc.ts
-                this.userMediaCapture.disconnect();
+                this.userMediaCapture.capture.close();
             }
             util.dispatchEvent("usermediastopped", {idx: this.idx});
             util.dispatchEvent("usermediastopped" + this.idx, {idx: this.idx});
@@ -577,8 +622,9 @@ export class Audio {
     }
 
     // Start our encoder
-    private encoderStart(): Promise<unknown> {
-        // We need to choose our target sample rate based on the input sample rate and format
+    private async encoderStart(): Promise<void> {
+        /* We need to choose our target sample rate based on the input sample
+         * rate and format */
         let sampleRate = 48000;
         if (config.useFlac && ac.sampleRate === 44100)
             sampleRate = 44100;
@@ -611,65 +657,72 @@ export class Audio {
             channelLayout = Math.pow(2, channelCount) - 1;
 
         // Create the capture stream
-        return capture.createCapture(ac, {
+        const cap = await capture.createCapture(ac, {
             input: this.userMedia,
-            matchSampleRate: true,
-            backChannels: 1, // for echo-cancelled data
-            workerCommand: {
-                c: "encoder",
-                outSampleRate: sampleRate,
-                format: config.useFlac ? "flac" : "opus",
-                channelLayout: channelLayout,
-                channelCount: channelCount,
-                channel: this.channel,
-                outputChannelLayout: this.encodingChannelLayout,
-                backChannelTracks: [ecTrack]
+            matchSampleRate: true
+        });
+
+        // Create the encoder
+        const enc = this.userMediaEncoder = new EncoderWorker();
+        await enc.init({
+            reverse: enc.reversePort,
+            baseURL: config.urlDirname.toString(),
+            inSampleRate: cap.ac.sampleRate,
+            outSampleRate: sampleRate,
+            format: config.useFlac ? "flac" : "opus",
+            channelLayout,
+            channelCount,
+            channel: this.channel,
+            outChannelLayout: this.encodingChannelLayout
+        });
+
+        // Prepare for packets
+        let last: number = 0;
+        enc.onpackets = (
+            ts: number, trackNo: number, seq: number,
+            packets: Uint8Array[]
+        ) => {
+            // Figure out the packet start time
+            const now = ts + performance.now() - Date.now(); // time adjusted from Date.now to performance.now
+            let pktTime = Math.round(
+                now * 48 -
+                packets.length * 960
+            );
+
+            // Add them to our own packet buffer
+            for (const p of packets) {
+                this.packets.push({
+                    ts: pktTime,
+                    trackNo,
+                    data: new DataView(p.buffer)
+                });
+                pktTime += 960;
             }
 
-        }).then(capture => {
-            // Accept encoded packets
-            let last = 0;
-            capture.worker.onmessage = (ev) => {
-                const msg = ev.data;
-                if (msg.c !== "packets") return;
+            // Check for sequence issues
+            if (!trackNo) {
+                if (seq !== last)
+                    net.errorHandler("Sequence error! " + seq + " " + last);
+                last = seq + packets.length;
+            }
 
-                // Figure out the packet start time
-                const p = msg.d;
-                const now = msg.ts + performance.now() - Date.now(); // time adjusted from Date.now to performance.now
-                let pktTime = Math.round(
-                    now * 48 -
-                    p.length * 960
-                );
+            this.handlePackets();
+        };
 
-                // Add them to our own packet buffer
-                for (let pi = 0; pi < p.length; pi++) {
-                    this.packets.push({
-                        ts: pktTime,
-                        trackNo: msg.track,
-                        data: new DataView(p[pi].buffer)
-                    });
-                    pktTime += 960;
-                }
+        // Encode our primary data
+        {
+            const mc = new MessageChannel();
+            cap.capture.pipe(mc.port1, true);
+            await enc.encode(mc.port2, 0);
+        }
 
-                // Check for sequence issues
-                if (!msg.track) {
-                    if (msg.s > last)
-                        net.errorHandler("Sequence error! " + msg.s + " " + last);
-                    last = msg.s + p.length;
-                }
+        // Inform others that this is ready
+        util.dispatchEvent("usermediaencoderready" + this.idx, {idx: this.idx});
 
-                this.handlePackets();
-            };
-
-            this.userMediaEncoder = capture;
-
-            // Inform others that this is ready
-            util.dispatchEvent("usermediaencoderready" + this.idx, {idx: this.idx});
-
-            // Terminate when user media stops
-            util.events.addEventListener("usermediastopped" + this.idx, capture.disconnect, {once: true});
-
-        }).catch(net.promiseFail());
+        // Terminate when user media stops
+        util.events.addEventListener(
+            "usermediastopped" + this.idx, cap.capture.close, {once: true}
+        );
 
     }
 

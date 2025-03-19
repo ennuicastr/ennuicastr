@@ -44,91 +44,23 @@ declare let LibAVWebCodecs: typeof wcp;
 let inited = false;
 
 /**
- * Our own custom capture class that can use our filtered input.
- */
-class InProcAudioCapture extends rtennui.AudioCapture {
-    constructor(
-        /**
-         * The raw capture (for sample rate).
-         */
-        public rawCapture: rtennui.AudioCapture,
-
-        /**
-         * The worker creating the actual data.
-         */
-        public worker: Worker
-    ) {
-        super();
-        this._port = null;
-    }
-
-    // Just thru to the raw capture
-    override getSampleRate(): number {
-        return this.rawCapture.getSampleRate();
-    }
-
-    override getLatency(): number {
-        return this.rawCapture.getLatency();
-    }
-
-    // Overridden on to make sure we know if they want normal data
-    override on(ev: string, handler: any) {
-        if (ev !== "data")
-            return super.on(ev, handler);
-
-        // Connect it up
-        if (!this._port) {
-            const mc = new MessageChannel();
-            this.worker.postMessage({c: "out", p: mc.port1, tryShared: false},
-                [mc.port1]);
-            this._port = mc.port2;
-            mc.port2.onmessage = ev => {
-                this.emitEvent("data", ev.data);
-            };
-        }
-
-        return super.on(ev, handler);
-    }
-
-    // Pipe directly
-    override pipe(to: MessagePort, shared?: boolean): void {
-        if (!shared) {
-            super.pipe(to, shared);
-            return;
-        }
-
-        this.worker.postMessage({c: "out", p: to}, [to]);
-    }
-
-    override close(): void {
-        // Nothing (FIXME?)
-    }
-
-    private _port: MessagePort;
-}
-
-/**
  * Our own custom playback class that can perform our output processing.
  */
 class OutProcAudioPlayback extends rtennui.AudioPlayback {
     constructor(public ac: AudioContext) {
         super();
-        const worker = this.worker = new Worker(capture.workerPath);
-        this.port = null;
+        this.firstData = new Promise(res => this._firstDataRes = res);
     }
 
     override play(data: Float32Array[]) {
         if (!this.port) {
-            // Init the worker
+            // Initialize our message channel
             const mc = new MessageChannel();
-            this.port = mc.port1;
-            this.worker.postMessage({
-                c: "outproc",
-                inSampleRate: this.ac.sampleRate,
-                port: mc.port2
-            }, [mc.port2]);
+            this._inPort = mc.port1;
+            this.port = mc.port2;
+            this._firstDataRes();
         }
-        this.port.postMessage(data);
+        this._inPort.postMessage(data);
 
         const now = performance.now();
         const time = data[0].length / this.ac.sampleRate * 1000;
@@ -151,11 +83,8 @@ class OutProcAudioPlayback extends rtennui.AudioPlayback {
     }
 
     override pipeFrom(port: MessagePort): void {
-        this.worker.postMessage({
-            c: "outproc",
-            inSampleRate: this.ac.sampleRate,
-            port
-        }, [port]);
+        this.port = port;
+        this._firstDataRes();
     }
 
     override channels(): number {
@@ -164,29 +93,24 @@ class OutProcAudioPlayback extends rtennui.AudioPlayback {
     }
 
     override close(): void {
-        if (this.worker) {
-            this.worker.terminate();
-            this.worker = null;
-        }
     }
 
+    public firstData: Promise<void>;
+    private _firstDataRes: ()=>void;
     private _endTime = -1;
 
-    /**
-     * The worker this data is being redirected to.
-     */
-    worker: Worker;
+    proc?: outproc.Compressor;
 
     /**
      * The port to communicate with the worker. Initialized on the first
      * message, if needed.
      */
-    port: MessagePort;
+    port?: MessagePort;
 
     /**
-     * The output processor this is being sent to.
+     * The port to send data we receive from play().
      */
-    proc: outproc.Compressor = null;
+    private _inPort?: MessagePort;
 }
 
 export class RTEnnui implements comm.Comms {
@@ -439,8 +363,7 @@ export class RTEnnui implements comm.Comms {
             await this.connection.removeAudioTrack(this.cap);
         }
 
-        const umc = audio.inputs[0].userMediaCapture;
-        this.cap = new InProcAudioCapture(umc.rawCapture, umc.worker);
+        this.cap = audio.inputs[0].userMediaCapture.capture;
         this.connection.addAudioTrack(this.cap /*, {frameSize: 5000}*/);
         /* NOTE: Due to a bug somewhere in RTEnnui or LibAV.js, setting the
          * frame size above doesn't actually work. */
@@ -496,11 +419,14 @@ export class RTEnnui implements comm.Comms {
 
         } else {
             const oppb = <OutProcAudioPlayback> playback;
+            await oppb.firstData;
 
             // Create the compressor node
             const proc =
-                await outproc.createCompressor(id, audio.ac, oppb.worker,
-                    ui.ui.video.users[id].waveformWrapper);
+                await outproc.createCompressor(
+                    id, audio.ac, oppb.port!,
+                    ui.ui.video.users[id].waveformWrapper
+                );
 
             if (proc)
                 oppb.proc = proc;
