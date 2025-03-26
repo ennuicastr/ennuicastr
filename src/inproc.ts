@@ -39,15 +39,24 @@ import * as rtennui from "rtennui";
 
 // En/disable noise reduction
 export let useNR = false;
-export function setUseNR(to: boolean): void { useNR = to; }
+export function setUseNR(to: boolean): void {
+    useNR = to;
+    util.dispatchEvent("inproc.useNR");
+}
 
 // VAD sensitivity (0 to 3, more is less)
 export let vadSensitivity = 0;
-export function setVadSensitivity(to: number): void { vadSensitivity = to; }
+export function setVadSensitivity(to: number): void {
+    vadSensitivity = to;
+    util.dispatchEvent("inproc.vadSensitivity");
+}
 
 // VAD noise gate (-100 to 0, dB)
 export let vadNoiseGate = -100;
-export function setVadNoiseGate(to: number): void { vadNoiseGate = to; }
+export function setVadNoiseGate(to: number): void {
+    vadNoiseGate = to;
+    util.dispatchEvent("inproc.vadNoiseGate");
+}
 
 /**
  * Our own custom capture class that can use a bare MessagePort.
@@ -223,13 +232,6 @@ export async function localProcessing(idx: number): Promise<void> {
         matchSampleRate: true
     });
 
-    // State to send back to the worker
-    let lastUseEC = audio.useEC;
-    let lastUseNR = useNR;
-    let lastSentRecently = audio.sentRecently;
-    let lastVadSensitivity = vadSensitivity;
-    let lastVadNoiseGate = vadNoiseGate;
-
     // Prepare the backchannel (rendered output)
     const backChannel = await rtennui.createAudioCapture(
         audio.ac, audio.ac.ecDestination
@@ -277,39 +279,43 @@ export async function localProcessing(idx: number): Promise<void> {
         }
     };
 
-    // FIXME: This should be done worker-to-worker
-    worker.onmax = v => {
-        // Waveform data
-
+    // Check for all the various mode changes
+    util.events.addEventListener("ui.video.mode", () => {
         // Check studio mode
         const nowStudio = (ui.ui.video.mode === ui.ViewMode.Studio);
         if (studio !== nowStudio) {
             studio = nowStudio;
             studioSwapped();
         }
+    });
+
+    function stateChanged() {
+        worker.setOpts({
+            useEC: audio.useEC,
+            useNR,
+            sentRecently: audio.sentRecently,
+            vadSensitivity, vadNoiseGate
+        });
+    }
+
+    for (const st of [
+        "audio.useEC",
+        "inproc.useNR",
+        "audio.sentRecently",
+        "inproc.vadSensitivity",
+        "inproc.vadNoiseGate"
+    ]) {
+        util.events.addEventListener(st, stateChanged);
+    }
+
+    // FIXME: This should be done worker-to-worker
+    worker.onmax = v => {
+        // Waveform data
 
         // Display
         const vadI = vad.vads[idx];
         wd.push(v, net.transmitting?(vadI.rawVadOn?3:(vadI.vadOn?2:1)):0);
         wd.updateWave(v, audio.sentRecently);
-
-        // This is also an opportunity to update them on changed state
-        if (audio.useEC !== lastUseEC || useNR !== lastUseNR ||
-            audio.sentRecently !== lastSentRecently ||
-            vadSensitivity !== lastVadSensitivity ||
-            vadNoiseGate !== lastVadNoiseGate
-        ) {
-            worker.setOpts({
-                useEC: audio.useEC,
-                useNR, sentRecently: audio.sentRecently,
-                vadSensitivity, vadNoiseGate
-            });
-            lastUseEC = audio.useEC;
-            lastUseNR = useNR;
-            lastSentRecently = audio.sentRecently;
-            lastVadSensitivity = vadSensitivity;
-            lastVadNoiseGate = vadNoiseGate;
-        }
     };
 
     worker.ontranscription = (result, complete) => {

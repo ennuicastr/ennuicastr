@@ -79,7 +79,10 @@ let targetTimeOffset: null|number = null;
 
 // En/disable echo cancellation
 export let useEC = false;
-export function setUseEC(to: boolean): void { useEC = to; }
+export function setUseEC(to: boolean): void {
+    useEC = to;
+    util.dispatchEvent("audio.useEC");
+}
 
 // En/disable recording both EC and non-EC
 export let useDualEC = true;

@@ -1061,6 +1061,7 @@ export function mkAudioUI(): string {
         // And update other components
         uiFE.updateVideoUI(0);
         outproc.setWaveviewing(mode === uiFE.ViewMode.Studio);
+        util.dispatchEvent("ui.video.mode");
     }
 
     let defaultViewMode = 0; // normal
