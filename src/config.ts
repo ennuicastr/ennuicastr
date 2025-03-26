@@ -39,10 +39,6 @@ export const features = {
     "nonDualEC": 0x2000
 };
 
-// Dirname of the URL for finding workers
-export const urlDirname = new URL(window.location.href);
-urlDirname.pathname = urlDirname.pathname.replace(/\/[^\/]*$/, "");
-
 // Configuration parameters come out of the URL search query
 export const url = new URL(<any> window.location);
 const params = new URLSearchParams(url.search);

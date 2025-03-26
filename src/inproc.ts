@@ -292,7 +292,6 @@ export async function localProcessing(idx: number): Promise<void> {
 
     // Create the worker
     const worker = new InputProcessorWorker({
-        baseURL: config.urlDirname.toString(),
         inSampleRate: cap.ac.sampleRate,
         renderSampleRate: audio.ac.sampleRate,
         channel: input.channel,

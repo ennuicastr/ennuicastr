@@ -26,6 +26,12 @@ import type * as LibAVT from "libav.js";
 
 declare let LibAV: LibAVT.LibAVWrapper;
 declare let __filename: string;
+(<any> globalThis).__filename = "";
+
+// Load libraries
+__filename = `../${ifLibav.libavPath}`;
+(<any> globalThis).LibAV = {base: `../${ifLibav.libavDir}`};
+importScripts(__filename);
 
 // How many "max" messages to send just to calm down the data with silence
 const bufferMax = 8;
@@ -38,9 +44,6 @@ class OutputProcessor
     init(opts: ifOutproc.OutProcOpts): void {
         // Load libav in the background
         this._ser = this._ser.catch(console.error).then(async () => {
-            __filename = `${opts.baseURL}/${ifLibav.libavPath}`;
-            importScripts(__filename);
-
             const la = this._la = await LibAV.LibAV({noworker: true});
             this._frame = await la.av_frame_alloc();
 

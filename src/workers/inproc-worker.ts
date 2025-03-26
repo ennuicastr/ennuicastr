@@ -30,18 +30,19 @@ declare let WebRtcVad: any;
 declare let WebRtcAec3: typeof WebRtcAec3T;
 declare let LibSpecBleach: typeof LibSpecBleachT;
 declare let Vosk: any;
+(<any> globalThis).__filename = "";
 
 const webRtcAec3Version = "0.3.0";
-const webRtcAec3Path = `../libs/webrtcaec3-${webRtcAec3Version}.js`;
+const webRtcAec3Path = `webrtcaec3-${webRtcAec3Version}.js`;
 
-const webRtcVadPath = "../libs/webrtcvad.js";
+const webRtcVadPath = "webrtcvad.js";
 
 const libspecbleachVersion = "0.1.7-js2";
-const libspecbleachPath = `../libs/libspecbleach-${libspecbleachVersion}.js`;
+const libspecbleachPath = `libspecbleach-${libspecbleachVersion}.js`;
 
-const voskPath = "../libs/vosk.js?v=3";
+const voskPath = "vosk.js?v=3";
 const voskModelVersion = "en-us-0.15";
-const voskModelPath = `../libs/vosk-model-small-${voskModelVersion}.tar.gz`;
+const voskModelPath = `vosk-model-small-${voskModelVersion}.tar.gz`;
 
 const vadBufSz = 640 /* 20ms at 32000Hz */;
 
@@ -50,6 +51,14 @@ const vadExtension = 2000;
 
 // Similar, for RTC transmission
 const rtcVadExtension = 1000;
+
+// Load libraries
+__filename = webRtcVadPath;
+importScripts(__filename);
+__filename = webRtcAec3Path;
+importScripts(__filename);
+__filename = libspecbleachPath;
+importScripts(__filename);
 
 class InputProcessor
     implements
@@ -60,7 +69,6 @@ class InputProcessor
         this._reverse = new rpcTarget.RPCTarget(opts.reverse);
 
         this._ready = false;
-        this._baseURL = opts.baseURL;
         this._inSampleRate = opts.inSampleRate;
         this._renderSampleRate = opts.renderSampleRate;
         this._vadStep = opts.inSampleRate / 32000;
@@ -76,8 +84,6 @@ class InputProcessor
         // Load all our libraries
         this._ser = this._ser.catch(console.error).then(async () => {
             // Load the VAD
-            __filename = `${opts.baseURL}/${webRtcVadPath}`;
-            importScripts(__filename);
             const vad = this._vad = await WebRtcVad();
 
             // Create our WebRTC vad
@@ -104,24 +110,18 @@ class InputProcessor
             this._vadBuf = new Int16Array(vad.HEAPU8.buffer, this._vadDataPtr, vadBufSz * 2);
 
             // Load echo cancellation
-            __filename = `${opts.baseURL}/${webRtcAec3Path}`;
-            importScripts(__filename);
             this._AEC3 = await WebRtcAec3();
 
             // And load libspecbleach
-            __filename = `${opts.baseURL}/${libspecbleachPath}`;
-            importScripts(__filename);
             this._SpecBleach = await LibSpecBleach.LibSpecBleach();
 
-            // Possibly load Vosk
-            if (opts.useTranscription) {
-                __filename = `${opts.baseURL}/${voskPath}`;
-                importScripts(__filename);
-            }
-
             // If we loaded Vosk, it can finish loading in the background
-            if (opts.useTranscription)
+            if (opts.useTranscription) {
+                // FIXME: This won't actually load like this! (maybe?)
+                __filename = voskPath;
+                importScripts(__filename);
                 this.loadVosk();
+            }
 
             this._ready = true;
         });
@@ -437,7 +437,7 @@ class InputProcessor
     // Load the Vosk model in the background
     async loadVosk() {
         const vosk = this._vosk;
-        const model = await Vosk.createModel(`${this._baseURL}/${voskModelPath}`);
+        const model = await Vosk.createModel(voskModelPath);
 
         vosk.model = model;
         vosk.recognizer = new vosk.model.KaldiRecognizer(this._inSampleRate);
@@ -477,7 +477,6 @@ class InputProcessor
     private _reverse?: rpcTarget.RPCTarget;
 
     private _ready = false;
-    private _baseURL = "";
     private _inSampleRate = 48000;
     private _renderSampleRate = 48000;
     private _vadStep = 0;

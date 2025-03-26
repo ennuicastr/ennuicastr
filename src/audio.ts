@@ -665,7 +665,6 @@ export class Audio {
         const enc = this.userMediaEncoder = new EncoderWorker();
         await enc.init({
             reverse: enc.reversePort,
-            baseURL: config.urlDirname.toString(),
             inSampleRate: cap.ac.sampleRate,
             outSampleRate: sampleRate,
             format: config.useFlac ? "flac" : "opus",

@@ -16,11 +16,6 @@
 
 export interface OutProcOptsBasic {
     /**
-     * Base URL from which to load libraries.
-     */
-    baseURL: string;
-
-    /**
      * Sample rate for audio to receive.
      */
     sampleRate: number;

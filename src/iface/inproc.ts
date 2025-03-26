@@ -16,11 +16,6 @@
 
 export interface InProcOptsBasic {
     /**
-     * Base URL from which to load libraries.
-     */
-    baseURL: string;
-
-    /**
      * Sample rate of the input device.
      */
     inSampleRate: number;

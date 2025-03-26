@@ -153,7 +153,6 @@ export async function createCompressor(
     if (idx in rtcCompression.perUserGain)
         gain *= rtcCompression.perUserGain[idx];
     const worker = new OutProcWorker({
-        baseURL: config.urlDirname.toString(),
         sampleRate: ac.sampleRate,
         max: rtcCompression.waveviewing,
         compress: rtcCompression.compressing,

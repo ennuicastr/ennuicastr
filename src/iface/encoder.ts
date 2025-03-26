@@ -21,11 +21,6 @@ export interface EncoderOpts {
     reverse: MessagePort;
 
     /**
-     * URL from which to load libraries.
-     */
-    baseURL: string;
-
-    /**
      * Sample rate at which data is received.
      */
     inSampleRate: number;

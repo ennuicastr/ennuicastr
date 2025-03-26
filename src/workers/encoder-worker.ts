@@ -25,6 +25,11 @@ import type * as LibAVT from "libav.js";
 declare let LibAV: LibAVT.LibAVWrapper;
 
 declare let __filename: string;
+(<any> globalThis).__filename = "";
+
+__filename = `../${ifLibav.libavPath}`; // To "trick" wasm loading
+(<any> globalThis).LibAV = {base: `../${ifLibav.libavDir}`};
+importScripts(__filename);
 
 class Encoder
     implements
@@ -34,11 +39,6 @@ class Encoder
     init(opts: ifEnc.EncoderOpts): void {
         this.opts = opts;
         this._reverse = new rpcTarget.RPCTarget(opts.reverse);
-
-        if (typeof LibAV === "undefined") {
-            __filename = `${opts.baseURL}/${ifLibav.libavPath}`; // To "trick" wasm loading
-            importScripts(__filename);
-        }
     }
 
     encode(port: MessagePort, trackNo: number): void {
