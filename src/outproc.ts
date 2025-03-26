@@ -25,7 +25,6 @@ import * as capture from "./capture";
 import * as config from "./config";
 import * as ifOutproc from "./iface/outproc";
 import * as net from "./net";
-import * as outprocWorker from "./outproc-worker-js";
 import * as ui from "./ui";
 import * as util from "./util";
 import * as waveform from "./waveform";
@@ -57,7 +56,7 @@ export class OutProcWorker
     constructor(optsBasic: ifOutproc.OutProcOptsBasic & {
         inputPort?: MessagePort
     }) {
-        super(outprocWorker.js);
+        super("libs/ec-outproc-worker.js?v=1");
 
         const opts = <ifOutproc.OutProcOpts> optsBasic;
         if (optsBasic.inputPort) {

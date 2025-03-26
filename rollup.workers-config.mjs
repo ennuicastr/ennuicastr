@@ -21,7 +21,7 @@ function worker(name) {
     return {
         input: `src/workers/${name}-worker.ts`,
         output: {
-            file: `dist/${name}-worker.js`,
+            file: `dist/libs/ec-${name}-worker.js`,
             format: "iife",
             name: `Ennuicastr${name}Worker`
         },

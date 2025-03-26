@@ -9,7 +9,10 @@ OUT=\
     ecloader.js ecloader.min.js \
     ennuicastr.js ennuicastr.min.js \
     protocol.min.js fs/fs.js \
-    awp/ennuicastr-worker.js \
+    libs/ec-encoder-worker.js \
+    libs/ec-inproc-worker.js \
+    libs/ec-outproc-worker.js \
+    libs/ec-waveform-worker.js \
     hotkeys.min.js
 
 ENNUICASTR_JS=src/main.js
@@ -63,10 +66,7 @@ dist/ennuicastr.js: src/*.ts src/iface/*.ts awp/*.ts node_modules/.bin/tsc
 dist/ennuicastr.min.js dist/fs/fs.js dist/fs/fs.min.js dist/awp/ennuicastr-worker.js dist/awp/ennuicastr-worker.min.js: dist/ennuicastr.js
 	true
 
-src/%-js.ts: dist/%.js
-	./tools/js-in-js.js $< > $@
-
-dist/encoder-worker.js dist/inproc-worker.js dist/outproc-worker.js dist/waveform-worker.js: src/workers/*.ts src/iface/*.ts
+dist/libs/ec-encoder-worker.js dist/libs/ec-inproc-worker.js dist/libs/ec-outproc-worker.js dist/libs/ec-waveform-worker.js: src/workers/*.ts src/iface/*.ts
 	./node_modules/.bin/rollup -c rollup.workers-config.mjs
 
 dist/protocol.min.js: protocol.js node_modules/.bin/tsc

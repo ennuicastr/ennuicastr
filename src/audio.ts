@@ -28,7 +28,6 @@ import * as rpcTarget from "@ennuicastr/mprpc/target";
 
 import * as capture from "./capture";
 import * as config from "./config";
-import * as encWorker from "./encoder-worker-js";
 import * as ifEnc from "./iface/encoder";
 import * as log from "./log";
 import * as net from "./net";
@@ -386,7 +385,7 @@ class EncoderWorker
         rpcReceiver.RPCReceiver<ifEnc.EncoderRev>
 {
     constructor() {
-        super(encWorker.js);
+        super("libs/ec-encoder-worker.js?v=1");
 
         const mc = new MessageChannel();
         rpcReceiver.rpcReceiver(this, mc.port2);

@@ -23,7 +23,6 @@
 import * as audio from "./audio";
 import * as config from "./config";
 import * as ifInproc from "./iface/inproc";
-import * as inprocWorker from "./inproc-worker-js";
 import * as log from "./log";
 import * as net from "./net";
 import * as capture from "./capture";
@@ -125,7 +124,7 @@ class InputProcessorWorker
         rpcReceiver.RPCReceiver<ifInproc.InputProcessorRev>
 {
     constructor(optsBasic: ifInproc.InProcOptsBasic & {ecOutput: boolean}) {
-        super(inprocWorker.js);
+        super("libs/ec-inproc-worker.js?v=1");
 
         const opts = <ifInproc.InProcOpts> <any> optsBasic;
 

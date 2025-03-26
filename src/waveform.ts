@@ -24,7 +24,6 @@ import * as rpcReceiver from "@ennuicastr/mprpc/receiver";
 import * as rpcTarget from "@ennuicastr/mprpc/target";
 
 import * as ifWaveform from "./iface/waveform";
-import * as waveformWorkerJs from "./waveform-worker-js";
 
 import * as audio from "./audio";
 import * as config from "./config";
@@ -48,7 +47,8 @@ class WaveformWorker
         rpcReceiver.RPCReceiver<ifWaveform.WaveformWorkerRev>
 {
     constructor() {
-        super(waveformWorkerJs.js);
+        super("libs/ec-waveform-worker.js?v=1");
+
         const mc = new MessageChannel();
         rpcReceiver.rpcReceiver(this, mc.port1);
         this.reverse(mc.port2);
