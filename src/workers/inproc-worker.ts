@@ -76,7 +76,7 @@ class InputProcessor
 
         this._outHandler = new outh.OutHandler(opts.output, true);
         if (opts.ecOutput)
-            this._ecOutHandler = new outh.OutHandler(opts.ecOutput, true);
+            this._ecOutHandler = new outh.OutHandler(opts.ecOutput);
         this._inHandler = new inh.InHandler(opts.input, this.ondata.bind(this));
         this._renderHandler = new inh.InHandler(
             opts.renderInput, this.onRenderData.bind(this));

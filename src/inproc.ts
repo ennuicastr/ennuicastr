@@ -133,8 +133,8 @@ class InputProcessorWorker
         opts.input = inputMC.port2;
 
         const renderInputMC = new MessageChannel();
-        this.renderInputPort = inputMC.port1;
-        opts.renderInput = inputMC.port2;
+        this.renderInputPort = renderInputMC.port1;
+        opts.renderInput = renderInputMC.port2;
 
         const outputMC = new MessageChannel();
         this.outputPort = outputMC.port1;
@@ -250,24 +250,6 @@ export async function localProcessing(idx: number): Promise<void> {
         input: input.userMedia,
         matchSampleRate: true
     });
-    /* REMOVE
-    const cap = await capture.createCapture(audio.ac, {
-        input: input.userMedia,
-        backChannels: 1,
-        workerCommand: {
-            c: "filter",
-            renderSampleRate: audio.ac.sampleRate,
-            useEC: audio.useEC,
-            useNR: useNR,
-            sentRecently: sentRecently,
-            vadSensitivity: vadSensitivity,
-            vadNoiseGate: vadNoiseGate,
-            useTranscription: config.useTranscription,
-            channel: input.channel
-        }
-
-    });
-    */
 
     // State to send back to the worker
     let lastUseEC = audio.useEC;
@@ -407,6 +389,25 @@ export async function localProcessing(idx: number): Promise<void> {
     };
     util.dispatchEvent("usermediartcready", {idx});
     util.dispatchEvent("usermediartcready" + idx, {idx});
+
+    // Connect echo-cancelled data for encoding
+    (async () => {
+        if (!audio.useDualEC)
+            return;
+
+        if (!audio.inputs[idx].userMediaEncoder) {
+            await new Promise(res =>
+                util.events.addEventListener(
+                    "usermediaencoderready" + idx,
+                    res, {once: true}
+                )
+            );
+        }
+
+        audio.inputs[idx].userMediaEncoder.encode(
+            worker.ecOutputPort!, audio.ecTrack
+        ).catch(net.catastrophicErrorFactory());
+    })();
 
     // Restart if we change devices
     // FIXME: This should probably be done elsewhere

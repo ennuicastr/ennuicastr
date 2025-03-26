@@ -81,7 +81,7 @@ export function setUseEC(to: boolean): void { useEC = to; }
 // En/disable recording both EC and non-EC
 export let useDualEC = true;
 export function setDualEC(to: boolean): void { useDualEC = to; }
-const ecTrack = 0x80000000;
+export const ecTrack = 0x80000000;
 
 // And this is the amount to adjust it per frame (1%)
 const timeOffsetAdjPerFrame = 0.0002;
