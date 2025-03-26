@@ -38,6 +38,8 @@ import { dce } from "./util";
 import * as vad from "./vad";
 import * as workers from "./workers";
 
+import { Ennuiboard } from "ennuiboard";
+
 // We add our own output to the AudioContext
 export type ECAudioContext = AudioContext & {
     /**
@@ -461,7 +463,12 @@ export class Audio {
     constructor(
         /** Index of this audio input */
         public idx: number
-    ) {}
+    ) {
+        this.lastSentTime =
+            this.lastSentTimeNoEC =
+            this.lastSentTimeYesEC =
+            performance.now() + 2500;
+    }
 
     // Get audio permission. First audio step of the process.
     getAudioPerms(mkAudioUI: ()=>string): Promise<unknown> {
@@ -566,6 +573,13 @@ export class Audio {
             } else {
                 this.encodingChannelLayout = 4 /* center */;
             }
+
+            /* Set lastSentTime to slightly in the future so we don't get
+             * messages about failing to send while everything starts up */
+            this.lastSentTime =
+                this.lastSentTimeNoEC =
+                this.lastSentTimeYesEC =
+                performance.now() + 2500;
 
             // And move on to the next step
             log.popStatus("getmic");
@@ -1044,3 +1058,26 @@ util.netEvent("data", "admin", function(ev) {
         }
     }
 });
+
+
+// Set if we've sent data recently
+export let sentRecently = false;
+
+setInterval(function() {
+    // Display an issue if we haven't sent recently
+    const now = performance.now();
+    let lastSentRecently = sentRecently;
+    sentRecently = true;
+    for (const input of inputs)
+        sentRecently = sentRecently && (input.lastSentTime > now-1500);
+    if (sentRecently)
+        log.popStatus("notencoding");
+    else
+        log.pushStatus("notencoding", "Audio encoding is not functioning!");
+
+    if (lastSentRecently !== sentRecently)
+        util.dispatchEvent("audio.sentRecently");
+
+    if (Ennuiboard.enabled.gamepad)
+        Ennuiboard.subsystems.gamepad.poll();
+}, 100);

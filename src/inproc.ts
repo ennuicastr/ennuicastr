@@ -33,16 +33,9 @@ import * as vad from "./vad";
 import * as waveform from "./waveform";
 import * as workers from "./workers";
 
-import { Ennuiboard } from "ennuiboard";
 import * as rpcReceiver from "@ennuicastr/mprpc/receiver";
 import * as rpcTarget from "@ennuicastr/mprpc/target";
 import * as rtennui from "rtennui";
-
-// Set if we've sent data recently
-let sentRecently = false;
-
-// A timeout for periodic checks that are done regardless of processing backend
-let periodic: null|number = null;
 
 // En/disable noise reduction
 export let useNR = false;
@@ -205,29 +198,6 @@ export async function localProcessing(idx: number): Promise<void> {
         });
     }
 
-    /* Set sentRecently and lastSentTime to slightly in the future so we
-     * don't get messages about failing to send while everything starts up
-     * */
-    sentRecently = true;
-    const input = audio.inputs[idx];
-    input.lastSentTime = performance.now() + 2500;
-
-    // Some things done periodically other than audio per se
-    if (!periodic) {
-        periodic = setInterval(function() {
-            // Display an issue if we haven't sent recently
-            const now = performance.now();
-            sentRecently = (input.lastSentTime > now-1500);
-            if (sentRecently)
-                log.popStatus("notencoding");
-            else
-                log.pushStatus("notencoding", "Audio encoding is not functioning!");
-
-            if (Ennuiboard.enabled.gamepad)
-                Ennuiboard.subsystems.gamepad.poll();
-        }, 100);
-    }
-
     // Create a display for it, either in the main waveform wrapper or the studio location
     let studio = (ui.ui.video.mode === ui.ViewMode.Studio);
     let wd: waveform.Waveform;
@@ -247,6 +217,7 @@ export async function localProcessing(idx: number): Promise<void> {
     studioSwapped();
 
     // Start the capture
+    const input = audio.inputs[idx];
     const cap = await capture.createCapture(audio.ac, {
         input: input.userMedia,
         matchSampleRate: true
@@ -255,7 +226,7 @@ export async function localProcessing(idx: number): Promise<void> {
     // State to send back to the worker
     let lastUseEC = audio.useEC;
     let lastUseNR = useNR;
-    let lastSentRecently = sentRecently;
+    let lastSentRecently = audio.sentRecently;
     let lastVadSensitivity = vadSensitivity;
     let lastVadNoiseGate = vadNoiseGate;
 
@@ -281,7 +252,7 @@ export async function localProcessing(idx: number): Promise<void> {
         useEC: audio.useEC,
         useNR,
         useTranscription: config.useTranscription,
-        sentRecently,
+        sentRecently: audio.sentRecently,
         vadSensitivity,
         vadNoiseGate,
         ecOutput: audio.useDualEC
@@ -320,22 +291,22 @@ export async function localProcessing(idx: number): Promise<void> {
         // Display
         const vadI = vad.vads[idx];
         wd.push(v, net.transmitting?(vadI.rawVadOn?3:(vadI.vadOn?2:1)):0);
-        wd.updateWave(v, sentRecently);
+        wd.updateWave(v, audio.sentRecently);
 
         // This is also an opportunity to update them on changed state
         if (audio.useEC !== lastUseEC || useNR !== lastUseNR ||
-            sentRecently !== lastSentRecently ||
+            audio.sentRecently !== lastSentRecently ||
             vadSensitivity !== lastVadSensitivity ||
             vadNoiseGate !== lastVadNoiseGate
         ) {
             worker.setOpts({
                 useEC: audio.useEC,
-                useNR, sentRecently,
+                useNR, sentRecently: audio.sentRecently,
                 vadSensitivity, vadNoiseGate
             });
             lastUseEC = audio.useEC;
             lastUseNR = useNR;
-            lastSentRecently = sentRecently;
+            lastSentRecently = audio.sentRecently;
             lastVadSensitivity = vadSensitivity;
             lastVadNoiseGate = vadNoiseGate;
         }
