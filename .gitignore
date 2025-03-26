@@ -1,8 +1,10 @@
 api/*.json
 awp/*.js
 bx/
+config/*.json
 dist/
 inst
 libav/libav-*
+libs/vosk-model-*
 node_modules/
 src/*.js
