@@ -36,6 +36,7 @@ import * as ui from "./ui";
 import * as util from "./util";
 import { dce } from "./util";
 import * as vad from "./vad";
+import * as workers from "./workers";
 
 // We add our own output to the AudioContext
 export type ECAudioContext = AudioContext & {
@@ -385,7 +386,7 @@ class EncoderWorker
         rpcReceiver.RPCReceiver<ifEnc.EncoderRev>
 {
     constructor() {
-        super("libs/ec-encoder-worker.js?v=1");
+        super(workers.encoderWorker);
 
         const mc = new MessageChannel();
         rpcReceiver.rpcReceiver(this, mc.port2);

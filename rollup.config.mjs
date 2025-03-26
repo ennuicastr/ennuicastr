@@ -5,27 +5,15 @@ import json from "@rollup/plugin-json";
 import terser from "@rollup/plugin-terser";
 
 const plugins = [
+    typescript({
+        exclude: ["src/workers/*"]
+    }),
     nodeResolve({
         browser: true
     }),
     commonjs(),
     json()
 ];
-
-const pluginsTS = [
-    typescript({
-        exclude: ["awp/*", "src/workers/*"]
-    })
-].concat(plugins);
-
-const pluginsTSWorker = [
-    typescript({
-        exclude: ["src/*", "src/workers/*"],
-        compilerOptions: {
-            lib: ["es2017", "webworker"]
-        }
-    })
-].concat(plugins);
 
 const pluginTerser = terser({
     format: {
@@ -50,7 +38,7 @@ export default [
             }
         ],
         context: "window",
-        plugins: pluginsTS
+        plugins: plugins
     },
     {
         input: "src/file-storage-main.ts",
@@ -68,23 +56,6 @@ export default [
             }
         ],
         context: "window",
-        plugins: pluginsTS
-    },
-    {
-        input: "awp/ennuicastr-worker.ts",
-        output: [
-            {
-                file: "dist/awp/ennuicastr-worker.js",
-                format: "iife",
-                name: "EW"
-            },
-            {
-                file: "dist/awp/ennuicastr-worker.min.js",
-                format: "iife",
-                name: "EW",
-                plugins: [pluginTerser]
-            }
-        ],
-        plugins: pluginsTSWorker
+        plugins: plugins
     }
 ];

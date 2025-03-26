@@ -30,6 +30,7 @@ import * as config from "./config";
 import * as net from "./net";
 import * as ui from "./ui";
 import * as util from "./util";
+import * as workers from "./workers";
 
 // All current waveforms
 const allWaveforms: Record<number, Waveform> = {};
@@ -47,7 +48,7 @@ class WaveformWorker
         rpcReceiver.RPCReceiver<ifWaveform.WaveformWorkerRev>
 {
     constructor() {
-        super("libs/ec-waveform-worker.js?v=1");
+        super(workers.waveformWorker);
 
         const mc = new MessageChannel();
         rpcReceiver.rpcReceiver(this, mc.port1);

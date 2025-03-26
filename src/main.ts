@@ -32,6 +32,7 @@ import { prot } from "./protocol";
 import * as ui from "./ui";
 import * as uiImpl from "./ui-impl";
 import * as util from "./util";
+import * as workers from "./workers";
 
 import * as downloadStream from "@ennuicastr/dl-stream";
 import { Ennuiboard } from "ennuiboard";
@@ -48,6 +49,16 @@ async function main() {
     // Then libraries
     Ennuiboard.enable("gamepad", {auto: true, manualPoll: true});
     await avloader.loadLibAV();
+    await util.loadLibrary({
+        file: workers.allWorkers[0],
+        name: "Data processing libraries"
+    }, {
+        extras: workers.allWorkers.map(x => ({
+            file: x,
+            name: "Data processing libraries"
+        })),
+        noLoad: true
+    });
 
     try {
         // Build the UI

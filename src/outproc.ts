@@ -28,6 +28,7 @@ import * as net from "./net";
 import * as ui from "./ui";
 import * as util from "./util";
 import * as waveform from "./waveform";
+import * as workers from "./workers";
 
 import * as rpcReceiver from "@ennuicastr/mprpc/receiver";
 import * as rpcTarget from "@ennuicastr/mprpc/target";
@@ -56,7 +57,7 @@ export class OutProcWorker
     constructor(optsBasic: ifOutproc.OutProcOptsBasic & {
         inputPort?: MessagePort
     }) {
-        super("libs/ec-outproc-worker.js?v=1");
+        super(workers.outprocWorker);
 
         const opts = <ifOutproc.OutProcOpts> optsBasic;
         if (optsBasic.inputPort) {

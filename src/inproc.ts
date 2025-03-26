@@ -31,6 +31,7 @@ import * as ui from "./ui";
 import * as util from "./util";
 import * as vad from "./vad";
 import * as waveform from "./waveform";
+import * as workers from "./workers";
 
 import { Ennuiboard } from "ennuiboard";
 import * as rpcReceiver from "@ennuicastr/mprpc/receiver";
@@ -124,7 +125,7 @@ class InputProcessorWorker
         rpcReceiver.RPCReceiver<ifInproc.InputProcessorRev>
 {
     constructor(optsBasic: ifInproc.InProcOptsBasic & {ecOutput: boolean}) {
-        super("libs/ec-inproc-worker.js?v=1");
+        super(workers.inprocWorker);
 
         const opts = <ifInproc.InProcOpts> <any> optsBasic;
 
