@@ -15,8 +15,6 @@ OUT=\
     libs/ec-waveform-worker.js \
     hotkeys.min.js
 
-ENNUICASTR_JS=src/main.js
-
 LIBS=\
     ecdssw.min.js \
     libs/jquery.min.js \
@@ -60,10 +58,10 @@ dist/ecloader.js: src/loader.ts node_modules/.bin/tsc
 dist/ecloader.min.js: dist/ecloader.js node_modules/.bin/tsc
 	./node_modules/.bin/terser < $< > $@
 
-dist/ennuicastr.js: src/*.ts src/iface/*.ts awp/*.ts node_modules/.bin/tsc
+dist/ennuicastr.js: src/*.ts src/iface/*.ts node_modules/.bin/tsc
 	./node_modules/.bin/rollup -c
 
-dist/ennuicastr.min.js dist/fs/fs.js dist/fs/fs.min.js dist/awp/ennuicastr-worker.js dist/awp/ennuicastr-worker.min.js: dist/ennuicastr.js
+dist/ennuicastr.min.js dist/fs/fs.js dist/fs/fs.min.js: dist/ennuicastr.js
 	true
 
 dist/libs/ec-encoder-worker.js dist/libs/ec-inproc-worker.js dist/libs/ec-outproc-worker.js dist/libs/ec-waveform-worker.js: src/workers/*.ts src/iface/*.ts
@@ -145,7 +143,7 @@ dist/fs/oauth2-login.html: dist/oauth2-login.html
 	cp $< $@
 
 install:
-	mkdir -p $(PREFIX)/images $(PREFIX)/awp $(PREFIX)/libav $(PREFIX)/fs \
+	mkdir -p $(PREFIX)/images $(PREFIX)/libav $(PREFIX)/fs \
 		$(PREFIX)/libs
 	for i in $(OUT) $(LIBS); do \
 		install -C -m 0622 dist/$$i $(PREFIX)/$$i; \
