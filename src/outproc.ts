@@ -163,10 +163,11 @@ export async function createCompressor(
 
     // Set up the waveview
     const wf =
-        new waveform.Waveform("" + idx, ac.sampleRate / 1024, wrapper, null);
+        new waveform.Waveform(
+            "" + idx, true, ac.sampleRate / 1024, wrapper, null
+        );
     worker.onmax = v => {
         wf.push(v, (v < 0.0001) ? 1 : 3);
-        wf.updateWave(v, true);
     };
 
     // Create the player

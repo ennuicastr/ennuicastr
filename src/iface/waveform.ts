@@ -27,6 +27,7 @@ export interface WaveformWorker {
     newWaveform(
         id: number,
         lbl: string,
+        sentRecently: boolean,
         sampleRate: number,
         width: number,
         height: number,
@@ -38,11 +39,14 @@ export interface WaveformWorker {
 
     reverse(mp: MessagePort): void;
 
+    /**
+     * Push a new maximum amplitude to the waveform display.
+     */
     push(id: number, val: number, vad: number): void;
     updateWaveRetroactive(id: number, vadExtension: number): void;
-    updateWave(id: number, value: number, sentRecently: boolean): void;
 
     setCanvasSize(id: number, width: number, height: number): void;
+    setSentRecently(id: number, to: boolean): void;
 
     setWaveVADColors(to: string[]): void;
     setUIColors(to: Record<string, string>): void;

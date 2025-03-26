@@ -217,13 +217,23 @@ export async function localProcessing(idx: number): Promise<void> {
                 studio = false;
                 studioSwapped();
             } else {
-                wd = new waveform.Waveform("self", audio.ac.sampleRate / 1024, user.waveformWrapper, null);
+                wd = new waveform.Waveform(
+                    "self", audio.sentRecently, audio.ac.sampleRate / 1024,
+                    user.waveformWrapper, null
+                );
             }
         } else {
-            wd = new waveform.Waveform("self", audio.ac.sampleRate / 1024, ui.ui.wave.wrapper, ui.ui.wave.watcher);
+            wd = new waveform.Waveform(
+                "self", audio.sentRecently, audio.ac.sampleRate / 1024,
+                ui.ui.wave.wrapper, ui.ui.wave.watcher
+            );
         }
     }
     studioSwapped();
+
+    util.events.addEventListener("audio.sentRecently", () => {
+        wd.setSentRecently(audio.sentRecently);
+    });
 
     // Start the capture
     const input = audio.inputs[idx];
@@ -315,7 +325,6 @@ export async function localProcessing(idx: number): Promise<void> {
         // Display
         const vadI = vad.vads[idx];
         wd.push(v, net.transmitting?(vadI.rawVadOn?3:(vadI.vadOn?2:1)):0);
-        wd.updateWave(v, audio.sentRecently);
     };
 
     worker.ontranscription = (result, complete) => {

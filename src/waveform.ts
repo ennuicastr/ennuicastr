@@ -80,22 +80,24 @@ class WaveformWorker
     }
 
     newWaveform(
-        id: number, lbl: string, sampleRate: number, width: number,
-        height: number, canvas: OffscreenCanvas, lblCanvas: OffscreenCanvas
+        id: number, lbl: string, sentRecently: boolean, sampleRate: number,
+        width: number, height: number, canvas: OffscreenCanvas,
+        lblCanvas: OffscreenCanvas
     ): Promise<void> {
         return this.rpc("newWaveform", [
-            id, lbl, sampleRate, width, height, canvas, lblCanvas
+            id, lbl, sentRecently, sampleRate, width, height, canvas, lblCanvas
         ], [canvas, lblCanvas]);
     }
 
     registerNewWaveform(
         waveform: Waveform, canvas: HTMLCanvasElement,
-        id: number, lbl: string, sampleRate: number, width: number,
-        height: number, osCanvas: OffscreenCanvas, lblCanvas: OffscreenCanvas
+        id: number, lbl: string, sentRecently: boolean, sampleRate: number,
+        width: number, height: number, osCanvas: OffscreenCanvas,
+        lblCanvas: OffscreenCanvas
     ): Promise<void> {
         allWaveforms[id] = waveform;
         const ret = this.newWaveform(
-            id, lbl, sampleRate, width, height, osCanvas, lblCanvas
+            id, lbl, sentRecently, sampleRate, width, height, osCanvas, lblCanvas
         );
         this._resizeObserver.observe(canvas);
         return ret;
@@ -123,12 +125,12 @@ class WaveformWorker
         return this.rpc("updateWaveRetroactive", [id, vadExtension]);
     }
 
-    updateWave(id: number, value: number, sentRecently: boolean): Promise<void> {
-        return this.rpc("updateWave", [id, value, sentRecently]);
-    }
-
     setCanvasSize(id: number, width: number, height: number): Promise<void> {
         return this.rpc("setCanvasSize", [id, width, height]);
+    }
+
+    setSentRecently(id: number, to: boolean): Promise<void> {
+        return this.rpc("setSentRecently", [id, to]);
     }
 
     setWaveVADColors(to: string[]): Promise<void> {
@@ -188,8 +190,8 @@ export class Waveform {
 
     // Build a waveform display
     constructor(
-        lbl: string, sampleRate: number, wrapper: HTMLElement,
-        watcher: HTMLImageElement
+        lbl: string, sentRecently: boolean, sampleRate: number,
+        wrapper: HTMLElement, watcher: HTMLImageElement
     ) {
         this.lbl = lbl;
         this.id = waveformId++;
@@ -262,7 +264,7 @@ export class Waveform {
         // Pass it to the worker
         getWaveformWorker().registerNewWaveform(
             this, canvas,
-            this.id, this.lbl, sampleRate,
+            this.id, this.lbl, sentRecently, sampleRate,
             wrapper.offsetWidth, wrapper.offsetHeight,
             canvasOffscreen, lblCanvasOffscreen
         ).catch(net.catastrophicErrorFactory());
@@ -282,9 +284,9 @@ export class Waveform {
             .catch(net.catastrophicErrorFactory());
     }
 
-    // Queue the wave to be displayed
-    updateWave(value: number, sentRecently: boolean): void {
-        getWaveformWorker().updateWave(this.id, value, sentRecently)
+    // Set whether we've sent recently for display
+    setSentRecently(to: boolean): void {
+        getWaveformWorker().setSentRecently(this.id, to)
             .catch(net.catastrophicErrorFactory());
     }
 }

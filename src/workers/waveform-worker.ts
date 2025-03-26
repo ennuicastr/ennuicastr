@@ -88,9 +88,6 @@ class Waveform {
     resetTime: number;
     static resetTimeMax = 1024;
 
-    // Have we sent recently?
-    sentRecently: boolean;
-
     // What was the display height the last time around?
     lastDisplayHeight: number;
 
@@ -107,6 +104,7 @@ class Waveform {
     constructor(
         public id: number,
         public lbl: string,
+        public sentRecently: boolean,
         public sampleRate: number,
         public width: number,
         public height: number,
@@ -223,6 +221,12 @@ class Waveform {
         const rmsDb = Math.round(20 * Math.log(Math.pow(this.rootSum / (this.rmsData.length - this.rmsPlaceholders), 2)) / log10);
         const stats = "30 second peak " + peakDb + " decibels, RMS " + rmsDb + " decibels";
         workerHandler.waveformStats(this.id, stats);
+
+        // Queue for display
+        if (!toDisplaySet[this.id]) {
+            toDisplay.push(this);
+            toDisplaySet[this.id] = true;
+        }
     }
 
     // Update the wave display when we retroactively promote VAD data
@@ -234,15 +238,6 @@ class Waveform {
             this.staleData = s;
         for (; i < this.waveVADs.length; i++)
             this.waveVADs[i] = (this.waveVADs[i] === 1) ? 2 : this.waveVADs[i];
-    }
-
-    // Queue the wave to be displayed
-    updateWave(value: number, sentRecently: boolean): void {
-        this.sentRecently = sentRecently;
-        if (toDisplaySet[this.id])
-            return;
-        toDisplay.push(this);
-        toDisplaySet[this.id] = true;
     }
 
     // Display this wave
@@ -483,6 +478,10 @@ class Waveform {
         this.width = width;
         this.height = height;
     }
+
+    setSentRecently(sentRecently: boolean) {
+        this.sentRecently = sentRecently;
+    }
 }
 
 // Our message-receiving “main” class
@@ -492,6 +491,7 @@ class WaveformWorker
     newWaveform(
         id: number,
         lbl: string,
+        sentRecently: boolean,
         sampleRate: number,
         width: number,
         height: number,
@@ -499,7 +499,7 @@ class WaveformWorker
         lblCanvas: OffscreenCanvas
     ) {
         allWaveforms[id] = new Waveform(
-            id, lbl, sampleRate, width, height, canvas, lblCanvas
+            id, lbl, sentRecently, sampleRate, width, height, canvas, lblCanvas
         );
     }
 
@@ -525,6 +525,10 @@ class WaveformWorker
 
     setCanvasSize(id: number, width: number, height: number): void {
         allWaveforms[id].setCanvasSize(width, height);
+    }
+
+    setSentRecently(id: number, to: boolean): void {
+        allWaveforms[id].setSentRecently(to);
     }
 
     setWaveVADColors(to: string[]): void {
