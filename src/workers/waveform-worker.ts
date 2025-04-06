@@ -484,6 +484,19 @@ class Waveform {
     }
 }
 
+// A class just for receiving particular waveform messages
+class WaveformReceiver
+    implements rpcReceiver.RPCReceiver<ifWaveform.WaveformReceiver>
+{
+    constructor(private _id: number) {}
+
+    push(val: number, vad: number): void {
+        const wf = allWaveforms[this._id];
+        if (!wf) return;
+        wf.push(val, vad);
+    }
+}
+
 // Our message-receiving “main” class
 class WaveformWorker 
     implements ifWaveform.WaveformWorker, rpcTarget.Async<ifWaveform.WaveformWorkerRev>
@@ -519,8 +532,10 @@ class WaveformWorker
         allWaveforms[id].updateWaveRetroactive(vadExtension);
     }
 
-    updateWave(id: number, value: number, sentRecently: boolean): void {
-        allWaveforms[id].updateWave(value, sentRecently);
+    setWaveformPort(id: number, port: MessagePort): void {
+        const wr = new WaveformReceiver(id);
+        rpcReceiver.rpcReceiver(wr, port);
+        port.start();
     }
 
     setCanvasSize(id: number, width: number, height: number): void {

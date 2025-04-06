@@ -90,7 +90,7 @@ class WaveformWorker
     }
 
     registerNewWaveform(
-        waveform: Waveform, canvas: HTMLCanvasElement,
+        waveform: Waveform, wrapper: HTMLElement, canvas: HTMLCanvasElement,
         id: number, lbl: string, sentRecently: boolean, sampleRate: number,
         width: number, height: number, osCanvas: OffscreenCanvas,
         lblCanvas: OffscreenCanvas
@@ -99,7 +99,7 @@ class WaveformWorker
         const ret = this.newWaveform(
             id, lbl, sentRecently, sampleRate, width, height, osCanvas, lblCanvas
         );
-        this._resizeObserver.observe(canvas);
+        this._resizeObserver.observe(wrapper);
         return ret;
     }
 
@@ -123,6 +123,10 @@ class WaveformWorker
 
     updateWaveRetroactive(id: number, vadExtension: number): Promise<void> {
         return this.rpc("updateWaveRetroactive", [id, vadExtension]);
+    }
+
+    setWaveformPort(id: number, port: MessagePort): Promise<void> {
+        return this.rpc("setWaveformPort", [id, port], [port]);
     }
 
     setCanvasSize(id: number, width: number, height: number): Promise<void> {
@@ -263,7 +267,7 @@ export class Waveform {
 
         // Pass it to the worker
         getWaveformWorker().registerNewWaveform(
-            this, canvas,
+            this, wrapper, canvas,
             this.id, this.lbl, sentRecently, sampleRate,
             wrapper.offsetWidth, wrapper.offsetHeight,
             canvasOffscreen, lblCanvasOffscreen
@@ -281,6 +285,11 @@ export class Waveform {
     // Update the wave display when we retroactively promote VAD data
     updateWaveRetroactive(vadExtension: number): void {
         getWaveformWorker().updateWaveRetroactive(this.id, vadExtension)
+            .catch(net.catastrophicErrorFactory());
+    }
+
+    setWaveformPort(port: MessagePort): void {
+        getWaveformWorker().setWaveformPort(this.id, port)
             .catch(net.catastrophicErrorFactory());
     }
 

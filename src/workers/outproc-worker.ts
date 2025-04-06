@@ -17,6 +17,7 @@
 import * as inh from "./in-handler";
 import * as ifLibav from "../iface/libav";
 import * as ifOutproc from "../iface/outproc";
+import * as ifWaveform from "../iface/waveform";
 import * as outh from "./out-handler";
 
 import * as rpcReceiver from "@ennuicastr/mprpc/receiver-worker";
@@ -74,16 +75,25 @@ class OutputProcessor
 
         // Prepare to send the max even if we don't have data
         setInterval(() => {
+            if (!this._doMax) return;
+
+            const sendZero = () => {
+                if (this._waveformRecv)
+                    this._waveformRecv.push(0, 1);
+                else
+                    this.max(0);
+            }
+
             if (this._sentMax >= 0) {
                 this._sentMax--;
                 return;
             } else if (this._sentMax === 0) {
                 // Now send the maxes, but really, send the whole buffer we missed
                 for (let i = 1; i < bufferMax; i++)
-                    this.max(0);
+                    sendZero();
                 this._sentMax--;
             }
-            this.max(0);
+            sendZero();
         }, 1024000 / opts.sampleRate);
     }
 
@@ -102,7 +112,14 @@ class OutputProcessor
                     if (v > max) max = v;
                     if (++this._maxCtr >= 1024) {
                         // Send a max count
-                        this.max(max);
+                        if (this._waveformRecv) {
+                            this._waveformRecv.push(
+                                max,
+                                (max < 0.0001) ? 1 : 3
+                            );
+                        } else {
+                            this.max(max);
+                        }
                         this._sentMax = bufferMax;
                         max = this._max = this._maxCtr = 0;
                     } else {
@@ -156,6 +173,10 @@ class OutputProcessor
         });
     }
 
+    setWaveformPort(port: MessagePort): void {
+        this._waveformRecv = new WaveformReceiver(port);
+    }
+
     setMax(to: boolean): void {
         this._doMax = to;
     }
@@ -192,6 +213,21 @@ class OutputProcessor
     private _reverse?: rpcTarget.RPCTarget;
     private _inHandler?: inh.InHandler;
     private _outHandler?: outh.OutHandler;
+
+    private _waveformRecv?: WaveformReceiver;
+}
+
+class WaveformReceiver
+    extends rpcTarget.RPCTarget
+    implements rpcTarget.Async<ifWaveform.WaveformReceiver>
+{
+    constructor(port: MessagePort) {
+        super(port);
+    }
+
+    async push(val: number, vad: number): Promise<void> {
+        this.rpcv("push", [val, vad]);
+    }
 }
 
 rpcReceiver.rpcWorkerMain(new OutputProcessor());

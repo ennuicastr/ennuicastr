@@ -100,6 +100,12 @@ export interface InputProcessor {
     init(opts: InProcOpts): void;
 
     /**
+     * Set a message port on which waveform data will be sent (maximums and
+     * VAD).
+     */
+    setWaveformPort(port: MessagePort): void;
+
+    /**
      * Set new input processing options.
      */
     setOpts(opts: Partial<InProcOptsBasic>): void;

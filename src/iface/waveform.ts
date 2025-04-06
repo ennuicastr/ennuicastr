@@ -45,12 +45,21 @@ export interface WaveformWorker {
     push(id: number, val: number, vad: number): void;
     updateWaveRetroactive(id: number, vadExtension: number): void;
 
+    /**
+     * Give a port the ability to use WaveformReceiver on this waveform.
+     */
+    setWaveformPort(id: number, port: MessagePort): void;
+
     setCanvasSize(id: number, width: number, height: number): void;
     setSentRecently(id: number, to: boolean): void;
 
     setWaveVADColors(to: string[]): void;
     setUIColors(to: Record<string, string>): void;
     setGood(to: boolean): void;
+}
+
+export interface WaveformReceiver {
+    push(val: number, vad: number): void;
 }
 
 export interface WaveformWorkerRev {

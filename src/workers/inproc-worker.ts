@@ -16,6 +16,7 @@
 
 import * as ifInproc from "../iface/inproc";
 import * as ifLibav from "../iface/libav";
+import * as ifWaveform from "../iface/waveform";
 import * as inh from "./in-handler";
 import * as outh from "./out-handler";
 
@@ -145,6 +146,10 @@ class InputProcessor
             this._vadNoiseGate = opts.vadNoiseGate;
             this._vadNoiseGateLvl = Math.pow(10, opts.vadNoiseGate / 20);
         }
+    }
+
+    setWaveformPort(port: MessagePort): void {
+        this._waveformRecv = new WaveformReceiver(port);
     }
 
     ondata(ts: number, data: Float32Array[]): void {
@@ -379,7 +384,16 @@ class InputProcessor
                 if (v > this._max) this._max = v;
                 if (++this._maxCtr >= 1024) {
                     // Send a max count
-                    this.max(this._max);
+                    if (this._waveformRecv) {
+                        this._waveformRecv.push(
+                            this._max,
+                            this._rtcVadOn
+                                ? 3
+                                : this._vadOn ? 2 : 1
+                        );
+                    } else {
+                        this.max(this._max);
+                    }
                     this._max = this._maxCtr = 0;
                 }
             }
@@ -507,6 +521,8 @@ class InputProcessor
     private _max = 0;
     private _maxCtr = 0;
 
+    private _waveformRecv?: WaveformReceiver;
+
     // Libraries
     private _vad: any = null;
     private _vadHandleLo = 0;
@@ -537,6 +553,19 @@ class InputProcessor
     private _renderHandler?: inh.InHandler;
     private _outHandler?: outh.OutHandler;
     private _ecOutHandler?: outh.OutHandler;
+}
+
+class WaveformReceiver
+    extends rpcTarget.RPCTarget
+    implements rpcTarget.Async<ifWaveform.WaveformReceiver>
+{
+    constructor(port: MessagePort) {
+        super(port);
+    }
+
+    async push(val: number, vad: number): Promise<void> {
+        this.rpcv("push", [val, vad]);
+    }
 }
 
 rpcReceiver.rpcWorkerMain(new InputProcessor());

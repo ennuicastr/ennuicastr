@@ -85,6 +85,10 @@ export class OutProcWorker
         );
     }
 
+    setWaveformPort(port: MessagePort): Promise<void> {
+        return this.rpc("setWaveformPort", [port], [port]);
+    }
+
     setMax(to: boolean): Promise<void> {
         return this.rpc("setMax", [to]);
     }
@@ -166,6 +170,11 @@ export async function createCompressor(
         new waveform.Waveform(
             "" + idx, true, ac.sampleRate / 1024, wrapper, null
         );
+    {
+        const mc = new MessageChannel();
+        wf.setWaveformPort(mc.port2);
+        worker.setWaveformPort(mc.port1);
+    }
     worker.onmax = v => {
         wf.push(v, (v < 0.0001) ? 1 : 3);
     };

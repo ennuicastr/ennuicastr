@@ -165,6 +165,10 @@ class InputProcessorWorker
         return this.rpc("init", [opts], transfer);
     }
 
+    setWaveformPort(port: MessagePort): Promise<void> {
+        return this.rpc("setWaveformPort", [port], [port]);
+    }
+
     setOpts(opts: Partial<ifInproc.InProcOptsBasic>): Promise<void> {
         return this.rpc("setOpts", [opts]);
     }
@@ -207,6 +211,8 @@ export async function localProcessing(idx: number): Promise<void> {
         });
     }
 
+    let worker: InputProcessorWorker | undefined;
+
     // Create a display for it, either in the main waveform wrapper or the studio location
     let studio = (ui.ui.video.mode === ui.ViewMode.Studio);
     let wd: waveform.Waveform;
@@ -227,6 +233,12 @@ export async function localProcessing(idx: number): Promise<void> {
                 "self", audio.sentRecently, audio.ac.sampleRate / 1024,
                 ui.ui.wave.wrapper, ui.ui.wave.watcher
             );
+        }
+
+        if (worker) {
+            const mc = new MessageChannel();
+            wd.setWaveformPort(mc.port2);
+            worker.setWaveformPort(mc.port1);
         }
     }
     studioSwapped();
@@ -257,7 +269,7 @@ export async function localProcessing(idx: number): Promise<void> {
         ecBackChannelMC = new MessageChannel();
 
     // Create the worker
-    const worker = new InputProcessorWorker({
+    worker = new InputProcessorWorker({
         inSampleRate: cap.ac.sampleRate,
         renderSampleRate: audio.ac.sampleRate,
         channel: input.channel,
@@ -269,6 +281,12 @@ export async function localProcessing(idx: number): Promise<void> {
         vadNoiseGate,
         ecOutput: audio.useDualEC
     });
+
+    {
+        const mc = new MessageChannel();
+        wd.setWaveformPort(mc.port2);
+        worker.setWaveformPort(mc.port1);
+    }
 
     // Accept state updates
     worker.onvadstate = (raw, rtc, merged) => {

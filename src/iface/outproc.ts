@@ -60,6 +60,12 @@ export interface OutputProcessor {
     init(opts: OutProcOpts): void;
 
     /**
+     * Set a message port on which waveform data will be sent (maximums and
+     * VAD).
+     */
+    setWaveformPort(port: MessagePort): void;
+
+    /**
      * Update whether to send max data.
      */
     setMax(to: boolean): void;
