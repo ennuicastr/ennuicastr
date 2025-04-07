@@ -120,7 +120,6 @@ class InputProcessor
 
             // If we loaded Vosk, it can finish loading in the background
             if (opts.useTranscription) {
-                // FIXME: This won't actually load like this! (maybe?)
                 __filename = voskPath;
                 importScripts(__filename);
                 this.loadVosk();
