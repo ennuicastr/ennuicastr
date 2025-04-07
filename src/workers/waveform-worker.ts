@@ -152,8 +152,10 @@ class Waveform {
 
                 const curAnimationFrame = performance.now();
 
-                if (curAnimationFrame >= lastAnimationFrame + 40) {
-                    lastAnimationFrame = curAnimationFrame;
+                if (curAnimationFrame >= lastAnimationFrame + ifWaveform.frameTime) {
+                    lastAnimationFrame += ifWaveform.frameTime;
+                    if (lastAnimationFrame < curAnimationFrame - ifWaveform.frameTime)
+                        lastAnimationFrame = curAnimationFrame;
 
                     // Draw
                     for (const w of toDisplay)

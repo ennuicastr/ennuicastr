@@ -23,6 +23,18 @@
 // Width of the peak meter
 export const peakWidth = 6;
 
+// Target FPS for display
+export const fps = 25;
+
+// Frame time in ms
+export const frameTime = 1000 / fps;
+
+// Target number of samples per frame
+export const samplesPerFrame = 2;
+
+// Target number of samples per second
+export const sps = fps * samplesPerFrame;
+
 export interface WaveformWorker {
     newWaveform(
         id: number,

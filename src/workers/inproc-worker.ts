@@ -71,6 +71,7 @@ class InputProcessor
 
         this._ready = false;
         this._inSampleRate = opts.inSampleRate;
+        this._maxPer = Math.round(opts.inSampleRate / ifWaveform.sps);
         this._renderSampleRate = opts.renderSampleRate;
         this._vadStep = opts.inSampleRate / 32000;
         this.setOpts(opts);
@@ -382,7 +383,7 @@ class InputProcessor
                 let v = ib[i];
                 if (v < 0) v = -v;
                 if (v > this._max) this._max = v;
-                if (++this._maxCtr >= 1024) {
+                if (++this._maxCtr >= this._maxPer) {
                     // Send a max count
                     if (this._waveformRecv) {
                         this._waveformRecv.push(
@@ -520,6 +521,9 @@ class InputProcessor
     private _vadOn = false;
     private _max = 0;
     private _maxCtr = 0;
+
+    // How frequently to send a max event
+    private _maxPer = 0;
 
     private _waveformRecv?: WaveformReceiver;
 

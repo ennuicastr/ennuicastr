@@ -73,28 +73,20 @@ class OutputProcessor
         this._outHandler = new outh.OutHandler(opts.output);
         this._inHandler = new inh.InHandler(opts.input, this.ondata.bind(this));
 
-        // Prepare to send the max even if we don't have data
+        // Prepare to send the max
         setInterval(() => {
             if (!this._doMax) return;
 
-            const sendZero = () => {
-                if (this._waveformRecv)
-                    this._waveformRecv.push(0, 1);
-                else
-                    this.max(0);
-            }
-
-            if (this._sentMax >= 0) {
-                this._sentMax--;
-                return;
-            } else if (this._sentMax === 0) {
-                // Now send the maxes, but really, send the whole buffer we missed
-                for (let i = 1; i < bufferMax; i++)
-                    sendZero();
-                this._sentMax--;
-            }
-            sendZero();
-        }, 1024000 / opts.sampleRate);
+            const max = this._max;
+            this._max = 0;
+            if (this._waveformRecv)
+                this._waveformRecv.push(
+                    max,
+                    (this._receiving || max >= 0.0001) ? 3 : 1
+                );
+            else
+                this.max(max);
+        }, 1000 / ifWaveform.sps);
     }
 
     ondata(ts: number, data: Float32Array[]) {
@@ -110,22 +102,9 @@ class OutputProcessor
                     let v = ib[i];
                     if (v < 0) v = -v;
                     if (v > max) max = v;
-                    if (++this._maxCtr >= 1024) {
-                        // Send a max count
-                        if (this._waveformRecv) {
-                            this._waveformRecv.push(
-                                max,
-                                (max < 0.0001) ? 1 : 3
-                            );
-                        } else {
-                            this.max(max);
-                        }
-                        this._sentMax = bufferMax;
-                        max = this._max = this._maxCtr = 0;
-                    } else {
-                        this._max = max;
-                    }
                 }
+                this._max = max;
+                this._receiving = true;
             }
 
             if (this._doCompress) {
@@ -201,8 +180,7 @@ class OutputProcessor
     private _gain = 1;
 
     private _max = 0;
-    private _maxCtr = 0;
-    private _sentMax = 0;
+    private _receiving = false;
 
     private _la?: LibAVT.LibAV;
     private _frame = 0;
