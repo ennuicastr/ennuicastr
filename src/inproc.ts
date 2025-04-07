@@ -270,6 +270,7 @@ export async function localProcessing(idx: number): Promise<void> {
 
     // Create the worker
     worker = new InputProcessorWorker({
+        baseURL: config.baseURL.toString(),
         inSampleRate: cap.ac.sampleRate,
         renderSampleRate: audio.ac.sampleRate,
         channel: input.channel,

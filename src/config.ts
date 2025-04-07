@@ -39,8 +39,14 @@ export const features = {
     "nonDualEC": 0x2000
 };
 
+// Base URL from which to load things when an absolute path is needed
+export const baseURL = new URL(window.location.href);
+baseURL.hash = "";
+baseURL.search = "";
+baseURL.pathname = baseURL.pathname.replace(/\/[^\/]*$/, "");
+
 // Configuration parameters come out of the URL search query
-export const url = new URL(<any> window.location);
+export const url = new URL(window.location.href);
 const params = new URLSearchParams(url.search);
 
 // Configuration information

@@ -43,7 +43,7 @@ const libspecbleachPath = `libspecbleach-${libspecbleachVersion}.js`;
 
 const voskPath = "vosk.js?v=3";
 const voskModelVersion = "en-us-0.15";
-const voskModelPath = `vosk-model-small-${voskModelVersion}.tar.gz`;
+const voskModelPath = `libs/vosk-model-small-${voskModelVersion}.tar.gz`;
 
 const vadBufSz = 640 /* 20ms at 32000Hz */;
 
@@ -68,6 +68,7 @@ class InputProcessor
 {
     init(opts: ifInproc.InProcOpts): void {
         this._reverse = new rpcTarget.RPCTarget(opts.reverse);
+        this._baseURL = opts.baseURL;
 
         this._ready = false;
         this._inSampleRate = opts.inSampleRate;
@@ -452,7 +453,7 @@ class InputProcessor
     // Load the Vosk model in the background
     async loadVosk() {
         const vosk = this._vosk;
-        const model = await Vosk.createModel(voskModelPath);
+        const model = await Vosk.createModel(`${this._baseURL}/${voskModelPath}`);
 
         vosk.model = model;
         vosk.recognizer = new vosk.model.KaldiRecognizer(this._inSampleRate);
@@ -490,6 +491,7 @@ class InputProcessor
 
     private _ser: Promise<unknown> = Promise.all([]);
     private _reverse?: rpcTarget.RPCTarget;
+    private _baseURL = "";
 
     private _ready = false;
     private _inSampleRate = 48000;
