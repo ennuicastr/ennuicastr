@@ -657,7 +657,7 @@ export function mkAudioUI(): string {
      * INPUT CONFIGURATION
      *******************/
     function inputChange() {
-        // FIXME
+        // FIXME (when multiple inputs are added)
         audio.inputs[0].setInputDevice(input.device.value);
     }
 
@@ -1051,12 +1051,6 @@ export function mkAudioUI(): string {
         // Reset UI elements
         ui.video.selected = ui.video.major = -1;
         ui.video.css.innerHTML = "";
-        /* FIXME?
-        if (mode === uiFE.ViewMode.Small)
-            ui.wrapper.insertBefore(ui.dock, ui.log.wrapper);
-        else
-            ui.wrapper.insertBefore(ui.dock, ui.wave.wrapper);
-        */
 
         // And update other components
         uiFE.updateVideoUI(0);
