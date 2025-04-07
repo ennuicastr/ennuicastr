@@ -220,14 +220,14 @@ export async function localProcessing(idx: number): Promise<void> {
         if (studio) {
             const user = ui.ui.video.users[net.selfId];
             if (!user) {
-                studio = false;
-                studioSwapped();
-            } else {
-                wd = new waveform.Waveform(
-                    "self", audio.sentRecently, audio.ac.sampleRate / 1024,
-                    user.waveformWrapper, null
-                );
+                util.events.addEventListener("ui.self", studioSwapped);
+                return;
             }
+
+            wd = new waveform.Waveform(
+                "self", audio.sentRecently, audio.ac.sampleRate / 1024,
+                user.waveformWrapper, null
+            );
         } else {
             wd = new waveform.Waveform(
                 "self", audio.sentRecently, audio.ac.sampleRate / 1024,
@@ -282,7 +282,7 @@ export async function localProcessing(idx: number): Promise<void> {
         ecOutput: audio.useDualEC
     });
 
-    {
+    if (wd) {
         const mc = new MessageChannel();
         wd.setWaveformPort(mc.port2);
         worker.setWaveformPort(mc.port1);

@@ -882,6 +882,7 @@ util.events.addEventListener("net.info." + prot.info.id, function(ev: CustomEven
     userListAdd(val, config.username, "master" in config.config);
     const user = ui.panels.userList.users[val];
     user.connectionInfo.style.backgroundColor = "var(--user-list-conn-reliable)";
+    util.dispatchEvent("ui.self");
 });
 
 
