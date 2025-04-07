@@ -166,6 +166,13 @@ class WaveformWorker
         wv.statsBox.innerText = text;
     }
 
+    setRotate(id: number, to: boolean): void {
+        const wv = allWaveforms[id];
+        if (!wv) return;
+        if (!wv.watcher) return;
+        wv.watcher.style.display = to ? "none" : "";
+    }
+
     private _resizeObserver: ResizeObserver;
 }
 

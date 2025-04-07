@@ -254,15 +254,13 @@ class Waveform {
         // Rotate if our view is vertical
         if (w/h < 4/3) {
             if (!this.rotate) {
-                // FIXME
-                // if (this.watcher) this.watcher.style.visibility = "hidden";
                 this.rotate = true;
+                workerHandler.setRotate(this.id, true);
             }
         } else {
             if (this.rotate) {
-                // FIXME
-                // if (this.watcher) this.watcher.style.visibility = "";
                 this.rotate = false;
+                workerHandler.setRotate(this.id, false);
             }
         }
 
@@ -564,6 +562,10 @@ class WaveformWorker
 
     async waveformStats(id: number, text: string): Promise<void> {
         this._reverse.rpcv("waveformStats", [id, text]);
+    }
+
+    async setRotate(id: number, to: boolean): Promise<void> {
+        this._reverse.rpcv("setRotate", [id, to]);
     }
 }
 

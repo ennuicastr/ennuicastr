@@ -76,4 +76,5 @@ export interface WaveformReceiver {
 
 export interface WaveformWorkerRev {
     waveformStats(id: number, text: string): void;
+    setRotate(id: number, to: boolean): void;
 }
