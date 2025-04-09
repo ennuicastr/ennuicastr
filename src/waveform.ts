@@ -28,6 +28,7 @@ import * as ifWaveform from "./iface/waveform";
 import * as audio from "./audio";
 import * as config from "./config";
 import * as net from "./net";
+import { prot } from "./protocol";
 import * as ui from "./ui";
 import * as util from "./util";
 import * as workers from "./workers";
@@ -307,6 +308,14 @@ export class Waveform {
     }
 }
 
-export function setWaveVADColors(to: string): void {
-    getWaveformWorker().setWaveVADColors(config.waveVADColorSets[to]);
+// Set the VAD colors based on the mode
+function setWaveVADColors() {
+    // Make it visible in the waveform
+    const wvms = ((net.mode === prot.mode.rec) ? "r" : "s") +
+                 (config.useContinuous ? "c" : "v");
+    getWaveformWorker().setWaveVADColors(config.waveVADColorSets[wvms]);
 }
+
+util.events.addEventListener("net.info." + prot.ids.mode, setWaveVADColors);
+if (net.mode !== prot.mode.init)
+    setWaveVADColors();

@@ -24,7 +24,6 @@ import * as config from "./config";
 import * as log from "./log";
 import { prot } from "./protocol";
 import * as util from "./util";
-import * as waveform from "./waveform"; // FIXME
 
 /* We have multiple connections to the server:
  * One for pings,
@@ -296,11 +295,6 @@ function dataSockMsg(ev: MessageEvent) {
                 {
                     // Set the mode
                     mode = val;
-
-                    // Make it visible in the waveform
-                    const wvms = ((val === prot.mode.rec) ? "r" : "s") +
-                                 (config.useContinuous ? "c" : "v");
-                    waveform.setWaveVADColors(wvms);
 
                     // Update the status
                     log.popStatus("mode");
