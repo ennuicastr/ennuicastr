@@ -337,7 +337,6 @@ export async function localProcessing(idx: number): Promise<void> {
         util.events.addEventListener(st, stateChanged);
     }
 
-    // FIXME: This should be done worker-to-worker
     worker.onmax = v => {
         // Waveform data
 
@@ -353,7 +352,7 @@ export async function localProcessing(idx: number): Promise<void> {
         ui.caption(net.selfId, text, false, complete);
 
         // Send it to peers
-        // FIXME: Irrelevant now?
+        // FIXME: Replace caption comms
         //util.dispatchEvent("proc.caption", msg);
 
         // Send it to the server
@@ -416,7 +415,6 @@ export async function localProcessing(idx: number): Promise<void> {
     })();
 
     // Restart if we change devices
-    // FIXME: This should probably be done elsewhere
     util.events.addEventListener("usermediastopped" + idx, function() {
         backChannel.close();
         cap.capture.close();

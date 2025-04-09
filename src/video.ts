@@ -157,15 +157,6 @@ export function shareVideo(id: string, res: number): Promise<unknown> {
 
         updateVideoButtons();
 
-        /* FIXME?
-        if (!config.useRTC) {
-            // We only *show* video if we have it
-            ui.ui.video.mainWrapper.style.display = userMediaVideo ? "" : "none";
-            ui.updateVideoUI(net.selfId);
-            ui.resizeUI();
-        }
-        */
-
     }).catch(() => {
         log.pushStatus("video", "Failed to capture video!", {
             timeout: 10000
