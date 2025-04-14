@@ -125,11 +125,6 @@ export class Jitsi implements comm.BroadcastComms {
                 this.speech(ev.detail.status);
         });
 
-        // Send captions when they're generated
-        util.events.addEventListener("proc.caption", (ev: CustomEvent) => {
-            this.caption(ev.detail.complete, ev.detail.result.text || ev.detail.result.partial);
-        });
-
         // Major user
         util.events.addEventListener("ui.video.major", () => {
             this.setMajor(ui.ui.video.major);
@@ -664,37 +659,6 @@ export class Jitsi implements comm.BroadcastComms {
 
         // Send it
         this.broadcast(msg);
-    }
-
-    // Last sent caption
-    lastCaption = "";
-
-    // Send a caption over RTC
-    caption(complete: boolean, text: string): void {
-        // Maybe it's an append
-        let append = false;
-        if (this.lastCaption &&
-            text.slice(0, this.lastCaption.length) === this.lastCaption) {
-            append = true;
-            const newText = text.slice(this.lastCaption.length);
-            this.lastCaption = text;
-            text = newText;
-        } else {
-            this.lastCaption = complete ? "" : text;
-        }
-
-        if (text === "")
-            return;
-
-        // Build the message
-        const textBuf = util.encodeText(text);
-        const p = prot.parts.caption.cc;
-        const msg = new DataView(new ArrayBuffer(p.length + textBuf.length));
-        msg.setUint32(0, prot.ids.caption, true);
-        msg.setUint8(p.append, +append);
-        msg.setUint8(p.complete, +complete);
-        (new Uint8Array(msg.buffer)).set(textBuf, p.text);
-        this.broadcast(new Uint8Array(msg.buffer));
     }
 
     // Set the "major" (primary speaker) for video quality

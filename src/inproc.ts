@@ -353,7 +353,7 @@ export async function localProcessing(idx: number): Promise<void> {
 
         // Send it to peers
         // FIXME: Replace caption comms
-        //util.dispatchEvent("proc.caption", msg);
+        util.dispatchEvent("inproc.caption", result);
 
         // Send it to the server
         if (complete && result.result && audio.timeOffset &&

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024 Yahweasel
+ * Copyright (c) 2018-2025 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -163,6 +163,14 @@ export class CTCP implements
             }
 
             return buffered;
+        });
+
+        // Send captions when they're generated
+        util.events.addEventListener("inproc.caption", (ev: CustomEvent) => {
+            this.caption(
+                !!ev.detail.text,
+                ev.detail.text || ev.detail.partial
+            );
         });
     }
 
@@ -393,6 +401,37 @@ export class CTCP implements
 
         onnegotiationneeded();
     }
+
+    lastCaption = "";
+
+    // Send a caption over CTCP
+    caption(complete: boolean, text: string): void {
+        // Maybe it's an append
+        let append = false;
+        if (this.lastCaption &&
+            text.slice(0, this.lastCaption.length) === this.lastCaption) {
+            append = true;
+            const newText = text.slice(this.lastCaption.length);
+            this.lastCaption = text;
+            text = newText;
+        } else {
+            this.lastCaption = complete ? "" : text;
+        }
+
+        if (text === "")
+            return;
+
+        // Build the message
+        const textBuf = util.encodeText(text);
+        const p = prot.parts.caption.cc;
+        const msg = new DataView(new ArrayBuffer(p.length + textBuf.length));
+        msg.setUint32(0, prot.ids.caption, true);
+        msg.setUint8(p.append, +append);
+        msg.setUint8(p.complete, +complete);
+        (new Uint8Array(msg.buffer)).set(textBuf, p.text);
+        this.broadcast(new Uint8Array(msg.buffer));
+    }
+
 }
 
 // Whether using Ennuicastr CTCP or some other CTCP, prepare for events

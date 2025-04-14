@@ -47,7 +47,7 @@ export interface CTCPComms extends Comms {
     /**
      * Send this message.
      */
-    send(peer: number, msg: Uint8Array): Promise<void>;
+    send(peer: number, msg: any): Promise<void>;
 }
 
 /**
@@ -57,7 +57,7 @@ export interface BroadcastComms extends Comms {
     /**
      * Broadcast this message.
      */
-    broadcast(msg: Uint8Array): Promise<void>;
+    broadcast(msg: any): Promise<void>;
 }
 
 /**

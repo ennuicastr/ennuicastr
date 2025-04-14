@@ -130,11 +130,16 @@ export function popStatus(id: string): void {
 }
 
 function updateStatus(remove: StatusMessage, add: StatusMessage) {
+    if (!ui.ui.log)
+        return;
     const w = ui.ui.log.wrapper;
     if (!w)
         return;
-    if (remove)
-        w.removeChild(remove.el);
+    if (remove) {
+        try {
+            w.removeChild(remove.el);
+        } catch (ex) {}
+    }
     if (add)
         w.appendChild(add.el);
 

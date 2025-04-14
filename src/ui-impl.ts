@@ -28,6 +28,7 @@ import * as log from "./log";
 import * as master from "./master";
 import * as net from "./net";
 import * as outproc from "./outproc";
+import { prot } from "./protocol";
 import * as ptt from "./ptt";
 import * as uiFE from "./ui";
 import { ui } from "./ui";
@@ -1142,4 +1143,20 @@ util.events.addEventListener("audio.mute", function() {
         muteB.setAttribute("aria-label", "Unmute");
 
     }
+});
+
+// Update captions when received
+util.netEvent("ctcpSock", "" + prot.ids.caption, ev => {
+    const peer: number = ev.detail.peer;
+    const msg: DataView = ev.detail.msg;
+
+    // Incoming caption
+    const p = prot.parts.caption.cc;
+    if (msg.byteLength < p.length) return;
+    const append = !!msg.getUint8(p.append);
+    const complete = !!msg.getUint8(p.complete);
+    try {
+        const text = util.decodeText(new Uint8Array(msg.buffer).subarray(p.text));
+        uiFE.caption(peer, text, append, complete);
+    } catch (ex) {}
 });
