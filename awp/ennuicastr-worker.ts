@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024 Yahweasel
+ * Copyright (c) 2018-2025 Yahweasel
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -268,8 +268,6 @@ function doEncoder(msg: any) {
     const inSampleRate: number = msg.inSampleRate || 48000;
     const outSampleRate: number = msg.outSampleRate || 48000;
     const format: string = msg.format || "opus";
-    const channelLayout: number = msg.channelLayout || 4;
-    const channelCount: number = msg.channelCount || 1;
 
     let channel: number = (typeof msg.channel === "number") ? msg.channel : -1;
     let outputChannelLayout: number = (typeof msg.outputChannelLayout === "number") ? msg.outputChannelLayout : 4;
@@ -288,7 +286,10 @@ function doEncoder(msg: any) {
         let libav: LibAVT.LibAV;
 
         let c: number, frame: number, pkt: number;
-        let buffersrc_ctx: number, buffersink_ctx: number;
+        let channelCount = -1;
+        let channelLayout = 0;
+        let filterGraph = 0;
+        let buffersrc_ctx = 0, buffersink_ctx = 0;
 
         // Load libav
         global.LibAV = <any> {nolibavworker: true, base: "../libav"};
@@ -317,23 +318,43 @@ function doEncoder(msg: any) {
                 time_base: [1, outSampleRate]
             });
 
-        // Create the filter
-        [, buffersrc_ctx, buffersink_ctx] =
-            await libav.ff_init_filter_graph("anull", {
-                sample_rate: inSampleRate,
-                sample_fmt: libav.AV_SAMPLE_FMT_FLTP,
-                channel_layout: channelLayout
-            }, {
-                sample_rate: encOptions.sample_rate,
-                sample_fmt: encOptions.sample_fmt,
-                channel_layout: outputChannelLayout,
-                frame_size: encOptions.frame_size
-            });
-
         // Now we're prepared for input
         new InHandler(port, ondata);
 
         function ondata(ts: number, data: Float32Array[]) {
+            if (channelCount !== data.length) {
+                // Reinitialize with the correct channel count
+                if (filterGraph) {
+                    libav.avfilter_graph_free_js(filterGraph);
+                    filterGraph = 0;
+                }
+
+                channelCount = data.length;
+                channelLayout = 4;
+                if (channelCount > 1)
+                    channelLayout = Math.pow(2, channelCount) - 1;
+
+                // Create the filter in the background
+                (async () => {
+                    [filterGraph, buffersrc_ctx, buffersink_ctx] =
+                        await libav.ff_init_filter_graph("anull", {
+                            sample_rate: inSampleRate,
+                            sample_fmt: libav.AV_SAMPLE_FMT_FLTP,
+                            channel_layout: channelLayout
+                        }, {
+                            sample_rate: encOptions.sample_rate,
+                            sample_fmt: encOptions.sample_fmt,
+                            channel_layout: outputChannelLayout,
+                            frame_size: encOptions.frame_size
+                        });
+                })();
+            }
+
+            if (!filterGraph) {
+                // Filter graph not yet initialized
+                return;
+            }
+
             // Put it in libav format
             if (channel >= 0 && data.length > channel)
                 data = [data[channel]];
