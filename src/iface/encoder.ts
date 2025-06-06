@@ -47,11 +47,6 @@ export interface EncoderOpts {
     outChannelLayout?: number;
 
     /**
-     * Number of channels.
-     */
-    channelCount: number;
-
-    /**
      * Input channel to encode. Can be -1 to keep all channels, though this
      * won't work with Opus.
      */

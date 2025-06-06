@@ -50,8 +50,6 @@ class Encoder
 
         const {
             channel,
-            channelCount,
-            channelLayout,
             format,
             inSampleRate,
             outSampleRate
@@ -59,9 +57,7 @@ class Encoder
 
         const outputChannelLayout = this.opts!.outChannelLayout
             ? this.opts!.outChannelLayout
-            : this.opts!.channel
-            ? 4
-            : this.opts!.channelLayout;
+            : 4;
 
         let p: Promise<unknown> = Promise.all([]);
         let pts = 0;
@@ -70,7 +66,10 @@ class Encoder
         let libav: LibAVT.LibAV;
 
         let c: number, frame: number, pkt: number;
-        let buffersrc_ctx: number, buffersink_ctx: number;
+        let channelCount = -1;
+        let channelLayout = 0;
+        let filterGraph = 0;
+        let buffersrc_ctx = 0, buffersink_ctx = 0;
 
         // Load libav
         libav = await LibAV.LibAV({noworker: true});
@@ -95,23 +94,43 @@ class Encoder
                 time_base: [1, outSampleRate]
             });
 
-        // Create the filter
-        [, buffersrc_ctx, buffersink_ctx] =
-            await libav.ff_init_filter_graph("anull", {
-                sample_rate: inSampleRate,
-                sample_fmt: libav.AV_SAMPLE_FMT_FLTP,
-                channel_layout: channelLayout
-            }, {
-                sample_rate: encOptions.sample_rate,
-                sample_fmt: encOptions.sample_fmt,
-                channel_layout: outputChannelLayout,
-                frame_size: encOptions.frame_size
-            });
-
         // Now we're prepared for input
         new inh.InHandler(port, ondata);
 
         function ondata(ts: number, data: Float32Array[]) {
+            if (channelCount !== data.length) {
+                // Reinitialize with the correct channel count
+                if (filterGraph) {
+                    libav.avfilter_graph_free_js(filterGraph);
+                    filterGraph = 0;
+                }
+
+                channelCount = data.length;
+                channelLayout = 4;
+                if (channelCount > 1)
+                    channelLayout = Math.pow(2, channelCount) - 1;
+
+                // Create the filter in the background
+                (async () => {
+                    [filterGraph, buffersrc_ctx, buffersink_ctx] =
+                        await libav.ff_init_filter_graph("anull", {
+                            sample_rate: inSampleRate,
+                            sample_fmt: libav.AV_SAMPLE_FMT_FLTP,
+                            channel_layout: channelLayout
+                        }, {
+                            sample_rate: encOptions.sample_rate,
+                            sample_fmt: encOptions.sample_fmt,
+                            channel_layout: outputChannelLayout,
+                            frame_size: encOptions.frame_size
+                        });
+                })();
+            }
+
+            if (!filterGraph) {
+                // Filter graph not yet initialized
+                return;
+            }
+
             // Put it in libav format
             if (channel >= 0 && data.length > channel)
                 data = [data[channel]];

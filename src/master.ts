@@ -104,19 +104,19 @@ export function createMasterInterface(): void {
 
     // Accept remote recordings
     masterUI.acceptRemoteVideo.checked =
-        masterUI.downloadVideoLive.checked =
         config.useVideoRec;
+    masterUI.downloadVideoLive.checked = false;
     ui.saveConfigCheckbox(masterUI.acceptRemoteVideo,
         "master-video-record-host-" + config.useVideoRec,
         acceptRemoteVideoChange);
     ui.saveConfigCheckbox(masterUI.downloadVideoLive,
-        "master-video-download-live-" + config.useVideoRec);
+        "master-video-download-live2-" + config.useVideoRec);
 
     // Possibly cloud save
     masterUI.saveVideoInCloud.checked = false;
     ui.saveConfigCheckbox(
         masterUI.saveVideoInCloud,
-        "master-video-save-in-cloud-" + config.useVideoRec,
+        "master-video-save-in-cloud2-" + config.useVideoRec,
         async ev => {
             await initCloudStorage({ignoreCookieProvider: true}).transientActivation.promise;
             if (ui.needTransientActivation()) {
@@ -136,7 +136,7 @@ export function createMasterInterface(): void {
     } else {
         ui.saveConfigCheckbox(
             masterUI.saveVideoInFSDH,
-            "master-video-save-in-fsdh-" + config.useVideoRec,
+            "master-video-save-in-fsdh2-" + config.useVideoRec,
             async ev => {
                 await initFSDHStorage({ignoreCookieDir: true}).transientActivation.promise;
                 if (ui.needTransientActivation()) {
