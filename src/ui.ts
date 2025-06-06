@@ -370,10 +370,16 @@ export const ui = {
             // PTT button
             ptt: HTMLButtonElement,
 
+            // Advanced mode
+            advancedChk: HTMLInputElement,
+            advancedBox: HTMLElement,
+
             // Options
             noiserHider: HTMLElement,
             noiser: HTMLInputElement,
             echo: HTMLInputElement,
+            echoAffectsRec: HTMLElement,
+            echoNoAffectsRec: HTMLElement,
             dualEC: HTMLInputElement,
             agcHider: HTMLElement,
             agc: HTMLInputElement,

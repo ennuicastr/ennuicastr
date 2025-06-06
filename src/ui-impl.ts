@@ -532,9 +532,13 @@ function loadInputConfig() {
         channelHider: gebi("ec3-input-channel-hider"),
         channel: gebi("ec3-input-channel-sel"),
         ptt: gebi("ec3-ptt-btn"),
+        advancedChk: gebi("ec3-input-advanced-settings-chk"),
+        advancedBox: gebi("ec3-input-advanced-settings"),
         noiserHider: gebi("ec3-noise-reduction-hider"),
         noiser: gebi("ec3-noise-reduction-chk"),
         echo: gebi("ec3-echo-cancellation-chk"),
+        echoAffectsRec: gebi("ec3-echo-cancellation-affects-recording"),
+        echoNoAffectsRec: gebi("ec3-echo-cancellation-no-affects-recording"),
         dualEC: gebi("ec3-dual-ec-chk"),
         agcHider: gebi("ec3-agc-hider"),
         agc: gebi("ec3-agc-chk"),
@@ -690,6 +694,12 @@ export function mkAudioUI(): string {
     else
         input.ptt.style.display = "none";
 
+    input.advancedChk.checked = false;
+    input.advancedChk.onchange = function() {
+        input.advancedBox.style.display =
+            input.advancedChk.checked ? "" : "none";
+    };
+
     function noiserChange() {
         inproc.setUseNR(input.noiser.checked);
     }
@@ -697,6 +707,7 @@ export function mkAudioUI(): string {
     uiFE.saveConfigCheckbox(input.noiser, "noise-reduction3", noiserChange);
     noiserChange();
 
+    input.agcHider.style.display = "none";
     if (mobile) {
         input.echo.checked = true;
         input.agcHider.style.display = "";
@@ -705,10 +716,21 @@ export function mkAudioUI(): string {
     uiFE.saveConfigCheckbox(input.echo, "echo-cancellation3", function() {
         audio.setUseEC(input.echo.checked);
     });
+
+    function showHideECAffectsRecording() {
+        const dualEC = input.dualEC.checked;
+        input.echoAffectsRec.style.display =
+            dualEC ? "none" : "";
+        input.echoNoAffectsRec.style.display =
+            dualEC ? "" : "none";
+    }
+
     input.dualEC.checked = config.useDualECDefault;
     uiFE.saveConfigCheckbox(input.dualEC, `dual-ec-${config.useDualECDefault}-3`, () => {
         audio.setDualEC(input.dualEC.checked);
+        showHideECAffectsRecording();
     });
+    showHideECAffectsRecording();
     uiFE.saveConfigCheckbox(input.agc, "agc3", inputChange);
 
     function vadSensitivityChange() {

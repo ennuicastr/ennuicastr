@@ -679,6 +679,15 @@ body {
     height: 100%;
 }
 
+#ec3-input-advanced-settings-chk:after {
+    content: "\ebc0";
+}
+
+#ec3-input-advanced-settings-chk:checked:after {
+    content: "\eb8b";
+}
+
+
 /* SMALL SCREEN */
 @media screen and (max-width: 640px) {
     .crflex {
