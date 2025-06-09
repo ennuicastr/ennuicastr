@@ -709,13 +709,9 @@ export function mkAudioUI(): string {
 
     input.agcHider.style.display = "none";
     if (mobile) {
-        input.echo.checked = true;
         input.agcHider.style.display = "";
         input.agc.checked = true;
     }
-    uiFE.saveConfigCheckbox(input.echo, "echo-cancellation3", function() {
-        audio.setUseEC(input.echo.checked);
-    });
 
     function showHideECAffectsRecording() {
         const dualEC = input.dualEC.checked;
@@ -725,13 +721,24 @@ export function mkAudioUI(): string {
             dualEC ? "" : "none";
     }
 
+    function setEC(to: boolean) {
+        input.echo.checked = to;
+        audio.setUseEC(to);
+    }
+
     input.dualEC.checked = config.useDualECDefault;
     uiFE.saveConfigCheckbox(input.dualEC, `dual-ec-${config.useDualECDefault}-3`, () => {
         audio.setDualEC(input.dualEC.checked);
         showHideECAffectsRecording();
+        setEC(input.dualEC.checked);
     });
     showHideECAffectsRecording();
     uiFE.saveConfigCheckbox(input.agc, "agc3", inputChange);
+
+    input.echo.checked = input.dualEC.checked || mobile;
+    uiFE.saveConfigCheckbox(input.echo, "echo-cancellation4", function() {
+        setEC(input.echo.checked);
+    });
 
     function vadSensitivityChange() {
         inproc.setVadSensitivity(4 - (+input.vadSensitivity.value));
