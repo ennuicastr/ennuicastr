@@ -431,12 +431,12 @@
             </button>
 
             <div class="rflex row">
-                <label for="ec3-input-device-sel" class="left-label" style="min-width: 8em; max-width: 8em;">Input device <i class="bx bxs-microphone-alt"></i>:&nbsp;</label>
+                <label for="ec3-input-device-sel" class="left-label" style="min-width: 8em; max-width: 8em;">Input device <i class="bx bxs-microphone-alt" aria-label="Affects recording"></i>:&nbsp;</label>
                 <select id="ec3-input-device-sel" style="flex: auto;"></select>
             </div>
 
             <div class="rflex row">
-                <label for="ec3-vad-noise-gate-rng" class="left-label" style="min-width: 8em; max-width: 8em; margin-top: 0.125em;">Noise gate <i class="bx bxs-microphone-alt"></i>:&nbsp;</label>
+                <label for="ec3-vad-noise-gate-rng" class="left-label" style="min-width: 8em; max-width: 8em; margin-top: 0.125em;">Noise gate <i class="bx bxs-microphone-alt" aria-label="Affects recording"></i>:&nbsp;</label>
                 <input id="ec3-vad-noise-gate-rng" type="range" min=-100 max=0 value=-100 class="ec3-peak-horizontal-self" style="flex: auto; width: 5em;" />
                 <span id="ec3-vad-noise-gate-status" style="margin-top: 0.125em;">&nbsp;-100dB</span>
             </div>
@@ -448,17 +448,17 @@
                 <label for="ec3-echo-cancellation-chk">
                     &nbsp;Apply echo cancellation
                     <span id="ec3-echo-cancellation-affects-recording">
-                        <i class="bx bxs-microphone-alt"></i>
+                        <i class="bx bxs-microphone-alt" aria-label="Affects recording"></i>
                     </span>
                     <span id="ec3-echo-cancellation-no-affects-recording">
-                        <i class="bx bx-phone-call"></i>
+                        <i class="bx bx-phone-call" aria-label="Does not affect recording"></i>
                     </span>
                 </label>
             </div>
 
-            <div class="row">
+            <div class="row" aria-hidden="true">
                 <div style="margin-left: 2em">
-                    <i class="bx bxs-microphone-alt"></i>: Affects recording<br/>
+                    <i class="bx bxs-microphone-alt" aria-label="Affects recording"></i>: Affects recording<br/>
                     <i class="bx bx-phone-call"></i>: Affects live voice, but not recording
                 </div>
             </div>
@@ -472,12 +472,12 @@
 
             <div id="ec3-input-advanced-settings" style="display: none">
                 <div id="ec3-input-channel-hider" class="rflex row">
-                    <label for="ec3-input-channel-sel" class="left-label" style="min-width: 8em; max-width: 8em;">Channel <i class="bx bxs-microphone-alt"></i>:&nbsp;</label>
+                    <label for="ec3-input-channel-sel" class="left-label" style="min-width: 8em; max-width: 8em;">Channel <i class="bx bxs-microphone-alt" aria-label="Affects recording"></i>:&nbsp;</label>
                     <select id="ec3-input-channel-sel" style="flex: auto;"></select>
                 </div>
 
                 <div class="rflex row">
-                    <label for="ec3-vad-sensitivity-rng" class="left-label" style="min-width: 8em; max-width: 8em; margin-top: 0;">Voice detection&nbsp;<br/>sensitivity <i class="bx bxs-microphone-alt"></i>:&nbsp;</label>
+                    <label for="ec3-vad-sensitivity-rng" class="left-label" style="min-width: 8em; max-width: 8em; margin-top: 0;">Voice detection&nbsp;<br/>sensitivity <i class="bx bxs-microphone-alt" aria-label="Affects recording"></i>:&nbsp;</label>
                     <input id="ec3-vad-sensitivity-rng" type="range" min=1 max=4 value=4 style="flex: auto; width: 5em;" />
                     <span id="ec3-vad-sensitivity-status" style="margin-top: 0.75em;">&nbsp;4</span>
                 </div>
@@ -485,21 +485,21 @@
                 <div id="ec3-noise-reduction-hider" class="rflex row">
                     <input type="checkbox" id="ec3-noise-reduction-chk" checked />
                     <label for="ec3-noise-reduction-chk">
-                        &nbsp;Apply noise reduction <i class="bx bx-phone-call"></i>
+                        &nbsp;Apply noise reduction <i class="bx bx-phone-call" aria-label="Does not affect recording"></i>
                     </label>
                 </div>
 
                 <div class="rflex row">
                     <input type="checkbox" id="ec3-dual-ec-chk" checked />
                     <label for="ec3-dual-ec-chk">
-                        &nbsp;Allow post hoc echo cancellation <i class="bx bxs-microphone-alt"></i>
+                        &nbsp;Allow post hoc echo cancellation <i class="bx bxs-microphone-alt" aria-label="Affects recording"></i>
                     </label>
                 </div>
     
                 <div id="ec3-agc-hider" class="rflex row">
                     <input type="checkbox" id="ec3-agc-chk" />
                     <label for="ec3-agc-chk">
-                        &nbsp;Automatic gain control <i class="bx bxs-microphone-alt"></i>
+                        &nbsp;Automatic gain control <i class="bx bxs-microphone-alt" aria-label="Affects recording"></i>
                     </label>
                 </div>
             </div>
