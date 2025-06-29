@@ -687,7 +687,6 @@ export class Audio {
             outSampleRate: sampleRate,
             format: config.useFlac ? "flac" : "opus",
             channelLayout,
-            channelCount,
             channel: this.channel,
             outChannelLayout: this.encodingChannelLayout
         });
