@@ -263,11 +263,6 @@ export async function localProcessing(idx: number): Promise<void> {
     const backChannelMC = new MessageChannel();
     backChannel.pipe(backChannelMC.port1, true);
 
-    // Prepare the encoding backchannel (encode echo-cancelled data)
-    let ecBackChannelMC: MessageChannel | undefined;
-    if (audio.useDualEC)
-        ecBackChannelMC = new MessageChannel();
-
     // Create the worker
     worker = new InputProcessorWorker({
         baseURL: config.baseURL.toString(),
