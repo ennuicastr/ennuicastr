@@ -131,10 +131,6 @@ class InputProcessorWorker
 
         const opts = <ifInproc.InProcOpts> <any> optsBasic;
 
-        const inputMC = new MessageChannel();
-        this.inputPort = inputMC.port1;
-        opts.input = inputMC.port2;
-
         const renderInputMC = new MessageChannel();
         this.renderInputPort = renderInputMC.port1;
         opts.renderInput = renderInputMC.port2;
@@ -196,7 +192,6 @@ class InputProcessorWorker
         result: ifInproc.TranscriptionResult, complete: boolean
     ) => unknown;
 
-    inputPort: MessagePort;
     renderInputPort: MessagePort;
     outputPort: MessagePort;
     ecOutputPort?: MessagePort;
@@ -204,10 +199,10 @@ class InputProcessorWorker
 
 // All local processing: The VAD, wave display, and noise reduction
 export async function localProcessing(idx: number): Promise<void> {
-    if (!audio.inputs[idx].userMedia) {
+    if (!audio.inputs[idx].userMediaEncoder) {
         // Need our MediaSource first!
         await new Promise<void>(res => {
-            util.events.addEventListener("usermediaready" + idx, ()=>res(), {once: true});
+            util.events.addEventListener("usermediaencoderready" + idx, ()=>res(), {once: true});
         });
     }
 
@@ -247,12 +242,8 @@ export async function localProcessing(idx: number): Promise<void> {
         wd.setSentRecently(audio.sentRecently);
     });
 
-    // Start the capture
     const input = audio.inputs[idx];
-    const cap = await capture.createCapture(audio.ac, {
-        input: input.userMedia,
-        matchSampleRate: true
-    });
+    const cap = input.userMediaEncoder.capture;
 
     // Prepare the backchannel (rendered output)
     const backChannel = await rtennui.createAudioCapture(
@@ -260,12 +251,11 @@ export async function localProcessing(idx: number): Promise<void> {
     );
     audio.ac.ecDestinationDelay.delayTime.value =
         (backChannel.getLatency() + 5) / 1000;
-    const backChannelMC = new MessageChannel();
-    backChannel.pipe(backChannelMC.port1, true);
 
     // Create the worker
     worker = new InputProcessorWorker({
         baseURL: config.baseURL.toString(),
+        input: input.userMediaEncoder.outputChannel.port2,
         inSampleRate: cap.ac.sampleRate,
         renderSampleRate: audio.ac.sampleRate,
         channel: input.channel,
@@ -377,7 +367,6 @@ export async function localProcessing(idx: number): Promise<void> {
 
     };
 
-    cap.capture.pipe(worker.inputPort);
     backChannel.pipe(worker.renderInputPort);
 
     // The output from this is our RTC audio
@@ -390,24 +379,12 @@ export async function localProcessing(idx: number): Promise<void> {
     util.dispatchEvent("usermediartcready", {idx});
     util.dispatchEvent("usermediartcready" + idx, {idx});
 
-    // Connect echo-cancelled data for encoding
-    (async () => {
-        if (!audio.useDualEC)
-            return;
-
-        if (!audio.inputs[idx].userMediaEncoder) {
-            await new Promise(res =>
-                util.events.addEventListener(
-                    "usermediaencoderready" + idx,
-                    res, {once: true}
-                )
-            );
-        }
-
+    // Connect data from the encoder both ways
+    if (audio.useDualEC) {
         audio.inputs[idx].userMediaEncoder.encode(
             worker.ecOutputPort!, audio.ecTrack
         ).catch(net.catastrophicErrorFactory());
-    })();
+    }
 
     // Restart if we change devices
     util.events.addEventListener("usermediastopped" + idx, function() {

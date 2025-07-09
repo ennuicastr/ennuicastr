@@ -390,16 +390,17 @@ class EncoderWorker
         rpcTarget.Async<ifEnc.Encoder>,
         rpcReceiver.RPCReceiver<ifEnc.EncoderRev>
 {
-    constructor() {
+    constructor(public capture: capture.Capture) {
         super(workers.encoderWorker);
 
         const mc = new MessageChannel();
         rpcReceiver.rpcReceiver(this, mc.port2);
         this.reversePort = mc.port1;
+        this.outputChannel = new MessageChannel();
     }
 
     init(opts: ifEnc.EncoderOpts): Promise<void> {
-        return this.rpc("init", [opts], [opts.reverse]);
+        return this.rpc("init", [opts], [opts.reverse, opts.output]);
     }
 
     encode(port: MessagePort, trackNo: number): Promise<void> {
@@ -419,6 +420,7 @@ class EncoderWorker
     ) => unknown;
 
     reversePort: MessagePort;
+    outputChannel: MessageChannel;
 }
 
 /**
@@ -680,9 +682,10 @@ export class Audio {
         });
 
         // Create the encoder
-        const enc = this.userMediaEncoder = new EncoderWorker();
+        const enc = this.userMediaEncoder = new EncoderWorker(cap);
         await enc.init({
             reverse: enc.reversePort,
+            output: enc.outputChannel.port1,
             inSampleRate: cap.ac.sampleRate,
             outSampleRate: sampleRate,
             format: config.useFlac ? "flac" : "opus",

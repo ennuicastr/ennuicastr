@@ -21,6 +21,11 @@ export interface InProcOptsBasic {
     baseURL: string;
 
     /**
+     * Port on which to receive data.
+     */
+    input: MessagePort;
+
+    /**
      * Sample rate of the input device.
      */
     inSampleRate: number;
@@ -60,11 +65,6 @@ export interface InProcOptsBasic {
 }
 
 export interface InProcOpts extends InProcOptsBasic {
-    /**
-     * Port on which to receive data.
-     */
-    input: MessagePort;
-
     /**
      * Port on which to read rendered output data, for echo cancellation.
      */

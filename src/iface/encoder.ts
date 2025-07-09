@@ -21,6 +21,11 @@ export interface EncoderOpts {
     reverse: MessagePort;
 
     /**
+     * Port for passthru data.
+     */
+    output: MessagePort;
+
+    /**
      * Sample rate at which data is received.
      */
     inSampleRate: number;

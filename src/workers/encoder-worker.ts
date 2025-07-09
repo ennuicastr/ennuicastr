@@ -17,6 +17,7 @@
 import * as ifEnc from "../iface/encoder";
 import * as ifLibav from "../iface/libav";
 import * as inh from "./in-handler";
+import * as outh from "./out-handler";
 
 import * as rpcReceiver from "@ennuicastr/mprpc/receiver-worker";
 import * as rpcTarget from "@ennuicastr/mprpc/target";
@@ -39,6 +40,7 @@ class Encoder
     init(opts: ifEnc.EncoderOpts): void {
         this.opts = opts;
         this._reverse = new rpcTarget.RPCTarget(opts.reverse);
+        this._output = new outh.OutHandler(opts.output);
     }
 
     encode(port: MessagePort, trackNo: number): void {
@@ -96,8 +98,11 @@ class Encoder
 
         // Now we're prepared for input
         new inh.InHandler(port, ondata);
+        const outh = trackNo ? null : this._output;
 
         function ondata(ts: number, data: Float32Array[]) {
+            if (outh) outh.send(data);
+
             if (channelCount !== data.length) {
                 // Reinitialize with the correct channel count
                 if (filterGraph) {
@@ -188,6 +193,7 @@ class Encoder
     }
 
     private _reverse?: rpcTarget.RPCTarget;
+    private _output?: outh.OutHandler;
     opts?: ifEnc.EncoderOpts;
 }
 

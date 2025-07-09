@@ -102,6 +102,8 @@ export class InHandler {
 
             return;
 
+        } else {
+            console.error(msg);
         }
     }
 }
