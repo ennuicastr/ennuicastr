@@ -316,6 +316,6 @@ function setWaveVADColors() {
     getWaveformWorker().setWaveVADColors(config.waveVADColorSets[wvms]);
 }
 
-util.events.addEventListener("net.info." + prot.ids.mode, setWaveVADColors);
+util.events.addEventListener("net.info." + prot.info.mode, setWaveVADColors);
 if (net.mode !== prot.mode.init)
     setWaveVADColors();
