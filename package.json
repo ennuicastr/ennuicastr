@@ -21,7 +21,7 @@
     "localforage": "^1.10.0",
     "nonlocal-forage": "^0.2.0",
     "nosleep.js": "^0.12.0",
-    "rtennui": "^0.8.2",
+    "rtennui": "^0.8.3",
     "sha512-es": "^1.8.2",
     "vosk-browser": "0.0.4",
     "web-streams-polyfill": "^3.1.1"
