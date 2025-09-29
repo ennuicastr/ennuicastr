@@ -430,6 +430,14 @@
                 <i class="bx bx-x" aria-hidden="true"></i>
             </button>
 
+            <div class="rflex row" aria-hidden="true">
+                <div style="flex: auto">&nbsp;</div>
+                <div style="border: 1px solid var(--fg-dim); padding: 0.25em;">
+                    <i class="bx bxs-microphone-alt" aria-label="Affects recording"></i>: Affects recording<br/>
+                    <i class="bx bx-phone-call"></i>: <span style="display: inline-block; vertical-align: top;">Affects live voice chat,<br/>but not recording</span>
+                </div>
+            </div>
+
             <div class="rflex row">
                 <label for="ec3-input-device-sel" class="left-label" style="min-width: 8em; max-width: 8em;">Input device <i class="bx bxs-microphone-alt" aria-label="Affects recording"></i>:&nbsp;</label>
                 <select id="ec3-input-device-sel" style="flex: auto;"></select>
@@ -441,7 +449,7 @@
                 <span id="ec3-vad-noise-gate-status" style="margin-top: 0.125em;">&nbsp;-100dB</span>
             </div>
 
-            <button id="ec3-ptt-btn" class="pill-button row"><i class="bx bxs-joystick"></i> Gamepad push-to-talk</button>
+            <button id="ec3-ptt-btn" class="pill-button row"><i class="bx bxs-joystick"></i> Gamepad push-to-talk <i class="bx bxs-microphone-alt" aria-label="Affects recording"></i></button>
 
             <div class="rflex row">
                 <input type="checkbox" id="ec3-echo-cancellation-chk" />
@@ -454,13 +462,6 @@
                         <i class="bx bx-phone-call" aria-label="Does not affect recording"></i>
                     </span>
                 </label>
-            </div>
-
-            <div class="row" aria-hidden="true">
-                <div style="margin-left: 2em">
-                    <i class="bx bxs-microphone-alt" aria-label="Affects recording"></i>: Affects recording<br/>
-                    <i class="bx bx-phone-call"></i>: Affects live voice, but not recording
-                </div>
             </div>
 
             <div class="rflex row">
